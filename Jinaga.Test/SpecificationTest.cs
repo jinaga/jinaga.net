@@ -33,12 +33,41 @@ namespace Jinaga.Test
             Specification<AirlineDay, Flight> activeFlights = Given<AirlineDay>.Match((airlineDay, facts) =>
                 from flight in facts.OfType<Flight>()
                 where flight.AirlineDay == airlineDay
+
                 where facts.None(
                     from cancellation in facts.OfType<FlightCancellation>()
                     where cancellation.Flight == flight
                     select cancellation
                 )
+                
                 select flight
+            );
+        }
+
+        [Fact]
+        public void CanSpecifyProjection()
+        {
+            var bookingsToRefund = Given<Airline>.Match((airline, facts) =>
+                from flight in facts.OfType<Flight>()
+                where flight.AirlineDay.Airline == airline
+
+                from cancellation in facts.OfType<FlightCancellation>()
+                where cancellation.Flight == flight
+
+                from booking in facts.OfType<Booking>()
+                where booking.Flight == flight
+
+                where facts.None(
+                    from refund in facts.OfType<Refund>()
+                    where refund.Booking == booking
+                    select refund
+                )
+
+                select new
+                {
+                    Booking = booking,
+                    Cancellation = cancellation
+                }
             );
         }
     }
