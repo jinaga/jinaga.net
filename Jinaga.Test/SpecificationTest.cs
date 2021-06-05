@@ -53,6 +53,19 @@ namespace Jinaga.Test
         }
 
         [Fact]
+        public void CanSpecifyNamedNegativeExistentialConditions()
+        {
+            Specification<AirlineDay, Flight> activeFlights = Given<AirlineDay>.Match((airlineDay, facts) =>
+                from flight in facts.OfType<Flight>()
+                where flight.AirlineDay == airlineDay
+
+                where !flight.IsCancelled.Compile()(facts)
+
+                select flight
+            );
+        }
+
+        [Fact]
         public void CanSpecifyPositiveExistentialCondition()
         {
             Specification<Airline, Booking> bookingsToRefund = Given<Airline>.Match((airline, facts) =>
@@ -64,6 +77,28 @@ namespace Jinaga.Test
                     where cancellation.Flight == flight
                     select cancellation
                 )
+
+                from booking in facts.OfType<Booking>()
+                where booking.Flight == flight
+
+                where facts.None(
+                    from refund in facts.OfType<Refund>()
+                    where refund.Booking == booking
+                    select refund
+                )
+
+                select booking
+            );
+        }
+
+        [Fact]
+        public void CanSpecifyNamedPositiveExistentialCondition()
+        {
+            Specification<Airline, Booking> bookingsToRefund = Given<Airline>.Match((airline, facts) =>
+                from flight in facts.OfType<Flight>()
+                where flight.AirlineDay.Airline == airline
+
+                where flight.IsCancelled.Compile()(facts)
 
                 from booking in facts.OfType<Booking>()
                 where booking.Flight == flight
