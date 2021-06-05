@@ -28,6 +28,14 @@ namespace Jinaga.Test
         }
 
         [Fact]
+        public void CanSpecifyPredecessorsShorthand()
+        {
+            Specification<FlightCancellation, Flight> specification = Given<FlightCancellation>.Match(flightCancellation =>
+                flightCancellation.Flight
+            );
+        }
+
+        [Fact]
         public void CanSpecifyNegativeExistentialConditions()
         {
             Specification<AirlineDay, Flight> activeFlights = Given<AirlineDay>.Match((airlineDay, facts) =>

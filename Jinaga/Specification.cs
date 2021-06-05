@@ -11,6 +11,16 @@ namespace Jinaga
         {
             throw new NotImplementedException();
         }
+
+        public static Specification<TFact, TProjection> Match<TProjection>(Expression<Func<TFact, FactRepository, TProjection>> spec)
+        {
+            throw new NotImplementedException();
+        }
+        
+        public static Specification<TFact, TProjection> Match<TProjection>(Expression<Func<TFact, TProjection>> spec)
+        {
+            throw new NotImplementedException();
+        }
     }
     public class Specification<TFact, TProjection>
     {
