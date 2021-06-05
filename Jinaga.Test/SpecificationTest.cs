@@ -26,5 +26,20 @@ namespace Jinaga.Test
                 select flight
             );
         }
+
+        [Fact]
+        public void CanSpecifyExistentialConditions()
+        {
+            Specification<AirlineDay, Flight> activeFlights = Given<AirlineDay>.Match((airlineDay, facts) =>
+                from flight in facts.OfType<Flight>()
+                where flight.AirlineDay == airlineDay
+                where facts.None(
+                    from cancellation in facts.OfType<FlightCancellation>()
+                    where cancellation.Flight == flight
+                    select cancellation
+                )
+                select flight
+            );
+        }
     }
 }

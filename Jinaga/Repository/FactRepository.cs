@@ -9,5 +9,10 @@ namespace Jinaga.Repository
         {
             throw new NotImplementedException();
         }
+
+        public bool None<TProjection>(IQueryable<TProjection> childSpecification)
+        {
+            throw new NotImplementedException();
+        }
     }
 }
