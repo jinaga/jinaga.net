@@ -16,5 +16,15 @@ namespace Jinaga.Test
                 select flight
             );
         }
+
+        [Fact]
+        public void CanSpecifyPredecessors()
+        {
+            Specification<FlightCancellation, Flight> specification = Specification.From<FlightCancellation>().To((flightCancellation, facts) =>
+                from flight in facts.OfType<Flight>()
+                where flightCancellation.Flight == flight
+                select flight
+            );
+        }
     }
 }

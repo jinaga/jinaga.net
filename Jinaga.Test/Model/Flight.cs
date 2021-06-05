@@ -19,10 +19,10 @@ namespace Jinaga.Test.Model
         public AirlineDay AirlineDay { get; set; }
         public int FlightNumber { get; set; }
     }
-    [FactType("Skylane.Flight.Canceled")]
-    public class FlightCanceled
+    [FactType("Skylane.Flight.Cancellation")]
+    public class FlightCancellation
     {
         public Flight Flight { get; set; }
-        public DateTime DateCanceled { get; set; }
+        public DateTime DateCancelled { get; set; }
     }
 }
