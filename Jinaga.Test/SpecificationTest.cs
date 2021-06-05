@@ -59,7 +59,7 @@ namespace Jinaga.Test
                 from flight in facts.OfType<Flight>()
                 where flight.AirlineDay == airlineDay
 
-                where !flight.IsCancelled.Compile()(facts)
+                where !flight.IsCancelled
 
                 select flight
             );
@@ -98,7 +98,7 @@ namespace Jinaga.Test
                 from flight in facts.OfType<Flight>()
                 where flight.AirlineDay.Airline == airline
 
-                where flight.IsCancelled.Compile()(facts)
+                where flight.IsCancelled
 
                 from booking in facts.OfType<Booking>()
                 where booking.Flight == flight

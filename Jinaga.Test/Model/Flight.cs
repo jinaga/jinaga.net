@@ -11,11 +11,12 @@ namespace Jinaga.Test.Model
         public AirlineDay AirlineDay { get; set; }
         public int FlightNumber { get; set; }
 
-        public Expression<Func<FactRepository, bool>> IsCancelled => (FactRepository facts) =>
+        public Condition IsCancelled => new Condition(facts =>
             facts.Some(
                 from cancellation in facts.OfType<FlightCancellation>()
                 where cancellation.Flight == this
                 select cancellation
-            );
+            )
+        );
     }
 }
