@@ -10,7 +10,7 @@ namespace Jinaga.Test
         [Fact]
         public void CanSpecifySuccessors()
         {
-            Specification<Airline, Flight> specification = Specification.From<Airline>().To((airline, facts) =>
+            Specification<Airline, Flight> specification = Given<Airline>.Match((airline, facts) =>
                 from flight in facts.OfType<Flight>()
                 where flight.AirlineDay.Airline == airline
                 select flight
@@ -20,7 +20,7 @@ namespace Jinaga.Test
         [Fact]
         public void CanSpecifyPredecessors()
         {
-            Specification<FlightCancellation, Flight> specification = Specification.From<FlightCancellation>().To((flightCancellation, facts) =>
+            Specification<FlightCancellation, Flight> specification = Given<FlightCancellation>.Match((flightCancellation, facts) =>
                 from flight in facts.OfType<Flight>()
                 where flightCancellation.Flight == flight
                 select flight

@@ -4,15 +4,9 @@ using Jinaga.Repository;
 
 namespace Jinaga
 {
-    public static class Specification
+    public static class Given<TFact>
     {
-        public static SpecificationHead<TFact> From<TFact>() =>
-            throw new NotImplementedException();
-    }
-
-    public class SpecificationHead<TFact>
-    {
-        public Specification<TFact, TProjection> To<TProjection>(Func<TFact, FactRepository, IQueryable<TProjection>> spec)
+        public static Specification<TFact, TProjection> Match<TProjection>(Func<TFact, FactRepository, IQueryable<TProjection>> spec)
         {
             throw new NotImplementedException();
         }
