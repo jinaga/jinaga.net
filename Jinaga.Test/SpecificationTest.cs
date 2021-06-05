@@ -12,7 +12,7 @@ namespace Jinaga.Test
         {
             Specification<Airline, Flight> specification = Given<Airline>.Match((airline, facts) =>
                 from flight in facts.OfType<Flight>()
-                where flight.AirlineDay.Airline == airline
+                where flight.airlineDay.airline == airline
                 select flight
             );
         }
@@ -22,7 +22,7 @@ namespace Jinaga.Test
         {
             Specification<FlightCancellation, Flight> specification = Given<FlightCancellation>.Match((flightCancellation, facts) =>
                 from flight in facts.OfType<Flight>()
-                where flightCancellation.Flight == flight
+                where flightCancellation.flight == flight
                 select flight
             );
         }
@@ -31,7 +31,7 @@ namespace Jinaga.Test
         public void CanSpecifyPredecessorsShorthand()
         {
             Specification<FlightCancellation, Flight> specification = Given<FlightCancellation>.Match(flightCancellation =>
-                flightCancellation.Flight
+                flightCancellation.flight
             );
         }
 
@@ -40,11 +40,11 @@ namespace Jinaga.Test
         {
             Specification<AirlineDay, Flight> activeFlights = Given<AirlineDay>.Match((airlineDay, facts) =>
                 from flight in facts.OfType<Flight>()
-                where flight.AirlineDay == airlineDay
+                where flight.airlineDay == airlineDay
 
                 where facts.None(
                     from cancellation in facts.OfType<FlightCancellation>()
-                    where cancellation.Flight == flight
+                    where cancellation.flight == flight
                     select cancellation
                 )
 
@@ -57,7 +57,7 @@ namespace Jinaga.Test
         {
             Specification<AirlineDay, Flight> activeFlights = Given<AirlineDay>.Match((airlineDay, facts) =>
                 from flight in facts.OfType<Flight>()
-                where flight.AirlineDay == airlineDay
+                where flight.airlineDay == airlineDay
 
                 where !flight.IsCancelled
 
@@ -70,20 +70,20 @@ namespace Jinaga.Test
         {
             Specification<Airline, Booking> bookingsToRefund = Given<Airline>.Match((airline, facts) =>
                 from flight in facts.OfType<Flight>()
-                where flight.AirlineDay.Airline == airline
+                where flight.airlineDay.airline == airline
 
                 where facts.Some(
                     from cancellation in facts.OfType<FlightCancellation>()
-                    where cancellation.Flight == flight
+                    where cancellation.flight == flight
                     select cancellation
                 )
 
                 from booking in facts.OfType<Booking>()
-                where booking.Flight == flight
+                where booking.flight == flight
 
                 where facts.None(
                     from refund in facts.OfType<Refund>()
-                    where refund.Booking == booking
+                    where refund.booking == booking
                     select refund
                 )
 
@@ -96,16 +96,16 @@ namespace Jinaga.Test
         {
             Specification<Airline, Booking> bookingsToRefund = Given<Airline>.Match((airline, facts) =>
                 from flight in facts.OfType<Flight>()
-                where flight.AirlineDay.Airline == airline
+                where flight.airlineDay.airline == airline
 
                 where flight.IsCancelled
 
                 from booking in facts.OfType<Booking>()
-                where booking.Flight == flight
+                where booking.flight == flight
 
                 where facts.None(
                     from refund in facts.OfType<Refund>()
-                    where refund.Booking == booking
+                    where refund.booking == booking
                     select refund
                 )
 
@@ -118,17 +118,17 @@ namespace Jinaga.Test
         {
             var bookingsToRefund = Given<Airline>.Match((airline, facts) =>
                 from flight in facts.OfType<Flight>()
-                where flight.AirlineDay.Airline == airline
+                where flight.airlineDay.airline == airline
 
                 from cancellation in facts.OfType<FlightCancellation>()
-                where cancellation.Flight == flight
+                where cancellation.flight == flight
 
                 from booking in facts.OfType<Booking>()
-                where booking.Flight == flight
+                where booking.flight == flight
 
                 where facts.None(
                     from refund in facts.OfType<Refund>()
-                    where refund.Booking == booking
+                    where refund.booking == booking
                     select refund
                 )
 

@@ -3,9 +3,7 @@ using System;
 namespace Jinaga.Test.Model
 {
     [FactType("Skylane.Flight.Cancellation")]
-    public class FlightCancellation
+    public record FlightCancellation(Flight flight, DateTime dateCancelled)
     {
-        public Flight Flight { get; set; }
-        public DateTime DateCancelled { get; set; }
     }
 }

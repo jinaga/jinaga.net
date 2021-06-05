@@ -1,9 +1,7 @@
 namespace Jinaga.Test.Model
 {
     [FactType("Skylane.Passenger")]
-    public class Passenger
+    public record Passenger(Airline airline, User user)
     {
-        public Airline Airline { get; set; }
-        public User User { get; set; }
     }
 }

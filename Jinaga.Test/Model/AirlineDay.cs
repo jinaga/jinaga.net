@@ -3,9 +3,7 @@ using System;
 namespace Jinaga.Test.Model
 {
     [FactType("Skyline.Airline.Day")]
-    public class AirlineDay
+    public record AirlineDay(Airline airline, DateTime date)
     {
-        public Airline Airline { get; set; }
-        public DateTime Date { get; set; }
     }
 }

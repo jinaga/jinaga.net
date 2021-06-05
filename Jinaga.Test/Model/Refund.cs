@@ -3,9 +3,7 @@ using System;
 namespace Jinaga.Test.Model
 {
     [FactType("Skylane.Refund")]
-    public class Refund
+    public record Refund(Booking booking, DateTime dateRefunded)
     {
-        public Booking Booking { get; set; }
-        public DateTime DateRefunded { get; set; }
     }
 }

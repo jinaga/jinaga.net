@@ -1,8 +1,7 @@
 namespace Jinaga.Test.Model
 {
     [FactType("Jinaga.User")]
-    public class User
+    public record User(string publicKey)
     {
-        public string PublicKey { get; set; }
     }
 }

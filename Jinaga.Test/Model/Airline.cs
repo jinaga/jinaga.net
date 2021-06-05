@@ -1,8 +1,7 @@
 namespace Jinaga.Test.Model
 {
     [FactType("Skylane.Airline")]
-    public class Airline
+    public record Airline(string identifier)
     {
-        public string Identifier { get; set; }
     }
 }

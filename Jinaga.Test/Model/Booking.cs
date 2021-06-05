@@ -3,10 +3,7 @@ using System;
 namespace Jinaga.Test.Model
 {
     [FactType("Skylane.Booking")]
-    public class Booking
+    public record Booking(Flight flight, Passenger passenger, DateTime dateBooked)
     {
-        public Flight Flight { get; set; }
-        public Passenger Passenger { get; set; }
-        public DateTime DateBooked { get; set; }
     }
 }
