@@ -42,11 +42,11 @@ namespace Jinaga.Test
                 from flight in facts.OfType<Flight>()
                 where flight.airlineDay == airlineDay
 
-                where facts.None(
+                where !(
                     from cancellation in facts.OfType<FlightCancellation>()
                     where cancellation.flight == flight
                     select cancellation
-                )
+                ).Any()
 
                 select flight
             );
@@ -72,20 +72,20 @@ namespace Jinaga.Test
                 from flight in facts.OfType<Flight>()
                 where flight.airlineDay.airline == airline
 
-                where facts.Some(
+                where (
                     from cancellation in facts.OfType<FlightCancellation>()
                     where cancellation.flight == flight
                     select cancellation
-                )
+                ).Any()
 
                 from booking in facts.OfType<Booking>()
                 where booking.flight == flight
 
-                where facts.None(
+                where !(
                     from refund in facts.OfType<Refund>()
                     where refund.booking == booking
                     select refund
-                )
+                ).Any()
 
                 select booking
             );
@@ -103,11 +103,11 @@ namespace Jinaga.Test
                 from booking in facts.OfType<Booking>()
                 where booking.flight == flight
 
-                where facts.None(
+                where !(
                     from refund in facts.OfType<Refund>()
                     where refund.booking == booking
                     select refund
-                )
+                ).Any()
 
                 select booking
             );
@@ -126,11 +126,11 @@ namespace Jinaga.Test
                 from booking in facts.OfType<Booking>()
                 where booking.flight == flight
 
-                where facts.None(
+                where !(
                     from refund in facts.OfType<Refund>()
                     where refund.booking == booking
                     select refund
-                )
+                ).Any()
 
                 select new
                 {

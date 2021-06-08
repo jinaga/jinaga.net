@@ -9,15 +9,5 @@ namespace Jinaga.Repository
         {
             throw new NotImplementedException();
         }
-
-        public bool None<TProjection>(IQueryable<TProjection> existential)
-        {
-            throw new NotImplementedException();
-        }
-
-        public bool Some<TProjection>(IQueryable<TProjection> existential)
-        {
-            throw new NotImplementedException();
-        }
     }
 }

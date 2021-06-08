@@ -9,11 +9,11 @@ namespace Jinaga.Test.Model
     public record Flight(AirlineDay airlineDay, int flightNumber)
     {
         public Condition IsCancelled => new Condition(facts =>
-            facts.Some(
+            (
                 from cancellation in facts.OfType<FlightCancellation>()
                 where cancellation.flight == this
                 select cancellation
-            )
+            ).Any()
         );
     }
 }
