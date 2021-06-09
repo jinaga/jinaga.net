@@ -1,5 +1,7 @@
 using System;
 using System.Linq;
+using FluentAssertions;
+using Jinaga.Pipelines;
 using Jinaga.Test.Model;
 using Xunit;
 
@@ -15,6 +17,9 @@ namespace Jinaga.Test
                 where flight.airlineDay.airline == airline
                 select flight
             );
+            Pipeline pipeline = specification.Compile();
+            string descriptiveString = pipeline.ToDescriptiveString();
+            descriptiveString.Should().Be("S.airline F.type=\"Skyline.Airline.Day\" S.airlineDay F.type=\"Skylane.Flight\"");
         }
 
         [Fact]

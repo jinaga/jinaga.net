@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Linq.Expressions;
+using Jinaga.Pipelines;
 using Jinaga.Repository;
 
 namespace Jinaga
@@ -9,7 +10,7 @@ namespace Jinaga
     {
         public static Specification<TFact, TProjection> Match<TProjection>(Expression<Func<TFact, FactRepository, IQueryable<TProjection>>> spec)
         {
-            throw new NotImplementedException();
+            return new Specification<TFact, TProjection>();
         }
 
         public static Specification<TFact, TProjection> Match<TProjection>(Expression<Func<TFact, FactRepository, TProjection>> spec)
@@ -24,6 +25,9 @@ namespace Jinaga
     }
     public class Specification<TFact, TProjection>
     {
-
+        public Pipeline Compile()
+        {
+            return new Pipeline();
+        }
     }
 }
