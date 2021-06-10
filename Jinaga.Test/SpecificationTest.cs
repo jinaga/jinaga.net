@@ -19,12 +19,12 @@ namespace Jinaga.Test
             );
             Pipeline pipeline = specification.Compile();
             string descriptiveString = pipeline.ToDescriptiveString();
-            descriptiveString.Should().Be(@"airline: Skyline.Airline.Day {
-    flight: Skylane.Flight = airline S.airline Skyline.Airline.Day S.airlineDay Skylane.Flight
+            descriptiveString.Should().Be(@"airline: Skylane.Airline {
+    flight: Skylane.Flight = airline S.airline Skylane.Airline.Day S.airlineDay Skylane.Flight
     flight
 }");
             string oldDescriptiveString = pipeline.ToOldDescriptiveString();
-            oldDescriptiveString.Should().Be("S.airline F.type=\"Skyline.Airline.Day\" S.airlineDay F.type=\"Skylane.Flight\"");
+            oldDescriptiveString.Should().Be("S.airline F.type=\"Skylane.Airline.Day\" S.airlineDay F.type=\"Skylane.Flight\"");
         }
 
         [Fact]

@@ -11,9 +11,10 @@ namespace Jinaga
     {
         public static Specification<TFact, TProjection> Match<TProjection>(Expression<Func<TFact, FactRepository, IQueryable<TProjection>>> spec)
         {
-            var specificationParser = new SpecificationParser();
-            specificationParser.Visit(spec);
-            return new Specification<TFact, TProjection>();
+            var specificationVisitor = new SpecificationVisitor();
+            specificationVisitor.Visit(spec);
+            Pipeline pipeline = specificationVisitor.BuildPipeline();
+            return new Specification<TFact, TProjection>(pipeline);
         }
 
         public static Specification<TFact, TProjection> Match<TProjection>(Expression<Func<TFact, FactRepository, TProjection>> spec)
@@ -28,9 +29,16 @@ namespace Jinaga
     }
     public class Specification<TFact, TProjection>
     {
+        private Pipeline pipeline;
+
+        public Specification(Pipeline pipeline)
+        {
+            this.pipeline = pipeline;
+        }
+
         public Pipeline Compile()
         {
-            return new Pipeline();
+            return this.pipeline;
         }
     }
 }

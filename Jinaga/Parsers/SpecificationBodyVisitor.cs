@@ -1,11 +1,15 @@
 using System;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Linq.Expressions;
+using Jinaga.Pipelines;
 
 namespace Jinaga.Parsers
 {
     public class SpecificationBodyVisitor : ExperimentalVisitor
     {
+        public ImmutableList<Path> Paths { get; private set; } = ImmutableList<Path>.Empty;
+
         protected override Expression VisitMethodCall(MethodCallExpression node)
         {
             var method = node.Method;
@@ -32,8 +36,12 @@ namespace Jinaga.Parsers
         {
             var collectionVisitor = new CollectionVisitor();
             collectionVisitor.Visit(collection);
+
             var predicateVisitor = new PredicateVisitor();
             predicateVisitor.Visit(predicate);
+            string tag = predicateVisitor.Tag;
+
+            Paths = Paths.Add(new Path(tag));
         }
     }
 }

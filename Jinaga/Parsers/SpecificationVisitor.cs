@@ -1,11 +1,14 @@
+using System.Collections.Immutable;
 using System.Linq.Expressions;
+using Jinaga.Pipelines;
 
 namespace Jinaga.Parsers
 {
-    public class SpecificationParser : ExperimentalVisitor
+    public class SpecificationVisitor : ExperimentalVisitor
     {
         private string initialFactName;
         private string initialFactType;
+        private ImmutableList<Path> paths;
 
         protected override Expression VisitLambda<T>(Expression<T> node)
         {
@@ -20,8 +23,14 @@ namespace Jinaga.Parsers
 
             var specificationBodyVisitor = new SpecificationBodyVisitor();
             specificationBodyVisitor.Visit(body);
+            paths = specificationBodyVisitor.Paths;
 
             return node;
+        }
+
+        public Pipeline BuildPipeline()
+        {
+            return new Pipeline(initialFactName, initialFactType, paths);
         }
     }
 }
