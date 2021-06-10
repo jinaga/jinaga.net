@@ -8,5 +8,10 @@ namespace Jinaga.Pipelines
         {
             return "";
         }
+
+        public string ToOldDescriptiveString()
+        {
+            return "";
+        }
     }
 }
