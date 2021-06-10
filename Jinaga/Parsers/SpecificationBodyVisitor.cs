@@ -9,6 +9,7 @@ namespace Jinaga.Parsers
     public class SpecificationBodyVisitor : ExperimentalVisitor
     {
         public ImmutableList<Path> Paths { get; private set; } = ImmutableList<Path>.Empty;
+        public Projection Projection { get; private set; }
 
         protected override Expression VisitMethodCall(MethodCallExpression node)
         {
@@ -45,6 +46,7 @@ namespace Jinaga.Parsers
             ImmutableList<Step> steps = predicateVisitor.Steps;
 
             Paths = Paths.Add(new Path(tag, targetType, startingTag, steps));
+            Projection = new Projection(tag);
         }
     }
 }

@@ -9,6 +9,7 @@ namespace Jinaga.Parsers
         private string initialFactName;
         private string initialFactType;
         private ImmutableList<Path> paths;
+        private Projection projection;
 
         protected override Expression VisitLambda<T>(Expression<T> node)
         {
@@ -24,13 +25,14 @@ namespace Jinaga.Parsers
             var specificationBodyVisitor = new SpecificationBodyVisitor();
             specificationBodyVisitor.Visit(body);
             paths = specificationBodyVisitor.Paths;
+            projection = specificationBodyVisitor.Projection;
 
             return node;
         }
 
         public Pipeline BuildPipeline()
         {
-            return new Pipeline(initialFactName, initialFactType, paths);
+            return new Pipeline(initialFactName, initialFactType, paths, projection);
         }
     }
 }
