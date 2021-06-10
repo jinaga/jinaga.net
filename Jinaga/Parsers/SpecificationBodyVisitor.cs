@@ -40,8 +40,9 @@ namespace Jinaga.Parsers
             var predicateVisitor = new PredicateVisitor();
             predicateVisitor.Visit(predicate);
             string tag = predicateVisitor.Tag;
+            string targetType = predicateVisitor.TargetType;
 
-            Paths = Paths.Add(new Path(tag));
+            Paths = Paths.Add(new Path(tag, targetType));
         }
     }
 }

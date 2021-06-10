@@ -6,6 +6,7 @@ namespace Jinaga.Parsers
     public class PredicateVisitor : ExperimentalVisitor
     {
         public string Tag { get; private set; }
+        public string TargetType { get; private set; }
 
         protected override Expression VisitUnary(UnaryExpression node)
         {
@@ -14,6 +15,7 @@ namespace Jinaga.Parsers
             predicateOperandVisitor.Visit(operand);
 
             Tag = predicateOperandVisitor.ParameterName;
+            TargetType = predicateOperandVisitor.ParameterTypeName;
 
             return node;
         }

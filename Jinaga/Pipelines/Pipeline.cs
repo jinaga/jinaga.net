@@ -7,15 +7,17 @@ namespace Jinaga.Pipelines
     public class Path
     {
         private string tag;
+        private string targetType;
 
-        public Path(string tag)
+        public Path(string tag, string targetType)
         {
             this.tag = tag;
+            this.targetType = targetType;
         }
 
         public string ToDescriptiveString()
         {
-            return $"    {tag}\n";
+            return $"    {tag}: {targetType}\r\n";
         }
     }
     public class Pipeline
@@ -35,7 +37,7 @@ namespace Jinaga.Pipelines
         {
             string pathDescriptiveString = string.Join("", paths
                 .Select(path => path.ToDescriptiveString()));
-            return $"{initialFactName}: {initialFactType} {{\n{pathDescriptiveString}}}";
+            return $"{initialFactName}: {initialFactType} {{\r\n{pathDescriptiveString}}}";
         }
 
         public string ToOldDescriptiveString()
