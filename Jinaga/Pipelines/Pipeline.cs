@@ -4,22 +4,6 @@ using System.Linq;
 
 namespace Jinaga.Pipelines
 {
-    public class Path
-    {
-        private string tag;
-        private string targetType;
-
-        public Path(string tag, string targetType)
-        {
-            this.tag = tag;
-            this.targetType = targetType;
-        }
-
-        public string ToDescriptiveString()
-        {
-            return $"    {tag}: {targetType}\r\n";
-        }
-    }
     public class Pipeline
     {
         private readonly string initialFactName;

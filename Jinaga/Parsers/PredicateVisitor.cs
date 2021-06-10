@@ -7,6 +7,7 @@ namespace Jinaga.Parsers
     {
         public string Tag { get; private set; }
         public string TargetType { get; private set; }
+        public string StartingTag { get; private set; }
 
         protected override Expression VisitUnary(UnaryExpression node)
         {
@@ -16,6 +17,7 @@ namespace Jinaga.Parsers
 
             Tag = predicateOperandVisitor.ParameterName;
             TargetType = predicateOperandVisitor.ParameterTypeName;
+            StartingTag = predicateOperandVisitor.ClosureName;
 
             return node;
         }

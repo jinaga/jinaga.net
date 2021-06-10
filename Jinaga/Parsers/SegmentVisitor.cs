@@ -4,10 +4,14 @@ namespace Jinaga.Parsers
 {
     public class SegmentVisitor : ExperimentalVisitor
     {
+        public string RootName { get; private set; }
+
         protected override Expression VisitMember(MemberExpression node)
         {
             var headVisitor = new SegmentVisitor();
             headVisitor.Visit(node.Expression);
+            RootName = headVisitor.RootName;
+
             var role = node.Member.Name;
             var predecessorType = node.Member.ReflectedType.FactTypeName();
             
@@ -16,7 +20,7 @@ namespace Jinaga.Parsers
 
         protected override Expression VisitParameter(ParameterExpression node)
         {
-            var parameterName = node.Name;
+            RootName = node.Name;
 
             return node;
         }
