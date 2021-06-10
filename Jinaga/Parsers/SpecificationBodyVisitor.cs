@@ -42,8 +42,9 @@ namespace Jinaga.Parsers
             string tag = predicateVisitor.Tag;
             string targetType = predicateVisitor.TargetType;
             string startingTag = predicateVisitor.StartingTag;
+            ImmutableList<Step> steps = predicateVisitor.Steps;
 
-            Paths = Paths.Add(new Path(tag, targetType, startingTag));
+            Paths = Paths.Add(new Path(tag, targetType, startingTag, steps));
         }
     }
 }

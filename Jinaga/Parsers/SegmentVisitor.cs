@@ -1,10 +1,13 @@
+using System.Collections.Immutable;
 using System.Linq.Expressions;
+using Jinaga.Pipelines;
 
 namespace Jinaga.Parsers
 {
     public class SegmentVisitor : ExperimentalVisitor
     {
         public string RootName { get; private set; }
+        public ImmutableList<Step> Steps { get; private set; } = ImmutableList<Step>.Empty;
 
         protected override Expression VisitMember(MemberExpression node)
         {
@@ -12,8 +15,10 @@ namespace Jinaga.Parsers
             headVisitor.Visit(node.Expression);
             RootName = headVisitor.RootName;
 
+            var successorType = node.Member.DeclaringType.FactTypeName();
             var role = node.Member.Name;
             var predecessorType = node.Member.ReflectedType.FactTypeName();
+            Steps = headVisitor.Steps.Add(new PredecessorStep(successorType, role, predecessorType));
             
             return node;
         }
