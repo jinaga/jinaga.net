@@ -1,5 +1,7 @@
+using System;
 using System.Collections.Immutable;
 using System.Linq.Expressions;
+using System.Reflection;
 using Jinaga.Pipelines;
 
 namespace Jinaga.Parsers
@@ -17,8 +19,15 @@ namespace Jinaga.Parsers
 
             var successorType = node.Member.DeclaringType.FactTypeName();
             var role = node.Member.Name;
-            var predecessorType = node.Member.ReflectedType.FactTypeName();
-            Steps = headVisitor.Steps.Add(new PredecessorStep(successorType, role, predecessorType));
+            if (node.Member is PropertyInfo proprtyInfo)
+            {
+                var predecessorType = proprtyInfo.PropertyType.FactTypeName();
+                Steps = headVisitor.Steps.Add(new PredecessorStep(successorType, role, predecessorType));
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
             
             return node;
         }
