@@ -29,7 +29,17 @@ namespace Jinaga.Pipelines
 
         public string ToOldDescriptiveString()
         {
-            return "";
+            var tag = projection.Tag;
+            ImmutableList<Step> steps = ImmutableList<Step>.Empty;
+            while (tag != initialFactName)
+            {
+                var path = paths.Where(p => p.Tag == tag).Single();
+                steps = path.Steps.AddRange(steps);
+                tag = path.StartingTag;
+            }
+            string oldDescriptiveString = string.Join(" ", steps
+                .Select(step => step.ToOldDescriptiveString()));
+            return oldDescriptiveString;
         }
     }
 }

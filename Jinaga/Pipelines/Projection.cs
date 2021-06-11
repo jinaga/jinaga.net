@@ -4,16 +4,16 @@ namespace Jinaga.Pipelines
 {
     public class Projection
     {
-        private readonly string tag;
+        public string Tag { get; }
 
         public Projection(string tag)
         {
-            this.tag = tag;
+            Tag = tag;
         }
 
         public string ToDescriptiveString()
         {
-            return tag;
+            return Tag;
         }
     }
 }

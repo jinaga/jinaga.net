@@ -6,5 +6,6 @@ namespace Jinaga.Pipelines
     {
         public abstract Step Reflect();
         public abstract string ToDescriptiveString();
+        public abstract string ToOldDescriptiveString();
     }
 }

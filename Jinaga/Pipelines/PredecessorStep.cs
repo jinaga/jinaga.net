@@ -22,5 +22,10 @@ namespace Jinaga.Pipelines
         {
             return $"P.{role} {predecessorType}";
         }
+
+        public override string ToOldDescriptiveString()
+        {
+            return $"P.{role} F.type=\"{predecessorType}\"";
+        }
     }
 }
