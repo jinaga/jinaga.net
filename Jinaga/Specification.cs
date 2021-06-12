@@ -12,17 +12,12 @@ namespace Jinaga
     {
         public static Specification<TFact, TProjection> Match<TProjection>(Expression<Func<TFact, FactRepository, IQueryable<TProjection>>> spec)
         {
-            var body = spec.Body;
             var parameter = spec.Parameters[0];
-            var parameterName = parameter.Name;
-            var parameterType = parameter.Type;
-            string parameterTypeName = parameterType.FactTypeName();
-
-            var initialFactName = parameterName;
-            var initialFactType = parameterTypeName;
+            var initialFactName = parameter.Name;
+            var initialFactType = parameter.Type.FactTypeName();
 
             var specificationBodyVisitor = new SpecificationBodyVisitor();
-            specificationBodyVisitor.Visit(body);
+            specificationBodyVisitor.Visit(spec.Body);
             var paths = specificationBodyVisitor.Paths;
             var projection = specificationBodyVisitor.Projection;
 
