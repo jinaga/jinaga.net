@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System;
 using System.Linq;
 using System.Linq.Expressions;
@@ -24,7 +25,29 @@ namespace Jinaga
         
         public static Specification<TFact, TProjection> Match<TProjection>(Expression<Func<TFact, TProjection>> spec)
         {
-            throw new NotImplementedException();
+            var segmentVisitor = new SegmentVisitor();
+            segmentVisitor.Visit(spec.Body);
+            var steps = segmentVisitor.Steps;
+            var first = steps.First();
+            var last = steps.Last();
+            var initialType = first.InitialType;
+            var targetType = last.TargetType;
+            if (last is PredecessorStep predecessorStep)
+            {
+                string targetName = predecessorStep.Role;
+                string rootName = segmentVisitor.RootName;
+                var path = new Path(targetName, targetType, rootName, steps);
+                var pipeline = new Pipeline(
+                    rootName,
+                    initialType,
+                    ImmutableList<Path>.Empty.Add(path),
+                    new Projection(targetName));
+                return new Specification<TFact, TProjection>(pipeline);
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
         }
     }
     public class Specification<TFact, TProjection>

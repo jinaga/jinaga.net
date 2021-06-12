@@ -27,5 +27,8 @@ namespace Jinaga.Pipelines
         {
             return $"S.{role} F.type=\"{successorType}\"";
         }
+
+        public override string InitialType => predecessorType;
+        public override string TargetType => successorType;
     }
 }

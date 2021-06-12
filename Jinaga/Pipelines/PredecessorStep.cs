@@ -2,30 +2,33 @@ namespace Jinaga.Pipelines
 {
     public class PredecessorStep : Step
     {
-        private string successorType;
-        private string role;
-        private string predecessorType;
+        private readonly string successorType;
+        public string Role { get; }
+        private readonly string predecessorType;
 
         public PredecessorStep(string successorType, string role, string predecessorType)
         {
             this.successorType = successorType;
-            this.role = role;
+            Role = role;
             this.predecessorType = predecessorType;
         }
 
         public override Step Reflect()
         {
-            return new SuccessorStep(predecessorType, role, successorType);
+            return new SuccessorStep(predecessorType, Role, successorType);
         }
 
         public override string ToDescriptiveString()
         {
-            return $"P.{role} {predecessorType}";
+            return $"P.{Role} {predecessorType}";
         }
 
         public override string ToOldDescriptiveString()
         {
-            return $"P.{role} F.type=\"{predecessorType}\"";
+            return $"P.{Role} F.type=\"{predecessorType}\"";
         }
+
+        public override string InitialType => successorType;
+        public override string TargetType => predecessorType;
     }
 }

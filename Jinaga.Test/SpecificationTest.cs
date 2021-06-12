@@ -51,6 +51,14 @@ namespace Jinaga.Test
             Specification<FlightCancellation, Flight> specification = Given<FlightCancellation>.Match(flightCancellation =>
                 flightCancellation.flight
             );
+            Pipeline pipeline = specification.Compile();
+            string descriptiveString = pipeline.ToDescriptiveString();
+            descriptiveString.Should().Be(@"flightCancellation: Skylane.Flight.Cancellation {
+    flight: Skylane.Flight = flightCancellation P.flight Skylane.Flight
+    flight
+}");
+            string oldDescriptiveString = pipeline.ToOldDescriptiveString();
+            oldDescriptiveString.Should().Be("P.flight F.type=\"Skylane.Flight\"");
         }
 
         [Fact]
