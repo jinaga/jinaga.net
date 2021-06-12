@@ -35,21 +35,18 @@ namespace Jinaga.Parsers
 
         private void VisitEqual(Expression left, Expression right)
         {
-            var leftVisitor = new SegmentVisitor();
-            leftVisitor.Visit(left);
+            var (leftRootName, leftSteps) = SegmentParser.ParseSegment(left);
+            var (rightRootName, rightSteps) = SegmentParser.ParseSegment(right);
 
-            var rightVisitor = new SegmentVisitor();
-            rightVisitor.Visit(right);
-
-            if (leftVisitor.RootName == parameterName)
+            if (leftRootName == parameterName)
             {
-                ClosureName = rightVisitor.RootName;
-                Steps = rightVisitor.Steps.AddRange(ReflectAll(leftVisitor.Steps));
+                ClosureName = rightRootName;
+                Steps = rightSteps.AddRange(ReflectAll(leftSteps));
             }
-            else if (rightVisitor.RootName == parameterName)
+            else if (rightRootName == parameterName)
             {
-                ClosureName = leftVisitor.RootName;
-                Steps = leftVisitor.Steps.AddRange(ReflectAll(rightVisitor.Steps));
+                ClosureName = leftRootName;
+                Steps = leftSteps.AddRange(ReflectAll(rightSteps));
             }
             else
             {

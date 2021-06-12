@@ -6,19 +6,23 @@ using Jinaga.Pipelines;
 
 namespace Jinaga.Parsers
 {
-    public class SpecificationBodyVisitor : ExperimentalVisitor
+    public static class SpecificationParser
     {
-        public ImmutableList<Path> Paths { get; private set; } = ImmutableList<Path>.Empty;
-        public Projection Projection { get; private set; }
-
-        protected override Expression VisitMethodCall(MethodCallExpression node)
+        public static (ImmutableList<Path>, Projection) ParseSpecification(Expression body)
         {
-            var method = node.Method;
-            if (method.DeclaringType == typeof(Queryable))
+            if (body is MethodCallExpression node)
             {
-                if (method.Name == "Where")
+                var method = node.Method;
+                if (method.DeclaringType == typeof(Queryable))
                 {
-                    VisitWhere(node.Arguments[0], node.Arguments[1]);
+                    if (method.Name == "Where")
+                    {
+                        return VisitWhere(node.Arguments[0], node.Arguments[1]);
+                    }
+                    else
+                    {
+                        throw new NotImplementedException();
+                    }
                 }
                 else
                 {
@@ -29,11 +33,9 @@ namespace Jinaga.Parsers
             {
                 throw new NotImplementedException();
             }
-
-            return node;
         }
 
-        private void VisitWhere(Expression collection, Expression predicate)
+        private static (ImmutableList<Path>, Projection) VisitWhere(Expression collection, Expression predicate)
         {
             var collectionVisitor = new CollectionVisitor();
             collectionVisitor.Visit(collection);
@@ -45,8 +47,11 @@ namespace Jinaga.Parsers
             string startingTag = predicateVisitor.StartingTag;
             ImmutableList<Step> steps = predicateVisitor.Steps;
 
-            Paths = Paths.Add(new Path(tag, targetType, startingTag, steps));
-            Projection = new Projection(tag);
+            var path = new Path(tag, targetType, startingTag, steps);
+            var paths = ImmutableList<Path>.Empty.Add(path);
+            var projection = new Projection(tag);
+
+            return (paths, projection);
         }
     }
 }

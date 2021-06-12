@@ -16,10 +16,7 @@ namespace Jinaga
             var initialFactName = parameter.Name;
             var initialFactType = parameter.Type.FactTypeName();
 
-            var specificationBodyVisitor = new SpecificationBodyVisitor();
-            specificationBodyVisitor.Visit(spec.Body);
-            var paths = specificationBodyVisitor.Paths;
-            var projection = specificationBodyVisitor.Projection;
+            var (paths, projection) = SpecificationParser.ParseSpecification(spec.Body);
 
             var pipeline = new Pipeline(initialFactName, initialFactType, paths, projection);
             return new Specification<TFact, TProjection>(pipeline);
@@ -32,21 +29,20 @@ namespace Jinaga
         
         public static Specification<TFact, TProjection> Match<TProjection>(Expression<Func<TFact, TProjection>> spec)
         {
-            var segmentVisitor = new SegmentVisitor();
-            segmentVisitor.Visit(spec.Body);
-            var steps = segmentVisitor.Steps;
-            var first = steps.First();
+            var parameter = spec.Parameters[0];
+            var initialFactName = parameter.Name;
+            var initialFactType = parameter.Type.FactTypeName();
+
+            var (rootName, steps) = SegmentParser.ParseSegment(spec.Body);
             var last = steps.Last();
-            var initialType = first.InitialType;
             var targetType = last.TargetType;
             if (last is PredecessorStep predecessorStep)
             {
                 string targetName = predecessorStep.Role;
-                string rootName = segmentVisitor.RootName;
-                var path = new Path(targetName, targetType, rootName, steps);
+                var path = new Path(targetName, targetType, initialFactName, steps);
                 var pipeline = new Pipeline(
-                    rootName,
-                    initialType,
+                    initialFactName,
+                    initialFactType,
                     ImmutableList<Path>.Empty.Add(path),
                     new Projection(targetName));
                 return new Specification<TFact, TProjection>(pipeline);
