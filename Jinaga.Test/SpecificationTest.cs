@@ -76,6 +76,15 @@ namespace Jinaga.Test
 
                 select flight
             );
+            var pipeline = activeFlights.Compile();
+            var descriptiveString = pipeline.ToDescriptiveString();
+            descriptiveString.Should().Be(@"airlineDay: Skylane.Airline.Day {
+    flight: Skylane.Flight = airlineDay S.airlineDay Skylane.Flight N(
+        cancellation: Skylane.Flight.Cancellation = flight S.flight Skylane.Flight.Cancellation
+        cancellation
+    )
+    flight
+}");
         }
 
         [Fact]

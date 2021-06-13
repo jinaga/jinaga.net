@@ -18,7 +18,7 @@ namespace Jinaga.Pipelines
             return new SuccessorStep(predecessorType, Role, successorType);
         }
 
-        public override string ToDescriptiveString()
+        public override string ToDescriptiveString(int depth)
         {
             return $"P.{Role} {predecessorType}";
         }

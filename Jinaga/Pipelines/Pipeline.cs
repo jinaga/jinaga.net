@@ -22,7 +22,7 @@ namespace Jinaga.Pipelines
         public string ToDescriptiveString()
         {
             string pathDescriptiveString = string.Join("", paths
-                .Select(path => path.ToDescriptiveString()));
+                .Select(path => path.ToDescriptiveString(1)));
             string projectionDescriptiveString = projection.ToDescriptiveString();
             return $"{initialFactName}: {initialFactType} {{\r\n{pathDescriptiveString}    {projectionDescriptiveString}\r\n}}";
         }
