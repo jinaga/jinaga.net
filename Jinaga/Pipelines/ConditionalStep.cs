@@ -6,12 +6,12 @@ namespace Jinaga.Pipelines
 {
     public class ConditionalStep : Step
     {
-        private readonly ImmutableList<Path> paths;
+        private readonly ImmutableList<Step> steps;
         private readonly bool exists;
 
-        public ConditionalStep(ImmutableList<Path> paths, bool exists)
+        public ConditionalStep(ImmutableList<Step> steps, bool exists)
         {
-            this.paths = paths;
+            this.steps = steps;
             this.exists = exists;
         }
 
@@ -26,11 +26,11 @@ namespace Jinaga.Pipelines
 
         public override string ToDescriptiveString(int depth)
         {
-            string pathDescriptiveString = string.Join("", paths
-                .Select(path => path.ToDescriptiveString(depth + 1)));
+            string stepsDescriptiveString = string.Join(" ", steps
+                .Select(step => step.ToDescriptiveString(depth)));
             string op = exists ? "E" : "N";
             string indent = String.Join("", Enumerable.Repeat("    ", depth));
-            return $"{op}(\r\n{pathDescriptiveString}{indent})";
+            return $"{op}(\r\n    {indent}{stepsDescriptiveString}\r\n{indent})";
         }
 
         public override string ToOldDescriptiveString()
@@ -40,7 +40,7 @@ namespace Jinaga.Pipelines
 
         public ConditionalStep Invert()
         {
-            return new ConditionalStep(paths, !exists);
+            return new ConditionalStep(steps, !exists);
         }
     }
 }
