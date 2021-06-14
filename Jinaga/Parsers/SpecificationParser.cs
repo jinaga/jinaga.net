@@ -110,7 +110,7 @@ namespace Jinaga.Parsers
                     {
                         var predicate = methodCall.Arguments[0];
                         var (paths, projection) = ParseSpecification(predicate);
-                        return new ConditionalStep(paths, projection, exists: true);
+                        return new ConditionalStep(paths, exists: true);
                     }
                     else
                     {

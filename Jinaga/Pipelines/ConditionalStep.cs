@@ -7,13 +7,11 @@ namespace Jinaga.Pipelines
     public class ConditionalStep : Step
     {
         private readonly ImmutableList<Path> paths;
-        private readonly Projection projection;
         private readonly bool exists;
 
-        public ConditionalStep(ImmutableList<Path> paths, Projection projection, bool exists)
+        public ConditionalStep(ImmutableList<Path> paths, bool exists)
         {
             this.paths = paths;
-            this.projection = projection;
             this.exists = exists;
         }
 
@@ -30,10 +28,9 @@ namespace Jinaga.Pipelines
         {
             string pathDescriptiveString = string.Join("", paths
                 .Select(path => path.ToDescriptiveString(depth + 1)));
-            string projectionDescriptiveString = projection.ToDescriptiveString();
             string op = exists ? "E" : "N";
             string indent = String.Join("", Enumerable.Repeat("    ", depth));
-            return $"{op}(\r\n{pathDescriptiveString}    {indent}{projectionDescriptiveString}\r\n{indent})";
+            return $"{op}(\r\n{pathDescriptiveString}{indent})";
         }
 
         public override string ToOldDescriptiveString()
@@ -43,7 +40,7 @@ namespace Jinaga.Pipelines
 
         public ConditionalStep Invert()
         {
-            return new ConditionalStep(paths, projection, !exists);
+            return new ConditionalStep(paths, !exists);
         }
     }
 }
