@@ -16,7 +16,9 @@ namespace Jinaga
             var initialFactName = parameter.Name;
             var initialFactType = parameter.Type.FactTypeName();
 
-            var (paths, projection) = SpecificationParser.ParseSpecification(spec.Body);
+            var paths = SpecificationParser.ParseSpecification(spec.Body);
+            var lastPath = paths.Last();
+            var projection = new Projection(lastPath.Tag);
 
             var pipeline = new Pipeline(initialFactName, initialFactType, paths, projection);
             return new Specification<TFact, TProjection>(pipeline);

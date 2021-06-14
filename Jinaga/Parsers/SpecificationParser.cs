@@ -10,7 +10,7 @@ namespace Jinaga.Parsers
 {
     public static class SpecificationParser
     {
-        public static (ImmutableList<Path>, Projection) ParseSpecification(Expression body)
+        public static ImmutableList<Path> ParseSpecification(Expression body)
         {
             if (body is MethodCallExpression methodCall)
             {
@@ -37,7 +37,7 @@ namespace Jinaga.Parsers
             }
         }
 
-        private static (ImmutableList<Path>, Projection) VisitWhere(Expression collection, Expression predicate)
+        private static ImmutableList<Path> VisitWhere(Expression collection, Expression predicate)
         {
             if (collection is MethodCallExpression methodCall)
             {
@@ -48,14 +48,14 @@ namespace Jinaga.Parsers
                 {
                     var factTypeName = method.GetGenericArguments()[0].FactTypeName();
 
-                    var (path, projection) = ParseSegmentPredicate(predicate);
+                    var path = ParseSegmentPredicate(predicate);
                     var paths = ImmutableList<Path>.Empty.Add(path);
-                    return (paths, projection);
+                    return paths;
                 }
                 else if (method.DeclaringType == typeof(Queryable) &&
                     method.Name == nameof(Queryable.Where))
                 {
-                    var (initialPaths, projection) = VisitWhere(methodCall.Arguments[0], methodCall.Arguments[1]);
+                    var initialPaths = VisitWhere(methodCall.Arguments[0], methodCall.Arguments[1]);
 
                     var condition = ParseConditionPredicate(predicate);
                     var initialPath = initialPaths.Single();
@@ -63,7 +63,7 @@ namespace Jinaga.Parsers
                         condition
                     ));
                     var paths = ImmutableList<Path>.Empty.Add(path);
-                    return (paths, projection);
+                    return paths;
                 }
                 else
                 {
@@ -109,7 +109,7 @@ namespace Jinaga.Parsers
                     if (method.Name == nameof(Queryable.Any) && methodCall.Arguments.Count == 1)
                     {
                         var predicate = methodCall.Arguments[0];
-                        var (paths, projection) = ParseSpecification(predicate);
+                        var paths = ParseSpecification(predicate);
                         return new ConditionalStep(paths, exists: true);
                     }
                     else
@@ -128,7 +128,7 @@ namespace Jinaga.Parsers
             }
         }
 
-        private static (Path, Projection) ParseSegmentPredicate(Expression predicate)
+        private static Path ParseSegmentPredicate(Expression predicate)
         {
             if (predicate is UnaryExpression {
                 Operand: LambdaExpression {
@@ -144,9 +144,8 @@ namespace Jinaga.Parsers
                 var (startingTag, steps) = JoinSegments(parameterName, binary.Left, binary.Right);
 
                 var path = new Path(parameterName, parameterType, startingTag, steps);
-                var projection = new Projection(parameterName);
 
-                return (path, projection);
+                return path;
             }
             else
             {
