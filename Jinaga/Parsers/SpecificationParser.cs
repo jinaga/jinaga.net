@@ -1,4 +1,3 @@
-using System.Reflection;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
@@ -44,37 +43,27 @@ namespace Jinaga.Parsers
             {
                 var method = methodCall.Method;
 
-                if (method.DeclaringType == typeof(FactRepository))
+                if (method.DeclaringType == typeof(FactRepository) &&
+                    method.Name == nameof(FactRepository.OfType))
                 {
-                    if (method.Name == nameof(FactRepository.OfType))
-                    {
-                        var factTypeName = method.GetGenericArguments()[0].FactTypeName();
+                    var factTypeName = method.GetGenericArguments()[0].FactTypeName();
 
-                        return ParseSegmentPredicate(predicate);
-                    }
-                    else
-                    {
-                        throw new NotImplementedException();
-                    }
+                    var (path, projection) = ParseSegmentPredicate(predicate);
+                    var paths = ImmutableList<Path>.Empty.Add(path);
+                    return (paths, projection);
                 }
-                else if (method.DeclaringType == typeof(Queryable))
+                else if (method.DeclaringType == typeof(Queryable) &&
+                    method.Name == nameof(Queryable.Where))
                 {
-                    if (method.Name == nameof(Queryable.Where))
-                    {
-                        var (initialPaths, projection) = VisitWhere(methodCall.Arguments[0], methodCall.Arguments[1]);
+                    var (initialPaths, projection) = VisitWhere(methodCall.Arguments[0], methodCall.Arguments[1]);
 
-                        var condition = ParseConditionPredicate(predicate);
-                        var initialPath = initialPaths.Single();
-                        var path = new Path(initialPath.Tag, initialPath.TargetType, initialPath.StartingTag, initialPath.Steps.Add(
-                            condition
-                        ));
-                        var paths = ImmutableList<Path>.Empty.Add(path);
-                        return (paths, projection);
-                    }
-                    else
-                    {
-                        throw new NotImplementedException();
-                    }
+                    var condition = ParseConditionPredicate(predicate);
+                    var initialPath = initialPaths.Single();
+                    var path = new Path(initialPath.Tag, initialPath.TargetType, initialPath.StartingTag, initialPath.Steps.Add(
+                        condition
+                    ));
+                    var paths = ImmutableList<Path>.Empty.Add(path);
+                    return (paths, projection);
                 }
                 else
                 {
@@ -139,7 +128,7 @@ namespace Jinaga.Parsers
             }
         }
 
-        private static (ImmutableList<Path>, Projection) ParseSegmentPredicate(Expression predicate)
+        private static (Path, Projection) ParseSegmentPredicate(Expression predicate)
         {
             if (predicate is UnaryExpression {
                 Operand: LambdaExpression {
@@ -155,10 +144,9 @@ namespace Jinaga.Parsers
                 var (startingTag, steps) = JoinSegments(parameterName, binary.Left, binary.Right);
 
                 var path = new Path(parameterName, parameterType, startingTag, steps);
-                var paths = ImmutableList<Path>.Empty.Add(path);
                 var projection = new Projection(parameterName);
 
-                return (paths, projection);
+                return (path, projection);
             }
             else
             {
