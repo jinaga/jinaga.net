@@ -99,6 +99,16 @@ namespace Jinaga.Test
 
                 select flight
             );
+            var pipeline = activeFlights.Compile();
+            var descriptiveString = pipeline.ToDescriptiveString();
+            descriptiveString.Should().Be(@"airlineDay: Skylane.Airline.Day {
+    flight: Skylane.Flight = airlineDay S.airlineDay Skylane.Flight N(
+        S.flight Skylane.Flight.Cancellation
+    )
+    flight
+}");
+            var oldDescriptiveString = pipeline.ToOldDescriptiveString();
+            oldDescriptiveString.Should().Be("S.airlineDay F.type=\"Skylane.Flight\" N(S.flight F.type=\"Skylane.Flight.Cancellation\")");
         }
 
         [Fact]

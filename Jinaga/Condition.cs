@@ -6,11 +6,11 @@ namespace Jinaga
 {
     public class Condition
     {
-        private readonly Expression<Func<FactRepository, bool>> body;
+        public Expression<Func<FactRepository, bool>> Body { get; }
 
         public Condition(Expression<Func<FactRepository, bool>> body)
         {
-            this.body = body;
+            this.Body = body;
         }
 
         public static implicit operator bool(Condition c) => true;

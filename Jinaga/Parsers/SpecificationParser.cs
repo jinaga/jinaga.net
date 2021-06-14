@@ -1,3 +1,4 @@
+using System.Reflection;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
@@ -124,10 +125,39 @@ namespace Jinaga.Parsers
                     throw new NotImplementedException();
                 }
             }
+            else if (body is UnaryExpression {
+                Operand: MemberExpression {
+                    Member: PropertyInfo propertyInfo
+                } member,
+                NodeType: ExpressionType.Convert
+            } unary)
+            {
+                if (propertyInfo.PropertyType == typeof(Condition) &&
+                    unary.Type == typeof(Boolean))
+                {
+                    object target = InstanceOfFact(propertyInfo.DeclaringType);
+                    var condition = (Condition)propertyInfo.GetGetMethod().Invoke(target, new object[0]);
+                    return ParseConditionPredicate(condition.Body);
+                }
+                else
+                {
+                    throw new NotImplementedException();
+                }
+            }
             else
             {
                 throw new NotImplementedException();
             }
+        }
+
+        private static object InstanceOfFact(Type factType)
+        {
+            var constructor = factType.GetConstructors().First();
+            var parameters = constructor.GetParameters()
+                .Select(parameter => parameter.ParameterType)
+                .Select(type => type.IsValueType ? Activator.CreateInstance(type) : InstanceOfFact(type))
+                .ToArray();
+            return Activator.CreateInstance(factType, parameters);
         }
 
         private static Path ParseSegmentPredicate(Expression predicate)
