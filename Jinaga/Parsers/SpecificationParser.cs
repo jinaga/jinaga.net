@@ -1,3 +1,4 @@
+using System.Reflection;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
@@ -49,7 +50,7 @@ namespace Jinaga.Parsers
                     {
                         var factTypeName = method.GetGenericArguments()[0].FactTypeName();
 
-                        return ParsePredicate(predicate);
+                        return ParseSegmentPredicate(predicate);
                     }
                     else
                     {
@@ -60,9 +61,9 @@ namespace Jinaga.Parsers
                 {
                     if (method.Name == nameof(Queryable.Where))
                     {
-                        var (initialPaths, projection) = VisitWhere2(methodCall.Arguments[0], methodCall.Arguments[1]);
+                        var (initialPaths, projection) = VisitWhere(methodCall.Arguments[0], methodCall.Arguments[1]);
 
-                        var condition = VisitCondition(predicate);
+                        var condition = ParseConditionPredicate(predicate);
                         var initialPath = initialPaths.Single();
                         var path = new Path(initialPath.Tag, initialPath.TargetType, initialPath.StartingTag, initialPath.Steps.Add(
                             condition
@@ -86,7 +87,7 @@ namespace Jinaga.Parsers
             }
         }
 
-        private static ConditionalStep VisitCondition(Expression predicate)
+        private static ConditionalStep ParseConditionPredicate(Expression predicate)
         {
             if (predicate is UnaryExpression { Operand: LambdaExpression lambda })
             {
@@ -138,29 +139,26 @@ namespace Jinaga.Parsers
             }
         }
 
-        private static (ImmutableList<Path>, Projection) VisitWhere2(Expression collection, Expression predicate)
+        private static (ImmutableList<Path>, Projection) ParseSegmentPredicate(Expression predicate)
         {
-            if (collection is MethodCallExpression methodCall)
+            if (predicate is UnaryExpression {
+                Operand: LambdaExpression {
+                    Body: BinaryExpression {
+                        NodeType: ExpressionType.Equal
+                    } binary
+                } lambda
+            })
             {
-                var method = methodCall.Method;
+                var parameterName = lambda.Parameters[0].Name;
+                var parameterType = lambda.Parameters[0].Type.FactTypeName();
+                
+                var (startingTag, steps) = JoinSegments(parameterName, binary.Left, binary.Right);
 
-                if (method.DeclaringType == typeof(FactRepository))
-                {
-                    if (method.Name == nameof(FactRepository.OfType))
-                    {
-                        var factTypeName = method.GetGenericArguments()[0].FactTypeName();
+                var path = new Path(parameterName, parameterType, startingTag, steps);
+                var paths = ImmutableList<Path>.Empty.Add(path);
+                var projection = new Projection(parameterName);
 
-                        return ParsePredicate(predicate);
-                    }
-                    else
-                    {
-                        throw new NotImplementedException();
-                    }
-                }
-                else
-                {
-                    throw new NotImplementedException();
-                }
+                return (paths, projection);
             }
             else
             {
@@ -168,50 +166,7 @@ namespace Jinaga.Parsers
             }
         }
 
-        private static (ImmutableList<Path>, Projection) ParsePredicate(Expression predicate)
-        {
-            if (predicate is UnaryExpression unary)
-            {
-                var operand = unary.Operand;
-                if (operand is LambdaExpression lambda)
-                {
-                    var parameterName = lambda.Parameters[0].Name;
-                    var parameterType = lambda.Parameters[0].Type.FactTypeName();
-                    
-                    if (lambda.Body is BinaryExpression binary)
-                    {
-                        if (binary.NodeType == ExpressionType.Equal)
-                        {
-                            var (startingTag, steps) = VisitEqual(parameterName, binary.Left, binary.Right);
-
-                            var path = new Path(parameterName, parameterType, startingTag, steps);
-                            var paths = ImmutableList<Path>.Empty.Add(path);
-                            var projection = new Projection(parameterName);
-
-                            return (paths, projection);
-                        }
-                        else
-                        {
-                            throw new NotImplementedException();
-                        }
-                    }
-                    else
-                    {
-                        throw new NotImplementedException();
-                    }
-                }
-                else
-                {
-                    throw new NotImplementedException();
-                }
-            }
-            else
-            {
-                throw new NotImplementedException();
-            }
-        }
-
-        private static (string, ImmutableList<Step>) VisitEqual(string parameterName, Expression left, Expression right)
+        private static (string, ImmutableList<Step>) JoinSegments(string parameterName, Expression left, Expression right)
         {
             var (leftRootName, leftSteps) = SegmentParser.ParseSegment(left);
             var (rightRootName, rightSteps) = SegmentParser.ParseSegment(right);
