@@ -35,7 +35,10 @@ namespace Jinaga.Pipelines
 
         public override string ToOldDescriptiveString()
         {
-            throw new System.NotImplementedException();
+            string stepsOldDescriptiveString = string.Join(" ", steps
+                .Select(step => step.ToOldDescriptiveString()));
+            string op = exists ? "E": "N";
+            return $"{op}({stepsOldDescriptiveString})";
         }
 
         public ConditionalStep Invert()

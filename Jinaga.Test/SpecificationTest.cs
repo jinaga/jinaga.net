@@ -84,6 +84,8 @@ namespace Jinaga.Test
     )
     flight
 }");
+            var oldDescriptiveString = pipeline.ToOldDescriptiveString();
+            oldDescriptiveString.Should().Be("S.airlineDay F.type=\"Skylane.Flight\" N(S.flight F.type=\"Skylane.Flight.Cancellation\")");
         }
 
         [Fact]
