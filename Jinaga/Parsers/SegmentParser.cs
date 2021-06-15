@@ -32,6 +32,10 @@ namespace Jinaga.Parsers
             {
                 return (node.Name, ImmutableList<Step>.Empty);
             }
+            else if (expression is ConstantExpression)
+            {
+                return ("this", ImmutableList<Step>.Empty);
+            }
             else
             {
                 throw new NotImplementedException();

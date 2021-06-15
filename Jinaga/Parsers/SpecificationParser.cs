@@ -137,7 +137,7 @@ namespace Jinaga.Parsers
                 {
                     object target = InstanceOfFact(propertyInfo.DeclaringType);
                     var condition = (Condition)propertyInfo.GetGetMethod().Invoke(target, new object[0]);
-                    return ParseConditionPredicate(condition.Body);
+                    return ParseConditionalStep(condition.Body.Body);
                 }
                 else
                 {
