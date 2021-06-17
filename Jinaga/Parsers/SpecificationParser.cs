@@ -22,6 +22,10 @@ namespace Jinaga.Parsers
                     {
                         return VisitWhere(methodCall.Arguments[0], methodCall.Arguments[1]);
                     }
+                    else if (method.Name == nameof(Queryable.Select))
+                    {
+                        return VisitSelect(methodCall.Arguments[0], methodCall.Arguments[1]);
+                    }
                     else
                     {
                         throw new NotImplementedException();
@@ -49,32 +53,26 @@ namespace Jinaga.Parsers
                 {
                     var factTypeName = method.GetGenericArguments()[0].FactTypeName();
 
-                    var path = ParseSegmentPredicate(predicate);
-                    var paths = ImmutableList<Path>.Empty.Add(path);
-                    return paths;
+                    var segmentPath = ParseSegmentPredicate(predicate);
+                    return ImmutableList<Path>.Empty.Add(segmentPath);
                 }
-                else if (method.DeclaringType == typeof(Queryable) &&
-                    method.Name == nameof(Queryable.Where))
-                {
-                    var initialPaths = VisitWhere(methodCall.Arguments[0], methodCall.Arguments[1]);
+            }
 
-                    var condition = ParseConditionPredicate(predicate);
-                    var initialPath = initialPaths.Single();
-                    var path = new Path(initialPath.Tag, initialPath.TargetType, initialPath.StartingTag, initialPath.Steps.Add(
-                        condition
-                    ));
-                    var paths = ImmutableList<Path>.Empty.Add(path);
-                    return paths;
-                }
-                else
-                {
-                    throw new NotImplementedException();
-                }
-            }
-            else
-            {
-                throw new NotImplementedException();
-            }
+            var initialPaths = ParseSpecification(collection);
+
+            var condition = ParseConditionPredicate(predicate);
+            var initialPath = initialPaths.Single();
+            var conditionPath = new Path(initialPath.Tag, initialPath.TargetType, initialPath.StartingTag, initialPath.Steps.Add(
+                condition
+            ));
+            var paths = ImmutableList<Path>.Empty.Add(conditionPath);
+            return paths;
+        }
+
+        private static ImmutableList<Path> VisitSelect(Expression collection, Expression selector)
+        {
+            var head = ParseSpecification(collection);
+            throw new NotImplementedException();
         }
 
         private static ConditionalStep ParseConditionPredicate(Expression predicate)

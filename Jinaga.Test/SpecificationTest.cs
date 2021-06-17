@@ -135,6 +135,17 @@ namespace Jinaga.Test
 
                 select booking
             );
+            var pipeline = bookingsToRefund.Compile();
+            var descriptiveString = pipeline.ToDescriptiveString();
+            descriptiveString.Should().Be(@"airline: Skylane.Airline {
+    flight: Skylane.Flight = airline S.airline Skylane.Airline.Day S.airlineDay Skylane.Flight E(
+        S.flight Skylane.Flight.Cancellation
+    )
+    booking: Skylane.Booking = flight S.flight Skylane.Booking N(
+        S.booking Skylane.Refund
+    )
+    booking
+}");
         }
 
         [Fact]
