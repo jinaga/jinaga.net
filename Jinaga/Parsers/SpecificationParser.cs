@@ -26,6 +26,10 @@ namespace Jinaga.Parsers
                     {
                         return VisitSelect(methodCall.Arguments[0], methodCall.Arguments[1]);
                     }
+                    else if (method.Name == nameof(Queryable.SelectMany))
+                    {
+                        return VisitSelectMany(methodCall.Arguments[0], methodCall.Arguments[1]);
+                    }
                     else
                     {
                         throw new NotImplementedException();
@@ -71,7 +75,13 @@ namespace Jinaga.Parsers
 
         private static ImmutableList<Path> VisitSelect(Expression collection, Expression selector)
         {
-            var head = ParseSpecification(collection);
+            var initialPaths = ParseSpecification(collection);
+            throw new NotImplementedException();
+        }
+
+        private static ImmutableList<Path> VisitSelectMany(Expression collection, Expression selector)
+        {
+            var initialPaths = ParseSpecification(collection);
             throw new NotImplementedException();
         }
 
@@ -83,14 +93,7 @@ namespace Jinaga.Parsers
                 var parameterType = lambda.Parameters[0].Type.FactTypeName();
                 var body = lambda.Body;
 
-                if (body is UnaryExpression { NodeType: ExpressionType.Not, Operand: Expression operand })
-                {
-                    return ParseConditionalStep(operand).Invert();
-                }
-                else
-                {
-                    throw new NotImplementedException();
-                }
+                return ParseConditionalStep(body);
             }
             else
             {
@@ -98,9 +101,13 @@ namespace Jinaga.Parsers
             }
         }
 
-        public static ConditionalStep ParseConditionalStep(Expression body)
+        private static ConditionalStep ParseConditionalStep(Expression body)
         {
-            if (body is MethodCallExpression methodCall)
+            if (body is UnaryExpression { NodeType: ExpressionType.Not, Operand: Expression operand })
+            {
+                return ParseConditionalStep(operand).Invert();
+            }
+            else if (body is MethodCallExpression methodCall)
             {
                 var method = methodCall.Method;
                 if (method.DeclaringType == typeof(Queryable))
