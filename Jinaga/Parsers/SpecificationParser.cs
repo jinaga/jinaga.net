@@ -82,7 +82,18 @@ namespace Jinaga.Parsers
         private static ImmutableList<Path> VisitSelectMany(Expression collection, Expression selector)
         {
             var initialPaths = ParseSpecification(collection);
-            throw new NotImplementedException();
+            if (selector is UnaryExpression { Operand: LambdaExpression lambda })
+            {
+                var parameterName = lambda.Parameters[0].Name;
+                var parameterType = lambda.Parameters[0].Type.FactTypeName();
+                var body = lambda.Body;
+                var paths = ParseSpecification(lambda.Body);
+                return initialPaths.AddRange(paths);
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
         }
 
         private static ConditionalStep ParseConditionPredicate(Expression predicate)
