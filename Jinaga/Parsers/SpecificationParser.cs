@@ -69,8 +69,9 @@ namespace Jinaga.Parsers
                 var parameterType = equalLambda.Parameters[0].Type.FactTypeName();
                 
                 var (startingTag, steps) = JoinSegments(parameterName, binary.Left, binary.Right);
+                var stepsDefinition = new StepsDefinition(parameterName, parameterType, startingTag, steps);
 
-                return set.WithSteps(parameterName, parameterType, startingTag, steps);
+                return set.WithSteps(stepsDefinition);
             }
             else if (predicate is UnaryExpression { Operand: LambdaExpression unaryLambda })
             {
@@ -241,7 +242,7 @@ namespace Jinaga.Parsers
 
         private static ConditionDefinition Exists(SetDefinition set)
         {
-            throw new NotImplementedException();
+            return new ConditionDefinition(set, exists: true);
         }
     }
 }

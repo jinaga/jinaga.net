@@ -1,26 +1,34 @@
 using System;
 using System.Collections.Immutable;
-using Jinaga.Pipelines;
 
 namespace Jinaga.Definitions
 {
     public class SetDefinition
     {
-        private string factType;
+        private readonly string factType;
+        private readonly StepsDefinition steps;
+        private readonly ImmutableList<ConditionDefinition> conditions = ImmutableList<ConditionDefinition>.Empty;
 
         public SetDefinition(string factType)
         {
             this.factType = factType;
         }
 
-        internal SetDefinition WithSteps(string parameterName, string parameterType, string startingTag, ImmutableList<Step> steps)
+        public SetDefinition(string factType, StepsDefinition steps, ImmutableList<ConditionDefinition> conditions)
         {
-            throw new NotImplementedException();
+            this.factType = factType;
+            this.steps = steps;
+            this.conditions = conditions;
         }
 
-        internal SetDefinition WithCondition(ConditionDefinition conditionDefinition)
+        public SetDefinition WithSteps(StepsDefinition steps)
         {
-            throw new NotImplementedException();
+            return new SetDefinition(factType, steps, conditions);
+        }
+
+        public SetDefinition WithCondition(ConditionDefinition condition)
+        {
+            return new SetDefinition(factType, steps, conditions.Add(condition));
         }
 
         internal SetDefinition Compose(SetDefinition continuation)
