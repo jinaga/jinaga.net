@@ -6,29 +6,38 @@ using System.Linq;
 using System.Linq.Expressions;
 using Jinaga.Pipelines;
 using Jinaga.Repository;
+using Jinaga.Definitions;
 
 namespace Jinaga.Parsers
 {
     public static class SpecificationParser
     {
-        public static ImmutableList<Path> ParseSpecification(Expression body)
+        public static SetDefinition ParseSpecification(string parameterName, string parameterType, Expression body)
         {
             if (body is MethodCallExpression methodCall)
             {
                 var method = methodCall.Method;
-                if (method.DeclaringType == typeof(Queryable))
+
+                if (method.DeclaringType == typeof(FactRepository) &&
+                    method.Name == nameof(FactRepository.OfType))
+                {
+                    var factType = method.GetGenericArguments()[0].FactTypeName();
+
+                    return FactsOfType(factType);
+                }
+                else if (method.DeclaringType == typeof(Queryable))
                 {
                     if (method.Name == nameof(Queryable.Where))
                     {
-                        return VisitWhere(methodCall.Arguments[0], methodCall.Arguments[1]);
+                        return ParseWhere(ParseSpecification(parameterName, parameterType, methodCall.Arguments[0]), methodCall.Arguments[1]);
                     }
                     else if (method.Name == nameof(Queryable.Select))
                     {
-                        return VisitSelect(methodCall.Arguments[0], methodCall.Arguments[1]);
+                        return ParseSelect(ParseSpecification(parameterName, parameterType, methodCall.Arguments[0]), methodCall.Arguments[1]);
                     }
                     else if (method.Name == nameof(Queryable.SelectMany))
                     {
-                        return VisitSelectMany(methodCall.Arguments[0], methodCall.Arguments[1]);
+                        return ParseSelectMany(ParseSpecification(parameterName, parameterType, methodCall.Arguments[0]), methodCall.Arguments[1]);
                     }
                     else
                     {
@@ -46,49 +55,30 @@ namespace Jinaga.Parsers
             }
         }
 
-        private static ImmutableList<Path> VisitWhere(Expression collection, Expression predicate)
+        private static SetDefinition ParseWhere(SetDefinition set, Expression predicate)
         {
-            if (collection is MethodCallExpression methodCall)
+            if (predicate is UnaryExpression {
+                Operand: LambdaExpression {
+                    Body: BinaryExpression {
+                        NodeType: ExpressionType.Equal
+                    } binary
+                } equalLambda
+            })
             {
-                var method = methodCall.Method;
+                var parameterName = equalLambda.Parameters[0].Name;
+                var parameterType = equalLambda.Parameters[0].Type.FactTypeName();
+                
+                var (startingTag, steps) = JoinSegments(parameterName, binary.Left, binary.Right);
 
-                if (method.DeclaringType == typeof(FactRepository) &&
-                    method.Name == nameof(FactRepository.OfType))
-                {
-                    var factTypeName = method.GetGenericArguments()[0].FactTypeName();
-
-                    var segmentPath = ParseSegmentPredicate(predicate);
-                    return ImmutableList<Path>.Empty.Add(segmentPath);
-                }
+                return set.WithSteps(parameterName, parameterType, startingTag, steps);
             }
-
-            var initialPaths = ParseSpecification(collection);
-
-            var condition = ParseConditionPredicate(predicate);
-            var initialPath = initialPaths.Single();
-            var conditionPath = new Path(initialPath.Tag, initialPath.TargetType, initialPath.StartingTag, initialPath.Steps.Add(
-                condition
-            ));
-            var paths = ImmutableList<Path>.Empty.Add(conditionPath);
-            return paths;
-        }
-
-        private static ImmutableList<Path> VisitSelect(Expression collection, Expression selector)
-        {
-            var initialPaths = ParseSpecification(collection);
-            throw new NotImplementedException();
-        }
-
-        private static ImmutableList<Path> VisitSelectMany(Expression collection, Expression selector)
-        {
-            var initialPaths = ParseSpecification(collection);
-            if (selector is UnaryExpression { Operand: LambdaExpression lambda })
+            else if (predicate is UnaryExpression { Operand: LambdaExpression unaryLambda })
             {
-                var parameterName = lambda.Parameters[0].Name;
-                var parameterType = lambda.Parameters[0].Type.FactTypeName();
-                var body = lambda.Body;
-                var paths = ParseSpecification(lambda.Body);
-                return initialPaths.AddRange(paths);
+                var parameterName = unaryLambda.Parameters[0].Name;
+                var parameterType = unaryLambda.Parameters[0].Type.FactTypeName();
+                var body = unaryLambda.Body;
+
+                return set.WithCondition(ParseCondition(parameterName, parameterType, body));
             }
             else
             {
@@ -96,7 +86,28 @@ namespace Jinaga.Parsers
             }
         }
 
-        private static ConditionalStep ParseConditionPredicate(Expression predicate)
+        private static SetDefinition ParseSelect(SetDefinition set, Expression selector)
+        {
+            throw new NotImplementedException();
+        }
+
+        private static SetDefinition ParseSelectMany(SetDefinition set, Expression selector)
+        {
+            if (selector is UnaryExpression { Operand: LambdaExpression lambda })
+            {
+                var parameterName = lambda.Parameters[0].Name;
+                var parameterType = lambda.Parameters[0].Type.FactTypeName();
+                var body = lambda.Body;
+                var continuation = ParseSpecification(parameterName, parameterType, lambda.Body);
+                return set.Compose(continuation);
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
+        }
+
+        private static ConditionDefinition ParseConditionPredicate(Expression predicate)
         {
             if (predicate is UnaryExpression { Operand: LambdaExpression lambda })
             {
@@ -104,7 +115,7 @@ namespace Jinaga.Parsers
                 var parameterType = lambda.Parameters[0].Type.FactTypeName();
                 var body = lambda.Body;
 
-                return ParseConditionalStep(body);
+                return ParseCondition(parameterName, parameterType, body);
             }
             else
             {
@@ -112,11 +123,11 @@ namespace Jinaga.Parsers
             }
         }
 
-        private static ConditionalStep ParseConditionalStep(Expression body)
+        private static ConditionDefinition ParseCondition(string parameterName, string parameterType, Expression body)
         {
             if (body is UnaryExpression { NodeType: ExpressionType.Not, Operand: Expression operand })
             {
-                return ParseConditionalStep(operand).Invert();
+                return ParseCondition(parameterName, parameterType, operand).Invert();
             }
             else if (body is MethodCallExpression methodCall)
             {
@@ -126,10 +137,8 @@ namespace Jinaga.Parsers
                     if (method.Name == nameof(Queryable.Any) && methodCall.Arguments.Count == 1)
                     {
                         var predicate = methodCall.Arguments[0];
-                        var paths = ParseSpecification(predicate);
-                        var path = paths.Single();
-                        var steps = path.Steps;
-                        return new ConditionalStep(steps, exists: true);
+                        var set = ParseSpecification(parameterName, parameterType, predicate);
+                        return Exists(set);
                     }
                     else
                     {
@@ -153,7 +162,7 @@ namespace Jinaga.Parsers
                 {
                     object target = InstanceOfFact(propertyInfo.DeclaringType);
                     var condition = (Condition)propertyInfo.GetGetMethod().Invoke(target, new object[0]);
-                    return ParseConditionalStep(condition.Body.Body);
+                    return ParseCondition(parameterName, parameterType, condition.Body.Body);
                 }
                 else
                 {
@@ -223,6 +232,16 @@ namespace Jinaga.Parsers
         private static IEnumerable<Step> ReflectAll(ImmutableList<Step> steps)
         {
             return steps.Reverse().Select(step => step.Reflect()).ToImmutableList();
+        }
+
+        private static SetDefinition FactsOfType(string factType)
+        {
+            return new SetDefinition(factType);
+        }
+
+        private static ConditionDefinition Exists(SetDefinition set)
+        {
+            throw new NotImplementedException();
         }
     }
 }

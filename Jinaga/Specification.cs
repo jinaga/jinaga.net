@@ -13,15 +13,12 @@ namespace Jinaga
         public static Specification<TFact, TProjection> Match<TProjection>(Expression<Func<TFact, FactRepository, IQueryable<TProjection>>> spec)
         {
             var parameter = spec.Parameters[0];
-            var initialFactName = parameter.Name;
-            var initialFactType = parameter.Type.FactTypeName();
+            var parameterName = parameter.Name;
+            var parameterType = parameter.Type.FactTypeName();
 
-            var paths = SpecificationParser.ParseSpecification(spec.Body);
-            var lastPath = paths.Last();
-            var projection = new Projection(lastPath.Tag);
+            var set = SpecificationParser.ParseSpecification(parameterName, parameterType, spec.Body);
 
-            var pipeline = new Pipeline(initialFactName, initialFactType, paths, projection);
-            return new Specification<TFact, TProjection>(pipeline);
+            return new Specification<TFact, TProjection>(set);
         }
 
         public static Specification<TFact, TProjection> Match<TProjection>(Expression<Func<TFact, FactRepository, TProjection>> spec)
@@ -58,10 +55,16 @@ namespace Jinaga
     public class Specification<TFact, TProjection>
     {
         private Pipeline pipeline;
+        private Definitions.SetDefinition set;
 
         public Specification(Pipeline pipeline)
         {
             this.pipeline = pipeline;
+        }
+
+        public Specification(Definitions.SetDefinition set)
+        {
+            this.set = set;
         }
 
         public Pipeline Compile()
