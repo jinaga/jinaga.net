@@ -37,9 +37,9 @@ namespace Jinaga.Definitions
             throw new NotImplementedException();
         }
 
-        public Pipeline Compile()
+        public Pipeline CreatePipeline()
         {
-            return steps.CreatePipeline(factType);
+            return steps.CreatePipeline(factType, conditions);
         }
     }
 }

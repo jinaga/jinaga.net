@@ -20,9 +20,10 @@ namespace Jinaga.Definitions
             this.steps = steps;
         }
 
-        public Pipeline CreatePipeline(string factType)
+        public Pipeline CreatePipeline(string factType, ImmutableList<ConditionDefinition> conditions)
         {
-            var path = new Path(parameterName, factType, startingTag, steps);
+            var allSteps = steps.AddRange(conditions.Select(condition => condition.CreateConditionalStep()));
+            var path = new Path(parameterName, factType, startingTag, allSteps);
             var paths = ImmutableList<Path>.Empty.Add(path);
             var projection = new Projection(parameterName);
             var startingType = steps.First().InitialType;

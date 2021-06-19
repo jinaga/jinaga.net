@@ -40,10 +40,5 @@ namespace Jinaga.Pipelines
             string op = exists ? "E": "N";
             return $"{op}({stepsOldDescriptiveString})";
         }
-
-        public ConditionalStep Invert()
-        {
-            return new ConditionalStep(steps, !exists);
-        }
     }
 }

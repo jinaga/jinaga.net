@@ -61,7 +61,7 @@ namespace Jinaga
 
         public Pipeline Compile()
         {
-            return set.Compile();
+            return set.CreatePipeline();
         }
     }
 }

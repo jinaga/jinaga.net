@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Immutable;
+using Jinaga.Pipelines;
 
 namespace Jinaga.Definitions
 {
@@ -16,6 +18,13 @@ namespace Jinaga.Definitions
         public ConditionDefinition Invert()
         {
             return new ConditionDefinition(set, exists: false);
+        }
+
+        public Step CreateConditionalStep()
+        {
+            var pipeline = set.CreatePipeline();
+            ImmutableList<Step> steps = pipeline.Linearize();
+            return new ConditionalStep(steps, exists);
         }
     }
 }

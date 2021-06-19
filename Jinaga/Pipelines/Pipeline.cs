@@ -19,6 +19,19 @@ namespace Jinaga.Pipelines
             this.projection = projection;
         }
 
+        public ImmutableList<Step> Linearize()
+        {
+            var tag = projection.Tag;
+            ImmutableList<Step> steps = ImmutableList<Step>.Empty;
+            while (tag != initialFactName)
+            {
+                var path = paths.Where(p => p.Tag == tag).Single();
+                steps = path.Steps.AddRange(steps);
+                tag = path.StartingTag;
+            }
+            return steps;
+        }
+
         public string ToDescriptiveString()
         {
             string pathDescriptiveString = string.Join("", paths
