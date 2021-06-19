@@ -5,6 +5,7 @@ using System.Linq.Expressions;
 using Jinaga.Parsers;
 using Jinaga.Pipelines;
 using Jinaga.Repository;
+using Jinaga.Definitions;
 
 namespace Jinaga
 {
@@ -38,13 +39,10 @@ namespace Jinaga
             if (last is PredecessorStep predecessorStep)
             {
                 string targetName = predecessorStep.Role;
-                var path = new Path(targetName, targetType, initialFactName, steps);
-                var pipeline = new Pipeline(
-                    initialFactName,
-                    initialFactType,
-                    ImmutableList<Path>.Empty.Add(path),
-                    new Projection(targetName));
-                return new Specification<TFact, TProjection>(pipeline);
+                var stepsDefinition = new StepsDefinition(targetName, targetType, initialFactName, steps);
+                var set = new SetDefinition(targetType)
+                    .WithSteps(stepsDefinition);
+                return new Specification<TFact, TProjection>(set);
             }
             else
             {
@@ -54,22 +52,16 @@ namespace Jinaga
     }
     public class Specification<TFact, TProjection>
     {
-        private Pipeline pipeline;
-        private Definitions.SetDefinition set;
+        private SetDefinition set;
 
-        public Specification(Pipeline pipeline)
-        {
-            this.pipeline = pipeline;
-        }
-
-        public Specification(Definitions.SetDefinition set)
+        public Specification(SetDefinition set)
         {
             this.set = set;
         }
 
         public Pipeline Compile()
         {
-            return this.pipeline;
+            return set.Compile();
         }
     }
 }

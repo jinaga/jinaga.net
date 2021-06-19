@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Immutable;
+using System.Linq;
 using Jinaga.Pipelines;
 
 namespace Jinaga.Definitions
@@ -16,6 +18,16 @@ namespace Jinaga.Definitions
             this.parameterType = parameterType;
             this.startingTag = startingTag;
             this.steps = steps;
+        }
+
+        public Pipeline CreatePipeline(string factType)
+        {
+            var path = new Path(parameterName, factType, startingTag, steps);
+            var paths = ImmutableList<Path>.Empty.Add(path);
+            var projection = new Projection(parameterName);
+            var startingType = steps.First().InitialType;
+            var pipeline = new Pipeline(startingTag, startingType, paths, projection);
+            return pipeline;
         }
     }
 }

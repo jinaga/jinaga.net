@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Immutable;
+using Jinaga.Pipelines;
 
 namespace Jinaga.Definitions
 {
@@ -31,9 +32,14 @@ namespace Jinaga.Definitions
             return new SetDefinition(factType, steps, conditions.Add(condition));
         }
 
-        internal SetDefinition Compose(SetDefinition continuation)
+        public SetDefinition Compose(SetDefinition continuation)
         {
             throw new NotImplementedException();
+        }
+
+        public Pipeline Compile()
+        {
+            return steps.CreatePipeline(factType);
         }
     }
 }
