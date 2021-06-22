@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Immutable;
 using System.Linq;
 using Jinaga.Pipelines;
@@ -22,7 +23,7 @@ namespace Jinaga.Definitions
             this.conditions = conditions;
         }
 
-        public override SetDefinition WithSteps(StepsDefinition steps)
+        public override SetDefinition WithSteps(string tag, StepsDefinition steps)
         {
             return new SimpleSetDefinition(factType, steps, conditions);
         }
@@ -34,11 +35,20 @@ namespace Jinaga.Definitions
 
         public override SetDefinition Compose(SetDefinition continuation, ProjectionDefinition projection)
         {
-            var fields = projection.Fields.ToImmutableDictionary(
-                field => field.Name,
-                field => field.Position == 0 ? this : continuation);
-            return new CompositeSetDefinition(fields);
+            if (continuation is SimpleSetDefinition simpleSet)
+            {
+                var fields = projection.Fields.ToImmutableDictionary(
+                    field => field.Name,
+                    field => field.Position == 0 ? this : simpleSet);
+                return new CompositeSetDefinition(fields);
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
         }
+
+        public string Tag => steps?.Tag;
 
         public override Pipeline CreatePipeline()
         {

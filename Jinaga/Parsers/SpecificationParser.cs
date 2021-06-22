@@ -68,9 +68,9 @@ namespace Jinaga.Parsers
                 var setName = equalLambda.Parameters[0].Name;
                 var (tag, startingTag, steps) = JoinSegments(setName, set, initialFactName, initialFactType, binary.Left, binary.Right);
 
-                var stepsDefinition = new StepsDefinition(tag, initialFactName, steps);
+                var stepsDefinition = new StepsDefinition(tag, startingTag, steps);
 
-                return set.WithSteps(stepsDefinition);
+                return set.WithSteps(tag, stepsDefinition);
             }
             else if (predicate is UnaryExpression { Operand: LambdaExpression unaryLambda })
             {

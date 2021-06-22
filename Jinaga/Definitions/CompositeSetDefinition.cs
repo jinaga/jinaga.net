@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Linq;
 using System.Collections.Immutable;
 using System;
 using Jinaga.Pipelines;
@@ -6,16 +8,32 @@ namespace Jinaga.Definitions
 {
     public class CompositeSetDefinition : SetDefinition
     {
-        private readonly ImmutableDictionary<string, SetDefinition> fields;
+        private readonly ImmutableDictionary<string, SimpleSetDefinition> fields;
 
-        public CompositeSetDefinition(ImmutableDictionary<string, SetDefinition> fields)
+        public CompositeSetDefinition(ImmutableDictionary<string, SimpleSetDefinition> fields)
         {
             this.fields = fields;
         }
 
-        public override SetDefinition WithSteps(StepsDefinition steps)
+        public SimpleSetDefinition GetField(string name)
         {
-            throw new NotImplementedException();
+            if (fields.TryGetValue(name, out var memberSet))
+            {
+                return memberSet;
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
+        }
+
+        public override SetDefinition WithSteps(string tag, StepsDefinition steps)
+        {
+            return new CompositeSetDefinition(fields.Select(field =>
+                field.Key == tag
+                    ? KeyValuePair.Create(tag, (SimpleSetDefinition)field.Value.WithSteps(tag, steps))
+                    : field
+            ).ToImmutableDictionary());
         }
 
         public override SetDefinition WithCondition(ConditionDefinition condition)

@@ -11,6 +11,8 @@ namespace Jinaga.Definitions
         private readonly string initialFactName;
         private readonly ImmutableList<Step> steps;
 
+        public string Tag => tag;
+
         public StepsDefinition(string tag, string initialFactName, ImmutableList<Step> steps)
         {
             this.tag = tag;

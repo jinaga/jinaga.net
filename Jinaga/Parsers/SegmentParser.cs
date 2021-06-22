@@ -13,23 +13,39 @@ namespace Jinaga.Parsers
         {
             if (expression is MemberExpression memberExpression)
             {
-                var (head, tag, steps) = ParseSegment(setName, set, initialFactName, initialFactType, memberExpression.Expression);
-
                 if (memberExpression.Member is PropertyInfo proprtyInfo)
                 {
-                    var successorType = memberExpression.Member.DeclaringType.FactTypeName();
-                    var role = memberExpression.Member.Name;
-                    var predecessorType = proprtyInfo.PropertyType.FactTypeName();
-                    if (head)
+                    if (memberExpression.Expression is ParameterExpression node && node.Name == setName && set is CompositeSetDefinition compositeSet)
                     {
-                        steps = steps.Add(new PredecessorStep(successorType, role, predecessorType));
+                        var memberSet = compositeSet.GetField(memberExpression.Member.Name);
+                        var tag = memberSet.Tag;
+                        if (tag != null)
+                        {
+                            return (true, tag, ImmutableList<Step>.Empty);
+                        }
+                        else
+                        {
+                            return (false, memberExpression.Member.Name, ImmutableList<Step>.Empty);
+                        }
                     }
                     else
                     {
-                        steps = steps.Insert(0, new SuccessorStep(predecessorType, role, successorType));
-                    }
+                        var (head, tag, steps) = ParseSegment(setName, set, initialFactName, initialFactType, memberExpression.Expression);
 
-                    return (head, tag, steps);
+                        var successorType = memberExpression.Member.DeclaringType.FactTypeName();
+                        var role = memberExpression.Member.Name;
+                        var predecessorType = proprtyInfo.PropertyType.FactTypeName();
+                        if (head)
+                        {
+                            steps = steps.Add(new PredecessorStep(successorType, role, predecessorType));
+                        }
+                        else
+                        {
+                            steps = steps.Insert(0, new SuccessorStep(predecessorType, role, successorType));
+                        }
+
+                        return (head, tag, steps);
+                    }
                 }
                 else
                 {
