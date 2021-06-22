@@ -14,10 +14,10 @@ namespace Jinaga
         public static Specification<TFact, TProjection> Match<TProjection>(Expression<Func<TFact, FactRepository, IQueryable<TProjection>>> spec)
         {
             var parameter = spec.Parameters[0];
-            var parameterName = parameter.Name;
-            var parameterType = parameter.Type.FactTypeName();
+            var initialFactName = parameter.Name;
+            var initialFactType = parameter.Type.FactTypeName();
 
-            var set = SpecificationParser.ParseSpecification(parameterName, parameterType, spec.Body);
+            var set = SpecificationParser.ParseSpecification(initialFactName, initialFactType, spec.Body);
 
             return new Specification<TFact, TProjection>(set);
         }
@@ -33,7 +33,7 @@ namespace Jinaga
             var initialFactName = parameter.Name;
             var initialFactType = parameter.Type.FactTypeName();
 
-            var (rootName, steps) = SegmentParser.ParseSegment(spec.Body);
+            var (head, tag, steps) = SegmentParser.ParseSegment("", null, initialFactName, initialFactType, spec.Body);
             var last = steps.Last();
             var targetType = last.TargetType;
             if (last is PredecessorStep predecessorStep)

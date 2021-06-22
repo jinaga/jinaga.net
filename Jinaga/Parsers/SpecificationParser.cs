@@ -12,7 +12,7 @@ namespace Jinaga.Parsers
 {
     public static class SpecificationParser
     {
-        public static SetDefinition ParseSpecification(string parameterName, string parameterType, Expression body)
+        public static SetDefinition ParseSpecification(string initialFactName, string initialFactType, Expression body)
         {
             if (body is MethodCallExpression methodCall)
             {
@@ -29,15 +29,15 @@ namespace Jinaga.Parsers
                 {
                     if (method.Name == nameof(Queryable.Where) && methodCall.Arguments.Count == 2)
                     {
-                        return ParseWhere(ParseSpecification(parameterName, parameterType, methodCall.Arguments[0]), methodCall.Arguments[1]);
+                        return ParseWhere(ParseSpecification(initialFactName, initialFactType, methodCall.Arguments[0]), initialFactName, initialFactType, methodCall.Arguments[1]);
                     }
                     else if (method.Name == nameof(Queryable.Select) && methodCall.Arguments.Count == 2)
                     {
-                        return ParseSelect(ParseSpecification(parameterName, parameterType, methodCall.Arguments[0]), methodCall.Arguments[1]);
+                        return ParseSelect(ParseSpecification(initialFactName, initialFactType, methodCall.Arguments[0]), methodCall.Arguments[1]);
                     }
                     else if (method.Name == nameof(Queryable.SelectMany) && methodCall.Arguments.Count == 3)
                     {
-                        return ParseSelectMany(ParseSpecification(parameterName, parameterType, methodCall.Arguments[0]), methodCall.Arguments[1], methodCall.Arguments[2]);
+                        return ParseSelectMany(ParseSpecification(initialFactName, initialFactType, methodCall.Arguments[0]), methodCall.Arguments[1], methodCall.Arguments[2]);
                     }
                     else
                     {
@@ -55,7 +55,7 @@ namespace Jinaga.Parsers
             }
         }
 
-        private static SetDefinition ParseWhere(SetDefinition set, Expression predicate)
+        private static SetDefinition ParseWhere(SetDefinition set, string initialFactName, string initialFactType, Expression predicate)
         {
             if (predicate is UnaryExpression {
                 Operand: LambdaExpression {
@@ -65,10 +65,10 @@ namespace Jinaga.Parsers
                 } equalLambda
             })
             {
-                var parameterName = equalLambda.Parameters[0].Name;
-                
-                var (startingTag, steps) = JoinSegments(parameterName, binary.Left, binary.Right);
-                var stepsDefinition = new StepsDefinition(parameterName, startingTag, steps);
+                var setName = equalLambda.Parameters[0].Name;
+                var (tag, startingTag, steps) = JoinSegments(setName, set, initialFactName, initialFactType, binary.Left, binary.Right);
+
+                var stepsDefinition = new StepsDefinition(tag, initialFactName, steps);
 
                 return set.WithSteps(stepsDefinition);
             }
@@ -101,22 +101,6 @@ namespace Jinaga.Parsers
                 var continuation = ParseSpecification(parameterName, parameterType, lambda.Body);
                 var projection = ParseProjection(resultSelector);
                 return set.Compose(continuation, projection);
-            }
-            else
-            {
-                throw new NotImplementedException();
-            }
-        }
-
-        private static ConditionDefinition ParseConditionPredicate(Expression predicate)
-        {
-            if (predicate is UnaryExpression { Operand: LambdaExpression lambda })
-            {
-                var parameterName = lambda.Parameters[0].Name;
-                var parameterType = lambda.Parameters[0].Type.FactTypeName();
-                var body = lambda.Body;
-
-                return ParseCondition(parameterName, parameterType, body);
             }
             else
             {
@@ -163,7 +147,7 @@ namespace Jinaga.Parsers
                 {
                     object target = InstanceOfFact(propertyInfo.DeclaringType);
                     var condition = (Condition)propertyInfo.GetGetMethod().Invoke(target, new object[0]);
-                    return ParseCondition(parameterName, parameterType, condition.Body.Body);
+                    return ParseCondition("this", propertyInfo.DeclaringType.FactTypeName(), condition.Body.Body);
                 }
                 else
                 {
@@ -211,53 +195,23 @@ namespace Jinaga.Parsers
             return Activator.CreateInstance(factType, parameters);
         }
 
-        private static Path ParseSegmentPredicate(Expression predicate)
+        private static (string, string, ImmutableList<Step>) JoinSegments(string setName, SetDefinition set, string initialFactName, string initialFactType, Expression left, Expression right)
         {
-            if (predicate is UnaryExpression {
-                Operand: LambdaExpression {
-                    Body: BinaryExpression {
-                        NodeType: ExpressionType.Equal
-                    } binary
-                } lambda
-            })
+            var (leftHead, leftTag, leftSteps) = SegmentParser.ParseSegment(setName, set, initialFactName, initialFactType, left);
+            var (rightHead, rightTag, rightSteps) = SegmentParser.ParseSegment(setName, set, initialFactName, initialFactType, right);
+
+            if (leftHead && !rightHead)
             {
-                var parameterName = lambda.Parameters[0].Name;
-                var parameterType = lambda.Parameters[0].Type.FactTypeName();
-                
-                var (startingTag, steps) = JoinSegments(parameterName, binary.Left, binary.Right);
-
-                var path = new Path(parameterName, parameterType, startingTag, steps);
-
-                return path;
+                return (rightTag, leftTag, leftSteps.AddRange(rightSteps));
+            }
+            else if (rightHead && !leftHead)
+            {
+                return (leftTag, rightTag, rightSteps.AddRange(leftSteps));
             }
             else
             {
                 throw new NotImplementedException();
             }
-        }
-
-        private static (string, ImmutableList<Step>) JoinSegments(string parameterName, Expression left, Expression right)
-        {
-            var (leftRootName, leftSteps) = SegmentParser.ParseSegment(left);
-            var (rightRootName, rightSteps) = SegmentParser.ParseSegment(right);
-
-            if (leftRootName == parameterName)
-            {
-                return (rightRootName, rightSteps.AddRange(ReflectAll(leftSteps)));
-            }
-            else if (rightRootName == parameterName)
-            {
-                return (leftRootName, leftSteps.AddRange(ReflectAll(rightSteps)));
-            }
-            else
-            {
-                throw new NotImplementedException();
-            }
-        }
-
-        private static IEnumerable<Step> ReflectAll(ImmutableList<Step> steps)
-        {
-            return steps.Reverse().Select(step => step.Reflect()).ToImmutableList();
         }
 
         private static SetDefinition FactsOfType(string factType)

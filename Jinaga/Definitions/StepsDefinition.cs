@@ -7,25 +7,25 @@ namespace Jinaga.Definitions
 {
     public class StepsDefinition
     {
-        private readonly string parameterName;
-        private readonly string startingTag;
+        private readonly string tag;
+        private readonly string initialFactName;
         private readonly ImmutableList<Step> steps;
 
-        public StepsDefinition(string parameterName, string startingTag, ImmutableList<Step> steps)
+        public StepsDefinition(string tag, string initialFactName, ImmutableList<Step> steps)
         {
-            this.parameterName = parameterName;
-            this.startingTag = startingTag;
+            this.tag = tag;
+            this.initialFactName = initialFactName;
             this.steps = steps;
         }
 
         public Pipeline CreatePipeline(string factType, ImmutableList<ConditionDefinition> conditions)
         {
             var allSteps = steps.AddRange(conditions.Select(condition => condition.CreateConditionalStep()));
-            var path = new Path(parameterName, factType, startingTag, allSteps);
+            var path = new Path(tag, factType, initialFactName, allSteps);
             var paths = ImmutableList<Path>.Empty.Add(path);
-            var projection = new Projection(parameterName);
-            var startingType = steps.First().InitialType;
-            var pipeline = new Pipeline(startingTag, startingType, paths, projection);
+            var projection = new Projection(tag);
+            var initialFactType = steps.First().InitialType;
+            var pipeline = new Pipeline(initialFactName, initialFactType, paths, projection);
             return pipeline;
         }
     }
