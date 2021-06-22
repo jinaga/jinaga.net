@@ -16,10 +16,17 @@ namespace Jinaga
             var parameter = spec.Parameters[0];
             var initialFactName = parameter.Name;
             var initialFactType = parameter.Type.FactTypeName();
+            var symbolTable = SymbolTable.WithParameter(initialFactName, initialFactType);
 
-            var set = SpecificationParser.ParseSpecification(initialFactName, initialFactType, spec.Body);
-
-            return new Specification<TFact, TProjection>(set);
+            SymbolValue value = SpecificationParser.ParseSpecification(symbolTable, spec.Body);
+            if (value is SymbolValueSetDefinition setDefinitionValue)
+            {
+                return new Specification<TFact, TProjection>(setDefinitionValue.SetDefinition);
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
         }
 
         public static Specification<TFact, TProjection> Match<TProjection>(Expression<Func<TFact, FactRepository, TProjection>> spec)
@@ -32,16 +39,17 @@ namespace Jinaga
             var parameter = spec.Parameters[0];
             var initialFactName = parameter.Name;
             var initialFactType = parameter.Type.FactTypeName();
+            var symbolTable = SymbolTable.WithParameter(initialFactName, initialFactType);
 
-            var (head, tag, steps) = SegmentParser.ParseSegment("", null, initialFactName, initialFactType, spec.Body);
+            var (head, tag, steps) = SegmentParser.ParseSegment(symbolTable, spec.Body);
             var last = steps.Last();
             var targetType = last.TargetType;
             if (last is PredecessorStep predecessorStep)
             {
                 string targetName = predecessorStep.Role;
                 var stepsDefinition = new StepsDefinition(targetName, initialFactName, steps);
-                var set = new SimpleSetDefinition(targetType)
-                    .WithSteps(targetName, stepsDefinition);
+                var set = new SetDefinition(targetType)
+                    .WithSteps(stepsDefinition);
                 return new Specification<TFact, TProjection>(set);
             }
             else

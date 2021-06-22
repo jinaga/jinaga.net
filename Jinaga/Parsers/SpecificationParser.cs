@@ -1,6 +1,5 @@
 using System.Reflection;
 using System;
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Linq.Expressions;
@@ -12,7 +11,7 @@ namespace Jinaga.Parsers
 {
     public static class SpecificationParser
     {
-        public static SetDefinition ParseSpecification(string initialFactName, string initialFactType, Expression body)
+        public static SymbolValue ParseSpecification(SymbolTable symbolTable, Expression body)
         {
             if (body is MethodCallExpression methodCall)
             {
@@ -23,21 +22,22 @@ namespace Jinaga.Parsers
                 {
                     var factType = method.GetGenericArguments()[0].FactTypeName();
 
-                    return FactsOfType(factType);
+                    var set = FactsOfType(factType);
+                    return new SymbolValueSetDefinition(set);
                 }
                 else if (method.DeclaringType == typeof(Queryable))
                 {
                     if (method.Name == nameof(Queryable.Where) && methodCall.Arguments.Count == 2)
                     {
-                        return ParseWhere(ParseSpecification(initialFactName, initialFactType, methodCall.Arguments[0]), initialFactName, initialFactType, methodCall.Arguments[1]);
+                        return ParseWhere(ParseSpecification(symbolTable, methodCall.Arguments[0]), symbolTable, methodCall.Arguments[1]);
                     }
                     else if (method.Name == nameof(Queryable.Select) && methodCall.Arguments.Count == 2)
                     {
-                        return ParseSelect(ParseSpecification(initialFactName, initialFactType, methodCall.Arguments[0]), methodCall.Arguments[1]);
+                        return ParseSelect(ParseSpecification(symbolTable, methodCall.Arguments[0]), methodCall.Arguments[1]);
                     }
                     else if (method.Name == nameof(Queryable.SelectMany) && methodCall.Arguments.Count == 3)
                     {
-                        return ParseSelectMany(ParseSpecification(initialFactName, initialFactType, methodCall.Arguments[0]), methodCall.Arguments[1], methodCall.Arguments[2]);
+                        return ParseSelectMany(ParseSpecification(symbolTable, methodCall.Arguments[0]), symbolTable, methodCall.Arguments[1], methodCall.Arguments[2]);
                     }
                     else
                     {
@@ -55,7 +55,7 @@ namespace Jinaga.Parsers
             }
         }
 
-        private static SetDefinition ParseWhere(SetDefinition set, string initialFactName, string initialFactType, Expression predicate)
+        private static SymbolValue ParseWhere(SymbolValue symbolValue, SymbolTable symbolTable, Expression predicate)
         {
             if (predicate is UnaryExpression {
                 Operand: LambdaExpression {
@@ -65,20 +65,21 @@ namespace Jinaga.Parsers
                 } equalLambda
             })
             {
-                var setName = equalLambda.Parameters[0].Name;
-                var (tag, startingTag, steps) = JoinSegments(setName, set, initialFactName, initialFactType, binary.Left, binary.Right);
+                var parameterName = equalLambda.Parameters[0].Name;
+                var innerSymbolTable = symbolTable.With(parameterName, symbolValue);
+                var (tag, startingTag, steps) = JoinSegments(innerSymbolTable, binary.Left, binary.Right);
 
                 var stepsDefinition = new StepsDefinition(tag, startingTag, steps);
 
-                return set.WithSteps(tag, stepsDefinition);
+                return symbolValue.WithSteps(tag, stepsDefinition);
             }
             else if (predicate is UnaryExpression { Operand: LambdaExpression unaryLambda })
             {
                 var parameterName = unaryLambda.Parameters[0].Name;
-                var parameterType = unaryLambda.Parameters[0].Type.FactTypeName();
+                var innerSymbolTable = symbolTable.With(parameterName, symbolValue);
                 var body = unaryLambda.Body;
 
-                return set.WithCondition(ParseCondition(parameterName, parameterType, body));
+                return symbolValue.WithCondition(ParseCondition(innerSymbolTable, body));
             }
             else
             {
@@ -86,21 +87,20 @@ namespace Jinaga.Parsers
             }
         }
 
-        private static SetDefinition ParseSelect(SetDefinition set, Expression selector)
+        private static SymbolValue ParseSelect(SymbolValue symbolValue, Expression selector)
         {
             throw new NotImplementedException();
         }
 
-        private static SetDefinition ParseSelectMany(SetDefinition set, Expression collectionSelector, Expression resultSelector)
+        private static SymbolValue ParseSelectMany(SymbolValue symbolValue, SymbolTable symbolTable, Expression collectionSelector, Expression resultSelector)
         {
             if (collectionSelector is UnaryExpression { Operand: LambdaExpression lambda })
             {
                 var parameterName = lambda.Parameters[0].Name;
-                var parameterType = lambda.Parameters[0].Type.FactTypeName();
-                var body = lambda.Body;
-                var continuation = ParseSpecification(parameterName, parameterType, lambda.Body);
+                var innerSymbolTable = symbolTable.With(parameterName, symbolValue);
+                var continuation = ParseSpecification(innerSymbolTable, lambda.Body);
                 var projection = ParseProjection(resultSelector);
-                return set.Compose(continuation, projection);
+                return symbolValue.Compose(continuation, projection);
             }
             else
             {
@@ -108,11 +108,11 @@ namespace Jinaga.Parsers
             }
         }
 
-        private static ConditionDefinition ParseCondition(string parameterName, string parameterType, Expression body)
+        private static ConditionDefinition ParseCondition(SymbolTable symbolTable, Expression body)
         {
             if (body is UnaryExpression { NodeType: ExpressionType.Not, Operand: Expression operand })
             {
-                return ParseCondition(parameterName, parameterType, operand).Invert();
+                return ParseCondition(symbolTable, operand).Invert();
             }
             else if (body is MethodCallExpression methodCall)
             {
@@ -122,8 +122,15 @@ namespace Jinaga.Parsers
                     if (method.Name == nameof(Queryable.Any) && methodCall.Arguments.Count == 1)
                     {
                         var predicate = methodCall.Arguments[0];
-                        var set = ParseSpecification(parameterName, parameterType, predicate);
-                        return Exists(set);
+                        var value = ParseSpecification(symbolTable, predicate);
+                        if (value is SymbolValueSetDefinition setDefinitionValue)
+                        {
+                            return Exists(setDefinitionValue.SetDefinition);
+                        }
+                        else
+                        {
+                            throw new NotImplementedException();
+                        }
                     }
                     else
                     {
@@ -147,7 +154,9 @@ namespace Jinaga.Parsers
                 {
                     object target = InstanceOfFact(propertyInfo.DeclaringType);
                     var condition = (Condition)propertyInfo.GetGetMethod().Invoke(target, new object[0]);
-                    return ParseCondition("this", propertyInfo.DeclaringType.FactTypeName(), condition.Body.Body);
+                    string factType = propertyInfo.DeclaringType.FactTypeName();
+                    var innerSymbolTable = SymbolTable.WithParameter("this", factType);
+                    return ParseCondition(innerSymbolTable, condition.Body.Body);
                 }
                 else
                 {
@@ -195,10 +204,10 @@ namespace Jinaga.Parsers
             return Activator.CreateInstance(factType, parameters);
         }
 
-        private static (string, string, ImmutableList<Step>) JoinSegments(string setName, SetDefinition set, string initialFactName, string initialFactType, Expression left, Expression right)
+        private static (string, string, ImmutableList<Step>) JoinSegments(SymbolTable symbolTable, Expression left, Expression right)
         {
-            var (leftHead, leftTag, leftSteps) = SegmentParser.ParseSegment(setName, set, initialFactName, initialFactType, left);
-            var (rightHead, rightTag, rightSteps) = SegmentParser.ParseSegment(setName, set, initialFactName, initialFactType, right);
+            var (leftHead, leftTag, leftSteps) = SegmentParser.ParseSegment(symbolTable, left);
+            var (rightHead, rightTag, rightSteps) = SegmentParser.ParseSegment(symbolTable, right);
 
             if (leftHead && !rightHead)
             {
@@ -216,7 +225,7 @@ namespace Jinaga.Parsers
 
         private static SetDefinition FactsOfType(string factType)
         {
-            return new SimpleSetDefinition(factType);
+            return new SetDefinition(factType);
         }
 
         private static ConditionDefinition Exists(SetDefinition set)

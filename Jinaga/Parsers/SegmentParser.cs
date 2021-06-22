@@ -9,28 +9,51 @@ namespace Jinaga.Parsers
 {
     public static class SegmentParser
     {
-        public static (bool, string, ImmutableList<Step>) ParseSegment(string setName, SetDefinition set, string initialFactName, string initialFactType, Expression expression)
+        public static (bool, string, ImmutableList<Step>) ParseSegment(SymbolTable symbolTable, Expression expression)
         {
             if (expression is MemberExpression memberExpression)
             {
                 if (memberExpression.Member is PropertyInfo proprtyInfo)
                 {
-                    if (memberExpression.Expression is ParameterExpression node && node.Name == setName && set is CompositeSetDefinition compositeSet)
+                    if (memberExpression.Expression is ParameterExpression node)
                     {
-                        var memberSet = compositeSet.GetField(memberExpression.Member.Name);
-                        var tag = memberSet.Tag;
-                        if (tag != null)
+                        var value = symbolTable.GetField(node.Name);
+                        if (value is SymbolValueComposite compositeValue)
                         {
-                            return (true, tag, ImmutableList<Step>.Empty);
+                            var memberSet = compositeValue.GetField(memberExpression.Member.Name);
+                            var tag = memberSet.Tag;
+                            if (tag != null)
+                            {
+                                return (true, tag, ImmutableList<Step>.Empty);
+                            }
+                            else
+                            {
+                                return (false, memberExpression.Member.Name, ImmutableList<Step>.Empty);
+                            }
+                        }
+                        else if (value is SymbolValueSetDefinition setDefinitionValue)
+                        {
+                            var successorType = memberExpression.Member.DeclaringType.FactTypeName();
+                            var role = memberExpression.Member.Name;
+                            var predecessorType = proprtyInfo.PropertyType.FactTypeName();
+                            var tag = setDefinitionValue.SetDefinition.Tag;
+                            if (tag != null)
+                            {
+                                return (true, tag, ImmutableList<Step>.Empty.Add(new PredecessorStep(successorType, role, predecessorType)));
+                            }
+                            else
+                            {
+                                return (false, node.Name, ImmutableList<Step>.Empty.Insert(0, new SuccessorStep(predecessorType, role, successorType)));
+                            }
                         }
                         else
                         {
-                            return (false, memberExpression.Member.Name, ImmutableList<Step>.Empty);
+                            throw new NotImplementedException();
                         }
                     }
                     else
                     {
-                        var (head, tag, steps) = ParseSegment(setName, set, initialFactName, initialFactType, memberExpression.Expression);
+                        var (head, tag, steps) = ParseSegment(symbolTable, memberExpression.Expression);
 
                         var successorType = memberExpression.Member.DeclaringType.FactTypeName();
                         var role = memberExpression.Member.Name;
@@ -54,20 +77,25 @@ namespace Jinaga.Parsers
             }
             else if (expression is ParameterExpression node)
             {
-                if (node.Name == initialFactName)
+                var value = symbolTable.GetField(node.Name);
+                if (value is SymbolValueSetDefinition setDefinitionValue)
                 {
-                    return (true, node.Name, ImmutableList<Step>.Empty);
-                }
-                else if (node.Name == setName && set is SimpleSetDefinition)
-                {
-                    return (false, node.Name, ImmutableList<Step>.Empty);
+                    var tag = setDefinitionValue.SetDefinition.Tag;
+                    if (tag != null)
+                    {
+                        return (true, tag, ImmutableList<Step>.Empty);
+                    }
+                    else
+                    {
+                        return (false, node.Name, ImmutableList<Step>.Empty);
+                    }
                 }
                 else
                 {
                     throw new NotImplementedException();
                 }
             }
-            else if (expression is ConstantExpression && initialFactName == "this")
+            else if (expression is ConstantExpression)
             {
                 return (true, "this", ImmutableList<Step>.Empty);
             }
