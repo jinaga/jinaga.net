@@ -27,17 +27,17 @@ namespace Jinaga.Parsers
                 }
                 else if (method.DeclaringType == typeof(Queryable))
                 {
-                    if (method.Name == nameof(Queryable.Where))
+                    if (method.Name == nameof(Queryable.Where) && methodCall.Arguments.Count == 2)
                     {
                         return ParseWhere(ParseSpecification(parameterName, parameterType, methodCall.Arguments[0]), methodCall.Arguments[1]);
                     }
-                    else if (method.Name == nameof(Queryable.Select))
+                    else if (method.Name == nameof(Queryable.Select) && methodCall.Arguments.Count == 2)
                     {
                         return ParseSelect(ParseSpecification(parameterName, parameterType, methodCall.Arguments[0]), methodCall.Arguments[1]);
                     }
-                    else if (method.Name == nameof(Queryable.SelectMany))
+                    else if (method.Name == nameof(Queryable.SelectMany) && methodCall.Arguments.Count == 3)
                     {
-                        return ParseSelectMany(ParseSpecification(parameterName, parameterType, methodCall.Arguments[0]), methodCall.Arguments[1]);
+                        return ParseSelectMany(ParseSpecification(parameterName, parameterType, methodCall.Arguments[0]), methodCall.Arguments[1], methodCall.Arguments[2]);
                     }
                     else
                     {
@@ -66,10 +66,9 @@ namespace Jinaga.Parsers
             })
             {
                 var parameterName = equalLambda.Parameters[0].Name;
-                var parameterType = equalLambda.Parameters[0].Type.FactTypeName();
                 
                 var (startingTag, steps) = JoinSegments(parameterName, binary.Left, binary.Right);
-                var stepsDefinition = new StepsDefinition(parameterName, parameterType, startingTag, steps);
+                var stepsDefinition = new StepsDefinition(parameterName, startingTag, steps);
 
                 return set.WithSteps(stepsDefinition);
             }
@@ -92,15 +91,16 @@ namespace Jinaga.Parsers
             throw new NotImplementedException();
         }
 
-        private static SetDefinition ParseSelectMany(SetDefinition set, Expression selector)
+        private static SetDefinition ParseSelectMany(SetDefinition set, Expression collectionSelector, Expression resultSelector)
         {
-            if (selector is UnaryExpression { Operand: LambdaExpression lambda })
+            if (collectionSelector is UnaryExpression { Operand: LambdaExpression lambda })
             {
                 var parameterName = lambda.Parameters[0].Name;
                 var parameterType = lambda.Parameters[0].Type.FactTypeName();
                 var body = lambda.Body;
                 var continuation = ParseSpecification(parameterName, parameterType, lambda.Body);
-                return set.Compose(continuation);
+                var projection = ParseProjection(resultSelector);
+                return set.Compose(continuation, projection);
             }
             else
             {
@@ -176,6 +176,31 @@ namespace Jinaga.Parsers
             }
         }
 
+        private static ProjectionDefinition ParseProjection(Expression resultSelector)
+        {
+            if (resultSelector is UnaryExpression {
+                Operand: LambdaExpression {
+                    Body: NewExpression newBody
+                } projectionLambda
+            })
+            {
+                var parameter0 = projectionLambda.Parameters[0].Name;
+                var parameter1 = projectionLambda.Parameters[1].Name;
+                var argument0 = ((ParameterExpression)newBody.Arguments[0]).Name;
+                var argument1 = ((ParameterExpression)newBody.Arguments[1]).Name;
+                var fields = new FieldDefinition[]
+                {
+                    new FieldDefinition(parameter0, 0),
+                    new FieldDefinition(parameter1, 1)
+                }.ToImmutableList();
+                return new ProjectionDefinition(fields);
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
+        }
+
         private static object InstanceOfFact(Type factType)
         {
             var constructor = factType.GetConstructors().First();
@@ -237,7 +262,7 @@ namespace Jinaga.Parsers
 
         private static SetDefinition FactsOfType(string factType)
         {
-            return new SetDefinition(factType);
+            return new SimpleSetDefinition(factType);
         }
 
         private static ConditionDefinition Exists(SetDefinition set)

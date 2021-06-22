@@ -39,8 +39,8 @@ namespace Jinaga
             if (last is PredecessorStep predecessorStep)
             {
                 string targetName = predecessorStep.Role;
-                var stepsDefinition = new StepsDefinition(targetName, targetType, initialFactName, steps);
-                var set = new SetDefinition(targetType)
+                var stepsDefinition = new StepsDefinition(targetName, initialFactName, steps);
+                var set = new SimpleSetDefinition(targetType)
                     .WithSteps(stepsDefinition);
                 return new Specification<TFact, TProjection>(set);
             }
