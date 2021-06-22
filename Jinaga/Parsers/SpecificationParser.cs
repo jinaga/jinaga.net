@@ -33,7 +33,7 @@ namespace Jinaga.Parsers
                     }
                     else if (method.Name == nameof(Queryable.Select) && methodCall.Arguments.Count == 2)
                     {
-                        return ParseSelect(ParseSpecification(symbolTable, methodCall.Arguments[0]), methodCall.Arguments[1]);
+                        return ParseSelect(ParseSpecification(symbolTable, methodCall.Arguments[0]), symbolTable, methodCall.Arguments[1]);
                     }
                     else if (method.Name == nameof(Queryable.SelectMany) && methodCall.Arguments.Count == 3)
                     {
@@ -89,9 +89,56 @@ namespace Jinaga.Parsers
             }
         }
 
-        private static SymbolValue ParseSelect(SymbolValue symbolValue, Expression selector)
+        private static SymbolValue ParseSelect(SymbolValue symbolValue, SymbolTable symbolTable, Expression selector)
         {
-            throw new NotImplementedException();
+            if (selector is UnaryExpression {
+                Operand: LambdaExpression projectionLambda
+            })
+            {
+                var valueParameterName = projectionLambda.Parameters[0].Name;
+                var innerSymbolTable = symbolTable
+                    .With(valueParameterName, symbolValue);
+
+                return ParseValue(innerSymbolTable, projectionLambda.Body);
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
+        }
+
+        private static SymbolValue ParseValue(SymbolTable symbolTable, Expression expression)
+        {
+            if (expression is NewExpression newBody)
+            {
+                var fields = newBody.Arguments
+                    .Select(arg => ((ParameterExpression)arg).Name)
+                    .ToImmutableDictionary(
+                        name => name,
+                        name => ((SymbolValueSetDefinition)symbolTable.GetField(name)).SetDefinition
+                    );
+                return new SymbolValueComposite(fields);
+            }
+            else if (expression is MemberExpression memberBody)
+            {
+                var value = ParseValue(symbolTable, memberBody.Expression);
+                if (value is SymbolValueComposite composite)
+                {
+                    return new SymbolValueSetDefinition(composite.GetField(memberBody.Member.Name));
+                }
+                else
+                {
+                    throw new NotImplementedException();
+                }
+            }
+            else if (expression is ParameterExpression parameterBody)
+            {
+                return symbolTable.GetField(parameterBody.Name);
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
         }
 
         private static SymbolValue ParseSelectMany(SymbolValue symbolValue, SymbolTable symbolTable, Expression collectionSelector, Expression resultSelector)
