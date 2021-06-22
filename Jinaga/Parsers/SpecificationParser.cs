@@ -71,7 +71,7 @@ namespace Jinaga.Parsers
 
                 var stepsDefinition = new StepsDefinition(tag, startingTag, steps);
 
-                return symbolValue.WithSteps(tag, stepsDefinition);
+                return symbolValue.WithSteps(stepsDefinition);
             }
             else if (predicate is UnaryExpression { Operand: LambdaExpression unaryLambda })
             {
@@ -79,7 +79,9 @@ namespace Jinaga.Parsers
                 var innerSymbolTable = symbolTable.With(parameterName, symbolValue);
                 var body = unaryLambda.Body;
 
-                return symbolValue.WithCondition(ParseCondition(innerSymbolTable, body));
+                var conditionDefinition = ParseCondition(innerSymbolTable, body);
+
+                return symbolValue.WithCondition(conditionDefinition);
             }
             else
             {
@@ -99,8 +101,8 @@ namespace Jinaga.Parsers
                 var parameterName = lambda.Parameters[0].Name;
                 var innerSymbolTable = symbolTable.With(parameterName, symbolValue);
                 var continuation = ParseSpecification(innerSymbolTable, lambda.Body);
-                var projection = ParseProjection(resultSelector);
-                return symbolValue.Compose(continuation, projection);
+                var projection = ParseProjection(symbolTable, symbolValue, continuation, resultSelector);
+                return projection;
             }
             else
             {
@@ -169,7 +171,7 @@ namespace Jinaga.Parsers
             }
         }
 
-        private static ProjectionDefinition ParseProjection(Expression resultSelector)
+        private static SymbolValueComposite ParseProjection(SymbolTable symbolTable, SymbolValue symbolValue, SymbolValue continuation, Expression resultSelector)
         {
             if (resultSelector is UnaryExpression {
                 Operand: LambdaExpression {
@@ -177,16 +179,19 @@ namespace Jinaga.Parsers
                 } projectionLambda
             })
             {
-                var parameter0 = projectionLambda.Parameters[0].Name;
-                var parameter1 = projectionLambda.Parameters[1].Name;
-                var argument0 = ((ParameterExpression)newBody.Arguments[0]).Name;
-                var argument1 = ((ParameterExpression)newBody.Arguments[1]).Name;
-                var fields = new FieldDefinition[]
-                {
-                    new FieldDefinition(parameter0, 0),
-                    new FieldDefinition(parameter1, 1)
-                }.ToImmutableList();
-                return new ProjectionDefinition(fields);
+                var valueParameterName = projectionLambda.Parameters[0].Name;
+                var continuationParameterName = projectionLambda.Parameters[1].Name;
+                var innerSymbolTable = symbolTable
+                    .With(valueParameterName, symbolValue)
+                    .With(continuationParameterName, continuation);
+
+                var fields = newBody.Arguments
+                    .Select(arg => ((ParameterExpression)arg).Name)
+                    .ToImmutableDictionary(
+                        name => name,
+                        name => ((SymbolValueSetDefinition)innerSymbolTable.GetField(name)).SetDefinition
+                    );
+                return new SymbolValueComposite(fields);
             }
             else
             {

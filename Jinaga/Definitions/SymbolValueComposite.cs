@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Immutable;
+using System.Linq;
 
 namespace Jinaga.Definitions
 {
@@ -24,19 +25,30 @@ namespace Jinaga.Definitions
             }
         }
 
-        public override SymbolValue WithSteps(string tag, StepsDefinition stepsDefinition)
+        public override SymbolValue WithSteps(StepsDefinition stepsDefinition)
         {
-            throw new NotImplementedException();
+            var tag = stepsDefinition.Tag;
+            return new SymbolValueComposite(fields
+                .ToImmutableDictionary(
+                    field => field.Key,
+                    field => field.Key == tag
+                        ? field.Value.WithSteps(stepsDefinition)
+                        : field.Value
+                )
+            );
         }
 
         public override SymbolValue WithCondition(ConditionDefinition conditionDefinition)
         {
-            throw new NotImplementedException();
-        }
-
-        public override SymbolValue Compose(SymbolValue continuation, ProjectionDefinition projection)
-        {
-            throw new NotImplementedException();
+            var tag = conditionDefinition.InitialFactName;
+            return new SymbolValueComposite(fields
+                .ToImmutableDictionary(
+                    field => field.Key,
+                    field => field.Key == tag
+                        ? field.Value.WithCondition(conditionDefinition)
+                        : field.Value
+                )
+            );
         }
     }
 }

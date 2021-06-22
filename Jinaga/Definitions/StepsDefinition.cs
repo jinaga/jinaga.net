@@ -13,6 +13,8 @@ namespace Jinaga.Definitions
 
         public string Tag => tag;
 
+        public string InitialFactName => initialFactName;
+
         public StepsDefinition(string tag, string initialFactName, ImmutableList<Step> steps)
         {
             this.tag = tag;

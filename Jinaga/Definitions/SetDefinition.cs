@@ -33,6 +33,8 @@ namespace Jinaga.Definitions
 
         public string Tag => steps?.Tag;
 
+        public string InitialFactName => steps?.InitialFactName;
+
         public Pipeline CreatePipeline()
         {
             return steps.CreatePipeline(factType, conditions);

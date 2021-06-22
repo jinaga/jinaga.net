@@ -8,6 +8,8 @@ namespace Jinaga.Definitions
         private SetDefinition set;
         private bool exists;
 
+        public string InitialFactName => set.InitialFactName;
+
         public ConditionDefinition(SetDefinition set, bool exists)
         {
             this.set = set;

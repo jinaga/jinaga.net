@@ -9,7 +9,7 @@ namespace Jinaga.Definitions
             SetDefinition = setDefinition;
         }
 
-        public override SymbolValue WithSteps(string tag, StepsDefinition steps)
+        public override SymbolValue WithSteps(StepsDefinition steps)
         {
             return new SymbolValueSetDefinition(SetDefinition.WithSteps(steps));
         }
@@ -17,11 +17,6 @@ namespace Jinaga.Definitions
         public override SymbolValue WithCondition(ConditionDefinition conditionDefinition)
         {
             return new SymbolValueSetDefinition(SetDefinition.WithCondition(conditionDefinition));
-        }
-
-        public override SymbolValue Compose(SymbolValue continuation, ProjectionDefinition projection)
-        {
-            throw new System.NotImplementedException();
         }
     }
 }
