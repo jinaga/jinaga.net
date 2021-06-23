@@ -24,7 +24,7 @@ namespace Jinaga.Definitions
         public Step CreateConditionalStep()
         {
             var pipeline = set.CreatePipeline();
-            ImmutableList<Step> steps = pipeline.Linearize();
+            var steps = pipeline.Linearize(set.Tag);
             return new ConditionalStep(steps, exists);
         }
     }

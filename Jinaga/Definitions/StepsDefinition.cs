@@ -12,7 +12,7 @@ namespace Jinaga.Definitions
 
         public string Tag => tag;
 
-        public string InitialFactName => startingSet.Tag;
+        public string InitialFactName => startingSet?.Tag;
 
         public StepsDefinition(string tag, SetDefinition startingSet, ImmutableList<Step> steps)
         {
@@ -23,13 +23,18 @@ namespace Jinaga.Definitions
 
         public Pipeline CreatePipeline(string factType, ImmutableList<ConditionDefinition> conditions)
         {
-            var allSteps = steps.AddRange(conditions.Select(condition => condition.CreateConditionalStep()));
-            var path = new Path(tag, factType, startingSet.Tag, allSteps);
-            var paths = ImmutableList<Path>.Empty.Add(path);
-            var projection = new Projection(tag);
-            var initialFactType = steps.First().InitialType;
-            var pipeline = new Pipeline(startingSet.Tag, initialFactType, paths, projection);
-            return pipeline;
+            if (startingSet != null)
+            {
+                var pipeline = startingSet.CreatePipeline();
+                var allSteps = steps.AddRange(conditions.Select(condition => condition.CreateConditionalStep()));
+                var path = new Path(tag, factType, startingSet.Tag, allSteps);
+                
+                return pipeline.WithPath(path);
+            }
+            else
+            {
+                return Pipeline.FromInitialFact(tag, factType);
+            }
         }
     }
 }
