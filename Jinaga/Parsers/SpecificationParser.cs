@@ -115,7 +115,7 @@ namespace Jinaga.Parsers
                     .Select(arg => ((ParameterExpression)arg).Name)
                     .ToImmutableDictionary(
                         name => name,
-                        name => ((SymbolValueSetDefinition)symbolTable.GetField(name)).SetDefinition
+                        name => symbolTable.GetField(name)
                     );
                 return new SymbolValueComposite(fields);
             }
@@ -124,7 +124,7 @@ namespace Jinaga.Parsers
                 var value = ParseValue(symbolTable, memberBody.Expression);
                 if (value is SymbolValueComposite composite)
                 {
-                    return new SymbolValueSetDefinition(composite.GetField(memberBody.Member.Name));
+                    return composite.GetField(memberBody.Member.Name);
                 }
                 else
                 {
@@ -236,7 +236,7 @@ namespace Jinaga.Parsers
                     .Select(arg => ((ParameterExpression)arg).Name)
                     .ToImmutableDictionary(
                         name => name,
-                        name => ((SymbolValueSetDefinition)innerSymbolTable.GetField(name)).SetDefinition
+                        name => innerSymbolTable.GetField(name)
                     );
                 return new SymbolValueComposite(fields);
             }

@@ -1,19 +1,18 @@
 using System;
 using System.Collections.Immutable;
-using System.Linq;
 
 namespace Jinaga.Definitions
 {
     public class SymbolValueComposite : SymbolValue
     {
-        private readonly ImmutableDictionary<string, SetDefinition> fields;
+        private readonly ImmutableDictionary<string, SymbolValue> fields;
 
-        public SymbolValueComposite(ImmutableDictionary<string, SetDefinition> fields)
+        public SymbolValueComposite(ImmutableDictionary<string, SymbolValue> fields)
         {
             this.fields = fields;
         }
 
-        public SetDefinition GetField(string name)
+        public SymbolValue GetField(string name)
         {
             if (fields.TryGetValue(name, out var memberSet))
             {
