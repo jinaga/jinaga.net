@@ -256,18 +256,18 @@ namespace Jinaga.Parsers
             return Activator.CreateInstance(factType, parameters);
         }
 
-        private static (string, string, ImmutableList<Step>) JoinSegments(SymbolTable symbolTable, Expression left, Expression right)
+        private static (string, SetDefinition, ImmutableList<Step>) JoinSegments(SymbolTable symbolTable, Expression left, Expression right)
         {
-            var (leftHead, leftTag, leftSteps) = SegmentParser.ParseSegment(symbolTable, left);
-            var (rightHead, rightTag, rightSteps) = SegmentParser.ParseSegment(symbolTable, right);
+            var (leftHead, leftTag, leftStartingSet, leftSteps) = SegmentParser.ParseSegment(symbolTable, left);
+            var (rightHead, rightTag, rightStartingSet, rightSteps) = SegmentParser.ParseSegment(symbolTable, right);
 
             if (leftHead && !rightHead)
             {
-                return (rightTag, leftTag, leftSteps.AddRange(rightSteps));
+                return (rightTag, leftStartingSet, leftSteps.AddRange(rightSteps));
             }
             else if (rightHead && !leftHead)
             {
-                return (leftTag, rightTag, rightSteps.AddRange(leftSteps));
+                return (leftTag, rightStartingSet, rightSteps.AddRange(leftSteps));
             }
             else
             {

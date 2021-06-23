@@ -9,7 +9,7 @@ namespace Jinaga.Parsers
 {
     public static class SegmentParser
     {
-        public static (bool, string, ImmutableList<Step>) ParseSegment(SymbolTable symbolTable, Expression expression)
+        public static (bool, string, SetDefinition, ImmutableList<Step>) ParseSegment(SymbolTable symbolTable, Expression expression)
         {
             if (expression is MemberExpression memberExpression)
             {
@@ -24,11 +24,11 @@ namespace Jinaga.Parsers
                             var tag = memberSet.Tag;
                             if (tag != null)
                             {
-                                return (true, tag, ImmutableList<Step>.Empty);
+                                return (true, tag, memberSet, ImmutableList<Step>.Empty);
                             }
                             else
                             {
-                                return (false, memberExpression.Member.Name, ImmutableList<Step>.Empty);
+                                return (false, memberExpression.Member.Name, null, ImmutableList<Step>.Empty);
                             }
                         }
                         else if (value is SymbolValueSetDefinition setDefinitionValue)
@@ -39,11 +39,11 @@ namespace Jinaga.Parsers
                             var tag = setDefinitionValue.SetDefinition.Tag;
                             if (tag != null)
                             {
-                                return (true, tag, ImmutableList<Step>.Empty.Add(new PredecessorStep(successorType, role, predecessorType)));
+                                return (true, tag, setDefinitionValue.SetDefinition, ImmutableList<Step>.Empty.Add(new PredecessorStep(successorType, role, predecessorType)));
                             }
                             else
                             {
-                                return (false, node.Name, ImmutableList<Step>.Empty.Insert(0, new SuccessorStep(predecessorType, role, successorType)));
+                                return (false, node.Name, null, ImmutableList<Step>.Empty.Insert(0, new SuccessorStep(predecessorType, role, successorType)));
                             }
                         }
                         else
@@ -53,7 +53,7 @@ namespace Jinaga.Parsers
                     }
                     else
                     {
-                        var (head, tag, steps) = ParseSegment(symbolTable, memberExpression.Expression);
+                        var (head, tag, startingSet, steps) = ParseSegment(symbolTable, memberExpression.Expression);
 
                         var successorType = memberExpression.Member.DeclaringType.FactTypeName();
                         var role = memberExpression.Member.Name;
@@ -67,7 +67,7 @@ namespace Jinaga.Parsers
                             steps = steps.Insert(0, new SuccessorStep(predecessorType, role, successorType));
                         }
 
-                        return (head, tag, steps);
+                        return (head, tag, startingSet, steps);
                     }
                 }
                 else
@@ -83,11 +83,11 @@ namespace Jinaga.Parsers
                     var tag = setDefinitionValue.SetDefinition.Tag;
                     if (tag != null)
                     {
-                        return (true, tag, ImmutableList<Step>.Empty);
+                        return (true, tag, setDefinitionValue.SetDefinition, ImmutableList<Step>.Empty);
                     }
                     else
                     {
-                        return (false, node.Name, ImmutableList<Step>.Empty);
+                        return (false, node.Name, null, ImmutableList<Step>.Empty);
                     }
                 }
                 else
@@ -97,7 +97,7 @@ namespace Jinaga.Parsers
             }
             else if (expression is ConstantExpression)
             {
-                return (true, "this", ImmutableList<Step>.Empty);
+                return (true, "this", ((SymbolValueSetDefinition)symbolTable.GetField("this")).SetDefinition, ImmutableList<Step>.Empty);
             }
             else
             {

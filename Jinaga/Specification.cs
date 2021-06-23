@@ -41,13 +41,13 @@ namespace Jinaga
             var initialFactType = parameter.Type.FactTypeName();
             var symbolTable = SymbolTable.WithParameter(initialFactName, initialFactType);
 
-            var (head, tag, steps) = SegmentParser.ParseSegment(symbolTable, spec.Body);
+            var (head, tag, startingSet, steps) = SegmentParser.ParseSegment(symbolTable, spec.Body);
             var last = steps.Last();
             var targetType = last.TargetType;
             if (last is PredecessorStep predecessorStep)
             {
                 string targetName = predecessorStep.Role;
-                var stepsDefinition = new StepsDefinition(targetName, initialFactName, steps);
+                var stepsDefinition = new StepsDefinition(targetName, startingSet, steps);
                 var set = new SetDefinition(targetType)
                     .WithSteps(stepsDefinition);
                 return new Specification<TFact, TProjection>(set);
