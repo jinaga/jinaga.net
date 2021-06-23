@@ -145,6 +145,8 @@ namespace Jinaga.Test
     )
     booking
 }");
+            var oldDescriptiveString = pipeline.ToOldDescriptiveString();
+            oldDescriptiveString.Should().Be("S.airline F.type=\"Skylane.Airline.Day\" S.airlineDay F.type=\"Skylane.Flight\" E(S.flight F.type=\"Skylane.Flight.Cancellation\") S.flight F.type=\"Skylane.Booking\" N(S.booking F.type=\"Skylane.Refund\")");
         }
 
         [Fact]
