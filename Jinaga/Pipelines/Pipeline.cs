@@ -13,7 +13,7 @@ namespace Jinaga.Pipelines
 
         public static Pipeline FromInitialFact(string name, string type)
         {
-            return new Pipeline(name, type, ImmutableList<Path>.Empty, new Projection(name));
+            return new Pipeline(name, type, ImmutableList<Path>.Empty, new SimpleProjection(name));
         }
 
         private Pipeline(string initialFactName, string initialFactType, ImmutableList<Path> paths, Projection projection)
@@ -24,26 +24,63 @@ namespace Jinaga.Pipelines
             this.projection = projection;
         }
 
+        public Pipeline WithProjection(string name, string tag)
+        {
+            if (projection is SimpleProjection)
+            {
+                return new Pipeline(initialFactName, initialFactType, paths, new CompoundProjection().With(name, tag));
+            }
+            else if (projection is CompoundProjection compoundProjection)
+            {
+                return new Pipeline(initialFactName, initialFactType, paths, compoundProjection.With(name, tag));
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
+        }
+
+        public Pipeline Compose(Pipeline pipeline)
+        {
+            if (this.initialFactName != pipeline.initialFactName)
+            {
+                throw new ArgumentException("Initial fact names to not agree");
+            }
+            if (this.initialFactType != pipeline.initialFactType)
+            {
+                throw new ArgumentException("Initial fact types to not agree");
+            }
+
+            return new Pipeline(initialFactName, initialFactType, paths.AddRange(pipeline.paths), projection);
+        }
+
         public Pipeline WithPath(Path path)
         {
-            return new Pipeline(initialFactName, initialFactType, paths.Add(path), new Projection(path.Tag));
+            return new Pipeline(initialFactName, initialFactType, paths.Add(path), new SimpleProjection(path.Tag));
         }
 
         public ImmutableList<Step> Linearize(string outerTag)
         {
-            var tag = projection.Tag;
-            ImmutableList<Step> steps = ImmutableList<Step>.Empty;
-            while (tag != initialFactName)
+            if (projection is SimpleProjection simpleProjection)
             {
-                var path = paths.Where(p => p.Tag == tag).Single();
-                steps = path.Steps.AddRange(steps);
-                if (tag == outerTag)
+                var tag = simpleProjection.Tag;
+                ImmutableList<Step> steps = ImmutableList<Step>.Empty;
+                while (tag != initialFactName)
                 {
-                    break;
+                    var path = paths.Where(p => p.Tag == tag).Single();
+                    steps = path.Steps.AddRange(steps);
+                    if (tag == outerTag)
+                    {
+                        break;
+                    }
+                    tag = path.StartingTag;
                 }
-                tag = path.StartingTag;
+                return steps;
             }
-            return steps;
+            else
+            {
+                throw new NotImplementedException();
+            }
         }
 
         public string ToDescriptiveString()
@@ -56,14 +93,7 @@ namespace Jinaga.Pipelines
 
         public string ToOldDescriptiveString()
         {
-            var tag = projection.Tag;
-            ImmutableList<Step> steps = ImmutableList<Step>.Empty;
-            while (tag != initialFactName)
-            {
-                var path = paths.Where(p => p.Tag == tag).Single();
-                steps = path.Steps.AddRange(steps);
-                tag = path.StartingTag;
-            }
+            var steps = Linearize(null);
             string oldDescriptiveString = string.Join(" ", steps
                 .Select(step => step.ToOldDescriptiveString()));
             return oldDescriptiveString;

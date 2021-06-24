@@ -49,5 +49,10 @@ namespace Jinaga.Definitions
                 )
             );
         }
+
+        public ProjectionDefinition CreateProjectionDefinition()
+        {
+            return new ProjectionDefinition(fields);
+        }
     }
 }

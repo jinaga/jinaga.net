@@ -23,6 +23,10 @@ namespace Jinaga
             {
                 return new Specification<TFact, TProjection>(setDefinitionValue.SetDefinition);
             }
+            else if (value is SymbolValueComposite compositeValue)
+            {
+                return new Specification<TFact, TProjection>(compositeValue.CreateProjectionDefinition());
+            }
             else
             {
                 throw new NotImplementedException();
@@ -60,16 +64,22 @@ namespace Jinaga
     }
     public class Specification<TFact, TProjection>
     {
-        private SetDefinition set;
+        private readonly SetDefinition set;
+        private readonly ProjectionDefinition projection;
 
         public Specification(SetDefinition set)
         {
             this.set = set;
         }
 
+        public Specification(ProjectionDefinition projection)
+        {
+            this.projection = projection;
+        }
+
         public Pipeline Compile()
         {
-            return set.CreatePipeline();
+            return projection?.CreatePipeline() ?? set.CreatePipeline();
         }
     }
 }

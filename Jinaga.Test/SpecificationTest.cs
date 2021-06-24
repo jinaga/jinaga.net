@@ -218,8 +218,8 @@ namespace Jinaga.Test
         S.booking Skylane.Refund
     )
     {
-        booking,
-        cancellation
+        Booking = booking,
+        Cancellation = cancellation
     }
 }");
         }
