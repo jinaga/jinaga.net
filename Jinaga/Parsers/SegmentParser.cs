@@ -11,7 +11,7 @@ namespace Jinaga.Parsers
     {
         public static (bool, string, SetDefinition, ImmutableList<Step>) ParseSegment(SymbolTable symbolTable, Expression expression)
         {
-            var (valueTag, value) = ParseValue(symbolTable, expression);
+            var (valueTag, value) = ValueParser.ParseValue(symbolTable, expression);
             if (value != null)
             {
                 if (value is SymbolValueSetDefinition setDefinitionValue)
@@ -57,36 +57,6 @@ namespace Jinaga.Parsers
             else
             {
                 throw new NotImplementedException();
-            }
-        }
-
-        private static (string, SymbolValue) ParseValue(SymbolTable symbolTable, Expression expression)
-        {
-            if (expression is MemberExpression {
-                Member: PropertyInfo propertyInfo
-            } memberExpression)
-            {
-                var (tag, value) = ParseValue(symbolTable, memberExpression.Expression);
-                if (value is SymbolValueComposite compositeValue)
-                {
-                    return (propertyInfo.Name, compositeValue.GetField(propertyInfo.Name));
-                }
-                else
-                {
-                    return (null, null);
-                }
-            }
-            if (expression is ParameterExpression parameter)
-            {
-                return (parameter.Name, symbolTable.GetField(parameter.Name));
-            }
-            else if (expression is ConstantExpression)
-            {
-                return ("this", symbolTable.GetField("this"));
-            }
-            else
-            {
-                return (null, null);
             }
         }
     }

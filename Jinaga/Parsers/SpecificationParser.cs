@@ -99,7 +99,8 @@ namespace Jinaga.Parsers
                 var innerSymbolTable = symbolTable
                     .With(valueParameterName, symbolValue);
 
-                return ParseValue(innerSymbolTable, projectionLambda.Body);
+                var (tag, value) = ValueParser.ParseValue(innerSymbolTable, projectionLambda.Body);
+                return value;
             }
             else
             {
