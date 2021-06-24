@@ -16,11 +16,12 @@ namespace Jinaga.Definitions
 
         public Pipeline CreatePipeline()
         {
-            var name = fields.First().Key;
-            var setDefinition = ((SymbolValueSetDefinition)fields.First().Value).SetDefinition;
+            var orderedFields = fields.OrderBy(field => field.Key).ToImmutableList();
+            var name = orderedFields.First().Key;
+            var setDefinition = ((SymbolValueSetDefinition)orderedFields.First().Value).SetDefinition;
             var tag = setDefinition.Tag;
             var pipeline = setDefinition.CreatePipeline().WithProjection(name, tag);
-            foreach (var field in fields.Skip(1))
+            foreach (var field in orderedFields.Skip(1))
             {
                 var fieldName = field.Key;
                 var fieldSetDefinition = ((SymbolValueSetDefinition)field.Value).SetDefinition;

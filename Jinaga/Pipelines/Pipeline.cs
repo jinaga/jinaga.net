@@ -51,7 +51,10 @@ namespace Jinaga.Pipelines
                 throw new ArgumentException("Initial fact types to not agree");
             }
 
-            return new Pipeline(initialFactName, initialFactType, paths.AddRange(pipeline.paths), projection);
+            var combinedPaths = paths
+                .Union(pipeline.paths, new PathTagComparer())
+                .ToImmutableList();
+            return new Pipeline(initialFactName, initialFactType, combinedPaths, projection);
         }
 
         public Pipeline WithPath(Path path)

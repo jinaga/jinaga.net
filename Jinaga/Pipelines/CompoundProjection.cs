@@ -25,7 +25,7 @@ namespace Jinaga.Pipelines
         public override string ToDescriptiveString()
         {
             var fieldString = String.Join("", fields.Select(field => $"        {field.Item1} = {field.Item2}\r\n"));
-            return $"    {{\r\n{fieldString}    }}";
+            return $"{{\r\n{fieldString}    }}";
         }
     }
 }

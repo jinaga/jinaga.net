@@ -213,12 +213,12 @@ namespace Jinaga.Test
             var descriptiveString = pipeline.ToDescriptiveString();
             descriptiveString.Should().Be(@"airline: Skylane.Airline {
     flight: Skylane.Flight = airline S.airline Skylane.Airline.Day S.airlineDay Skylane.Flight
-    cancellation: Skylane.Flight.Cancellation = flight S.flight Skylane.Flight.Cancellation
     booking: Skylane.Booking = flight S.flight Skylane.Booking N(
         S.booking Skylane.Refund
     )
+    cancellation: Skylane.Flight.Cancellation = flight S.flight Skylane.Flight.Cancellation
     {
-        Booking = booking,
+        Booking = booking
         Cancellation = cancellation
     }
 }");
