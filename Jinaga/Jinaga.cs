@@ -6,14 +6,14 @@ namespace Jinaga
 {
     public class Jinaga
     {
-        public Task<T> Fact<T>(T prototype)
+        public async Task<T> Fact<T>(T prototype)
         {
-            throw new NotImplementedException();
+            return prototype;
         }
 
-        public Task<ImmutableList<TProjection>> Query<TFact, TProjection>(TFact start, Specification<TFact, TProjection> specification)
+        public async Task<ImmutableList<TProjection>> Query<TFact, TProjection>(TFact start, Specification<TFact, TProjection> specification)
         {
-            throw new NotImplementedException();
+            return ImmutableList<TProjection>.Empty;
         }
     }
 }

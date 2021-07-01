@@ -6,7 +6,7 @@ namespace Jinaga.UnitTest
     {
         public static Jinaga Create()
         {
-            throw new NotImplementedException();
+            return new Jinaga();
         }
     }
 }
