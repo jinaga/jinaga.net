@@ -2,7 +2,13 @@ namespace Jinaga.Facts
 {
     public class Field
     {
-        public string Name { get; set; }
-        public FieldValue Value { get; set; }
+        public Field(string name, FieldValue value)
+        {
+            Name = name;
+            Value = value;
+        }
+
+        public string Name { get; }
+        public FieldValue Value { get; }
     }
 }

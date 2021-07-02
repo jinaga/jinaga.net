@@ -17,7 +17,7 @@ namespace Jinaga.Test.Facts
         }
         
         [Fact]
-        public void SerializeField()
+        public void SerializeStringField()
         {
             var fact = FactSerializer.Serialize(new Airline("value"));
             var field = fact.Fields.Should().ContainSingle().Subject;

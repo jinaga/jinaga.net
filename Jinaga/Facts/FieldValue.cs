@@ -6,6 +6,11 @@ namespace Jinaga.Facts
 
     public class FieldValueString : FieldValue
     {
-        public string StringValue { get; set; }
+        public FieldValueString(string stringValue)
+        {
+            StringValue = stringValue;
+        }
+
+        public string StringValue { get; }
     }
 }
