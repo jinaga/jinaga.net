@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Immutable;
 using System.Threading.Tasks;
+using Jinaga.Facts;
 
 namespace Jinaga
 {
@@ -8,6 +9,7 @@ namespace Jinaga
     {
         public async Task<T> Fact<T>(T prototype)
         {
+            var fact = FactSerializer.Serialize(prototype);
             return prototype;
         }
 

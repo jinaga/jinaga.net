@@ -4,13 +4,17 @@ namespace Jinaga.Facts
 {
     public class Fact
     {
-        public Fact(string type, ImmutableList<Field> fields)
+        public Fact(FactReference reference, ImmutableList<Field> fields, ImmutableList<Predecessor> predecessors)
         {
-            Type = type;
+            Reference = reference;
             Fields = fields;
+            Predecessors = predecessors;
         }
 
-        public string Type { get; }
+        public string Type => Reference.Type;
+        public string Hash => Reference.Hash;
+        public FactReference Reference { get; }
         public ImmutableList<Field> Fields { get; }
+        public ImmutableList<Predecessor> Predecessors { get; }
     }
 }

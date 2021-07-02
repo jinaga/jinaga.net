@@ -1,6 +1,6 @@
 namespace Jinaga.Facts
 {
-    public class FieldValue
+    public abstract class FieldValue
     {
     }
 
