@@ -4,7 +4,13 @@ namespace Jinaga.Facts
 {
     public class Fact
     {
-        public string Type { get; set; }
-        public ImmutableList<Field> Fields { get; set; }
+        public Fact(string type, ImmutableList<Field> fields)
+        {
+            Type = type;
+            Fields = fields;
+        }
+
+        public string Type { get; }
+        public ImmutableList<Field> Fields { get; }
     }
 }
