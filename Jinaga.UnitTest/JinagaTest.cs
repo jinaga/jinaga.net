@@ -6,7 +6,7 @@ namespace Jinaga.UnitTest
     {
         public static Jinaga Create()
         {
-            return new Jinaga();
+            return new Jinaga(new MemoryStore());
         }
     }
 }

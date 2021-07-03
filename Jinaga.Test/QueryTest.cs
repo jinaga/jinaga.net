@@ -14,13 +14,15 @@ namespace Jinaga.Test
         [Fact]
         public async Task CanQueryForPredecessors()
         {
-            Jinaga j = JinagaTest.Create();
-            Flight flight = await j.Fact(new Flight(new AirlineDay(new Airline("IA"), DateTime.Today), 4272));
-            FlightCancellation cancellation = await j.Fact(new FlightCancellation(flight, DateTime.UtcNow));
+            var j = JinagaTest.Create();
+            var flight = await j.Fact(new Flight(new AirlineDay(new Airline("IA"), DateTime.Today), 4272));
+            var cancellation = await j.Fact(new FlightCancellation(flight, DateTime.UtcNow));
+
             var specification = Given<FlightCancellation>.Match(
                 flightCancellation => flightCancellation.flight
             );
-            ImmutableList<Flight> flights = await j.Query(cancellation, specification);
+            var flights = await j.Query(cancellation, specification);
+
             flights.Should().ContainSingle().Which.Should().BeEquivalentTo(flight);
         }
     }

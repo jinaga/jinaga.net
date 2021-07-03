@@ -1,15 +1,25 @@
 using System;
 using System.Collections.Immutable;
+using System.Linq;
 using System.Threading.Tasks;
 using Jinaga.Facts;
+using Jinaga.Services;
 
 namespace Jinaga
 {
     public class Jinaga
     {
+        private readonly IStore store;
+
+        public Jinaga(IStore store)
+        {
+            this.store = store;
+        }
+
         public async Task<T> Fact<T>(T prototype)
         {
-            var fact = FactSerializer.Serialize(prototype);
+            var newFacts = FactSerializer.Serialize(prototype);
+            var added = await store.Save(newFacts);
             return prototype;
         }
 
