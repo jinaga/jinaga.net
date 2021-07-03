@@ -30,26 +30,45 @@ namespace Jinaga.Facts
                     .Select(property => SerializeField(property, runtimeFact))
                     .ToImmutableList();
                 var predecessors = properties
-                    .Where(property => !IsField(property))
+                    .Where(property => !IsField(property) && !IsCondition(property))
                     .Select(property => SerializePredecessor(property, runtimeFact))
                     .ToImmutableList();
                 Facts = Facts.Add(new Fact(reference, fields, predecessors));
                 return reference;
             }
 
-            private static bool IsField(PropertyInfo runtimeField)
+            private static bool IsField(PropertyInfo property)
             {
                 return
-                    runtimeField.PropertyType == typeof(string) ||
-                    runtimeField.PropertyType == typeof(DateTime);
+                    property.PropertyType == typeof(string) ||
+                    property.PropertyType == typeof(DateTime) ||
+                    property.PropertyType == typeof(int) ||
+                    property.PropertyType == typeof(float) ||
+                    property.PropertyType == typeof(double) ||
+                    property.PropertyType == typeof(bool);
+            }
+
+            private bool IsCondition(PropertyInfo property)
+            {
+                return property.PropertyType == typeof(Condition);
             }
 
             private static Field SerializeField(PropertyInfo property, object runtimeFact)
             {
-                var value = property.PropertyType == typeof(string)
-                    ? new FieldValueString((string)property.GetValue(runtimeFact))
+                object propertyValue = property.GetValue(runtimeFact);
+                var value =
+                    property.PropertyType == typeof(string)
+                        ? FieldValue.Value((string)propertyValue)
                     : property.PropertyType == typeof(DateTime)
-                    ? new FieldValueString(ToIso8601String((DateTime)property.GetValue(runtimeFact)))
+                        ? FieldValue.Value((DateTime)propertyValue)
+                    : property.PropertyType == typeof(int)
+                        ? FieldValue.Value((int)propertyValue)
+                    : property.PropertyType == typeof(float)
+                        ? FieldValue.Value((float)propertyValue)
+                    : property.PropertyType == typeof(double)
+                        ? FieldValue.Value((double)propertyValue)
+                    : property.PropertyType == typeof(bool)
+                        ? FieldValue.Value((bool)propertyValue)
                     : throw new ArgumentException($"Unsupported field type {property.PropertyType.Name} in {property.DeclaringType.Name}.{property.Name}");
                 return new Field(property.Name, value);
             }
@@ -59,14 +78,6 @@ namespace Jinaga.Facts
                 string role = property.Name;
                 var reference = Serialize(property.GetValue(runtimeFact));
                 return new PredecessorSingle(role, reference);
-            }
-
-            private static string ToIso8601String(DateTime dateTime)
-            {
-                var utcDateTime = dateTime.Kind == DateTimeKind.Utc
-                    ? dateTime
-                    : dateTime.ToUniversalTime();
-                return utcDateTime.ToString("yyyy-MM-ddThh:mm:ss.fffZ");
             }
         }
     }

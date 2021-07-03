@@ -1,4 +1,3 @@
-using System.Reflection.Emit;
 using System;
 using System.Linq;
 using FluentAssertions;
@@ -40,7 +39,7 @@ namespace Jinaga.Test.Facts
             var airlineDay = facts.ElementAt(1);
             var field = airlineDay.Fields.Should().ContainSingle().Subject;
             field.Name.Should().Be("date");
-            field.Value.Should().BeOfType<FieldValueString>().Subject
+            field.Value.Should().BeOfType<FieldValueString>().Which
                 .StringValue.Should().Be("2021-07-04T01:39:43.241Z");
         }
 
@@ -55,8 +54,20 @@ namespace Jinaga.Test.Facts
             var airlineDay = facts.ElementAt(1);
             var field = airlineDay.Fields.Should().ContainSingle().Subject;
             field.Name.Should().Be("date");
-            field.Value.Should().BeOfType<FieldValueString>().Subject
+            field.Value.Should().BeOfType<FieldValueString>().Which
                 .StringValue.Should().NotBe("2021-07-04T01:39:43.241Z");
+        }
+
+        [Fact]
+        public void SerializeInteger()
+        {
+            var facts = FactSerializer.Serialize(new Flight(new AirlineDay(new Airline("IA"), DateTime.Today), 4272));
+
+            var flight = facts.Last();
+            var field = flight.Fields.Should().ContainSingle().Subject;
+            field.Name.Should().Be("flightNumber");
+            field.Value.Should().BeOfType<FieldValueNumber>().Which
+                .DoubleValue.Should().Be(4272.0);
         }
 
         [Fact]
