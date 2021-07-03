@@ -11,8 +11,6 @@ namespace Jinaga.Facts
             Predecessors = predecessors;
         }
 
-        public string Type => Reference.Type;
-        public string Hash => Reference.Hash;
         public FactReference Reference { get; }
         public ImmutableList<Field> Fields { get; }
         public ImmutableList<Predecessor> Predecessors { get; }

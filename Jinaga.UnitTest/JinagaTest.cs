@@ -1,5 +1,3 @@
-using System;
-
 namespace Jinaga.UnitTest
 {
     public class JinagaTest

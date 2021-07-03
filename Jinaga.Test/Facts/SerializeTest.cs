@@ -15,7 +15,7 @@ namespace Jinaga.Test.Facts
             var facts = FactSerializer.Serialize(new Airline("value"));
 
             facts.Should().ContainSingle().Which
-                .Type.Should().Be("Skylane.Airline");
+                .Reference.Type.Should().Be("Skylane.Airline");
         }
         
         [Fact]
@@ -77,7 +77,7 @@ namespace Jinaga.Test.Facts
             var facts = FactSerializer.Serialize(new AirlineDay(new Airline("value"), now));
 
             var airlineDay = facts.ElementAt(1);
-            airlineDay.Type.Should().Be("Skylane.Airline.Day");
+            airlineDay.Reference.Type.Should().Be("Skylane.Airline.Day");
             var predecessor = airlineDay.Predecessors.Should().ContainSingle().Subject;
             predecessor.Role.Should().Be("airline");
             var airlineReference = predecessor.Should().BeOfType<PredecessorSingle>()
@@ -85,9 +85,9 @@ namespace Jinaga.Test.Facts
             airlineReference.Type.Should().Be("Skylane.Airline");
 
             var airline = facts.ElementAt(0);
-            airline.Type.Should().Be("Skylane.Airline");
+            airline.Reference.Type.Should().Be("Skylane.Airline");
             airline.Predecessors.Should().BeEmpty();
-            airlineReference.Hash.Should().Be(airline.Hash);
+            airlineReference.Hash.Should().Be(airline.Reference.Hash);
         }
     }
 }

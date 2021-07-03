@@ -25,7 +25,19 @@ namespace Jinaga
 
         public async Task<ImmutableList<TProjection>> Query<TFact, TProjection>(TFact start, Specification<TFact, TProjection> specification)
         {
-            return ImmutableList<TProjection>.Empty;
+            var startFact = FactSerializer.Serialize(start).Last();
+            var startReference = startFact.Reference;
+            var pipeline = specification.Compile();
+            ImmutableList<Product> products = await store.Query(startReference, pipeline.InitialTag, pipeline.Paths);
+            ImmutableList<TProjection> results = products
+                .Select(product => ComputeProjection<TProjection>(pipeline.Projection, product))
+                .ToImmutableList();
+            return results;
+        }
+
+        private TProjection ComputeProjection<TProjection>(Pipelines.Projection projection, Product product)
+        {
+            throw new NotImplementedException();
         }
     }
 }
