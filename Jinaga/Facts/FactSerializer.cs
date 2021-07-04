@@ -122,7 +122,29 @@ namespace Jinaga.Facts
 
             private string CanonicalizePredecessors(ImmutableList<Predecessor> predecessors)
             {
-                return "";
+                var serializedPredecessors = predecessors
+                    .OrderBy(predecessor => predecessor.Role)
+                    .Select(predecessor => $"\"{predecessor.Role}\":{SerializePredecessor(predecessor)}")
+                    .ToArray();
+                var result = String.Join(",", serializedPredecessors);
+                return result;
+            }
+
+            private string SerializePredecessor(Predecessor predecessor)
+            {
+                switch (predecessor)
+                {
+                    case PredecessorSingle single:
+                        return SerializeFactReference(single.Reference);
+                    default:
+                        throw new NotImplementedException();
+                }
+            }
+
+            private string SerializeFactReference(FactReference reference)
+            {
+                string serializedType = JsonSerializer.Serialize(reference.Type);
+                return $"{{\"hash\":\"{reference.Hash}\",\"type\":{serializedType}}}";
             }
         }
 

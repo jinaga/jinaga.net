@@ -16,7 +16,7 @@ namespace Jinaga.Facts
             var utcDateTime = dateTime.Kind == DateTimeKind.Utc
                 ? dateTime
                 : dateTime.ToUniversalTime();
-            return utcDateTime.ToString("yyyy-MM-ddThh:mm:ss.fffZ");
+            return utcDateTime.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
         }
     }
 
