@@ -1,8 +1,11 @@
+using System.Security.Cryptography;
+using System.Text;
 using System.Reflection;
 using System;
 using System.Collections.Immutable;
 using Jinaga.Parsers;
 using System.Linq;
+using System.Text.Json;
 
 namespace Jinaga.Facts
 {
@@ -11,7 +14,7 @@ namespace Jinaga.Facts
         public static ImmutableList<Fact> Serialize(object runtimeFact)
         {
             var collector = new Collector();
-            FactReference reference = collector.Serialize(runtimeFact);
+            var reference = collector.Serialize(runtimeFact);
             return collector.Facts;
         }
 
@@ -21,9 +24,7 @@ namespace Jinaga.Facts
 
             public FactReference Serialize(object runtimeFact)
             {
-                Type runtimeType = runtimeFact.GetType();
-                string type = runtimeType.FactTypeName();
-                var reference = new FactReference(type, "");
+                var runtimeType = runtimeFact.GetType();
                 var properties = runtimeType.GetProperties(BindingFlags.Public | BindingFlags.Instance);
                 var fields = properties
                     .Where(property => IsField(property))
@@ -33,6 +34,7 @@ namespace Jinaga.Facts
                     .Where(property => !IsField(property) && !IsCondition(property))
                     .Select(property => SerializePredecessor(property, runtimeFact))
                     .ToImmutableList();
+                var reference = new FactReference(runtimeType.FactTypeName(), ComputeHash(fields, predecessors));
                 Facts = Facts.Add(new Fact(reference, fields, predecessors));
                 return reference;
             }
@@ -78,6 +80,49 @@ namespace Jinaga.Facts
                 string role = property.Name;
                 var reference = Serialize(property.GetValue(runtimeFact));
                 return new PredecessorSingle(role, reference);
+            }
+
+            private string ComputeHash(ImmutableList<Field> fields, ImmutableList<Predecessor> predecessors)
+            {
+                string json = Canonicalize(fields, predecessors);
+                var bytes = Encoding.UTF8.GetBytes(json);
+                using var hashAlgorithm = HashAlgorithm.Create("SHA-512");
+                var hashBytes = hashAlgorithm.ComputeHash(bytes);
+                var hashString = Convert.ToBase64String(hashBytes);
+                return hashString;
+            }
+
+            private string Canonicalize(ImmutableList<Field> fields, ImmutableList<Predecessor> predecessors)
+            {
+                string fieldsString = CanonicalizeFields(fields);
+                string predecessorsString = CanonicalizePredecessors(predecessors);
+                return $"{{\"fields\":{{{fieldsString}}},\"predecessors\":{{{predecessorsString}}}}}";
+            }
+
+            private string CanonicalizeFields(ImmutableList<Field> fields)
+            {
+                var serializedFields = fields
+                    .OrderBy(field => field.Name)
+                    .Select(field => $"\"{field.Name}\":{SerializeFieldValue(field.Value)}")
+                    .ToArray();
+                var result = String.Join(",", serializedFields);
+                return result;
+            }
+
+            private string SerializeFieldValue(FieldValue value)
+            {
+                switch (value)
+                {
+                    case FieldValueString str:
+                        return JsonSerializer.Serialize(str.StringValue);
+                    default:
+                        throw new NotImplementedException();
+                }
+            }
+
+            private string CanonicalizePredecessors(ImmutableList<Predecessor> predecessors)
+            {
+                return "";
             }
         }
 
