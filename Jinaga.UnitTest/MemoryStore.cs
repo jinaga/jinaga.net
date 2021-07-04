@@ -29,6 +29,11 @@ namespace Jinaga.UnitTest
             return Task.FromResult(products);
         }
 
+        public Task<ImmutableList<Fact>> Load(ImmutableList<FactReference> references)
+        {
+            throw new NotImplementedException();
+        }
+
         private ImmutableList<Product> ExecutePath(ImmutableList<Product> products, Path path)
         {
             return products

@@ -3,6 +3,7 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Threading.Tasks;
 using Jinaga.Facts;
+using Jinaga.Pipelines;
 using Jinaga.Services;
 
 namespace Jinaga
@@ -28,16 +29,27 @@ namespace Jinaga
             var startFact = FactSerializer.Serialize(start).Last();
             var startReference = startFact.Reference;
             var pipeline = specification.Compile();
-            ImmutableList<Product> products = await store.Query(startReference, pipeline.InitialTag, pipeline.Paths);
-            ImmutableList<TProjection> results = products
-                .Select(product => ComputeProjection<TProjection>(pipeline.Projection, product))
-                .ToImmutableList();
+            var products = await store.Query(startReference, pipeline.InitialTag, pipeline.Paths);
+            var results = await ComputeProjections<TProjection>(pipeline.Projection, products);
             return results;
         }
 
-        private TProjection ComputeProjection<TProjection>(Pipelines.Projection projection, Product product)
+        private async Task<ImmutableList<TProjection>> ComputeProjections<TProjection>(Projection projection, ImmutableList<Product> products)
         {
-            throw new NotImplementedException();
+            switch (projection)
+            {
+                case SimpleProjection simple:
+                    var references = products
+                        .Select(product => product.GetFact(simple.Tag).Reference)
+                        .ToImmutableList();
+                    var facts = await store.Load(references);
+                    var projections = facts
+                        .Select(fact => FactSerializer.Deserialize<TProjection>(facts, fact.Reference))
+                        .ToImmutableList();
+                    return projections;
+                default:
+                    throw new NotImplementedException();
+            }
         }
     }
 }

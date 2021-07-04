@@ -80,5 +80,10 @@ namespace Jinaga.Facts
                 return new PredecessorSingle(role, reference);
             }
         }
+
+        public static TFact Deserialize<TFact>(ImmutableList<Fact> facts, FactReference reference)
+        {
+            throw new NotImplementedException();
+        }
     }
 }
