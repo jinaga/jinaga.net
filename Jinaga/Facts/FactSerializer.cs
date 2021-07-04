@@ -115,6 +115,8 @@ namespace Jinaga.Facts
                 {
                     case FieldValueString str:
                         return JsonSerializer.Serialize(str.StringValue);
+                    case FieldValueNumber number:
+                        return JsonSerializer.Serialize(number.DoubleValue);
                     default:
                         throw new NotImplementedException();
                 }

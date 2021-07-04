@@ -21,10 +21,28 @@ namespace Jinaga.Test.Facts
         [Fact]
         public void HashPredecessor()
         {
-            var fact = new AirlineDay(new Airline("value"), DateTime.Parse("2021-07-04T00:00:00.000Z"));
+            var fact = new AirlineDay(
+                new Airline("value"),
+                DateTime.Parse("2021-07-04T00:00:00.000Z")
+            );
             var hash = ComputeHash(fact);
 
             hash.Should().Be("cQaErYsizavFrTIGjD1C0g3shMG/uq+hVUXzs/kCzcvev9gPrVDom3pbrszUsmeRelNv8bRdIvOb6AbaYrVC7w==");
+        }
+
+        [Fact]
+        public void HashIntegerField()
+        {
+            var fact = new Flight(
+                new AirlineDay(
+                    new Airline("value"),
+                    DateTime.Parse("2021-07-04T00:00:00.000Z")
+                ),
+                4247
+            );
+            var hash = ComputeHash(fact);
+
+            hash.Should().Be("PyXT7pCvBq7Vw63kEZGgbIVJxqA7jhoO+QbmeM3YC9laayG0gjln58khyOd4D/cmxXzocPaIuwXGWusVJxqEjQ==");
         }
 
         private static string ComputeHash(object fact)
