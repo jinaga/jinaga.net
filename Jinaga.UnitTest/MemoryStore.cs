@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading.Tasks;
@@ -10,21 +11,35 @@ namespace Jinaga.UnitTest
 {
     public class MemoryStore : IStore
     {
-        private ImmutableList<Fact> facts = ImmutableList<Fact>.Empty;
+        private ImmutableDictionary<FactReference, Fact> factsByReference = ImmutableDictionary<FactReference, Fact>.Empty;
+        private ImmutableList<Edge> edges = ImmutableList<Edge>.Empty;
 
         public Task<ImmutableList<Fact>> Save(ImmutableList<Fact> newFacts)
         {
-            facts = facts.AddRange(newFacts);
+            newFacts = newFacts
+                .Where(fact => !factsByReference.ContainsKey(fact.Reference))
+                .ToImmutableList();
+            factsByReference = factsByReference.AddRange(newFacts
+                .Select(fact => new KeyValuePair<FactReference, Fact>(fact.Reference, fact))
+            );
+            edges = edges.AddRange(newFacts
+                .SelectMany(fact => fact.Predecessors
+                    .SelectMany(predecessor => CreateEdges(fact, predecessor))
+                )
+            );
             return Task.FromResult(newFacts);
         }
 
         public Task<ImmutableList<Product>> Query(FactReference startReference, string initialTag, ImmutableList<Path> paths)
         {
-            var startingProducts = facts
-                .Where(fact => fact.Reference == startReference)
-                .Select(fact => Product.Init(initialTag, fact))
-                .ToImmutableList();
-            var products = paths.Aggregate(startingProducts, (products, path) => ExecutePath(products, path));
+            var startingProducts = new Product[]
+            {
+                Product.Init(initialTag, startReference)
+            }.ToImmutableList();
+            var products = paths.Aggregate(
+                startingProducts,
+                (products, path) => ExecutePath(products, path)
+            );
             return Task.FromResult(products);
         }
 
@@ -33,22 +48,36 @@ namespace Jinaga.UnitTest
             throw new NotImplementedException();
         }
 
+        private IEnumerable<Edge> CreateEdges(Fact successor, Predecessor predecessor)
+        {
+            switch (predecessor)
+            {
+                case PredecessorSingle single:
+                    return new Edge[]
+                    {
+                        new Edge(single.Reference, single.Role, successor.Reference)
+                    };
+                default:
+                    throw new NotImplementedException();
+            }
+        }
+
         private ImmutableList<Product> ExecutePath(ImmutableList<Product> products, Path path)
         {
             return products
-                .SelectMany(product => ExecuteSteps(product.GetFact(path.StartingTag), path.Steps)
-                    .Select(fact => product.With(path.Tag, fact))
+                .SelectMany(product => ExecuteSteps(product.GetFactReference(path.StartingTag), path.Steps)
+                    .Select(factReference => product.With(path.Tag, factReference))
                 )
                 .ToImmutableList();
         }
 
-        private ImmutableList<Fact> ExecuteSteps(Fact startingFact, ImmutableList<Step> steps)
+        private ImmutableList<FactReference> ExecuteSteps(FactReference startingFactReference, ImmutableList<Step> steps)
         {
-            var startingSet = new Fact[] { startingFact }.ToImmutableList();
+            var startingSet = new FactReference[] { startingFactReference }.ToImmutableList();
             return steps.Aggregate(startingSet, (set, step) => ExecuteStep(set, step));
         }
 
-        private ImmutableList<Fact> ExecuteStep(ImmutableList<Fact> set, Step step)
+        private ImmutableList<FactReference> ExecuteStep(ImmutableList<FactReference> set, Step step)
         {
             switch (step)
             {
@@ -59,50 +88,32 @@ namespace Jinaga.UnitTest
             }
         }
 
-        private ImmutableList<Fact> ExecutePredecessorStep(ImmutableList<Fact> set, string role, string targetType)
+        private ImmutableList<FactReference> ExecutePredecessorStep(ImmutableList<FactReference> set, string role, string targetType)
         {
             return set
-                .SelectMany(fact => fact.Predecessors
-                .Where(predecessor => predecessor.Role == role))
-                .SelectMany(predecessor =>
-                {
-                    switch (predecessor)
-                    {
-                        case PredecessorSingle single:
-                            return new FactReference[] { single.Reference };
-                        default:
-                            throw new NotImplementedException();
-                    }
-                })
-                .Where(reference => reference.Type == targetType)
-                .SelectMany(reference => facts.Where(fact => fact.Reference == reference))
-                .ToImmutableList();
-        }
-
-        private ImmutableList<Fact> ExecuteSuccessorStep(ImmutableList<Fact> set, string role, string targetType)
-        {
-            return set
-                .SelectMany(startingFact => facts
-                    .Where(fact => fact.Reference.Type == targetType)
-                    .Where(fact => fact.Predecessors
-                        .Any(predecessor =>
-                            predecessor.Role == role &&
-                            PredecessorIncludes(predecessor, startingFact.Reference)
-                        )
+                .SelectMany(factReference => edges
+                    .Where(edge =>
+                        edge.Successor == factReference &&
+                        edge.Role == role &&
+                        edge.Predecessor.Type == targetType
                     )
+                    .Select(edge => edge.Predecessor)
                 )
                 .ToImmutableList();
         }
 
-        private bool PredecessorIncludes(Predecessor predecessor, FactReference reference)
+        private ImmutableList<FactReference> ExecuteSuccessorStep(ImmutableList<FactReference> set, string role, string targetType)
         {
-            switch (predecessor)
-            {
-                case PredecessorSingle single:
-                    return single.Reference == reference;
-                default:
-                    throw new NotImplementedException();
-            }
+            return set
+                .SelectMany(factReference => edges
+                    .Where(edge =>
+                        edge.Predecessor == factReference &&
+                        edge.Role == role &&
+                        edge.Successor.Type == targetType
+                    )
+                    .Select(edge => edge.Successor)
+                )
+                .ToImmutableList();
         }
     }
 }

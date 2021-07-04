@@ -40,7 +40,7 @@ namespace Jinaga
             {
                 case SimpleProjection simple:
                     var references = products
-                        .Select(product => product.GetFact(simple.Tag).Reference)
+                        .Select(product => product.GetFactReference(simple.Tag))
                         .ToImmutableList();
                     var facts = await store.Load(references);
                     var projections = facts

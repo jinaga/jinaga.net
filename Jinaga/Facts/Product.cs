@@ -4,26 +4,26 @@ namespace Jinaga.Facts
 {
     public class Product
     {
-        private readonly ImmutableDictionary<string, Fact> facts;
+        private readonly ImmutableDictionary<string, FactReference> factReferencesByTag;
 
-        public Product(ImmutableDictionary<string, Fact> facts)
+        public Product(ImmutableDictionary<string, FactReference> factReferencesByTag)
         {
-            this.facts = facts;
+            this.factReferencesByTag = factReferencesByTag;
         }
 
-        public Fact GetFact(string tag)
+        public FactReference GetFactReference(string tag)
         {
-            return facts[tag];
+            return factReferencesByTag[tag];
         }
 
-        public Product With(string tag, Fact fact)
+        public Product With(string tag, FactReference factReference)
         {
-            return new Product(facts.Add(tag, fact));
+            return new Product(factReferencesByTag.Add(tag, factReference));
         }
 
-        public static Product Init(string tag, Fact fact)
+        public static Product Init(string tag, FactReference factReference)
         {
-            return new Product(ImmutableDictionary<string, Fact>.Empty.Add(tag, fact));
+            return new Product(ImmutableDictionary<string, FactReference>.Empty.Add(tag, factReference));
         }
     }
 }
