@@ -39,9 +39,8 @@ namespace Jinaga.UnitTest
                 ancestors = ancestors.Add(
                     factReference,
                     edges
-                        .SelectMany(edge => ancestors[edge.Predecessor]
-                            .Add(factReference)
-                        )
+                        .SelectMany(edge => ancestors[edge.Predecessor])
+                        .Append(factReference)
                         .Distinct()
                         .ToImmutableList()
                 );

@@ -43,8 +43,8 @@ namespace Jinaga
                         .Select(product => product.GetFactReference(simple.Tag))
                         .ToImmutableList();
                     var facts = await store.Load(references);
-                    var projections = facts
-                        .Select(fact => FactSerializer.Deserialize<TProjection>(facts, fact.Reference))
+                    var projections = references
+                        .Select(reference => FactSerializer.Deserialize<TProjection>(facts, reference))
                         .ToImmutableList();
                     return projections;
                 default:
