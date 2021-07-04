@@ -13,6 +13,7 @@ namespace Jinaga.UnitTest
     {
         private ImmutableDictionary<FactReference, Fact> factsByReference = ImmutableDictionary<FactReference, Fact>.Empty;
         private ImmutableList<Edge> edges = ImmutableList<Edge>.Empty;
+        private ImmutableDictionary<FactReference, ImmutableList<FactReference>> ancestors = ImmutableDictionary<FactReference, ImmutableList<FactReference>>.Empty;
 
         public Task<ImmutableList<Fact>> Save(ImmutableList<Fact> newFacts)
         {
@@ -22,11 +23,29 @@ namespace Jinaga.UnitTest
             factsByReference = factsByReference.AddRange(newFacts
                 .Select(fact => new KeyValuePair<FactReference, Fact>(fact.Reference, fact))
             );
-            edges = edges.AddRange(newFacts
-                .SelectMany(fact => fact.Predecessors
-                    .SelectMany(predecessor => CreateEdges(fact, predecessor))
-                )
+            var newPredecessors = newFacts
+                .Select(fact => (
+                    factReference: fact.Reference,
+                    edges: fact.Predecessors
+                        .SelectMany(predecessor => CreateEdges(fact, predecessor))
+                        .ToImmutableList()
+                ))
+                .ToImmutableList();
+            edges = edges.AddRange(newPredecessors
+                .SelectMany(pair => pair.edges)
             );
+            foreach (var (factReference, edges) in newPredecessors)
+            {
+                ancestors = ancestors.Add(
+                    factReference,
+                    edges
+                        .SelectMany(edge => ancestors[edge.Predecessor]
+                            .Add(factReference)
+                        )
+                        .Distinct()
+                        .ToImmutableList()
+                );
+            }
             return Task.FromResult(newFacts);
         }
 
@@ -45,7 +64,12 @@ namespace Jinaga.UnitTest
 
         public Task<ImmutableList<Fact>> Load(ImmutableList<FactReference> references)
         {
-            throw new NotImplementedException();
+            var result = references
+                .SelectMany(reference => ancestors[reference])
+                .Distinct()
+                .Select(reference => factsByReference[reference])
+                .ToImmutableList();
+            return Task.FromResult(result);
         }
 
         private IEnumerable<Edge> CreateEdges(Fact successor, Predecessor predecessor)

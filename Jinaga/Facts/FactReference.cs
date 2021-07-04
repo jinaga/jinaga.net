@@ -13,6 +13,11 @@ namespace Jinaga.Facts
         public string Type { get; }
         public string Hash { get; }
 
+        public override string ToString()
+        {
+            return $"{Type}: {Hash}";
+        }
+
         public override bool Equals(object obj)
         {
             return obj is FactReference reference &&
