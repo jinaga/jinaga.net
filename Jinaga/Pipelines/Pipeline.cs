@@ -11,6 +11,10 @@ namespace Jinaga.Pipelines
         private readonly ImmutableList<Path> paths;
         private readonly Projection projection;
 
+        public string InitialTag => initialFactName;
+        public ImmutableList<Path> Paths => paths;
+        public Projection Projection => projection;
+
         public static Pipeline FromInitialFact(string name, string type)
         {
             return new Pipeline(name, type, ImmutableList<Path>.Empty, new SimpleProjection(name));

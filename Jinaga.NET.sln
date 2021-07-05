@@ -1,4 +1,4 @@
-
+﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Jinaga", "Jinaga\Jinaga.csproj", "{08D2D6FD-7E46-4B9C-8EBB-BF8EF1D0974B}"
@@ -18,6 +18,8 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Android", "Android", "{1144F476-1D2A-4FE7-A836-AE5DCEDF1963}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SampleApp.Android", "Jinaga.Android\SampleApp.Android\SampleApp.Android.csproj", "{D46A6F8A-C984-4A0C-BBEB-185542AAF6FC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Jinaga.UnitTest", "Jinaga.UnitTest\Jinaga.UnitTest.csproj", "{EE103BF1-C934-4E86-A9BE-D2FA91667873}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -75,8 +77,17 @@ Global
 		{D46A6F8A-C984-4A0C-BBEB-185542AAF6FC}.Debug|iPhone.Build.0 = Debug|Any CPU
 		{D46A6F8A-C984-4A0C-BBEB-185542AAF6FC}.Release|iPhone.ActiveCfg = Release|Any CPU
 		{D46A6F8A-C984-4A0C-BBEB-185542AAF6FC}.Release|iPhone.Build.0 = Release|Any CPU
+		{EE103BF1-C934-4E86-A9BE-D2FA91667873}.Debug|iPhoneSimulator.ActiveCfg = Debug|Any CPU
+		{EE103BF1-C934-4E86-A9BE-D2FA91667873}.Debug|iPhoneSimulator.Build.0 = Debug|Any CPU
+		{EE103BF1-C934-4E86-A9BE-D2FA91667873}.Release|iPhoneSimulator.ActiveCfg = Release|Any CPU
+		{EE103BF1-C934-4E86-A9BE-D2FA91667873}.Release|iPhoneSimulator.Build.0 = Release|Any CPU
+		{EE103BF1-C934-4E86-A9BE-D2FA91667873}.Debug|iPhone.ActiveCfg = Debug|Any CPU
+		{EE103BF1-C934-4E86-A9BE-D2FA91667873}.Debug|iPhone.Build.0 = Debug|Any CPU
+		{EE103BF1-C934-4E86-A9BE-D2FA91667873}.Release|iPhone.ActiveCfg = Release|Any CPU
+		{EE103BF1-C934-4E86-A9BE-D2FA91667873}.Release|iPhone.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
+		{EE103BF1-C934-4E86-A9BE-D2FA91667873} = {554E5584-2CBE-4BCE-91C7-717994FAAE3A}
 		{08D2D6FD-7E46-4B9C-8EBB-BF8EF1D0974B} = {554E5584-2CBE-4BCE-91C7-717994FAAE3A}
 		{61995594-94A3-4F5E-97C8-882AE0CA8884} = {1144F476-1D2A-4FE7-A836-AE5DCEDF1963}
 		{4265C7F0-D85B-4DAD-B0FB-4D0627AD1DA8} = {BFF04A05-3F3A-470E-AEAD-F4CD9DA47E27}
