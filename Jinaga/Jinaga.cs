@@ -21,7 +21,8 @@ namespace Jinaga
         {
             var newFacts = FactSerializer.Serialize(prototype);
             var added = await store.Save(newFacts);
-            return prototype;
+            var reference = newFacts.Last().Reference;
+            return FactSerializer.Deserialize<T>(newFacts, reference);
         }
 
         public async Task<ImmutableList<TProjection>> Query<TFact, TProjection>(TFact start, Specification<TFact, TProjection> specification)
