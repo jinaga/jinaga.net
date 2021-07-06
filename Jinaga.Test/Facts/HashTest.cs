@@ -46,7 +46,7 @@ namespace Jinaga.Test.Facts
         }
 
         [Fact]
-        public void HashEmptyMultiplePredecessor()
+        public void HashEmptyPredecessorList()
         {
             var fact = new PassengerName(
                 new Passenger(
@@ -59,6 +59,28 @@ namespace Jinaga.Test.Facts
             var hash = ComputeHash(fact);
 
             hash.Should().Be("GsMMA/8Nv401P6RXvugFYzYCemGehnXSFZuaKNcoVFoXKmxzMJkpqI9rs/SRlKHZlnRP1QsBxFWKFt6143OpYA==");
+        }
+
+        [Fact]
+        public void HashSinglePredecessorList()
+        {
+            var passenger = new Passenger(
+                new Airline("IA"),
+                new User("---PUBLIC KEY---")
+            );
+            var first = new PassengerName(
+                passenger,
+                "Charles Rane",
+                new PassengerName[0]
+            );
+            var second = new PassengerName(
+                passenger,
+                "Charley Rane",
+                new PassengerName[] { first }
+            );
+            var hash = ComputeHash(second);
+
+            hash.Should().Be("BYLtR7XddbhchlyBdGdrnRHGkPsDecynDjLHFvqtKH7zug46ymxNDpPC4QNb+T14Bhzs8M1F3VfCnlgzinNHPg==");
         }
 
         private static string ComputeHash(object fact)

@@ -23,6 +23,11 @@ namespace Jinaga.Facts
 
         public FactGraph Add(Fact fact)
         {
+            if (factsByReference.ContainsKey(fact.Reference))
+            {
+                return this;
+            }
+            
             return new FactGraph(
                 factsByReference.Add(fact.Reference, fact),
                 topologicalOrder.Add(fact.Reference)
