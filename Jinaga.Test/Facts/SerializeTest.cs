@@ -12,19 +12,18 @@ namespace Jinaga.Test.Facts
         [Fact]
         public void SerializeType()
         {
-            var facts = FactSerializer.Serialize(new Airline("value"));
+            var graph = FactSerializer.Serialize(new Airline("value"));
 
-            facts.Should().ContainSingle().Which
-                .Reference.Type.Should().Be("Skylane.Airline");
+            graph.Last.Type.Should().Be("Skylane.Airline");
         }
         
         [Fact]
         public void SerializeStringField()
         {
-            var facts = FactSerializer.Serialize(new Airline("value"));
+            var graph = FactSerializer.Serialize(new Airline("value"));
 
-            var field = facts.Should().ContainSingle().Which
-                .Fields.Should().ContainSingle().Subject;
+            var fact = graph.GetFact(graph.Last);
+            var field = fact.Fields.Should().ContainSingle().Subject;
             field.Name.Should().Be("identifier");
             field.Value.Should().BeOfType<FieldValueString>().Which
                 .StringValue.Should().Be("value");
@@ -34,9 +33,9 @@ namespace Jinaga.Test.Facts
         public void SerializeDateTimeField()
         {
             DateTime now = DateTime.Parse("7/4/2021 1:39:43.241Z");
-            var facts = FactSerializer.Serialize(new AirlineDay(new Airline("value"), now));
+            var graph = FactSerializer.Serialize(new AirlineDay(new Airline("value"), now));
 
-            var airlineDay = facts.ElementAt(1);
+            var airlineDay = graph.GetFact(graph.Last);
             var field = airlineDay.Fields.Should().ContainSingle().Subject;
             field.Name.Should().Be("date");
             field.Value.Should().BeOfType<FieldValueString>().Which
@@ -49,9 +48,9 @@ namespace Jinaga.Test.Facts
             // This test will fail if the local timezone offset is 0
             // Sorry, London
             DateTime now = DateTime.Parse("7/4/2021 1:39:43.241");
-            var facts = FactSerializer.Serialize(new AirlineDay(new Airline("value"), now));
+            var graph = FactSerializer.Serialize(new AirlineDay(new Airline("value"), now));
 
-            var airlineDay = facts.ElementAt(1);
+            var airlineDay = graph.GetFact(graph.Last);
             var field = airlineDay.Fields.Should().ContainSingle().Subject;
             field.Name.Should().Be("date");
             field.Value.Should().BeOfType<FieldValueString>().Which
@@ -61,9 +60,9 @@ namespace Jinaga.Test.Facts
         [Fact]
         public void SerializeInteger()
         {
-            var facts = FactSerializer.Serialize(new Flight(new AirlineDay(new Airline("IA"), DateTime.Today), 4272));
+            var graph = FactSerializer.Serialize(new Flight(new AirlineDay(new Airline("IA"), DateTime.Today), 4272));
 
-            var flight = facts.Last();
+            var flight = graph.GetFact(graph.Last);
             var field = flight.Fields.Should().ContainSingle().Subject;
             field.Name.Should().Be("flightNumber");
             field.Value.Should().BeOfType<FieldValueNumber>().Which
@@ -74,9 +73,9 @@ namespace Jinaga.Test.Facts
         public void SerializePredecessor()
         {
             var now = DateTime.UtcNow;
-            var facts = FactSerializer.Serialize(new AirlineDay(new Airline("value"), now));
+            var graph = FactSerializer.Serialize(new AirlineDay(new Airline("value"), now));
 
-            var airlineDay = facts.ElementAt(1);
+            var airlineDay = graph.GetFact(graph.Last);
             airlineDay.Reference.Type.Should().Be("Skylane.Airline.Day");
             var predecessor = airlineDay.Predecessors.Should().ContainSingle().Subject;
             predecessor.Role.Should().Be("airline");
@@ -84,7 +83,7 @@ namespace Jinaga.Test.Facts
                 .Subject.Reference;
             airlineReference.Type.Should().Be("Skylane.Airline");
 
-            var airline = facts.ElementAt(0);
+            var airline = graph.GetFact(airlineReference);
             airline.Reference.Type.Should().Be("Skylane.Airline");
             airline.Predecessors.Should().BeEmpty();
             airlineReference.Hash.Should().Be(airline.Reference.Hash);

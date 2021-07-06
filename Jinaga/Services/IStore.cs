@@ -7,8 +7,8 @@ namespace Jinaga.Services
 {
     public interface IStore
     {
-        Task<ImmutableList<Fact>> Save(ImmutableList<Fact> newFacts);
+        Task<ImmutableList<Fact>> Save(FactGraph graph);
         Task<ImmutableList<Product>> Query(FactReference startReference, string initialTag, ImmutableList<Path> paths);
-        Task<ImmutableList<Fact>> Load(ImmutableList<FactReference> references);
+        Task<FactGraph> Load(ImmutableList<FactReference> references);
     }
 }

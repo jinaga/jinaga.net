@@ -11,7 +11,7 @@ namespace Jinaga.Facts
 {
     class Collector
     {
-        public ImmutableList<Fact> Facts { get; set; } = ImmutableList<Fact>.Empty;
+        public FactGraph Graph { get; set; } = new FactGraph();
 
         public FactReference Serialize(object runtimeFact)
         {
@@ -26,7 +26,7 @@ namespace Jinaga.Facts
                 .Select(property => SerializePredecessor(property, runtimeFact))
                 .ToImmutableList();
             var reference = new FactReference(runtimeType.FactTypeName(), ComputeHash(fields, predecessors));
-            Facts = Facts.Add(new Fact(reference, fields, predecessors));
+            Graph = Graph.Add(new Fact(reference, fields, predecessors));
             return reference;
         }
 

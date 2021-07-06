@@ -47,7 +47,7 @@ namespace Jinaga.Test.Facts
 
         private static string ComputeHash(object fact)
         {
-            return FactSerializer.Serialize(fact).Last().Reference.Hash;
+            return FactSerializer.Serialize(fact).Last.Hash;
         }
     }
 }
