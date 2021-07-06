@@ -45,6 +45,22 @@ namespace Jinaga.Test.Facts
             hash.Should().Be("PyXT7pCvBq7Vw63kEZGgbIVJxqA7jhoO+QbmeM3YC9laayG0gjln58khyOd4D/cmxXzocPaIuwXGWusVJxqEjQ==");
         }
 
+        [Fact]
+        public void HashEmptyMultiplePredecessor()
+        {
+            var fact = new PassengerName(
+                new Passenger(
+                    new Airline("IA"),
+                    new User("---PUBLIC KEY---")
+                ),
+                "Charles Rane",
+                new PassengerName[0]
+            );
+            var hash = ComputeHash(fact);
+
+            hash.Should().Be("GsMMA/8Nv401P6RXvugFYzYCemGehnXSFZuaKNcoVFoXKmxzMJkpqI9rs/SRlKHZlnRP1QsBxFWKFt6143OpYA==");
+        }
+
         private static string ComputeHash(object fact)
         {
             return FactSerializer.Serialize(fact).Last.Hash;

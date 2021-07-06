@@ -29,7 +29,7 @@ namespace Jinaga.Facts
                 .Select(parameter =>
                     Collector.IsField(parameter.ParameterType)
                         ? GetFieldValue(parameter.ParameterType, fact.Fields.Single(f => f.Name == parameter.Name).Value) :
-                    !Collector.IsCondition(parameter.ParameterType)
+                    Collector.IsPredecessor(parameter.ParameterType)
                         ? GetPredecessorValue(parameter.ParameterType, fact.Predecessors.Single(p => p.Role == parameter.Name), graph) :
                     throw new NotImplementedException()
                 )
