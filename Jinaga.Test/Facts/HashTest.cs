@@ -83,6 +83,35 @@ namespace Jinaga.Test.Facts
             hash.Should().Be("BYLtR7XddbhchlyBdGdrnRHGkPsDecynDjLHFvqtKH7zug46ymxNDpPC4QNb+T14Bhzs8M1F3VfCnlgzinNHPg==");
         }
 
+        [Fact]
+        public void HashMultiplePredecessorList()
+        {
+            var passenger = new Passenger(
+                new Airline("IA"),
+                new User("---PUBLIC KEY---")
+            );
+            var first = new PassengerName(
+                passenger,
+                "Charles Rane",
+                new PassengerName[0]
+            );
+            var middle = Enumerable.Range(1, 10)
+                .Select(id => new PassengerName(
+                    passenger,
+                    $"Charley Rane {id}",
+                    new PassengerName[] { first }
+                ))
+                .ToArray();
+            var last = new PassengerName(
+                passenger,
+                "Charley Rane",
+                middle
+            );
+            var hash = ComputeHash(last);
+
+            hash.Should().Be("4Os8M2Tt7+lCEe6WQ6iAJwQ/wbmK6CTLqwF8DCS6Bc4tgXE268BanI0sHDeSYhbKYbSDAyRzarMkrciveBoDTQ==");
+        }
+
         private static string ComputeHash(object fact)
         {
             return FactSerializer.Serialize(fact).Last.Hash;

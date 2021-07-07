@@ -121,7 +121,7 @@ namespace Jinaga.Facts
         private string CanonicalizeFields(ImmutableList<Field> fields)
         {
             var serializedFields = fields
-                .OrderBy(field => field.Name)
+                .OrderBy(field => field.Name, StringComparer.Ordinal)
                 .Select(field => $"\"{field.Name}\":{SerializeFieldValue(field.Value)}")
                 .ToArray();
             var result = String.Join(",", serializedFields);
@@ -144,7 +144,7 @@ namespace Jinaga.Facts
         private string CanonicalizePredecessors(ImmutableList<Predecessor> predecessors)
         {
             var serializedPredecessors = predecessors
-                .OrderBy(predecessor => predecessor.Role)
+                .OrderBy(predecessor => predecessor.Role, StringComparer.Ordinal)
                 .Select(predecessor => $"\"{predecessor.Role}\":{SerializePredecessor(predecessor)}")
                 .ToArray();
             var result = String.Join(",", serializedPredecessors);
@@ -160,8 +160,8 @@ namespace Jinaga.Facts
                 case PredecessorMultiple multiple:
                     var referenceStrings = multiple
                         .References
-                        .OrderBy(reference => reference.Hash)
-                        .ThenBy(references => references.Type)
+                        .OrderBy(reference => reference.Hash, StringComparer.Ordinal)
+                        .ThenBy(references => references.Type, StringComparer.Ordinal)
                         .Select(reference => SerializeFactReference(reference))
                         .ToArray();
                     return $"[{String.Join(",", referenceStrings)}]";
