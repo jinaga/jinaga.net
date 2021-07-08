@@ -47,7 +47,7 @@ namespace Jinaga.Facts
                         parameterType == typeof(string)
                             ? (object)str.StringValue :
                         parameterType == typeof(DateTime)
-                            ? (object)DateTime.Parse(str.StringValue) :
+                            ? (object)DateTime.Parse(str.StringValue).ToUniversalTime() :
                         throw new NotImplementedException();
                 case FieldValueNumber number:
                     return
