@@ -107,6 +107,8 @@ namespace Jinaga.UnitTest
             {
                 case PredecessorStep predecessor:
                     return ExecutePredecessorStep(set, predecessor.Role, predecessor.TargetType);
+                case SuccessorStep successor:
+                    return ExecuteSuccessorStep(set, successor.Role, successor.TargetType);
                 default:
                     throw new NotImplementedException();
             }
