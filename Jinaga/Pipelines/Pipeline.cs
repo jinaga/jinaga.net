@@ -66,7 +66,7 @@ namespace Jinaga.Pipelines
             return new Pipeline(initialFactName, initialFactType, paths.Add(path), new SimpleProjection(path.Tag));
         }
 
-        public ImmutableList<Step> Linearize(string outerTag)
+        public ImmutableList<Step> Linearize(string? outerTag)
         {
             if (projection is SimpleProjection simpleProjection)
             {

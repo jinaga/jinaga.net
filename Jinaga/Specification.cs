@@ -17,14 +17,14 @@ namespace Jinaga
             var initialFactType = parameter.Type.FactTypeName();
             var symbolTable = SymbolTable.WithParameter(initialFactName, initialFactType);
 
-            SymbolValue value = SpecificationParser.ParseSpecification(symbolTable, spec.Body);
+            var value = SpecificationParser.ParseSpecification(symbolTable, spec.Body);
             if (value is SymbolValueSetDefinition setDefinitionValue)
             {
-                return new Specification<TFact, TProjection>(setDefinitionValue.SetDefinition);
+                return new Specification<TFact, TProjection>(setDefinitionValue.SetDefinition.CreatePipeline());
             }
             else if (value is SymbolValueComposite compositeValue)
             {
-                return new Specification<TFact, TProjection>(compositeValue.CreateProjectionDefinition());
+                return new Specification<TFact, TProjection>(compositeValue.CreateProjectionDefinition().CreatePipeline());
             }
             else
             {
@@ -53,7 +53,7 @@ namespace Jinaga
                 var stepsDefinition = new StepsDefinition(targetName, startingSet, steps);
                 var set = new SetDefinition(targetType)
                     .WithSteps(stepsDefinition);
-                return new Specification<TFact, TProjection>(set);
+                return new Specification<TFact, TProjection>(set.CreatePipeline());
             }
             else
             {
@@ -63,22 +63,11 @@ namespace Jinaga
     }
     public class Specification<TFact, TProjection>
     {
-        private readonly SetDefinition set;
-        private readonly ProjectionDefinition projection;
+        public Pipeline Pipeline { get; }
 
-        public Specification(SetDefinition set)
+        public Specification(Pipeline pipeline)
         {
-            this.set = set;
-        }
-
-        public Specification(ProjectionDefinition projection)
-        {
-            this.projection = projection;
-        }
-
-        public Pipeline Compile()
-        {
-            return projection?.CreatePipeline() ?? set.CreatePipeline();
+            this.Pipeline = pipeline;
         }
     }
 }

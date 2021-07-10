@@ -17,18 +17,28 @@ namespace Jinaga
             this.store = store;
         }
 
-        public async Task<T> Fact<T>(T prototype)
+        public async Task<TFact> Fact<TFact>(TFact prototype) where TFact: class
         {
+            if (prototype == null)
+            {
+                throw new ArgumentNullException(nameof(prototype));
+            }
+            
             var graph = FactSerializer.Serialize(prototype);
             var added = await store.Save(graph);
             var reference = graph.Last;
-            return FactSerializer.Deserialize<T>(graph, reference);
+            return FactSerializer.Deserialize<TFact>(graph, reference);
         }
 
-        public async Task<ImmutableList<TProjection>> Query<TFact, TProjection>(TFact start, Specification<TFact, TProjection> specification)
+        public async Task<ImmutableList<TProjection>> Query<TFact, TProjection>(TFact start, Specification<TFact, TProjection> specification) where TFact: class
         {
+            if (start == null)
+            {
+                throw new ArgumentNullException(nameof(start));
+            }
+
             var startReference = FactSerializer.Serialize(start).Last;
-            var pipeline = specification.Compile();
+            var pipeline = specification.Pipeline;
             var products = await store.Query(startReference, pipeline.InitialTag, pipeline.Paths);
             var results = await ComputeProjections<TProjection>(pipeline.Projection, products);
             return results;

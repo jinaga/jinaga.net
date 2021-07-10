@@ -16,7 +16,7 @@ namespace Jinaga.Test
                 where flight.airlineDay.airline == airline
                 select flight
             );
-            Pipeline pipeline = specification.Compile();
+            Pipeline pipeline = specification.Pipeline;
             string descriptiveString = pipeline.ToDescriptiveString();
             descriptiveString.Should().Be(@"airline: Skylane.Airline {
     flight: Skylane.Flight = airline S.airline Skylane.Airline.Day S.airlineDay Skylane.Flight
@@ -34,7 +34,7 @@ namespace Jinaga.Test
                 where flightCancellation.flight == flight
                 select flight
             );
-            Pipeline pipeline = specification.Compile();
+            Pipeline pipeline = specification.Pipeline;
             string descriptiveString = pipeline.ToDescriptiveString();
             descriptiveString.Should().Be(@"flightCancellation: Skylane.Flight.Cancellation {
     flight: Skylane.Flight = flightCancellation P.flight Skylane.Flight
@@ -50,7 +50,7 @@ namespace Jinaga.Test
             Specification<FlightCancellation, Flight> specification = Given<FlightCancellation>.Match(flightCancellation =>
                 flightCancellation.flight
             );
-            Pipeline pipeline = specification.Compile();
+            Pipeline pipeline = specification.Pipeline;
             string descriptiveString = pipeline.ToDescriptiveString();
             descriptiveString.Should().Be(@"flightCancellation: Skylane.Flight.Cancellation {
     flight: Skylane.Flight = flightCancellation P.flight Skylane.Flight
@@ -75,7 +75,7 @@ namespace Jinaga.Test
 
                 select flight
             );
-            var pipeline = activeFlights.Compile();
+            var pipeline = activeFlights.Pipeline;
             var descriptiveString = pipeline.ToDescriptiveString();
             descriptiveString.Should().Be(@"airlineDay: Skylane.Airline.Day {
     flight: Skylane.Flight = airlineDay S.airlineDay Skylane.Flight N(
@@ -98,7 +98,7 @@ namespace Jinaga.Test
 
                 select flight
             );
-            var pipeline = activeFlights.Compile();
+            var pipeline = activeFlights.Pipeline;
             var descriptiveString = pipeline.ToDescriptiveString();
             descriptiveString.Should().Be(@"airlineDay: Skylane.Airline.Day {
     flight: Skylane.Flight = airlineDay S.airlineDay Skylane.Flight N(
@@ -134,7 +134,7 @@ namespace Jinaga.Test
 
                 select booking
             );
-            var pipeline = bookingsToRefund.Compile();
+            var pipeline = bookingsToRefund.Pipeline;
             var descriptiveString = pipeline.ToDescriptiveString();
             descriptiveString.Should().Be(@"airline: Skylane.Airline {
     flight: Skylane.Flight = airline S.airline Skylane.Airline.Day S.airlineDay Skylane.Flight E(
@@ -169,7 +169,7 @@ namespace Jinaga.Test
 
                 select booking
             );
-            var pipeline = bookingsToRefund.Compile();
+            var pipeline = bookingsToRefund.Pipeline;
             var descriptiveString = pipeline.ToDescriptiveString();
             descriptiveString.Should().Be(@"airline: Skylane.Airline {
     flight: Skylane.Flight = airline S.airline Skylane.Airline.Day S.airlineDay Skylane.Flight E(
@@ -209,7 +209,7 @@ namespace Jinaga.Test
                     Cancellation = cancellation
                 }
             );
-            var pipeline = bookingsToRefund.Compile();
+            var pipeline = bookingsToRefund.Pipeline;
             var descriptiveString = pipeline.ToDescriptiveString();
             descriptiveString.Should().Be(@"airline: Skylane.Airline {
     flight: Skylane.Flight = airline S.airline Skylane.Airline.Day S.airlineDay Skylane.Flight

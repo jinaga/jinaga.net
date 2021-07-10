@@ -1,0 +1,32 @@
+digraph "Specification Parser" {
+    rankdir=BT
+
+    subgraph cluster_pipelines {
+        PredecessorStep, SuccessorStep, ConditionalStep -> Step [arrowhead=empty]
+        Path, ConditionalStep -> Step [label=" *"]
+        Pipeline -> Path [label=" *"]
+        Pipeline -> Projection
+        SimpleProjection, CompondProjection -> Projection [arrowhead=empty]
+    }
+
+    subgraph cluster_definitions {
+        ConditionDefinition -> SetDefinition
+        ConditionDefinition -> ConditionalStep [style=dashed]
+        ProjectionDefinition -> SymbolValue [label=" *"]
+        ProjectionDefinition -> Pipeline [style=dashed]
+        SetDefinition -> StepsDefinition
+        SetDefinition -> ConditionDefinition [label=" *"]
+        SetDefinition -> Pipeline [style=dashed]
+        StepsDefinition -> SetDefinition
+        StepsDefinition -> Step [label=" *"]
+        StepsDefinition -> Pipeline [style=dashed]
+        SymbolTable -> SymbolValue [label=" *"]
+        SymbolValueComposite, SymbolValueSetDefinition -> SymbolValue [arrowhead=empty]
+        SymbolValueComposite -> SymbolValue [label=" *"]
+        SymbolValueSetDefinition -> SetDefinition
+
+    }
+
+    Specification -> Pipeline
+
+}

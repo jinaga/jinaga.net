@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Immutable;
 using System.Linq;
 using Jinaga.Pipelines;
@@ -7,14 +8,16 @@ namespace Jinaga.Definitions
     public class StepsDefinition
     {
         private readonly string tag;
-        private readonly SetDefinition startingSet;
+        private readonly SetDefinition? startingSet;
         private readonly ImmutableList<Step> steps;
 
         public string Tag => tag;
 
-        public string InitialFactName => startingSet?.Tag;
+        public string InitialFactName => startingSet == null
+            ? throw new InvalidOperationException("Using an uninitialized steps definition")
+            : startingSet.Tag;
 
-        public StepsDefinition(string tag, SetDefinition startingSet, ImmutableList<Step> steps)
+        public StepsDefinition(string tag, SetDefinition? startingSet, ImmutableList<Step> steps)
         {
             this.tag = tag;
             this.startingSet = startingSet;
