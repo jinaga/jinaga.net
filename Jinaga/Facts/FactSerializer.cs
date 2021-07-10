@@ -69,6 +69,14 @@ namespace Jinaga.Facts
             {
                 case PredecessorSingle single:
                     return DeserializeFact(graph, single.Reference, parameterType);
+                case PredecessorMultiple multiple:
+                    var elementType = parameterType.GetElementType();
+                    var facts = multiple.References.Select(r =>
+                        DeserializeFact(graph, r, elementType)
+                    ).ToArray();
+                    var value = (Array)Activator.CreateInstance(parameterType, facts.Length);
+                    Array.Copy(facts, value, facts.Length);
+                    return value;
                 default:
                     throw new NotImplementedException();
             }

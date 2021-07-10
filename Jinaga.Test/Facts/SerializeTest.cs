@@ -88,5 +88,33 @@ namespace Jinaga.Test.Facts
             airline.Predecessors.Should().BeEmpty();
             airlineReference.Hash.Should().Be(airline.Reference.Hash);
         }
+
+        [Fact]
+        public void SerializeMultiplePredecessors()
+        {
+            var passenger = new Passenger(new Airline("IA"), new User("--- PUBLIC KEY ---"));
+            var firstName = new PassengerName(passenger, "George", new PassengerName[0]);
+            var secondName = new PassengerName(passenger, "Jorge", new PassengerName[] { firstName });
+
+            var graph = FactSerializer.Serialize(secondName);
+            var fact = graph.GetFact(graph.Last);
+
+            fact.Predecessors.Where(p => p.Role == "prior").Should().ContainSingle().Which
+                .Should().BeOfType<PredecessorMultiple>();
+        }
+
+        [Fact]
+        public void SerializeRoundTripMultiplePredecessors()
+        {
+            var passenger = new Passenger(new Airline("IA"), new User("--- PUBLIC KEY ---"));
+            var firstName = new PassengerName(passenger, "George", new PassengerName[0]);
+            var secondName = new PassengerName(passenger, "Jorge", new PassengerName[] { firstName });
+
+            var graph = FactSerializer.Serialize(secondName);
+            var roundTrip = FactSerializer.Deserialize<PassengerName>(graph, graph.Last);
+
+            roundTrip.prior.Should().ContainSingle().Which
+                .value.Should().Be("George");
+        }
     }
 }
