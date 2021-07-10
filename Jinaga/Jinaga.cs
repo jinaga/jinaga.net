@@ -19,16 +19,15 @@ namespace Jinaga
 
         public async Task<T> Fact<T>(T prototype)
         {
-            var newFacts = FactSerializer.Serialize(prototype);
-            var added = await store.Save(newFacts);
-            var reference = newFacts.Last().Reference;
-            return FactSerializer.Deserialize<T>(newFacts, reference);
+            var graph = FactSerializer.Serialize(prototype);
+            var added = await store.Save(graph);
+            var reference = graph.Last;
+            return FactSerializer.Deserialize<T>(graph, reference);
         }
 
         public async Task<ImmutableList<TProjection>> Query<TFact, TProjection>(TFact start, Specification<TFact, TProjection> specification)
         {
-            var startFact = FactSerializer.Serialize(start).Last();
-            var startReference = startFact.Reference;
+            var startReference = FactSerializer.Serialize(start).Last;
             var pipeline = specification.Compile();
             var products = await store.Query(startReference, pipeline.InitialTag, pipeline.Paths);
             var results = await ComputeProjections<TProjection>(pipeline.Projection, products);
@@ -43,9 +42,9 @@ namespace Jinaga
                     var references = products
                         .Select(product => product.GetFactReference(simple.Tag))
                         .ToImmutableList();
-                    var facts = await store.Load(references);
+                    var graph = await store.Load(references);
                     var projections = references
-                        .Select(reference => FactSerializer.Deserialize<TProjection>(facts, reference))
+                        .Select(reference => FactSerializer.Deserialize<TProjection>(graph, reference))
                         .ToImmutableList();
                     return projections;
                 default:

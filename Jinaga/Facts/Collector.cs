@@ -11,28 +11,23 @@ namespace Jinaga.Facts
 {
     class Collector
     {
-        public ImmutableList<Fact> Facts { get; set; } = ImmutableList<Fact>.Empty;
+        public FactGraph Graph { get; set; } = new FactGraph();
 
         public FactReference Serialize(object runtimeFact)
         {
             var runtimeType = runtimeFact.GetType();
             var properties = runtimeType.GetProperties(BindingFlags.Public | BindingFlags.Instance);
             var fields = properties
-                .Where(property => IsField(property))
+                .Where(property => IsField(property.PropertyType))
                 .Select(property => SerializeField(property, runtimeFact))
                 .ToImmutableList();
             var predecessors = properties
-                .Where(property => !IsField(property) && !IsCondition(property))
+                .Where(property => IsPredecessor(property.PropertyType))
                 .Select(property => SerializePredecessor(property, runtimeFact))
                 .ToImmutableList();
             var reference = new FactReference(runtimeType.FactTypeName(), ComputeHash(fields, predecessors));
-            Facts = Facts.Add(new Fact(reference, fields, predecessors));
+            Graph = Graph.Add(new Fact(reference, fields, predecessors));
             return reference;
-        }
-
-        public static bool IsField(PropertyInfo property)
-        {
-            return IsField(property.PropertyType);
         }
 
         public static bool IsField(Type type)
@@ -46,14 +41,26 @@ namespace Jinaga.Facts
                 type == typeof(bool);
         }
 
-        public static bool IsCondition(PropertyInfo property)
+        public static bool IsPredecessor(Type type)
         {
-            return IsCondition(property.PropertyType);
+            return
+                IsFactType(type) ||
+                IsArrayOfFactType(type);
         }
 
-        public static bool IsCondition(Type type)
+        private static bool IsFactType(Type type)
         {
-            return type == typeof(Condition);
+            return type
+                .GetCustomAttributes(inherit: false)
+                .OfType<FactTypeAttribute>()
+                .Any();
+        }
+
+        private static bool IsArrayOfFactType(Type type)
+        {
+            return
+                type.IsArray &&
+                IsFactType(type.GetElementType());
         }
 
         private static Field SerializeField(PropertyInfo property, object runtimeFact)
@@ -79,8 +86,19 @@ namespace Jinaga.Facts
         private Predecessor SerializePredecessor(PropertyInfo property, object runtimeFact)
         {
             string role = property.Name;
-            var reference = Serialize(property.GetValue(runtimeFact));
-            return new PredecessorSingle(role, reference);
+            if (!property.PropertyType.IsArray)
+            {
+                var reference = Serialize(property.GetValue(runtimeFact));
+                return new PredecessorSingle(role, reference);
+            }
+            else
+            {
+                var array = (object[])property.GetValue(runtimeFact);
+                var references = array
+                    .Select(obj => Serialize(obj))
+                    .ToImmutableList();
+                return new PredecessorMultiple(role, references);
+            }
         }
 
         private string ComputeHash(ImmutableList<Field> fields, ImmutableList<Predecessor> predecessors)
@@ -103,7 +121,7 @@ namespace Jinaga.Facts
         private string CanonicalizeFields(ImmutableList<Field> fields)
         {
             var serializedFields = fields
-                .OrderBy(field => field.Name)
+                .OrderBy(field => field.Name, StringComparer.Ordinal)
                 .Select(field => $"\"{field.Name}\":{SerializeFieldValue(field.Value)}")
                 .ToArray();
             var result = String.Join(",", serializedFields);
@@ -126,7 +144,7 @@ namespace Jinaga.Facts
         private string CanonicalizePredecessors(ImmutableList<Predecessor> predecessors)
         {
             var serializedPredecessors = predecessors
-                .OrderBy(predecessor => predecessor.Role)
+                .OrderBy(predecessor => predecessor.Role, StringComparer.Ordinal)
                 .Select(predecessor => $"\"{predecessor.Role}\":{SerializePredecessor(predecessor)}")
                 .ToArray();
             var result = String.Join(",", serializedPredecessors);
@@ -139,6 +157,14 @@ namespace Jinaga.Facts
             {
                 case PredecessorSingle single:
                     return SerializeFactReference(single.Reference);
+                case PredecessorMultiple multiple:
+                    var referenceStrings = multiple
+                        .References
+                        .OrderBy(reference => reference.Hash, StringComparer.Ordinal)
+                        .ThenBy(references => references.Type, StringComparer.Ordinal)
+                        .Select(reference => SerializeFactReference(reference))
+                        .ToArray();
+                    return $"[{String.Join(",", referenceStrings)}]";
                 default:
                     throw new NotImplementedException();
             }

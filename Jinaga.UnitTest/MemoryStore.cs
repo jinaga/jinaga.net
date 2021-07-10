@@ -15,10 +15,11 @@ namespace Jinaga.UnitTest
         private ImmutableList<Edge> edges = ImmutableList<Edge>.Empty;
         private ImmutableDictionary<FactReference, ImmutableList<FactReference>> ancestors = ImmutableDictionary<FactReference, ImmutableList<FactReference>>.Empty;
 
-        public Task<ImmutableList<Fact>> Save(ImmutableList<Fact> newFacts)
+        public Task<ImmutableList<Fact>> Save(FactGraph graph)
         {
-            newFacts = newFacts
-                .Where(fact => !factsByReference.ContainsKey(fact.Reference))
+            var newFacts = graph.FactReferences
+                .Where(reference => !factsByReference.ContainsKey(reference))
+                .Select(reference => graph.GetFact(reference))
                 .ToImmutableList();
             factsByReference = factsByReference.AddRange(newFacts
                 .Select(fact => new KeyValuePair<FactReference, Fact>(fact.Reference, fact))
@@ -61,14 +62,14 @@ namespace Jinaga.UnitTest
             return Task.FromResult(products);
         }
 
-        public Task<ImmutableList<Fact>> Load(ImmutableList<FactReference> references)
+        public Task<FactGraph> Load(ImmutableList<FactReference> references)
         {
-            var result = references
+            var graph = references
                 .SelectMany(reference => ancestors[reference])
                 .Distinct()
                 .Select(reference => factsByReference[reference])
-                .ToImmutableList();
-            return Task.FromResult(result);
+                .Aggregate(new FactGraph(), (graph, fact) => graph.Add(fact));
+            return Task.FromResult(graph);
         }
 
         private IEnumerable<Edge> CreateEdges(Fact successor, Predecessor predecessor)
