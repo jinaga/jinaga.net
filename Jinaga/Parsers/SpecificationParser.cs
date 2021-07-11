@@ -65,7 +65,6 @@ namespace Jinaga.Parsers
             })
             {
                 var parameterName = equalLambda.Parameters[0].Name;
-                var parameterFactType = equalLambda.Parameters[0].Type.FactTypeName();
                 var innerSymbolTable = symbolTable.With(parameterName, symbolValue);
                 var left = ValueParser.ParseValue(innerSymbolTable, binary.Left);
                 var right = ValueParser.ParseValue(innerSymbolTable, binary.Right);
@@ -74,7 +73,7 @@ namespace Jinaga.Parsers
                     case (SymbolValueSetDefinition leftSet, SymbolValueSetDefinition rightSet):
                         var leftChain = leftSet.SetDefinition.ToChain();
                         var rightChain = rightSet.SetDefinition.ToChain();
-                        var join = new SetDefinitionJoin(parameterFactType, parameterName, leftChain, rightChain);
+                        var join = new SetDefinitionJoin(parameterName, leftChain, rightChain);
                         return new SymbolValueSetDefinition(join);
                     default:
                         throw new NotImplementedException();
@@ -83,7 +82,6 @@ namespace Jinaga.Parsers
             else if (predicate is UnaryExpression { Operand: LambdaExpression unaryLambda })
             {
                 var parameterName = unaryLambda.Parameters[0].Name;
-                var parameterFactType = unaryLambda.Parameters[0].Type.FactTypeName();
                 var innerSymbolTable = symbolTable.With(parameterName, symbolValue);
                 var body = unaryLambda.Body;
 
@@ -91,7 +89,7 @@ namespace Jinaga.Parsers
                 switch (symbolValue)
                 {
                     case SymbolValueSetDefinition setValue:
-                        var setDefinition = new SetDefinitionConditional(parameterFactType, setValue.SetDefinition, conditionDefinition);
+                        var setDefinition = new SetDefinitionConditional(setValue.SetDefinition, conditionDefinition);
                         return new SymbolValueSetDefinition(setDefinition);
                     default:
                         throw new NotImplementedException();

@@ -4,20 +4,12 @@ namespace Jinaga.Definitions
 {
     public abstract class SetDefinition
     {
-        private readonly string factType;
-
-        public string FactType => factType;
+        public abstract string FactType { get; }
         public virtual string Tag => throw new NotImplementedException();
-
-        protected SetDefinition(string factType)
-        {
-            this.factType = factType;
-        }
 
         public virtual SetDefinition AppendChain(string role, string predecessorType)
         {
             return new SetDefinitionChainRole(
-                predecessorType,
                 new ChainRole(new ChainStart(this), role, predecessorType)
             );
         }
@@ -31,20 +23,28 @@ namespace Jinaga.Definitions
     public class SetDefinitionInitial : SetDefinition
     {
         private readonly string tag;
+        private readonly string factType;
 
-        public SetDefinitionInitial(string factType, string tag) : base(factType)
+        public SetDefinitionInitial(string tag, string factType)
         {
             this.tag = tag;
+            this.factType = factType;
         }
 
         public override string Tag => tag;
+        public override string FactType => factType;
     }
 
     public class SetDefinitionTarget : SetDefinition
     {
-        public SetDefinitionTarget(string factType) : base(factType)
+        private readonly string factType;
+
+        public SetDefinitionTarget(string factType)
         {
+            this.factType = factType;
         }
+
+        public override string FactType => factType;
     }
 
     public class SetDefinitionChainRole : SetDefinition
@@ -53,7 +53,9 @@ namespace Jinaga.Definitions
 
         public ChainRole ChainRole => chainRole;
 
-        public SetDefinitionChainRole(string factType, ChainRole chainRole) : base(factType)
+        public override string FactType => throw new NotImplementedException();
+
+        public SetDefinitionChainRole(ChainRole chainRole)
         {
             this.chainRole = chainRole;
         }
@@ -61,8 +63,7 @@ namespace Jinaga.Definitions
         public override SetDefinition AppendChain(string role, string predecessorType)
         {
             return new SetDefinitionChainRole(
-                predecessorType,
-                new ChainRole(this.chainRole, role, predecessorType)
+                new ChainRole(chainRole, role, predecessorType)
             );
         }
 
@@ -82,10 +83,9 @@ namespace Jinaga.Definitions
         public Chain Right => right;
 
         public SetDefinitionJoin(
-            string factType,
             string tag,
             Chain left,
-            Chain right) : base(factType)
+            Chain right)
         {
             this.tag = tag;
             this.left = left;
@@ -93,6 +93,28 @@ namespace Jinaga.Definitions
         }
 
         public override string Tag => tag;
+
+        public override string FactType
+        {
+            get
+            {
+                bool leftIsTarget = left.IsTarget;
+                bool rightIsTarget = right.IsTarget;
+
+                if (leftIsTarget && !rightIsTarget)
+                {
+                    return left.SourceType;
+                }
+                else if (rightIsTarget && !leftIsTarget)
+                {
+                    return right.SourceType;
+                }
+                else
+                {
+                    throw new NotImplementedException();
+                }
+            }
+        }
     }
 
     public class SetDefinitionConditional : SetDefinition
@@ -104,14 +126,15 @@ namespace Jinaga.Definitions
         public ConditionDefinition Condition => condition;
 
         public SetDefinitionConditional(
-            string factType,
             SetDefinition source,
-            ConditionDefinition condition) : base(factType)
+            ConditionDefinition condition)
         {
             this.source = source;
             this.condition = condition;
         }
 
         public override string Tag => source.Tag;
+
+        public override string FactType => source.FactType;
     }
 }

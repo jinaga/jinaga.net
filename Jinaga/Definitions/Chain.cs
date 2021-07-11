@@ -8,6 +8,7 @@ namespace Jinaga.Definitions
     {
         public abstract bool IsTarget { get; }
         public abstract string Tag { get; }
+        public abstract string SourceType { get; }
         public abstract string TargetType { get; }
 
         public abstract Pipeline CreatePipeline();
@@ -27,6 +28,8 @@ namespace Jinaga.Definitions
         public override bool IsTarget => setDefinition is SetDefinitionTarget;
 
         public override string Tag => setDefinition.Tag;
+
+        public override string SourceType => setDefinition.FactType;
 
         public override string TargetType => setDefinition.FactType;
 
@@ -67,6 +70,8 @@ namespace Jinaga.Definitions
         public override bool IsTarget => prior.IsTarget;
 
         public override string Tag => prior.Tag;
+
+        public override string SourceType => prior.SourceType;
 
         public override string TargetType => targetType;
 

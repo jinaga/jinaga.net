@@ -27,11 +27,11 @@ namespace Jinaga.Generators
 
                     if (leftIsTarget && !rightIsTarget)
                     {
-                        return BuildPipeline(joinSet.Tag, joinSet.FactType, right, left);
+                        return BuildPipeline(joinSet.Tag, right, left);
                     }
                     else if (rightIsTarget && !leftIsTarget)
                     {
-                        return BuildPipeline(joinSet.Tag, joinSet.FactType, left, right);
+                        return BuildPipeline(joinSet.Tag, left, right);
                     }
                     else
                     {
@@ -141,12 +141,12 @@ namespace Jinaga.Generators
             }
         }
 
-        private static Pipeline BuildPipeline(string tag, string factType, Chain head, Chain tail)
+        private static Pipeline BuildPipeline(string tag, Chain head, Chain tail)
         {
             var pipeline = head.CreatePipeline();
             var startingTag = head.Tag;
             var steps = CreateSteps(head, tail);
-            var path = new Path(tag, factType, startingTag, steps);
+            var path = new Path(tag, tail.SourceType, startingTag, steps);
             return pipeline.WithPath(path);
         }
 
