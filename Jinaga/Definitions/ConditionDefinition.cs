@@ -1,3 +1,4 @@
+using Jinaga.Generators;
 using Jinaga.Pipelines;
 
 namespace Jinaga.Definitions
@@ -18,11 +19,11 @@ namespace Jinaga.Definitions
             return new ConditionDefinition(set, exists: false);
         }
 
-        // public Step CreateConditionalStep()
-        // {
-        //     var pipeline = set.CreatePipeline();
-        //     var steps = pipeline.Linearize(set.Tag);
-        //     return new ConditionalStep(steps, exists);
-        // }
+        public Step CreateConditionalStep()
+        {
+            var pipeline = PipelineGenerator.CreatePipeline(set);
+            var steps = pipeline.Linearize(set.Tag);
+            return new ConditionalStep(steps, exists);
+        }
     }
 }

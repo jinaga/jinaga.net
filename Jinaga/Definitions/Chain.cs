@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using Jinaga.Generators;
 using Jinaga.Pipelines;
 
 namespace Jinaga.Definitions
@@ -36,7 +37,7 @@ namespace Jinaga.Definitions
 
         public override Pipeline CreatePipeline()
         {
-            return setDefinition.CreatePipeline();
+            return PipelineGenerator.CreatePipeline(setDefinition);
         }
 
         public override ImmutableList<Step> CreatePredecessorSteps()

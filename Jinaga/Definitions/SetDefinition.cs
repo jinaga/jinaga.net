@@ -1,6 +1,4 @@
 using System;
-using System.Linq;
-using Jinaga.Pipelines;
 
 namespace Jinaga.Definitions
 {
@@ -28,8 +26,6 @@ namespace Jinaga.Definitions
         {
             return new ChainStart(this);
         }
-
-        public abstract Pipeline CreatePipeline();
     }
 
     public class SetDefinitionInitial : SetDefinition
@@ -42,11 +38,6 @@ namespace Jinaga.Definitions
         }
 
         public override string Tag => tag;
-
-        public override Pipeline CreatePipeline()
-        {
-            return Pipeline.FromInitialFact(tag, FactType);
-        }
     }
 
     public class SetDefinitionTarget : SetDefinition
@@ -54,16 +45,13 @@ namespace Jinaga.Definitions
         public SetDefinitionTarget(string factType) : base(factType)
         {
         }
-
-        public override Pipeline CreatePipeline()
-        {
-            throw new NotImplementedException();
-        }
     }
 
     public class SetDefinitionChainRole : SetDefinition
     {
         private readonly ChainRole chainRole;
+
+        public ChainRole ChainRole => chainRole;
 
         public SetDefinitionChainRole(string factType, ChainRole chainRole) : base(factType)
         {
@@ -82,15 +70,6 @@ namespace Jinaga.Definitions
         {
             return chainRole;
         }
-
-        public override Pipeline CreatePipeline()
-        {
-            var pipeline = chainRole.CreatePipeline();
-            var steps = chainRole.CreatePredecessorSteps();
-            string tag = chainRole.InferredTag;
-            var path = new Path(tag, chainRole.TargetType, chainRole.Tag, steps);
-            return pipeline.WithPath(path);
-        }
     }
 
     public class SetDefinitionJoin : SetDefinition
@@ -98,6 +77,9 @@ namespace Jinaga.Definitions
         private readonly string tag;
         private readonly Chain left;
         private readonly Chain right;
+
+        public Chain Left => left;
+        public Chain Right => right;
 
         public SetDefinitionJoin(
             string factType,
@@ -111,34 +93,6 @@ namespace Jinaga.Definitions
         }
 
         public override string Tag => tag;
-
-        public override Pipeline CreatePipeline()
-        {
-            bool leftIsTarget = left.IsTarget;
-            bool rightIsTarget = right.IsTarget;
-
-            if (leftIsTarget && !rightIsTarget)
-            {
-                return BuildPipeline(right, left);
-            }
-            else if (rightIsTarget && !leftIsTarget)
-            {
-                return BuildPipeline(left, right);
-            }
-            else
-            {
-                throw new NotImplementedException();
-            }
-        }
-
-        private Pipeline BuildPipeline(Chain head, Chain tail)
-        {
-            var pipeline = head.CreatePipeline();
-            var startingTag = head.Tag;
-            var steps = head.CreatePredecessorSteps().AddRange(tail.CreateSuccessorSteps());
-            var path = new Path(tag, FactType, startingTag, steps);
-            return pipeline.WithPath(path);
-        }
     }
 
     public class SetDefinitionConditional : SetDefinition
@@ -156,10 +110,5 @@ namespace Jinaga.Definitions
         }
 
         public override string Tag => source.Tag;
-
-        public override Pipeline CreatePipeline()
-        {
-            throw new NotImplementedException();
-        }
     }
 }

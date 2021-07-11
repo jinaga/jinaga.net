@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Immutable;
 using System.Linq;
+using Jinaga.Generators;
 using Jinaga.Pipelines;
 
 namespace Jinaga.Definitions
@@ -20,12 +21,12 @@ namespace Jinaga.Definitions
             var name = orderedFields.First().Key;
             var setDefinition = ((SymbolValueSetDefinition)orderedFields.First().Value).SetDefinition;
             var tag = ""; //setDefinition.Tag;
-            var pipeline = setDefinition.CreatePipeline().WithProjection(name, tag);
+            var pipeline = PipelineGenerator.CreatePipeline(setDefinition).WithProjection(name, tag);
             foreach (var field in orderedFields.Skip(1))
             {
                 var fieldName = field.Key;
                 var fieldSetDefinition = ((SymbolValueSetDefinition)field.Value).SetDefinition;
-                var fieldPipeline = fieldSetDefinition.CreatePipeline();
+                var fieldPipeline = PipelineGenerator.CreatePipeline(fieldSetDefinition);
                 var fieldTag = ""; //fieldSetDefinition.Tag;
                 pipeline = pipeline.Compose(fieldPipeline).WithProjection(fieldName, fieldTag);
             }
