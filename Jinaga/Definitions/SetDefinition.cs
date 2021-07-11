@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Jinaga.Pipelines;
 
 namespace Jinaga.Definitions
@@ -84,7 +85,11 @@ namespace Jinaga.Definitions
 
         public override Pipeline CreatePipeline()
         {
-            throw new NotImplementedException();
+            var pipeline = chainRole.CreatePipeline();
+            var steps = chainRole.CreatePredecessorSteps();
+            string tag = chainRole.InferredTag;
+            var path = new Path(tag, chainRole.TargetType, chainRole.Tag, steps);
+            return pipeline.WithPath(path);
         }
     }
 

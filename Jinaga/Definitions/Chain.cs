@@ -69,6 +69,8 @@ namespace Jinaga.Definitions
 
         public override string TargetType => targetType;
 
+        public string InferredTag => role;
+
         public override string ToString()
         {
             return $"{prior}.{role}";
