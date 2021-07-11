@@ -76,12 +76,13 @@ namespace Jinaga.Definitions
 
         public override Pipeline CreatePipeline()
         {
-            throw new System.NotImplementedException();
+            return prior.CreatePipeline();
         }
 
         public override ImmutableList<Step> CreatePredecessorSteps()
         {
-            throw new System.NotImplementedException();
+            return prior.CreatePredecessorSteps()
+                .Add(new PredecessorStep(prior.TargetType, role, targetType));
         }
 
         public override ImmutableList<Step> CreateSuccessorSteps()
