@@ -7,6 +7,7 @@ namespace Jinaga.Definitions
     {
         public abstract bool IsTarget { get; }
         public abstract string Tag { get; }
+        public abstract string TargetType { get; }
 
         public abstract Pipeline CreatePipeline();
         public abstract ImmutableList<Step> CreatePredecessorSteps();
@@ -26,6 +27,8 @@ namespace Jinaga.Definitions
 
         public override string Tag => setDefinition.Tag;
 
+        public override string TargetType => setDefinition.FactType;
+
         public override string ToString()
         {
             return "start";
@@ -38,12 +41,12 @@ namespace Jinaga.Definitions
 
         public override ImmutableList<Step> CreatePredecessorSteps()
         {
-            throw new System.NotImplementedException();
+            return ImmutableList<Step>.Empty;
         }
 
         public override ImmutableList<Step> CreateSuccessorSteps()
         {
-            throw new System.NotImplementedException();
+            return ImmutableList<Step>.Empty;
         }
     }
 
@@ -64,6 +67,8 @@ namespace Jinaga.Definitions
 
         public override string Tag => prior.Tag;
 
+        public override string TargetType => targetType;
+
         public override string ToString()
         {
             return $"{prior}.{role}";
@@ -81,7 +86,9 @@ namespace Jinaga.Definitions
 
         public override ImmutableList<Step> CreateSuccessorSteps()
         {
-            throw new System.NotImplementedException();
+            return ImmutableList<Step>.Empty
+                .Add(new SuccessorStep(targetType, role, prior.TargetType))
+                .AddRange(prior.CreateSuccessorSteps());
         }
     }
 }
