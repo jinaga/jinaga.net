@@ -44,20 +44,13 @@ namespace Jinaga
             var initialFactType = parameter.Type.FactTypeName();
             var symbolTable = SymbolTable.WithParameter(initialFactName, initialFactType);
 
-            var (head, tag, startingSet, steps) = SegmentParser.ParseSegment(symbolTable, spec.Body);
-            var last = steps.Last();
-            var targetType = last.TargetType;
-            if (last is PredecessorStep predecessorStep)
+            switch (ValueParser.ParseValue(symbolTable, spec.Body))
             {
-                string targetName = predecessorStep.Role;
-                var stepsDefinition = new StepsDefinition(targetName, startingSet, steps);
-                var set = new SetDefinition(targetType)
-                    .WithSteps(stepsDefinition);
-                return new Specification<TFact, TProjection>(set.CreatePipeline());
-            }
-            else
-            {
-                throw new NotImplementedException();
+                case SymbolValueSetDefinition setValue:
+                    var pipeline = setValue.SetDefinition.CreatePipeline();
+                    return new Specification<TFact, TProjection>(pipeline);
+                default:
+                    throw new NotImplementedException();
             }
         }
     }

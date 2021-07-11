@@ -10,7 +10,7 @@ namespace Jinaga.Definitions
 
         public static SymbolTable WithParameter(string name, string type)
         {
-            var startingSet = new SetDefinition(type, new StepsDefinition(name, null, ImmutableList<Step>.Empty), ImmutableList<ConditionDefinition>.Empty);
+            var startingSet = new SetDefinitionInitial(type, name);
             var symbolTable = new SymbolTable(ImmutableDictionary<string, SymbolValue>.Empty.Add(name, new SymbolValueSetDefinition(startingSet)));
             return symbolTable;
         }

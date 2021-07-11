@@ -10,26 +10,17 @@ namespace Jinaga.Parsers
 {
     public static class ValueParser
     {
-        public static (string, SymbolValue)? ParseValue(SymbolTable symbolTable, Expression expression)
+        public static SymbolValue ParseValue(SymbolTable symbolTable, Expression expression)
         {
             if (expression is NewExpression newBody)
             {
                 var names = newBody.Members
                     .Select(member => member.Name);
                 var values = newBody.Arguments
-                    .Select(arg =>
-                    {
-                        switch (ParseValue(symbolTable, arg))
-                        {
-                            case (string _, SymbolValue sv):
-                                return sv;
-                            default:
-                                throw new NotImplementedException();
-                        }
-                    });
+                    .Select(arg => ParseValue(symbolTable, arg));
                 var fields = names.Zip(values, (name, value) => KeyValuePair.Create(name, value))
                     .ToImmutableDictionary();
-                return ("", new SymbolValueComposite(fields));
+                return new SymbolValueComposite(fields);
             }
             else if (expression is MemberExpression {
                 Member: PropertyInfo propertyInfo
@@ -37,23 +28,28 @@ namespace Jinaga.Parsers
             {
                 switch (ParseValue(symbolTable, memberExpression.Expression))
                 {
-                    case (string tag, SymbolValueComposite compositeValue):
-                        return (propertyInfo.Name, compositeValue.GetField(propertyInfo.Name));
+                    case SymbolValueComposite compositeValue:
+                        return compositeValue.GetField(propertyInfo.Name);
+                    case SymbolValueSetDefinition setValue:
+                        var role = propertyInfo.Name;
+                        var predecessorType = propertyInfo.PropertyType.FactTypeName();
+                        var setDefinition = setValue.SetDefinition.AppendChain(role, predecessorType);
+                        return new SymbolValueSetDefinition(setDefinition);
                     default:
-                        return null;
+                        throw new NotImplementedException();
                 }
             }
-            if (expression is ParameterExpression parameter)
+            else if (expression is ParameterExpression parameter)
             {
-                return (parameter.Name, symbolTable.GetField(parameter.Name));
+                return symbolTable.GetField(parameter.Name);
             }
             else if (expression is ConstantExpression)
             {
-                return ("this", symbolTable.GetField("this"));
+                return symbolTable.GetField("this");
             }
             else
             {
-                return null;
+                throw new NotImplementedException();
             }
         }
     }

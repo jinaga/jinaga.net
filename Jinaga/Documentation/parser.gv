@@ -10,21 +10,25 @@ digraph "Specification Parser" {
     }
 
     subgraph cluster_definitions {
+        SetDefinitionInitial, SetDefinitionTarget, SetDefinitionChainRole, SetDefinitionJoin, SetDefinitionConditional -> SetDefinition [arrowhead=empty]
+        ChainRole, ChainStart -> Chain [arrowhead=empty]
+        SetDefinitionChainRole -> ChainRole
+        SetDefinitionJoin -> ChainRole [label=" left"]
+        SetDefinitionJoin -> ChainRole [label=" right"]
+        SetDefinitionConditional -> SetDefinition [label=" source"]
+        SetDefinitionConditional -> ConditionDefinition
+        ChainStart -> SetDefinition
+        ChainRole -> Chain [label=" prior"]
+
         ConditionDefinition -> SetDefinition
         ConditionDefinition -> ConditionalStep [style=dashed]
         ProjectionDefinition -> SymbolValue [label=" *"]
         ProjectionDefinition -> Pipeline [style=dashed]
-        SetDefinition -> StepsDefinition
-        SetDefinition -> ConditionDefinition [label=" *"]
-        SetDefinition -> Pipeline [style=dashed]
-        StepsDefinition -> SetDefinition
-        StepsDefinition -> Step [label=" *"]
-        StepsDefinition -> Pipeline [style=dashed]
         SymbolTable -> SymbolValue [label=" *"]
         SymbolValueComposite, SymbolValueSetDefinition -> SymbolValue [arrowhead=empty]
         SymbolValueComposite -> SymbolValue [label=" *"]
         SymbolValueSetDefinition -> SetDefinition
-
+        
     }
 
     Specification -> Pipeline

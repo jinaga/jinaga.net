@@ -1,58 +1,150 @@
 using System;
-using System.Collections.Immutable;
 using Jinaga.Pipelines;
 
 namespace Jinaga.Definitions
 {
-    public class SetDefinition
+    public abstract class SetDefinition
     {
-        private readonly string factType;
-        private readonly StepsDefinition? steps;
-        private readonly ImmutableList<ConditionDefinition> conditions = ImmutableList<ConditionDefinition>.Empty;
+        protected readonly string factType;
 
-        public SetDefinition(string factType)
+        protected SetDefinition(string factType)
         {
             this.factType = factType;
         }
 
-        public SetDefinition(string factType, StepsDefinition steps, ImmutableList<ConditionDefinition> conditions)
+        public virtual SetDefinition AppendChain(string role, string predecessorType)
         {
-            this.factType = factType;
-            this.steps = steps;
-            this.conditions = conditions;
+            return new SetDefinitionChainRole(
+                predecessorType,
+                new ChainRole(new ChainStart(this), role, predecessorType)
+            );
         }
 
-        public SetDefinition WithSteps(StepsDefinition steps)
+        public virtual Chain ToChain()
         {
-            return new SetDefinition(factType, steps, conditions);
+            return new ChainStart(this);
         }
 
-        public SetDefinition WithCondition(ConditionDefinition condition)
+        public abstract Pipeline CreatePipeline();
+    }
+
+    public class SetDefinitionInitial : SetDefinition
+    {
+        private readonly string name;
+
+        public SetDefinitionInitial(string factType, string name) : base(factType)
         {
-            if (steps == null)
+            this.name = name;
+        }
+
+        public override Pipeline CreatePipeline()
+        {
+            return Pipeline.FromInitialFact(name, factType);
+        }
+    }
+
+    public class SetDefinitionTarget : SetDefinition
+    {
+        public SetDefinitionTarget(string factType) : base(factType)
+        {
+        }
+
+        public override Pipeline CreatePipeline()
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    public class SetDefinitionChainRole : SetDefinition
+    {
+        private readonly ChainRole chainRole;
+
+        public SetDefinitionChainRole(string factType, ChainRole chainRole) : base(factType)
+        {
+            this.chainRole = chainRole;
+        }
+
+        public override SetDefinition AppendChain(string role, string predecessorType)
+        {
+            return new SetDefinitionChainRole(
+                predecessorType,
+                new ChainRole(this.chainRole, role, predecessorType)
+            );
+        }
+
+        public override Chain ToChain()
+        {
+            return chainRole;
+        }
+
+        public override Pipeline CreatePipeline()
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    public class SetDefinitionJoin : SetDefinition
+    {
+        private readonly Chain left;
+        private readonly Chain right;
+
+        public SetDefinitionJoin(
+            string factType,
+            Chain left,
+            Chain right) : base(factType)
+        {
+            this.left = left;
+            this.right = right;
+        }
+
+        public override Pipeline CreatePipeline()
+        {
+            bool leftIsTarget = left.IsTarget;
+            bool rightIsTarget = right.IsTarget;
+
+            if (leftIsTarget && !rightIsTarget)
             {
-                throw new InvalidOperationException("Using an uninitialized set definition");
+                return BuildPipeline(right, left);
             }
-            return new SetDefinition(factType, steps, conditions.Add(condition));
+            else if (rightIsTarget && !leftIsTarget)
+            {
+                return BuildPipeline(left, right);
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
         }
 
-        public bool IsInitialized => steps != null;
-        public string Tag => steps == null
-            ? throw new InvalidOperationException("Using an uninitialized set definition")
-            : steps.Tag;
-
-        public string InitialFactName => steps == null
-            ? throw new InvalidOperationException("Using an uninitialized set definition")
-            : steps.InitialFactName;
-
-        public Pipeline CreatePipeline()
+        private Pipeline BuildPipeline(Chain head, Chain tail)
         {
-            if (steps == null)
-            {
-                throw new InvalidOperationException("Using an uninitialized set definition");
-            }
-            
-            return steps.CreatePipeline(factType, conditions);
+            throw new NotImplementedException();
+            // var pipeline = head.CreatePipeline();
+            // var startingTag = head.Tag;
+            // var tag = tail.Tag;
+            // var steps = head.CreatePredecessorSteps().AddRange(tail.CreateSuccessorSteps());
+            // var path = new Path(tag, factType, startingTag, steps);
+            // return pipeline.WithPath(path);
+        }
+    }
+
+    public class SetDefinitionConditional : SetDefinition
+    {
+        private readonly SetDefinition source;
+        private readonly ConditionDefinition condition;
+
+        public SetDefinitionConditional(
+            string factType,
+            SetDefinition source,
+            ConditionDefinition condition) : base(factType)
+        {
+            this.source = source;
+            this.condition = condition;
+        }
+
+        public override Pipeline CreatePipeline()
+        {
+            throw new NotImplementedException();
         }
     }
 }
