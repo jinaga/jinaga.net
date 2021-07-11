@@ -100,6 +100,9 @@ namespace Jinaga.Definitions
         private readonly SetDefinition source;
         private readonly ConditionDefinition condition;
 
+        public SetDefinition Source => source;
+        public ConditionDefinition Condition => condition;
+
         public SetDefinitionConditional(
             string factType,
             SetDefinition source,

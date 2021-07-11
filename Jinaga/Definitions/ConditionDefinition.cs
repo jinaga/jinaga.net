@@ -8,6 +8,9 @@ namespace Jinaga.Definitions
         private SetDefinition set;
         private bool exists;
 
+        public SetDefinition Set => set;
+        public bool Exists => exists;
+
         public ConditionDefinition(SetDefinition set, bool exists)
         {
             this.set = set;
