@@ -10,10 +10,16 @@ namespace Jinaga.Test
 {
     public class QueryTest
     {
+        private readonly Jinaga j;
+
+        public QueryTest()
+        {
+            j = JinagaTest.Create();
+        }
+
         [Fact]
         public async Task CanQueryForPredecessors()
         {
-            var j = JinagaTest.Create();
             var flight = await j.Fact(new Flight(new AirlineDay(new Airline("IA"), DateTime.Today), 4272));
             var cancellation = await j.Fact(new FlightCancellation(flight, DateTime.UtcNow));
 
@@ -28,7 +34,6 @@ namespace Jinaga.Test
         [Fact]
         public async Task CanQueryForSuccessors()
         {
-            var j = JinagaTest.Create();
             var airlineDay = await j.Fact(new AirlineDay(new Airline("IA"), DateTime.Today));
             var flight = await j.Fact(new Flight(airlineDay, 4247));
 
@@ -40,6 +45,34 @@ namespace Jinaga.Test
             var flights = await j.Query(airlineDay, specification);
 
             flights.Should().ContainSingle().Which.Should().BeEquivalentTo(flight);
+        }
+
+        [Fact]
+        public async Task CanQueryMultipleSteps()
+        {
+            var airline = await j.Fact(new Airline("IA"));
+            var airlineDay = await j.Fact(new AirlineDay(airline, DateTime.Today));
+            var flight = await j.Fact(new Flight(airlineDay, 4247));
+            var expectedPassengers = await Task.WhenAll(Enumerable.Range(0, 10).Select(_ =>
+                BookPassenger(flight)));
+
+            var passengersForAirline = Given<Airline>.Match((airline, facts) =>
+                from booking in facts.OfType<Booking>()
+                where booking.flight.airlineDay.airline == airline
+                select booking.passenger
+            );
+
+            var passengers = await j.Query(airline, passengersForAirline);
+            passengers.Should().ContainEquivalentOf(expectedPassengers);
+        }
+
+        private async Task<Passenger> BookPassenger(Flight flight)
+        {
+            var random = new Random();
+            var publicKey = $"--- PUBLIC KEY {random.Next(1000)} ---";
+            var passenger = await j.Fact(new Passenger(flight.airlineDay.airline, new User(publicKey)));
+            var booking = await j.Fact(new Booking(flight, passenger, DateTime.Now));
+            return passenger;
         }
     }
 }
