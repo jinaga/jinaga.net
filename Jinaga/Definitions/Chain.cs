@@ -6,6 +6,7 @@ namespace Jinaga.Definitions
     public abstract class Chain
     {
         public abstract bool IsTarget { get; }
+        public abstract string Tag { get; }
 
         public abstract Pipeline CreatePipeline();
         public abstract ImmutableList<Step> CreatePredecessorSteps();
@@ -22,6 +23,8 @@ namespace Jinaga.Definitions
         }
 
         public override bool IsTarget => setDefinition is SetDefinitionTarget;
+
+        public override string Tag => setDefinition.Tag;
 
         public override string ToString()
         {
@@ -58,6 +61,8 @@ namespace Jinaga.Definitions
         }
 
         public override bool IsTarget => prior.IsTarget;
+
+        public override string Tag => prior.Tag;
 
         public override string ToString()
         {

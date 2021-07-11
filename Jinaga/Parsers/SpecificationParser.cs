@@ -74,7 +74,7 @@ namespace Jinaga.Parsers
                     case (SymbolValueSetDefinition leftSet, SymbolValueSetDefinition rightSet):
                         var leftChain = leftSet.SetDefinition.ToChain();
                         var rightChain = rightSet.SetDefinition.ToChain();
-                        var join = new SetDefinitionJoin(parameterFactType, leftChain, rightChain);
+                        var join = new SetDefinitionJoin(parameterFactType, parameterName, leftChain, rightChain);
                         return new SymbolValueSetDefinition(join);
                     default:
                         throw new NotImplementedException();

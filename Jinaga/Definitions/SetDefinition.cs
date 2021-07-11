@@ -5,7 +5,10 @@ namespace Jinaga.Definitions
 {
     public abstract class SetDefinition
     {
-        protected readonly string factType;
+        private readonly string factType;
+
+        public string FactType => factType;
+        public virtual string Tag => throw new NotImplementedException();
 
         protected SetDefinition(string factType)
         {
@@ -30,16 +33,18 @@ namespace Jinaga.Definitions
 
     public class SetDefinitionInitial : SetDefinition
     {
-        private readonly string name;
+        private readonly string tag;
 
-        public SetDefinitionInitial(string factType, string name) : base(factType)
+        public SetDefinitionInitial(string factType, string tag) : base(factType)
         {
-            this.name = name;
+            this.tag = tag;
         }
+
+        public override string Tag => tag;
 
         public override Pipeline CreatePipeline()
         {
-            return Pipeline.FromInitialFact(name, factType);
+            return Pipeline.FromInitialFact(tag, FactType);
         }
     }
 
@@ -85,17 +90,22 @@ namespace Jinaga.Definitions
 
     public class SetDefinitionJoin : SetDefinition
     {
+        private readonly string tag;
         private readonly Chain left;
         private readonly Chain right;
 
         public SetDefinitionJoin(
             string factType,
+            string tag,
             Chain left,
             Chain right) : base(factType)
         {
+            this.tag = tag;
             this.left = left;
             this.right = right;
         }
+
+        public override string Tag => tag;
 
         public override Pipeline CreatePipeline()
         {
@@ -118,13 +128,11 @@ namespace Jinaga.Definitions
 
         private Pipeline BuildPipeline(Chain head, Chain tail)
         {
-            throw new NotImplementedException();
-            // var pipeline = head.CreatePipeline();
-            // var startingTag = head.Tag;
-            // var tag = tail.Tag;
-            // var steps = head.CreatePredecessorSteps().AddRange(tail.CreateSuccessorSteps());
-            // var path = new Path(tag, factType, startingTag, steps);
-            // return pipeline.WithPath(path);
+            var pipeline = head.CreatePipeline();
+            var startingTag = head.Tag;
+            var steps = head.CreatePredecessorSteps().AddRange(tail.CreateSuccessorSteps());
+            var path = new Path(tag, FactType, startingTag, steps);
+            return pipeline.WithPath(path);
         }
     }
 
@@ -141,6 +149,8 @@ namespace Jinaga.Definitions
             this.source = source;
             this.condition = condition;
         }
+
+        public override string Tag => source.Tag;
 
         public override Pipeline CreatePipeline()
         {
