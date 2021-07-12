@@ -5,16 +5,16 @@ namespace Jinaga.Definitions
 {
     public class SymbolValueComposite : SymbolValue
     {
-        private readonly ImmutableDictionary<string, SymbolValue> fields;
+        public ImmutableDictionary<string, SymbolValue> Fields { get; }
 
         public SymbolValueComposite(ImmutableDictionary<string, SymbolValue> fields)
         {
-            this.fields = fields;
+            Fields = fields;
         }
 
         public SymbolValue GetField(string name)
         {
-            if (fields.TryGetValue(name, out var memberSet))
+            if (Fields.TryGetValue(name, out var memberSet))
             {
                 return memberSet;
             }
@@ -26,7 +26,7 @@ namespace Jinaga.Definitions
 
         public ProjectionDefinition CreateProjectionDefinition()
         {
-            return new ProjectionDefinition(fields);
+            return new ProjectionDefinition(Fields);
         }
     }
 }

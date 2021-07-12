@@ -5,6 +5,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using Jinaga.Repository;
 using Jinaga.Definitions;
+using System.Collections.Generic;
 
 namespace Jinaga.Parsers
 {
@@ -28,15 +29,18 @@ namespace Jinaga.Parsers
                 {
                     if (method.Name == nameof(Queryable.Where) && methodCall.Arguments.Count == 2)
                     {
-                        return ParseWhere(ParseSpecification(symbolTable, methodCall.Arguments[0]), symbolTable, methodCall.Arguments[1]);
+                        var source = ParseSpecification(symbolTable, methodCall.Arguments[0]);
+                        return ParseWhere(source, symbolTable, methodCall.Arguments[1]);
                     }
                     else if (method.Name == nameof(Queryable.Select) && methodCall.Arguments.Count == 2)
                     {
-                        return ParseSelect(ParseSpecification(symbolTable, methodCall.Arguments[0]), symbolTable, methodCall.Arguments[1]);
+                        var source = ParseSpecification(symbolTable, methodCall.Arguments[0]);
+                        return ParseSelect(source, symbolTable, methodCall.Arguments[1]);
                     }
                     else if (method.Name == nameof(Queryable.SelectMany) && methodCall.Arguments.Count == 3)
                     {
-                        return ParseSelectMany(ParseSpecification(symbolTable, methodCall.Arguments[0]), symbolTable, methodCall.Arguments[1], methodCall.Arguments[2]);
+                        var source = ParseSpecification(symbolTable, methodCall.Arguments[0]);
+                        return ParseSelectMany(source, symbolTable, methodCall.Arguments[1], methodCall.Arguments[2]);
                     }
                     else
                     {
@@ -76,7 +80,8 @@ namespace Jinaga.Parsers
                         (Chain head, Chain tail) = OrderChains(leftChain, rightChain);
                         string tag = (tail == leftChain) ? leftTag : rightTag;
                         var join = new SetDefinitionJoin(tag, head, tail);
-                        return new SymbolValueSetDefinition(join);
+                        var target = tail.TargetSetDefinition;
+                        return ReplaceSetDefinition(symbolValue, target, join);
                     default:
                         throw new NotImplementedException();
                 }
@@ -100,6 +105,25 @@ namespace Jinaga.Parsers
             else
             {
                 throw new NotImplementedException();
+            }
+        }
+
+        private static SymbolValue ReplaceSetDefinition(SymbolValue symbolValue, SetDefinition remove, SetDefinition insert)
+        {
+            switch (symbolValue)
+            {
+                case SymbolValueSetDefinition setValue:
+                    return setValue.SetDefinition == remove
+                        ? new SymbolValueSetDefinition(insert)
+                        : symbolValue;
+                case SymbolValueComposite compositeValue:
+                    var fields = compositeValue.Fields
+                        .Select(pair => new KeyValuePair<string, SymbolValue>(pair.Key,
+                            ReplaceSetDefinition(pair.Value, remove, insert)))
+                        .ToImmutableDictionary();
+                    return new SymbolValueComposite(fields);
+                default:
+                    throw new NotImplementedException();
             }
         }
 
