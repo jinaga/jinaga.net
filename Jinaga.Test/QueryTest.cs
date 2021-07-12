@@ -74,5 +74,26 @@ namespace Jinaga.Test
             var booking = await j.Fact(new Booking(flight, passenger, DateTime.Now));
             return passenger;
         }
+
+        [Fact]
+        public async Task CanQueryBasedOnCondition()
+        {
+            var airline = await j.Fact(new Airline("IA"));
+            var airlineDay = await j.Fact(new AirlineDay(airline, DateTime.Today));
+            var flight = await j.Fact(new Flight(airlineDay, 4247));
+            var cancelledFlight = await j.Fact(new Flight(airlineDay, 5555));
+            await j.Fact(new FlightCancellation(cancelledFlight, DateTime.Now));
+
+            var specification = Given<AirlineDay>.Match((airlineDay, facts) =>
+                from flight in facts.OfType<Flight>()
+                where flight.airlineDay == airlineDay
+                where !flight.IsCancelled
+                select flight
+            );
+
+            var flights = await j.Query(airlineDay, specification);
+            flights.Should().ContainSingle().Which
+                .Should().BeEquivalentTo(flight);
+        }
     }
 }

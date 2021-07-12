@@ -109,6 +109,8 @@ namespace Jinaga.UnitTest
                     return ExecutePredecessorStep(set, predecessor.Role, predecessor.TargetType);
                 case SuccessorStep successor:
                     return ExecuteSuccessorStep(set, successor.Role, successor.TargetType);
+                case ConditionalStep conditional:
+                    return ExecuteConditionalStep(set, conditional.Steps, conditional.Exists);
                 default:
                     throw new NotImplementedException();
             }
@@ -140,6 +142,15 @@ namespace Jinaga.UnitTest
                     .Select(edge => edge.Successor)
                 )
                 .ToImmutableList();
+        }
+
+        private ImmutableList<FactReference> ExecuteConditionalStep(ImmutableList<FactReference> set, ImmutableList<Step> steps, bool wantAny)
+        {
+            return set.Where(factReference =>
+            {
+                var hasAny = ExecuteSteps(factReference, steps).Any();
+                return wantAny && hasAny || !wantAny && !hasAny;
+            }).ToImmutableList();
         }
     }
 }
