@@ -20,14 +20,14 @@ namespace Jinaga.Definitions
             var orderedFields = fields.OrderBy(field => field.Key).ToImmutableList();
             var name = orderedFields.First().Key;
             var setDefinition = ((SymbolValueSetDefinition)orderedFields.First().Value).SetDefinition;
-            var tag = ""; //setDefinition.Tag;
+            var tag = setDefinition.Tag;
             var pipeline = PipelineGenerator.CreatePipeline(setDefinition).WithProjection(name, tag);
             foreach (var field in orderedFields.Skip(1))
             {
                 var fieldName = field.Key;
                 var fieldSetDefinition = ((SymbolValueSetDefinition)field.Value).SetDefinition;
                 var fieldPipeline = PipelineGenerator.CreatePipeline(fieldSetDefinition);
-                var fieldTag = ""; //fieldSetDefinition.Tag;
+                var fieldTag = fieldSetDefinition.Tag;
                 pipeline = pipeline.Compose(fieldPipeline).WithProjection(fieldName, fieldTag);
             }
 
