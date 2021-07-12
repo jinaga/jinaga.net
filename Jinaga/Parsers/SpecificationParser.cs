@@ -241,12 +241,10 @@ namespace Jinaga.Parsers
             }
         }
 
-        private static SymbolValueComposite ParseProjection(SymbolTable symbolTable, SymbolValue symbolValue, SymbolValue continuation, Expression resultSelector)
+        private static SymbolValue ParseProjection(SymbolTable symbolTable, SymbolValue symbolValue, SymbolValue continuation, Expression resultSelector)
         {
             if (resultSelector is UnaryExpression {
-                Operand: LambdaExpression {
-                    Body: NewExpression newBody
-                } projectionLambda
+                Operand: LambdaExpression projectionLambda
             })
             {
                 var valueParameterName = projectionLambda.Parameters[0].Name;
@@ -255,13 +253,7 @@ namespace Jinaga.Parsers
                     .With(valueParameterName, symbolValue)
                     .With(continuationParameterName, continuation);
 
-                var fields = newBody.Arguments
-                    .Select(arg => ((ParameterExpression)arg).Name)
-                    .ToImmutableDictionary(
-                        name => name,
-                        name => innerSymbolTable.GetField(name)
-                    );
-                return new SymbolValueComposite(fields);
+                return ValueParser.ParseValue(innerSymbolTable, projectionLambda.Body).symbolValue;
             }
             else
             {
