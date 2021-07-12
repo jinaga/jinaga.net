@@ -81,6 +81,10 @@ namespace Jinaga.UnitTest
                     {
                         new Edge(single.Reference, single.Role, successor.Reference)
                     };
+                case PredecessorMultiple multiple:
+                    return multiple.References.Select(reference => new Edge(
+                        reference, multiple.Role, successor.Reference
+                    ));
                 default:
                     throw new NotImplementedException();
             }

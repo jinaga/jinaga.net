@@ -95,5 +95,30 @@ namespace Jinaga.Test
             flights.Should().ContainSingle().Which
                 .Should().BeEquivalentTo(flight);
         }
+
+        [Fact]
+        public async Task CanQueryForCurrentValueOfMutableProperty()
+        {
+            var airline = await j.Fact(new Airline("IA"));
+            var user = await j.Fact(new User("--- PUBLIC KEY ---"));
+            var passenger = await j.Fact(new Passenger(airline, user));
+
+            var initialName = await j.Fact(new PassengerName(passenger, "Joe", new PassengerName[] { }));
+            var updatedName = await j.Fact(new PassengerName(passenger, "Joseph", new PassengerName[] { initialName }));
+
+            var currentNames = await j.Query(passenger, Given<Passenger>.Match((passenger, facts) =>
+                from name in facts.OfType<PassengerName>()
+                where name.passenger == passenger
+                where !(
+                    from next in facts.OfType<PassengerName>()
+                    where next.prior.Contains(name)
+                    select next
+                ).Any()
+                select name
+            ));
+
+            currentNames.Should().ContainSingle().Which
+                .value.Should().Be("Joseph");
+        }
     }
 }
