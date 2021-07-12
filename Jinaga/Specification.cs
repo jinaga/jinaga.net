@@ -45,7 +45,7 @@ namespace Jinaga
             var initialFactType = parameter.Type.FactTypeName();
             var symbolTable = SymbolTable.WithParameter(initialFactName, initialFactType);
 
-            switch (ValueParser.ParseValue(symbolTable, spec.Body))
+            switch (ValueParser.ParseValue(symbolTable, spec.Body).symbolValue)
             {
                 case SymbolValueSetDefinition setValue:
                     var pipeline = PipelineGenerator.CreatePipeline(setValue.SetDefinition);

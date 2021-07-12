@@ -66,15 +66,16 @@ namespace Jinaga.Parsers
             {
                 var parameterName = equalLambda.Parameters[0].Name;
                 var innerSymbolTable = symbolTable.With(parameterName, symbolValue);
-                var left = ValueParser.ParseValue(innerSymbolTable, binary.Left);
-                var right = ValueParser.ParseValue(innerSymbolTable, binary.Right);
+                var (left, leftTag) = ValueParser.ParseValue(innerSymbolTable, binary.Left);
+                var (right, rightTag) = ValueParser.ParseValue(innerSymbolTable, binary.Right);
                 switch (left, right)
                 {
                     case (SymbolValueSetDefinition leftSet, SymbolValueSetDefinition rightSet):
                         var leftChain = leftSet.SetDefinition.ToChain();
                         var rightChain = rightSet.SetDefinition.ToChain();
                         (Chain head, Chain tail) = OrderChains(leftChain, rightChain);
-                        var join = new SetDefinitionJoin(parameterName, head, tail);
+                        string tag = (tail == leftChain) ? leftTag : rightTag;
+                        var join = new SetDefinitionJoin(tag, head, tail);
                         return new SymbolValueSetDefinition(join);
                     default:
                         throw new NotImplementedException();
@@ -130,7 +131,7 @@ namespace Jinaga.Parsers
                 var innerSymbolTable = symbolTable
                     .With(valueParameterName, symbolValue);
 
-                var value = ValueParser.ParseValue(innerSymbolTable, projectionLambda.Body);
+                var (value, _) = ValueParser.ParseValue(innerSymbolTable, projectionLambda.Body);
                 return value;
             }
             else
