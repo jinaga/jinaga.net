@@ -7,15 +7,22 @@ namespace Jinaga.Parsers
     {
         public static string FactTypeName(this Type type)
         {
-            var attributes = type.GetCustomAttributes(inherit: false)
-                .OfType<FactTypeAttribute>();
-            if (!attributes.Any())
+            if (type.IsArray)
             {
-                throw new ArgumentException($"Type {type.FullName} is not a fact");
+                return FactTypeName(type.GetElementType());
             }
-            return attributes
-                .Single()
-                .Type;
+            else
+            {
+                var attributes = type.GetCustomAttributes(inherit: false)
+                    .OfType<FactTypeAttribute>();
+                if (!attributes.Any())
+                {
+                    throw new ArgumentException($"Type {type.FullName} is not a fact");
+                }
+                return attributes
+                    .Single()
+                    .Type;
+            }
         }
     }
 }

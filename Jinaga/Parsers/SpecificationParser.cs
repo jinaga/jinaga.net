@@ -60,49 +60,63 @@ namespace Jinaga.Parsers
 
         private static SymbolValue ParseWhere(SymbolValue symbolValue, SymbolTable symbolTable, Expression predicate)
         {
-            if (predicate is UnaryExpression {
-                Operand: LambdaExpression {
-                    Body: BinaryExpression {
-                        NodeType: ExpressionType.Equal
-                    } binary
-                } equalLambda
-            })
+            switch (predicate)
             {
-                var parameterName = equalLambda.Parameters[0].Name;
-                var innerSymbolTable = symbolTable.With(parameterName, symbolValue);
-                var (left, leftTag) = ValueParser.ParseValue(innerSymbolTable, binary.Left);
-                var (right, rightTag) = ValueParser.ParseValue(innerSymbolTable, binary.Right);
-                switch (left, right)
-                {
-                    case (SymbolValueSetDefinition leftSet, SymbolValueSetDefinition rightSet):
-                        var leftChain = leftSet.SetDefinition.ToChain();
-                        var rightChain = rightSet.SetDefinition.ToChain();
-                        (Chain head, Chain tail) = OrderChains(leftChain, rightChain);
-                        string tag = (tail == leftChain) ? leftTag : rightTag;
-                        var join = new SetDefinitionJoin(tag, head, tail);
-                        var target = tail.TargetSetDefinition;
-                        var replacement = ReplaceSetDefinition(symbolValue, target, join);
-                        return replacement;
-                    default:
-                        throw new NotImplementedException();
-                }
-            }
-            else if (predicate is UnaryExpression { Operand: LambdaExpression unaryLambda })
-            {
-                var parameterName = unaryLambda.Parameters[0].Name;
-                var innerSymbolTable = symbolTable.With(parameterName, symbolValue);
-                var body = unaryLambda.Body;
+                case UnaryExpression { Operand: LambdaExpression lambda }:
+                    var parameterName = lambda.Parameters[0].Name;
+                    var innerSymbolTable = symbolTable.With(parameterName, symbolValue);
 
-                var conditionDefinition = ParseCondition(symbolValue, innerSymbolTable, body);
-                var evaluatedSet = FindEvaluatedSet(conditionDefinition);
-                var conditionalSetDefinition = new SetDefinitionConditional(evaluatedSet, conditionDefinition);
-                var replacement = ReplaceSetDefinition(symbolValue, evaluatedSet, conditionalSetDefinition);
-                return replacement;
+                    switch (lambda.Body)
+                    {
+                        case BinaryExpression { NodeType: ExpressionType.Equal } binary:
+                            return ParseJoin(symbolValue, innerSymbolTable, binary.Left, binary.Right);
+                        case MethodCallExpression methodCall:
+                            var method = methodCall.Method;
+                            if (method.DeclaringType == typeof(Enumerable)
+                                && method.Name == nameof(Enumerable.Contains)
+                                && methodCall.Arguments.Count == 2)
+                            {
+                                return ParseJoin(symbolValue, innerSymbolTable, methodCall.Arguments[0], methodCall.Arguments[1]);
+                            }
+                            else
+                            {
+                                return ParseConditional(symbolValue, innerSymbolTable, lambda.Body);
+                            }
+                        default:
+                            return ParseConditional(symbolValue, innerSymbolTable, lambda.Body);
+                    }
+                default:
+                    throw new NotImplementedException();
             }
-            else
+        }
+
+        private static SymbolValue ParseJoin(SymbolValue symbolValue, SymbolTable innerSymbolTable, Expression leftExpression, Expression rightExpression)
+        {
+            var (left, leftTag) = ValueParser.ParseValue(innerSymbolTable, leftExpression);
+            var (right, rightTag) = ValueParser.ParseValue(innerSymbolTable, rightExpression);
+            switch (left, right)
             {
-                throw new NotImplementedException();
+                case (SymbolValueSetDefinition leftSet, SymbolValueSetDefinition rightSet):
+                    var leftChain = leftSet.SetDefinition.ToChain();
+                    var rightChain = rightSet.SetDefinition.ToChain();
+                    (Chain head, Chain tail) = OrderChains(leftChain, rightChain);
+                    string tag = (tail == leftChain) ? leftTag : rightTag;
+                    var join = new SetDefinitionJoin(tag, head, tail);
+                    var target = tail.TargetSetDefinition;
+                    var replacement = ReplaceSetDefinition(symbolValue, target, join);
+                    return replacement;
+                default:
+                    throw new NotImplementedException();
             }
+        }
+
+        private static SymbolValue ParseConditional(SymbolValue symbolValue, SymbolTable innerSymbolTable, Expression body)
+        {
+            var conditionDefinition = ParseCondition(symbolValue, innerSymbolTable, body);
+            var evaluatedSet = FindEvaluatedSet(conditionDefinition);
+            var conditionalSetDefinition = new SetDefinitionConditional(evaluatedSet, conditionDefinition);
+            var replacement = ReplaceSetDefinition(symbolValue, evaluatedSet, conditionalSetDefinition);
+            return replacement;
         }
 
         private static SetDefinition FindEvaluatedSet(ConditionDefinition conditionDefinition)
