@@ -93,7 +93,7 @@ namespace Jinaga.Parsers
                 var innerSymbolTable = symbolTable.With(parameterName, symbolValue);
                 var body = unaryLambda.Body;
 
-                var conditionDefinition = ParseCondition(innerSymbolTable, body);
+                var conditionDefinition = ParseCondition(symbolValue, innerSymbolTable, body);
                 var evaluatedSet = FindEvaluatedSet(conditionDefinition);
                 var conditionalSetDefinition = new SetDefinitionConditional(evaluatedSet, conditionDefinition);
                 var replacement = ReplaceSetDefinition(symbolValue, evaluatedSet, conditionalSetDefinition);
@@ -190,11 +190,11 @@ namespace Jinaga.Parsers
             }
         }
 
-        private static ConditionDefinition ParseCondition(SymbolTable symbolTable, Expression body)
+        private static ConditionDefinition ParseCondition(SymbolValue symbolValue, SymbolTable symbolTable, Expression body)
         {
             if (body is UnaryExpression { NodeType: ExpressionType.Not, Operand: Expression operand })
             {
-                return ParseCondition(symbolTable, operand).Invert();
+                return ParseCondition(symbolValue, symbolTable, operand).Invert();
             }
             else if (body is MethodCallExpression methodCall)
             {
@@ -236,9 +236,8 @@ namespace Jinaga.Parsers
                 {
                     object target = InstanceOfFact(propertyInfo.DeclaringType);
                     var condition = (Condition)propertyInfo.GetGetMethod().Invoke(target, new object[0]);
-                    string factType = propertyInfo.DeclaringType.FactTypeName();
-                    var innerSymbolTable = SymbolTable.WithParameter("this", factType);
-                    return ParseCondition(innerSymbolTable, condition.Body.Body);
+                    var innerSymbolTable = SymbolTable.WithSymbol("this", symbolValue);
+                    return ParseCondition(symbolValue, innerSymbolTable, condition.Body.Body);
                 }
                 else
                 {

@@ -15,6 +15,11 @@ namespace Jinaga.Definitions
             return symbolTable;
         }
 
+        public static SymbolTable WithSymbol(string name, SymbolValue value)
+        {
+            return new SymbolTable(ImmutableDictionary<string, SymbolValue>.Empty.Add(name, value));
+        }
+
         private SymbolTable(ImmutableDictionary<string, SymbolValue> symbols)
         {
             this.symbols = symbols;
