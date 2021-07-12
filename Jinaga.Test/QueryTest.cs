@@ -63,7 +63,7 @@ namespace Jinaga.Test
             );
 
             var passengers = await j.Query(airline, passengersForAirline);
-            passengers.Should().ContainEquivalentOf(expectedPassengers);
+            passengers.Should().BeEquivalentTo(expectedPassengers);
         }
 
         private async Task<Passenger> BookPassenger(Flight flight)
