@@ -81,7 +81,8 @@ namespace Jinaga.Parsers
                         string tag = (tail == leftChain) ? leftTag : rightTag;
                         var join = new SetDefinitionJoin(tag, head, tail);
                         var target = tail.TargetSetDefinition;
-                        return ReplaceSetDefinition(symbolValue, target, join);
+                        var replacement = ReplaceSetDefinition(symbolValue, target, join);
+                        return replacement;
                     default:
                         throw new NotImplementedException();
                 }
@@ -93,18 +94,27 @@ namespace Jinaga.Parsers
                 var body = unaryLambda.Body;
 
                 var conditionDefinition = ParseCondition(innerSymbolTable, body);
-                switch (symbolValue)
-                {
-                    case SymbolValueSetDefinition setValue:
-                        var setDefinition = new SetDefinitionConditional(setValue.SetDefinition, conditionDefinition);
-                        return new SymbolValueSetDefinition(setDefinition);
-                    default:
-                        throw new NotImplementedException();
-                }
+                var evaluatedSet = FindEvaluatedSet(conditionDefinition);
+                var conditionalSetDefinition = new SetDefinitionConditional(evaluatedSet, conditionDefinition);
+                var replacement = ReplaceSetDefinition(symbolValue, evaluatedSet, conditionalSetDefinition);
+                return replacement;
             }
             else
             {
                 throw new NotImplementedException();
+            }
+        }
+
+        private static SetDefinition FindEvaluatedSet(ConditionDefinition conditionDefinition)
+        {
+            switch (conditionDefinition.Set)
+            {
+                case SetDefinitionConditional conditionalSet:
+                    return FindEvaluatedSet(conditionalSet.Condition);
+                case SetDefinitionJoin joinSet:
+                    return joinSet.Head.TargetSetDefinition;
+                default:
+                    throw new NotImplementedException();
             }
         }
 
