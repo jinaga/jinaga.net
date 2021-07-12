@@ -20,23 +20,7 @@ namespace Jinaga.Generators
                     var inferredPath = new Path(chainRole.InferredTag, chainRole.TargetType, chainRole.Tag, steps);
                     return pipeline.WithPath(inferredPath);
                 case SetDefinitionJoin joinSet:
-                    var left = joinSet.Left;
-                    var right = joinSet.Right;
-                    bool leftIsTarget = left.IsTarget;
-                    bool rightIsTarget = right.IsTarget;
-
-                    if (leftIsTarget && !rightIsTarget)
-                    {
-                        return BuildPipeline(joinSet.Tag, right, left);
-                    }
-                    else if (rightIsTarget && !leftIsTarget)
-                    {
-                        return BuildPipeline(joinSet.Tag, left, right);
-                    }
-                    else
-                    {
-                        throw new NotImplementedException();
-                    }
+                    return BuildPipeline(joinSet.Tag, joinSet.Head, joinSet.Tail);
                 case SetDefinitionConditional conditional:
                     Pipeline sourcePipeline = CreateHeadPipeline(conditional.Source);
                     var conditionalSteps = CreateSteps(conditional);
@@ -53,23 +37,7 @@ namespace Jinaga.Generators
             switch (setDefinition)
             {
                 case SetDefinitionJoin joinSet:
-                    var left = joinSet.Left;
-                    var right = joinSet.Right;
-                    bool leftIsTarget = left.IsTarget;
-                    bool rightIsTarget = right.IsTarget;
-
-                    if (leftIsTarget && !rightIsTarget)
-                    {
-                        return right.CreatePipeline();
-                    }
-                    else if (rightIsTarget && !leftIsTarget)
-                    {
-                        return left.CreatePipeline();
-                    }
-                    else
-                    {
-                        throw new NotImplementedException();
-                    }
+                    return joinSet.Head.CreatePipeline();
                 case SetDefinitionConditional conditional:
                     return CreateHeadPipeline(conditional.Source);
                 default:
@@ -90,23 +58,7 @@ namespace Jinaga.Generators
                     var conditionalStep = new ConditionalStep(steps, exists);
                     return priorSteps.Add(conditionalStep);
                 case SetDefinitionJoin joinSet:
-                    var left = joinSet.Left;
-                    var right = joinSet.Right;
-                    bool leftIsTarget = left.IsTarget;
-                    bool rightIsTarget = right.IsTarget;
-
-                    if (leftIsTarget && !rightIsTarget)
-                    {
-                        return CreateSteps(right, left);
-                    }
-                    else if (rightIsTarget && !leftIsTarget)
-                    {
-                        return CreateSteps(left, right);
-                    }
-                    else
-                    {
-                        throw new NotImplementedException();
-                    }
+                    return CreateSteps(joinSet.Head, joinSet.Tail);
                 default:
                     throw new NotImplementedException($"Cannot create steps for {setDefinition}");
             }
@@ -119,23 +71,7 @@ namespace Jinaga.Generators
                 case SetDefinitionConditional conditionalSet:
                     return GetStartingTag(conditionalSet.Source);
                 case SetDefinitionJoin joinSet:
-                    var left = joinSet.Left;
-                    var right = joinSet.Right;
-                    bool leftIsTarget = left.IsTarget;
-                    bool rightIsTarget = right.IsTarget;
-
-                    if (leftIsTarget && !rightIsTarget)
-                    {
-                        return right.Tag;
-                    }
-                    else if (rightIsTarget && !leftIsTarget)
-                    {
-                        return left.Tag;
-                    }
-                    else
-                    {
-                        throw new NotImplementedException();
-                    }
+                    return joinSet.Head.Tag;
                 default:
                     throw new NotImplementedException($"Cannot get starting tag for {setDefinition}");
             }

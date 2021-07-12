@@ -76,45 +76,25 @@ namespace Jinaga.Definitions
     public class SetDefinitionJoin : SetDefinition
     {
         private readonly string tag;
-        private readonly Chain left;
-        private readonly Chain right;
+        private readonly Chain head;
+        private readonly Chain tail;
 
-        public Chain Left => left;
-        public Chain Right => right;
+        public Chain Head => head;
+        public Chain Tail => tail;
 
         public SetDefinitionJoin(
             string tag,
-            Chain left,
-            Chain right)
+            Chain head,
+            Chain tail)
         {
             this.tag = tag;
-            this.left = left;
-            this.right = right;
+            this.head = head;
+            this.tail = tail;
         }
 
         public override string Tag => tag;
 
-        public override string FactType
-        {
-            get
-            {
-                bool leftIsTarget = left.IsTarget;
-                bool rightIsTarget = right.IsTarget;
-
-                if (leftIsTarget && !rightIsTarget)
-                {
-                    return left.SourceType;
-                }
-                else if (rightIsTarget && !leftIsTarget)
-                {
-                    return right.SourceType;
-                }
-                else
-                {
-                    throw new NotImplementedException();
-                }
-            }
-        }
+        public override string FactType => tail.SourceType;
     }
 
     public class SetDefinitionConditional : SetDefinition

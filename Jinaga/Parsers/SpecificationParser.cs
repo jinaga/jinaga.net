@@ -73,7 +73,8 @@ namespace Jinaga.Parsers
                     case (SymbolValueSetDefinition leftSet, SymbolValueSetDefinition rightSet):
                         var leftChain = leftSet.SetDefinition.ToChain();
                         var rightChain = rightSet.SetDefinition.ToChain();
-                        var join = new SetDefinitionJoin(parameterName, leftChain, rightChain);
+                        (Chain head, Chain tail) = OrderChains(leftChain, rightChain);
+                        var join = new SetDefinitionJoin(parameterName, head, tail);
                         return new SymbolValueSetDefinition(join);
                     default:
                         throw new NotImplementedException();
@@ -94,6 +95,24 @@ namespace Jinaga.Parsers
                     default:
                         throw new NotImplementedException();
                 }
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
+        }
+
+        private static (Chain head, Chain tail) OrderChains(Chain leftChain, Chain rightChain)
+        {
+            bool leftIsTarget = leftChain.IsTarget;
+            bool rightIsTarget = rightChain.IsTarget;
+            if (leftIsTarget && !rightIsTarget)
+            {
+                return (rightChain, leftChain);
+            }
+            else if (rightIsTarget && !leftIsTarget)
+            {
+                return (leftChain, rightChain);
             }
             else
             {
