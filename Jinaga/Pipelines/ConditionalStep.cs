@@ -15,6 +15,9 @@ namespace Jinaga.Pipelines
             this.exists = exists;
         }
 
+        public ImmutableList<Step> Steps => steps;
+        public bool Exists => exists;
+
         public override string InitialType => throw new System.NotImplementedException();
 
         public override string TargetType => throw new System.NotImplementedException();

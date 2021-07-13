@@ -5,6 +5,7 @@ using Jinaga.Parsers;
 using Jinaga.Pipelines;
 using Jinaga.Repository;
 using Jinaga.Definitions;
+using Jinaga.Generators;
 
 namespace Jinaga
 {
@@ -20,7 +21,7 @@ namespace Jinaga
             var value = SpecificationParser.ParseSpecification(symbolTable, spec.Body);
             if (value is SymbolValueSetDefinition setDefinitionValue)
             {
-                return new Specification<TFact, TProjection>(setDefinitionValue.SetDefinition.CreatePipeline());
+                return new Specification<TFact, TProjection>(PipelineGenerator.CreatePipeline(setDefinitionValue.SetDefinition));
             }
             else if (value is SymbolValueComposite compositeValue)
             {
@@ -44,20 +45,13 @@ namespace Jinaga
             var initialFactType = parameter.Type.FactTypeName();
             var symbolTable = SymbolTable.WithParameter(initialFactName, initialFactType);
 
-            var (head, tag, startingSet, steps) = SegmentParser.ParseSegment(symbolTable, spec.Body);
-            var last = steps.Last();
-            var targetType = last.TargetType;
-            if (last is PredecessorStep predecessorStep)
+            switch (ValueParser.ParseValue(symbolTable, spec.Body).symbolValue)
             {
-                string targetName = predecessorStep.Role;
-                var stepsDefinition = new StepsDefinition(targetName, startingSet, steps);
-                var set = new SetDefinition(targetType)
-                    .WithSteps(stepsDefinition);
-                return new Specification<TFact, TProjection>(set.CreatePipeline());
-            }
-            else
-            {
-                throw new NotImplementedException();
+                case SymbolValueSetDefinition setValue:
+                    var pipeline = PipelineGenerator.CreatePipeline(setValue.SetDefinition);
+                    return new Specification<TFact, TProjection>(pipeline);
+                default:
+                    throw new NotImplementedException();
             }
         }
     }

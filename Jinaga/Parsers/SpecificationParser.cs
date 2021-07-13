@@ -3,9 +3,9 @@ using System;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Linq.Expressions;
-using Jinaga.Pipelines;
 using Jinaga.Repository;
 using Jinaga.Definitions;
+using System.Collections.Generic;
 
 namespace Jinaga.Parsers
 {
@@ -29,15 +29,18 @@ namespace Jinaga.Parsers
                 {
                     if (method.Name == nameof(Queryable.Where) && methodCall.Arguments.Count == 2)
                     {
-                        return ParseWhere(ParseSpecification(symbolTable, methodCall.Arguments[0]), symbolTable, methodCall.Arguments[1]);
+                        var source = ParseSpecification(symbolTable, methodCall.Arguments[0]);
+                        return ParseWhere(source, symbolTable, methodCall.Arguments[1]);
                     }
                     else if (method.Name == nameof(Queryable.Select) && methodCall.Arguments.Count == 2)
                     {
-                        return ParseSelect(ParseSpecification(symbolTable, methodCall.Arguments[0]), symbolTable, methodCall.Arguments[1]);
+                        var source = ParseSpecification(symbolTable, methodCall.Arguments[0]);
+                        return ParseSelect(source, symbolTable, methodCall.Arguments[1]);
                     }
                     else if (method.Name == nameof(Queryable.SelectMany) && methodCall.Arguments.Count == 3)
                     {
-                        return ParseSelectMany(ParseSpecification(symbolTable, methodCall.Arguments[0]), symbolTable, methodCall.Arguments[1], methodCall.Arguments[2]);
+                        var source = ParseSpecification(symbolTable, methodCall.Arguments[0]);
+                        return ParseSelectMany(source, symbolTable, methodCall.Arguments[1], methodCall.Arguments[2]);
                     }
                     else
                     {
@@ -57,31 +60,108 @@ namespace Jinaga.Parsers
 
         private static SymbolValue ParseWhere(SymbolValue symbolValue, SymbolTable symbolTable, Expression predicate)
         {
-            if (predicate is UnaryExpression {
-                Operand: LambdaExpression {
-                    Body: BinaryExpression {
-                        NodeType: ExpressionType.Equal
-                    } binary
-                } equalLambda
-            })
+            switch (predicate)
             {
-                var parameterName = equalLambda.Parameters[0].Name;
-                var innerSymbolTable = symbolTable.With(parameterName, symbolValue);
-                var (tag, startingTag, steps) = JoinSegments(innerSymbolTable, binary.Left, binary.Right);
+                case UnaryExpression { Operand: LambdaExpression lambda }:
+                    var parameterName = lambda.Parameters[0].Name;
+                    var innerSymbolTable = symbolTable.With(parameterName, symbolValue);
 
-                var stepsDefinition = new StepsDefinition(tag, startingTag, steps);
-
-                return symbolValue.WithSteps(stepsDefinition);
+                    switch (lambda.Body)
+                    {
+                        case BinaryExpression { NodeType: ExpressionType.Equal } binary:
+                            return ParseJoin(symbolValue, innerSymbolTable, binary.Left, binary.Right);
+                        case MethodCallExpression methodCall:
+                            var method = methodCall.Method;
+                            if (method.DeclaringType == typeof(Enumerable)
+                                && method.Name == nameof(Enumerable.Contains)
+                                && methodCall.Arguments.Count == 2)
+                            {
+                                return ParseJoin(symbolValue, innerSymbolTable, methodCall.Arguments[0], methodCall.Arguments[1]);
+                            }
+                            else
+                            {
+                                return ParseConditional(symbolValue, innerSymbolTable, lambda.Body);
+                            }
+                        default:
+                            return ParseConditional(symbolValue, innerSymbolTable, lambda.Body);
+                    }
+                default:
+                    throw new NotImplementedException();
             }
-            else if (predicate is UnaryExpression { Operand: LambdaExpression unaryLambda })
+        }
+
+        private static SymbolValue ParseJoin(SymbolValue symbolValue, SymbolTable innerSymbolTable, Expression leftExpression, Expression rightExpression)
+        {
+            var (left, leftTag) = ValueParser.ParseValue(innerSymbolTable, leftExpression);
+            var (right, rightTag) = ValueParser.ParseValue(innerSymbolTable, rightExpression);
+            switch (left, right)
             {
-                var parameterName = unaryLambda.Parameters[0].Name;
-                var innerSymbolTable = symbolTable.With(parameterName, symbolValue);
-                var body = unaryLambda.Body;
+                case (SymbolValueSetDefinition leftSet, SymbolValueSetDefinition rightSet):
+                    var leftChain = leftSet.SetDefinition.ToChain();
+                    var rightChain = rightSet.SetDefinition.ToChain();
+                    (Chain head, Chain tail) = OrderChains(leftChain, rightChain);
+                    string tag = (tail == leftChain) ? leftTag : rightTag;
+                    var join = new SetDefinitionJoin(tag, head, tail);
+                    var target = tail.TargetSetDefinition;
+                    var replacement = ReplaceSetDefinition(symbolValue, target, join);
+                    return replacement;
+                default:
+                    throw new NotImplementedException();
+            }
+        }
 
-                var conditionDefinition = ParseCondition(innerSymbolTable, body);
+        private static SymbolValue ParseConditional(SymbolValue symbolValue, SymbolTable innerSymbolTable, Expression body)
+        {
+            var conditionDefinition = ParseCondition(symbolValue, innerSymbolTable, body);
+            var evaluatedSet = FindEvaluatedSet(conditionDefinition);
+            var conditionalSetDefinition = new SetDefinitionConditional(evaluatedSet, conditionDefinition);
+            var replacement = ReplaceSetDefinition(symbolValue, evaluatedSet, conditionalSetDefinition);
+            return replacement;
+        }
 
-                return symbolValue.WithCondition(conditionDefinition);
+        private static SetDefinition FindEvaluatedSet(ConditionDefinition conditionDefinition)
+        {
+            switch (conditionDefinition.Set)
+            {
+                case SetDefinitionConditional conditionalSet:
+                    return FindEvaluatedSet(conditionalSet.Condition);
+                case SetDefinitionJoin joinSet:
+                    return joinSet.Head.TargetSetDefinition;
+                default:
+                    throw new NotImplementedException();
+            }
+        }
+
+        private static SymbolValue ReplaceSetDefinition(SymbolValue symbolValue, SetDefinition remove, SetDefinition insert)
+        {
+            switch (symbolValue)
+            {
+                case SymbolValueSetDefinition setValue:
+                    return setValue.SetDefinition == remove
+                        ? new SymbolValueSetDefinition(insert)
+                        : symbolValue;
+                case SymbolValueComposite compositeValue:
+                    var fields = compositeValue.Fields
+                        .Select(pair => new KeyValuePair<string, SymbolValue>(pair.Key,
+                            ReplaceSetDefinition(pair.Value, remove, insert)))
+                        .ToImmutableDictionary();
+                    return new SymbolValueComposite(fields);
+                default:
+                    throw new NotImplementedException();
+            }
+        }
+
+        private static (Chain head, Chain tail) OrderChains(Chain leftChain, Chain rightChain)
+        {
+            bool leftIsTarget = leftChain.IsTarget;
+            bool rightIsTarget = rightChain.IsTarget;
+            if (leftIsTarget && !rightIsTarget)
+            {
+                return (rightChain, leftChain);
+            }
+            else if (rightIsTarget && !leftIsTarget)
+            {
+                return (leftChain, rightChain);
             }
             else
             {
@@ -99,47 +179,8 @@ namespace Jinaga.Parsers
                 var innerSymbolTable = symbolTable
                     .With(valueParameterName, symbolValue);
 
-                switch (ValueParser.ParseValue(innerSymbolTable, projectionLambda.Body))
-                {
-                    case (string _, SymbolValue value):
-                        return value;
-                    default:
-                        throw new NotImplementedException();
-                }
-            }
-            else
-            {
-                throw new NotImplementedException();
-            }
-        }
-
-        private static SymbolValue ParseValue(SymbolTable symbolTable, Expression expression)
-        {
-            if (expression is NewExpression newBody)
-            {
-                var fields = newBody.Arguments
-                    .Select(arg => ((ParameterExpression)arg).Name)
-                    .ToImmutableDictionary(
-                        name => name,
-                        name => symbolTable.GetField(name)
-                    );
-                return new SymbolValueComposite(fields);
-            }
-            else if (expression is MemberExpression memberBody)
-            {
-                var value = ParseValue(symbolTable, memberBody.Expression);
-                if (value is SymbolValueComposite composite)
-                {
-                    return composite.GetField(memberBody.Member.Name);
-                }
-                else
-                {
-                    throw new NotImplementedException();
-                }
-            }
-            else if (expression is ParameterExpression parameterBody)
-            {
-                return symbolTable.GetField(parameterBody.Name);
+                var (value, _) = ValueParser.ParseValue(innerSymbolTable, projectionLambda.Body);
+                return value;
             }
             else
             {
@@ -163,11 +204,11 @@ namespace Jinaga.Parsers
             }
         }
 
-        private static ConditionDefinition ParseCondition(SymbolTable symbolTable, Expression body)
+        private static ConditionDefinition ParseCondition(SymbolValue symbolValue, SymbolTable symbolTable, Expression body)
         {
             if (body is UnaryExpression { NodeType: ExpressionType.Not, Operand: Expression operand })
             {
-                return ParseCondition(symbolTable, operand).Invert();
+                return ParseCondition(symbolValue, symbolTable, operand).Invert();
             }
             else if (body is MethodCallExpression methodCall)
             {
@@ -209,9 +250,8 @@ namespace Jinaga.Parsers
                 {
                     object target = InstanceOfFact(propertyInfo.DeclaringType);
                     var condition = (Condition)propertyInfo.GetGetMethod().Invoke(target, new object[0]);
-                    string factType = propertyInfo.DeclaringType.FactTypeName();
-                    var innerSymbolTable = SymbolTable.WithParameter("this", factType);
-                    return ParseCondition(innerSymbolTable, condition.Body.Body);
+                    var innerSymbolTable = SymbolTable.WithSymbol("this", symbolValue);
+                    return ParseCondition(symbolValue, innerSymbolTable, condition.Body.Body);
                 }
                 else
                 {
@@ -224,12 +264,10 @@ namespace Jinaga.Parsers
             }
         }
 
-        private static SymbolValueComposite ParseProjection(SymbolTable symbolTable, SymbolValue symbolValue, SymbolValue continuation, Expression resultSelector)
+        private static SymbolValue ParseProjection(SymbolTable symbolTable, SymbolValue symbolValue, SymbolValue continuation, Expression resultSelector)
         {
             if (resultSelector is UnaryExpression {
-                Operand: LambdaExpression {
-                    Body: NewExpression newBody
-                } projectionLambda
+                Operand: LambdaExpression projectionLambda
             })
             {
                 var valueParameterName = projectionLambda.Parameters[0].Name;
@@ -238,13 +276,7 @@ namespace Jinaga.Parsers
                     .With(valueParameterName, symbolValue)
                     .With(continuationParameterName, continuation);
 
-                var fields = newBody.Arguments
-                    .Select(arg => ((ParameterExpression)arg).Name)
-                    .ToImmutableDictionary(
-                        name => name,
-                        name => innerSymbolTable.GetField(name)
-                    );
-                return new SymbolValueComposite(fields);
+                return ValueParser.ParseValue(innerSymbolTable, projectionLambda.Body).symbolValue;
             }
             else
             {
@@ -262,28 +294,9 @@ namespace Jinaga.Parsers
             return Activator.CreateInstance(factType, parameters);
         }
 
-        private static (string, SetDefinition, ImmutableList<Step>) JoinSegments(SymbolTable symbolTable, Expression left, Expression right)
-        {
-            var (leftHead, leftTag, leftStartingSet, leftSteps) = SegmentParser.ParseSegment(symbolTable, left);
-            var (rightHead, rightTag, rightStartingSet, rightSteps) = SegmentParser.ParseSegment(symbolTable, right);
-
-            if (leftHead && !rightHead)
-            {
-                return (rightTag, leftStartingSet, leftSteps.AddRange(rightSteps));
-            }
-            else if (rightHead && !leftHead)
-            {
-                return (leftTag, rightStartingSet, rightSteps.AddRange(leftSteps));
-            }
-            else
-            {
-                throw new NotImplementedException();
-            }
-        }
-
         private static SetDefinition FactsOfType(string factType)
         {
-            return new SetDefinition(factType);
+            return new SetDefinitionTarget(factType);
         }
 
         private static ConditionDefinition Exists(SetDefinition set)

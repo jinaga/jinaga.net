@@ -1,4 +1,4 @@
-using System.Collections.Immutable;
+using Jinaga.Generators;
 using Jinaga.Pipelines;
 
 namespace Jinaga.Definitions
@@ -8,7 +8,8 @@ namespace Jinaga.Definitions
         private SetDefinition set;
         private bool exists;
 
-        public string InitialFactName => set.InitialFactName;
+        public SetDefinition Set => set;
+        public bool Exists => exists;
 
         public ConditionDefinition(SetDefinition set, bool exists)
         {
@@ -23,7 +24,7 @@ namespace Jinaga.Definitions
 
         public Step CreateConditionalStep()
         {
-            var pipeline = set.CreatePipeline();
+            var pipeline = PipelineGenerator.CreatePipeline(set);
             var steps = pipeline.Linearize(set.Tag);
             return new ConditionalStep(steps, exists);
         }

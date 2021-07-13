@@ -8,15 +8,5 @@ namespace Jinaga.Definitions
         {
             SetDefinition = setDefinition;
         }
-
-        public override SymbolValue WithSteps(StepsDefinition steps)
-        {
-            return new SymbolValueSetDefinition(SetDefinition.WithSteps(steps));
-        }
-
-        public override SymbolValue WithCondition(ConditionDefinition conditionDefinition)
-        {
-            return new SymbolValueSetDefinition(SetDefinition.WithCondition(conditionDefinition));
-        }
     }
 }
