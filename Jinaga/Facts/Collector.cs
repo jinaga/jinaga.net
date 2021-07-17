@@ -14,11 +14,21 @@ namespace Jinaga.Facts
         public FactGraph Graph { get; private set; } = new FactGraph();
 
         public int FactVisitsCount { get; private set; } = 0;
+        public SerializerCache SerializerCache { get; private set; }
 
         public ImmutableHashSet<object> visiting =
             ImmutableHashSet<object>.Empty;
         public ImmutableDictionary<object, FactReference> referenceByObject =
             ImmutableDictionary<object, FactReference>.Empty;
+
+        public Collector() : this(new SerializerCache())
+        {
+        }
+
+        public Collector(SerializerCache serializerCache)
+        {
+            this.SerializerCache = serializerCache;
+        }
 
         public FactReference Serialize(object runtimeFact)
         {
@@ -32,6 +42,21 @@ namespace Jinaga.Facts
                 FactVisitsCount++;
 
                 var runtimeType = runtimeFact.GetType();
+                Func<object, Fact> serializer = GetSerializer(runtimeType);
+                var fact = serializer(runtimeFact);
+                reference = fact.Reference;
+
+                Graph = Graph.Add(fact);
+                referenceByObject = referenceByObject.Add(runtimeFact, reference);
+            }
+            return reference;
+        }
+
+        private Func<object, Fact> GetSerializer(Type runtimeType)
+        {
+            
+            return runtimeFact =>
+            {
                 var properties = runtimeType.GetProperties(BindingFlags.Public | BindingFlags.Instance);
                 var fields = properties
                     .Where(property => IsField(property.PropertyType))
@@ -42,11 +67,9 @@ namespace Jinaga.Facts
                     .Select(property => SerializePredecessor(property, runtimeFact))
                     .ToImmutableList();
 
-                reference = new FactReference(runtimeType.FactTypeName(), ComputeHash(fields, predecessors));
-                Graph = Graph.Add(new Fact(reference, fields, predecessors));
-                referenceByObject = referenceByObject.Add(runtimeFact, reference);
-            }
-            return reference;
+                var reference = new FactReference(runtimeType.FactTypeName(), ComputeHash(fields, predecessors));
+                return new Fact(reference, fields, predecessors);
+            };
         }
 
         public static bool IsField(Type type)
@@ -120,7 +143,7 @@ namespace Jinaga.Facts
             }
         }
 
-        private string ComputeHash(ImmutableList<Field> fields, ImmutableList<Predecessor> predecessors)
+        public static string ComputeHash(ImmutableList<Field> fields, ImmutableList<Predecessor> predecessors)
         {
             string json = Canonicalize(fields, predecessors);
             var bytes = Encoding.UTF8.GetBytes(json);
@@ -130,14 +153,14 @@ namespace Jinaga.Facts
             return hashString;
         }
 
-        private string Canonicalize(ImmutableList<Field> fields, ImmutableList<Predecessor> predecessors)
+        private static string Canonicalize(ImmutableList<Field> fields, ImmutableList<Predecessor> predecessors)
         {
             string fieldsString = CanonicalizeFields(fields);
             string predecessorsString = CanonicalizePredecessors(predecessors);
             return $"{{\"fields\":{{{fieldsString}}},\"predecessors\":{{{predecessorsString}}}}}";
         }
 
-        private string CanonicalizeFields(ImmutableList<Field> fields)
+        private static string CanonicalizeFields(ImmutableList<Field> fields)
         {
             var serializedFields = fields
                 .OrderBy(field => field.Name, StringComparer.Ordinal)
@@ -147,7 +170,7 @@ namespace Jinaga.Facts
             return result;
         }
 
-        private string SerializeFieldValue(FieldValue value)
+        private static string SerializeFieldValue(FieldValue value)
         {
             switch (value)
             {
@@ -160,7 +183,7 @@ namespace Jinaga.Facts
             }
         }
 
-        private string CanonicalizePredecessors(ImmutableList<Predecessor> predecessors)
+        private static string CanonicalizePredecessors(ImmutableList<Predecessor> predecessors)
         {
             var serializedPredecessors = predecessors
                 .OrderBy(predecessor => predecessor.Role, StringComparer.Ordinal)
@@ -170,7 +193,7 @@ namespace Jinaga.Facts
             return result;
         }
 
-        private string SerializePredecessor(Predecessor predecessor)
+        private static string SerializePredecessor(Predecessor predecessor)
         {
             switch (predecessor)
             {
@@ -189,7 +212,7 @@ namespace Jinaga.Facts
             }
         }
 
-        private string SerializeFactReference(FactReference reference)
+        private static string SerializeFactReference(FactReference reference)
         {
             string serializedType = JsonSerializer.Serialize(reference.Type);
             return $"{{\"hash\":\"{reference.Hash}\",\"type\":{serializedType}}}";
