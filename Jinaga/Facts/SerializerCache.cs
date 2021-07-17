@@ -4,6 +4,7 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Linq;
 using Jinaga.Parsers;
+using System.Collections.Generic;
 
 namespace Jinaga.Facts
 {
@@ -84,16 +85,16 @@ namespace Jinaga.Facts
             NewExpression newFieldValue =
                 propertyInfo.PropertyType == typeof(string)
                     ? Expression.New(typeof(FieldValueString).GetConstructor(new[] { typeof(string) }), propertyGet)
-                //: propertyInfo.PropertyType == typeof(DateTime)
-                //    ? Expression.New(typeof(FieldValueString).GetConstructor(new[] { typeof(string) }), propertyGet)
-                //: propertyInfo.PropertyType == typeof(int)
-                //    ? Expression.New(typeof(FieldValueString).GetConstructor(new[] { typeof(string) }), propertyGet)
-                //: propertyInfo.PropertyType == typeof(float)
-                //    ? Expression.New(typeof(FieldValueString).GetConstructor(new[] { typeof(string) }), propertyGet)
-                //: propertyInfo.PropertyType == typeof(double)
-                //    ? Expression.New(typeof(FieldValueString).GetConstructor(new[] { typeof(string) }), propertyGet)
-                //: propertyInfo.PropertyType == typeof(bool)
-                //    ? Expression.New(typeof(FieldValueString).GetConstructor(new[] { typeof(string) }), propertyGet)
+                : propertyInfo.PropertyType == typeof(DateTime)
+                    ? Expression.New(typeof(FieldValueString).GetConstructor(new[] { typeof(string) }), CallToISO8601String(propertyGet))
+                : propertyInfo.PropertyType == typeof(int)
+                    ? Expression.New(typeof(FieldValueNumber).GetConstructor(new[] { typeof(double) }), ConvertToDouble(propertyGet))
+                : propertyInfo.PropertyType == typeof(float)
+                    ? Expression.New(typeof(FieldValueNumber).GetConstructor(new[] { typeof(double) }), ConvertToDouble(propertyGet))
+                : propertyInfo.PropertyType == typeof(double)
+                    ? Expression.New(typeof(FieldValueNumber).GetConstructor(new[] { typeof(double) }), propertyGet)
+                : propertyInfo.PropertyType == typeof(bool)
+                    ? Expression.New(typeof(FieldValueBoolean).GetConstructor(new[] { typeof(bool) }), propertyGet)
                 : throw new ArgumentException($"Unsupported field type {propertyInfo.PropertyType.Name} in {propertyInfo.DeclaringType.Name}.{propertyInfo.Name}");
             NewExpression newField = Expression.New(
                 typeof(Field).GetConstructor(new[] { typeof(string), typeof(FieldValue) }),
@@ -101,6 +102,22 @@ namespace Jinaga.Facts
                 newFieldValue
             );
             return newField;
+        }
+
+        private static Expression CallToISO8601String(MemberExpression propertyGet)
+        {
+            return Expression.Call(
+                typeof(FieldValue).GetMethod(nameof(FieldValue.ToIso8601String)),
+                propertyGet
+            );
+        }
+
+        private static Expression ConvertToDouble(MemberExpression propertyGet)
+        {
+            return Expression.Convert(
+                propertyGet,
+                typeof(double)
+            );
         }
 
         private static Expression PredecessorList(Type type, ParameterExpression instanceParameter, ParameterExpression collectorParameter)

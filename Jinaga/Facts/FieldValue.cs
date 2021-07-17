@@ -11,7 +11,7 @@ namespace Jinaga.Facts
         public static FieldValue Value(double doubleValue) => new FieldValueNumber(doubleValue);
         public static FieldValue Value(bool boolValue) => new FieldValueBoolean(boolValue);
 
-        private static string ToIso8601String(DateTime dateTime)
+        public static string ToIso8601String(DateTime dateTime)
         {
             var utcDateTime = dateTime.Kind == DateTimeKind.Utc
                 ? dateTime
