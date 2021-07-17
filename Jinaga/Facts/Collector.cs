@@ -1,11 +1,7 @@
-using System.Security.Cryptography;
-using System.Text;
-using System.Reflection;
 using System;
 using System.Collections.Immutable;
-using Jinaga.Parsers;
 using System.Linq;
-using System.Text.Json;
+using System.Reflection;
 
 namespace Jinaga.Facts
 {
@@ -42,8 +38,8 @@ namespace Jinaga.Facts
                 FactVisitsCount++;
 
                 var runtimeType = runtimeFact.GetType();
-                Func<object, Fact> serializer = GetSerializer(runtimeType);
-                var fact = serializer(runtimeFact);
+                Func<object, Collector, Fact> serializer = GetSerializer(runtimeType);
+                var fact = serializer(runtimeFact, this);
                 reference = fact.Reference;
 
                 Graph = Graph.Add(fact);
@@ -52,24 +48,11 @@ namespace Jinaga.Facts
             return reference;
         }
 
-        private Func<object, Fact> GetSerializer(Type runtimeType)
+        private Func<object, Collector, Fact> GetSerializer(Type runtimeType)
         {
-            
-            return runtimeFact =>
-            {
-                var properties = runtimeType.GetProperties(BindingFlags.Public | BindingFlags.Instance);
-                var fields = properties
-                    .Where(property => IsField(property.PropertyType))
-                    .Select(property => SerializeField(property, runtimeFact))
-                    .ToImmutableList();
-                var predecessors = properties
-                    .Where(property => IsPredecessor(property.PropertyType))
-                    .Select(property => SerializePredecessor(property, runtimeFact))
-                    .ToImmutableList();
-
-                var reference = new FactReference(runtimeType.FactTypeName(), ComputeHash(fields, predecessors));
-                return new Fact(reference, fields, predecessors);
-            };
+            var (newCache, serializer) = SerializerCache.GetSerializer(runtimeType);
+            SerializerCache = newCache;
+            return serializer;
         }
 
         public static bool IsField(Type type)
@@ -141,81 +124,6 @@ namespace Jinaga.Facts
                     .ToImmutableList();
                 return new PredecessorMultiple(role, references);
             }
-        }
-
-        public static string ComputeHash(ImmutableList<Field> fields, ImmutableList<Predecessor> predecessors)
-        {
-            string json = Canonicalize(fields, predecessors);
-            var bytes = Encoding.UTF8.GetBytes(json);
-            using var hashAlgorithm = HashAlgorithm.Create("SHA-512");
-            var hashBytes = hashAlgorithm.ComputeHash(bytes);
-            var hashString = Convert.ToBase64String(hashBytes);
-            return hashString;
-        }
-
-        private static string Canonicalize(ImmutableList<Field> fields, ImmutableList<Predecessor> predecessors)
-        {
-            string fieldsString = CanonicalizeFields(fields);
-            string predecessorsString = CanonicalizePredecessors(predecessors);
-            return $"{{\"fields\":{{{fieldsString}}},\"predecessors\":{{{predecessorsString}}}}}";
-        }
-
-        private static string CanonicalizeFields(ImmutableList<Field> fields)
-        {
-            var serializedFields = fields
-                .OrderBy(field => field.Name, StringComparer.Ordinal)
-                .Select(field => $"\"{field.Name}\":{SerializeFieldValue(field.Value)}")
-                .ToArray();
-            var result = String.Join(",", serializedFields);
-            return result;
-        }
-
-        private static string SerializeFieldValue(FieldValue value)
-        {
-            switch (value)
-            {
-                case FieldValueString str:
-                    return JsonSerializer.Serialize(str.StringValue);
-                case FieldValueNumber number:
-                    return JsonSerializer.Serialize(number.DoubleValue);
-                default:
-                    throw new NotImplementedException();
-            }
-        }
-
-        private static string CanonicalizePredecessors(ImmutableList<Predecessor> predecessors)
-        {
-            var serializedPredecessors = predecessors
-                .OrderBy(predecessor => predecessor.Role, StringComparer.Ordinal)
-                .Select(predecessor => $"\"{predecessor.Role}\":{SerializePredecessor(predecessor)}")
-                .ToArray();
-            var result = String.Join(",", serializedPredecessors);
-            return result;
-        }
-
-        private static string SerializePredecessor(Predecessor predecessor)
-        {
-            switch (predecessor)
-            {
-                case PredecessorSingle single:
-                    return SerializeFactReference(single.Reference);
-                case PredecessorMultiple multiple:
-                    var referenceStrings = multiple
-                        .References
-                        .OrderBy(reference => reference.Hash, StringComparer.Ordinal)
-                        .ThenBy(references => references.Type, StringComparer.Ordinal)
-                        .Select(reference => SerializeFactReference(reference))
-                        .ToArray();
-                    return $"[{String.Join(",", referenceStrings)}]";
-                default:
-                    throw new NotImplementedException();
-            }
-        }
-
-        private static string SerializeFactReference(FactReference reference)
-        {
-            string serializedType = JsonSerializer.Serialize(reference.Type);
-            return $"{{\"hash\":\"{reference.Hash}\",\"type\":{serializedType}}}";
         }
     }
 }
