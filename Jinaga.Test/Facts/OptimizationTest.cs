@@ -15,7 +15,7 @@ namespace Jinaga.Test.Facts
             var firstName = new PassengerName(passenger, "George", new PassengerName[0]);
             var secondName = new PassengerName(passenger, "Jorge", new PassengerName[] { firstName });
 
-            var collector = new Collector();
+            var collector = new Collector(new SerializerCache());
             var result = collector.Serialize(secondName);
             int factVisits = collector.FactVisitsCount;
 
@@ -33,7 +33,7 @@ namespace Jinaga.Test.Facts
             // You have to really want to do this
             prior[0] = secondName;
 
-            var collector = new Collector();
+            var collector = new Collector(new SerializerCache());
             Action serialize = () => collector.Serialize(secondName);
             serialize.Should().Throw<ArgumentException>()
                 .WithMessage("Jinaga cannot serialize a fact containing a cycle");

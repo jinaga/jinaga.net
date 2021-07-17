@@ -5,13 +5,6 @@ namespace Jinaga.Facts
 {
     public partial class FactSerializer
     {
-        public static FactGraph Serialize(object runtimeFact)
-        {
-            var collector = new Collector();
-            var reference = collector.Serialize(runtimeFact);
-            return collector.Graph;
-        }
-
         public static TFact Deserialize<TFact>(FactGraph graph, FactReference reference)
         {
             var runtimeType = typeof(TFact);

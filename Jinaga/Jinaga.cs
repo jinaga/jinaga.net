@@ -11,6 +11,7 @@ namespace Jinaga
     public class Jinaga
     {
         private readonly IStore store;
+        private SerializerCache serializerCache = new SerializerCache();
 
         public Jinaga(IStore store)
         {
@@ -23,11 +24,10 @@ namespace Jinaga
             {
                 throw new ArgumentNullException(nameof(prototype));
             }
-            
-            var graph = FactSerializer.Serialize(prototype);
+
+            var graph = Serialize(prototype);
             var added = await store.Save(graph);
-            var reference = graph.Last;
-            return FactSerializer.Deserialize<TFact>(graph, reference);
+            return FactSerializer.Deserialize<TFact>(graph, graph.Last);
         }
 
         public async Task<ImmutableList<TProjection>> Query<TFact, TProjection>(TFact start, Specification<TFact, TProjection> specification) where TFact: class
@@ -37,11 +37,23 @@ namespace Jinaga
                 throw new ArgumentNullException(nameof(start));
             }
 
-            var startReference = FactSerializer.Serialize(start).Last;
+            var graph = Serialize(start);
+            var startReference = graph.Last;
             var pipeline = specification.Pipeline;
             var products = await store.Query(startReference, pipeline.InitialTag, pipeline.Paths);
             var results = await ComputeProjections<TProjection>(pipeline.Projection, products);
             return results;
+        }
+
+        private FactGraph Serialize(object prototype)
+        {
+            lock (this)
+            {
+                var collector = new Collector(serializerCache);
+                collector.Serialize(prototype);
+                serializerCache = collector.SerializerCache;
+                return collector.Graph;
+            }
         }
 
         private async Task<ImmutableList<TProjection>> ComputeProjections<TProjection>(Projection projection, ImmutableList<Product> products)

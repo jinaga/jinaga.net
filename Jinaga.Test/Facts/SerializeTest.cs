@@ -12,7 +12,7 @@ namespace Jinaga.Test.Facts
         [Fact]
         public void SerializeType()
         {
-            var graph = FactSerializer.Serialize(new Airline("value"));
+            var graph = Serialize(new Airline("value"));
 
             graph.Last.Type.Should().Be("Skylane.Airline");
         }
@@ -20,7 +20,7 @@ namespace Jinaga.Test.Facts
         [Fact]
         public void SerializeStringField()
         {
-            var graph = FactSerializer.Serialize(new Airline("value"));
+            var graph = Serialize(new Airline("value"));
 
             var fact = graph.GetFact(graph.Last);
             var field = fact.Fields.Should().ContainSingle().Subject;
@@ -33,7 +33,7 @@ namespace Jinaga.Test.Facts
         public void SerializeDateTimeField()
         {
             DateTime now = DateTime.Parse("7/4/2021 1:39:43.241Z");
-            var graph = FactSerializer.Serialize(new AirlineDay(new Airline("value"), now));
+            var graph = Serialize(new AirlineDay(new Airline("value"), now));
 
             var airlineDay = graph.GetFact(graph.Last);
             var field = airlineDay.Fields.Should().ContainSingle().Subject;
@@ -48,7 +48,7 @@ namespace Jinaga.Test.Facts
             // This test will fail if the local timezone offset is 0
             // Sorry, London
             DateTime now = DateTime.Parse("7/4/2021 1:39:43.241");
-            var graph = FactSerializer.Serialize(new AirlineDay(new Airline("value"), now));
+            var graph = Serialize(new AirlineDay(new Airline("value"), now));
 
             var airlineDay = graph.GetFact(graph.Last);
             var field = airlineDay.Fields.Should().ContainSingle().Subject;
@@ -60,7 +60,7 @@ namespace Jinaga.Test.Facts
         [Fact]
         public void SerializeInteger()
         {
-            var graph = FactSerializer.Serialize(new Flight(new AirlineDay(new Airline("IA"), DateTime.Today), 4272));
+            var graph = Serialize(new Flight(new AirlineDay(new Airline("IA"), DateTime.Today), 4272));
 
             var flight = graph.GetFact(graph.Last);
             var field = flight.Fields.Should().ContainSingle().Subject;
@@ -73,7 +73,7 @@ namespace Jinaga.Test.Facts
         public void SerializePredecessor()
         {
             var now = DateTime.UtcNow;
-            var graph = FactSerializer.Serialize(new AirlineDay(new Airline("value"), now));
+            var graph = Serialize(new AirlineDay(new Airline("value"), now));
 
             var airlineDay = graph.GetFact(graph.Last);
             airlineDay.Reference.Type.Should().Be("Skylane.Airline.Day");
@@ -96,7 +96,7 @@ namespace Jinaga.Test.Facts
             var firstName = new PassengerName(passenger, "George", new PassengerName[0]);
             var secondName = new PassengerName(passenger, "Jorge", new PassengerName[] { firstName });
 
-            var graph = FactSerializer.Serialize(secondName);
+            var graph = Serialize(secondName);
             var fact = graph.GetFact(graph.Last);
 
             fact.Predecessors.Where(p => p.Role == "prior").Should().ContainSingle().Which
@@ -110,11 +110,18 @@ namespace Jinaga.Test.Facts
             var firstName = new PassengerName(passenger, "George", new PassengerName[0]);
             var secondName = new PassengerName(passenger, "Jorge", new PassengerName[] { firstName });
 
-            var graph = FactSerializer.Serialize(secondName);
+            var graph = Serialize(secondName);
             var roundTrip = FactSerializer.Deserialize<PassengerName>(graph, graph.Last);
 
             roundTrip.prior.Should().ContainSingle().Which
                 .value.Should().Be("George");
+        }
+
+        private static FactGraph Serialize(object runtimeFact)
+        {
+            var collector = new Collector(new SerializerCache());
+            var reference = collector.Serialize(runtimeFact);
+            return collector.Graph;
         }
     }
 }

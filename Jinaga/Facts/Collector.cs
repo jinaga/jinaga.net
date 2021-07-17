@@ -17,10 +17,6 @@ namespace Jinaga.Facts
         public ImmutableDictionary<object, FactReference> referenceByObject =
             ImmutableDictionary<object, FactReference>.Empty;
 
-        public Collector() : this(new SerializerCache())
-        {
-        }
-
         public Collector(SerializerCache serializerCache)
         {
             this.SerializerCache = serializerCache;
