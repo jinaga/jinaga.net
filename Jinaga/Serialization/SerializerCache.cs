@@ -1,3 +1,4 @@
+using Jinaga.Facts;
 using Jinaga.Parsers;
 using System;
 using System.Collections.Immutable;
@@ -5,7 +6,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 
-namespace Jinaga.Facts
+namespace Jinaga.Serialization
 {
     class SerializerCache
     {
@@ -27,13 +28,13 @@ namespace Jinaga.Facts
             SerializerCache after = this;
             if (!serializerByType.TryGetValue(type, out var serializer))
             {
-                serializer = CreateFact(type).Compile();
+                serializer = Serialize(type).Compile();
                 after = new SerializerCache(serializerByType.Add(type, serializer));
             }
             return (after, (fact, collector) => (Fact)serializer.DynamicInvoke(fact, collector));
         }
 
-        private static LambdaExpression CreateFact(Type type)
+        private static LambdaExpression Serialize(Type type)
         {
             var instanceParameter = Expression.Parameter(type);
             var collectorParameter = Expression.Parameter(typeof(Collector));
@@ -61,21 +62,10 @@ namespace Jinaga.Facts
             );
             var addMethod = typeof(ImmutableList<Field>).GetMethod(nameof(ImmutableList<Field>.Add));
             var fieldList = properties
-                .Where(property => IsField(property.PropertyType))
+                .Where(property => Interrogate.IsField(property.PropertyType))
                 .Select(property => FieldGetter(property, instanceParameter))
                 .Aggregate(emptyList, (list, field) => Expression.Call(list, addMethod, field));
             return fieldList;
-        }
-
-        public static bool IsField(Type type)
-        {
-            return
-                type == typeof(string) ||
-                type == typeof(DateTime) ||
-                type == typeof(int) ||
-                type == typeof(float) ||
-                type == typeof(double) ||
-                type == typeof(bool);
         }
 
         private static Expression FieldGetter(PropertyInfo propertyInfo, ParameterExpression instanceParameter)
@@ -129,34 +119,12 @@ namespace Jinaga.Facts
             );
             var addMethod = typeof(ImmutableList<Predecessor>).GetMethod(nameof(ImmutableList<Predecessor>.Add));
             var predecessorList = properties
-                .Where(property => IsPredecessor(property.PropertyType))
-                .Select(property => IsFactType(property.PropertyType)
+                .Where(property => Interrogate.IsPredecessor(property.PropertyType))
+                .Select(property => Interrogate.IsFactType(property.PropertyType)
                     ? PredecessorSingleGetter(property, instanceParameter, collectorParameter)
                     : PredecessorMultipleGetter(property, instanceParameter, collectorParameter))
                 .Aggregate(emptyList, (list, predecessor) => Expression.Call(list, addMethod, predecessor));
             return predecessorList;
-        }
-
-        public static bool IsPredecessor(Type type)
-        {
-            return
-                IsFactType(type) ||
-                IsArrayOfFactType(type);
-        }
-
-        private static bool IsFactType(Type type)
-        {
-            return type
-                .GetCustomAttributes(inherit: false)
-                .OfType<FactTypeAttribute>()
-                .Any();
-        }
-
-        private static bool IsArrayOfFactType(Type type)
-        {
-            return
-                type.IsArray &&
-                IsFactType(type.GetElementType());
         }
 
         private static Expression PredecessorSingleGetter(PropertyInfo propertyInfo, ParameterExpression instanceParameter, ParameterExpression collectorParameter)

@@ -1,9 +1,9 @@
+using Jinaga.Facts;
 using System;
 using System.Collections.Immutable;
-using System.Linq;
 using System.Reflection;
 
-namespace Jinaga.Facts
+namespace Jinaga.Serialization
 {
     class Collector
     {
@@ -19,7 +19,7 @@ namespace Jinaga.Facts
 
         public Collector(SerializerCache serializerCache)
         {
-            this.SerializerCache = serializerCache;
+            SerializerCache = serializerCache;
         }
 
         public FactReference Serialize(object runtimeFact)
@@ -34,7 +34,8 @@ namespace Jinaga.Facts
                 FactVisitsCount++;
 
                 var runtimeType = runtimeFact.GetType();
-                Func<object, Collector, Fact> serializer = GetSerializer(runtimeType);
+                var (newCache, serializer) = SerializerCache.GetSerializer(runtimeType);
+                SerializerCache = newCache;
                 try
                 {
                     var fact = serializer(runtimeFact, this);
@@ -49,46 +50,6 @@ namespace Jinaga.Facts
                 }
             }
             return reference;
-        }
-
-        private Func<object, Collector, Fact> GetSerializer(Type runtimeType)
-        {
-            var (newCache, serializer) = SerializerCache.GetSerializer(runtimeType);
-            SerializerCache = newCache;
-            return serializer;
-        }
-
-        public static bool IsField(Type type)
-        {
-            return
-                type == typeof(string) ||
-                type == typeof(DateTime) ||
-                type == typeof(int) ||
-                type == typeof(float) ||
-                type == typeof(double) ||
-                type == typeof(bool);
-        }
-
-        public static bool IsPredecessor(Type type)
-        {
-            return
-                IsFactType(type) ||
-                IsArrayOfFactType(type);
-        }
-
-        private static bool IsFactType(Type type)
-        {
-            return type
-                .GetCustomAttributes(inherit: false)
-                .OfType<FactTypeAttribute>()
-                .Any();
-        }
-
-        private static bool IsArrayOfFactType(Type type)
-        {
-            return
-                type.IsArray &&
-                IsFactType(type.GetElementType());
         }
     }
 }

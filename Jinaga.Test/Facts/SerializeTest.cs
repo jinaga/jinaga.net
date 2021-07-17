@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using FluentAssertions;
 using Jinaga.Facts;
+using Jinaga.Serialization;
 using Jinaga.Test.Model;
 using Xunit;
 
@@ -111,7 +112,7 @@ namespace Jinaga.Test.Facts
             var secondName = new PassengerName(passenger, "Jorge", new PassengerName[] { firstName });
 
             var graph = Serialize(secondName);
-            var roundTrip = FactSerializer.Deserialize<PassengerName>(graph, graph.Last);
+            var roundTrip = Deserialize<PassengerName>(graph, graph.Last);
 
             roundTrip.prior.Should().ContainSingle().Which
                 .value.Should().Be("George");
@@ -122,6 +123,13 @@ namespace Jinaga.Test.Facts
             var collector = new Collector(new SerializerCache());
             var reference = collector.Serialize(runtimeFact);
             return collector.Graph;
+        }
+
+        private static T Deserialize<T>(FactGraph graph, FactReference reference)
+        {
+            var emitter = new Emitter(graph, new DeserializerCache());
+            var runtimeFact = emitter.Deserialize(reference, typeof(T));
+            return (T)runtimeFact;
         }
     }
 }

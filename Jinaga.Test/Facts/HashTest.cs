@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using FluentAssertions;
 using Jinaga.Facts;
+using Jinaga.Serialization;
 using Jinaga.Test.Model;
 using Xunit;
 

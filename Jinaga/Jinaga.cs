@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Jinaga.Facts;
 using Jinaga.Pipelines;
+using Jinaga.Serialization;
 using Jinaga.Services;
 
 namespace Jinaga
@@ -12,6 +13,7 @@ namespace Jinaga
     {
         private readonly IStore store;
         private SerializerCache serializerCache = new SerializerCache();
+        private DeserializerCache deserializerCache = new DeserializerCache();
 
         public Jinaga(IStore store)
         {
@@ -27,7 +29,7 @@ namespace Jinaga
 
             var graph = Serialize(prototype);
             var added = await store.Save(graph);
-            return FactSerializer.Deserialize<TFact>(graph, graph.Last);
+            return Deserialize<TFact>(graph, graph.Last);
         }
 
         public async Task<ImmutableList<TProjection>> Query<TFact, TProjection>(TFact start, Specification<TFact, TProjection> specification) where TFact: class
@@ -45,6 +47,24 @@ namespace Jinaga
             return results;
         }
 
+        private async Task<ImmutableList<TProjection>> ComputeProjections<TProjection>(Projection projection, ImmutableList<Product> products)
+        {
+            switch (projection)
+            {
+                case SimpleProjection simple:
+                    var references = products
+                        .Select(product => product.GetFactReference(simple.Tag))
+                        .ToImmutableList();
+                    var graph = await store.Load(references);
+                    var projections = references
+                        .Select(reference => Deserialize<TProjection>(graph, reference))
+                        .ToImmutableList();
+                    return projections;
+                default:
+                    throw new NotImplementedException();
+            }
+        }
+
         private FactGraph Serialize(object prototype)
         {
             lock (this)
@@ -56,21 +76,14 @@ namespace Jinaga
             }
         }
 
-        private async Task<ImmutableList<TProjection>> ComputeProjections<TProjection>(Projection projection, ImmutableList<Product> products)
+        private TFact Deserialize<TFact>(FactGraph graph, FactReference reference)
         {
-            switch (projection)
+            lock (this)
             {
-                case SimpleProjection simple:
-                    var references = products
-                        .Select(product => product.GetFactReference(simple.Tag))
-                        .ToImmutableList();
-                    var graph = await store.Load(references);
-                    var projections = references
-                        .Select(reference => FactSerializer.Deserialize<TProjection>(graph, reference))
-                        .ToImmutableList();
-                    return projections;
-                default:
-                    throw new NotImplementedException();
+                var emitter = new Emitter(graph, deserializerCache);
+                var fact = emitter.Deserialize(reference, typeof(TFact));
+                deserializerCache = emitter.DeserializerCache;
+                return (TFact)fact;
             }
         }
     }
