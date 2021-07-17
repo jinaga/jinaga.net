@@ -128,12 +128,12 @@ namespace Jinaga.Facts
                nameof(ImmutableList<Predecessor>.Empty)
             );
             var addMethod = typeof(ImmutableList<Predecessor>).GetMethod(nameof(ImmutableList<Predecessor>.Add));
-            var addRangeMethod = typeof(ImmutableList<Predecessor>).GetMethod(nameof(ImmutableList<Predecessor>.AddRange));
             var predecessorList = properties
                 .Where(property => IsPredecessor(property.PropertyType))
-                .Aggregate(emptyList, (list, property) => IsFactType(property.PropertyType)
-                    ? Expression.Call(list, addMethod, PredecessorGetter(property, instanceParameter, collectorParameter))
-                    : Expression.Call(list, addRangeMethod, PredecessorCollectionGetter(property, instanceParameter, collectorParameter)));
+                .Select(property => IsFactType(property.PropertyType)
+                    ? PredecessorSingleGetter(property, instanceParameter, collectorParameter)
+                    : PredecessorMultipleGetter(property, instanceParameter, collectorParameter))
+                .Aggregate(emptyList, (list, predecessor) => Expression.Call(list, addMethod, predecessor));
             return predecessorList;
         }
 
@@ -159,7 +159,7 @@ namespace Jinaga.Facts
                 IsFactType(type.GetElementType());
         }
 
-        private static Expression PredecessorGetter(PropertyInfo propertyInfo, ParameterExpression instanceParameter, ParameterExpression collectorParameter)
+        private static Expression PredecessorSingleGetter(PropertyInfo propertyInfo, ParameterExpression instanceParameter, ParameterExpression collectorParameter)
         {
             return Expression.New(
                 typeof(PredecessorSingle).GetConstructor(new[] { typeof(string), typeof(FactReference) }),
@@ -175,9 +175,31 @@ namespace Jinaga.Facts
             );
         }
 
-        private static Expression PredecessorCollectionGetter(PropertyInfo property, ParameterExpression instanceParameter, ParameterExpression collectorParameter)
+        private static Expression PredecessorMultipleGetter(PropertyInfo propertyInfo, ParameterExpression instanceParameter, ParameterExpression collectorParameter)
         {
-            throw new NotImplementedException();
+            var serializeMethod = typeof(SerializerCache)
+                .GetMethod(nameof(SerializerCache.SerializePredecessors))
+                .MakeGenericMethod(propertyInfo.PropertyType.GetElementType());
+
+            return Expression.New(
+                typeof(PredecessorMultiple).GetConstructor(new[] { typeof(string), typeof(ImmutableList<FactReference>) }),
+                Expression.Constant(propertyInfo.Name),
+                Expression.Call(
+                    null,
+                    serializeMethod,
+                    Expression.Property(instanceParameter, propertyInfo),
+                    collectorParameter
+                )
+            );
+        }
+
+        public static ImmutableList<FactReference> SerializePredecessors<T>(T[] predecessors, Collector collector)
+        {
+            return predecessors
+                .OfType<object>()
+                .Select(obj => collector.Serialize(obj))
+                .ToImmutableList();
+
         }
     }
 }

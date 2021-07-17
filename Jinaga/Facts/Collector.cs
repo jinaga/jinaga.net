@@ -39,11 +39,18 @@ namespace Jinaga.Facts
 
                 var runtimeType = runtimeFact.GetType();
                 Func<object, Collector, Fact> serializer = GetSerializer(runtimeType);
-                var fact = serializer(runtimeFact, this);
-                reference = fact.Reference;
+                try
+                {
+                    var fact = serializer(runtimeFact, this);
+                    reference = fact.Reference;
 
-                Graph = Graph.Add(fact);
-                referenceByObject = referenceByObject.Add(runtimeFact, reference);
+                    Graph = Graph.Add(fact);
+                    referenceByObject = referenceByObject.Add(runtimeFact, reference);
+                }
+                catch (TargetInvocationException tie)
+                {
+                    throw tie.InnerException;
+                }
             }
             return reference;
         }
@@ -86,44 +93,6 @@ namespace Jinaga.Facts
             return
                 type.IsArray &&
                 IsFactType(type.GetElementType());
-        }
-
-        private static Field SerializeField(PropertyInfo property, object runtimeFact)
-        {
-            object propertyValue = property.GetValue(runtimeFact);
-            var value =
-                property.PropertyType == typeof(string)
-                    ? FieldValue.Value((string)propertyValue)
-                : property.PropertyType == typeof(DateTime)
-                    ? FieldValue.Value((DateTime)propertyValue)
-                : property.PropertyType == typeof(int)
-                    ? FieldValue.Value((int)propertyValue)
-                : property.PropertyType == typeof(float)
-                    ? FieldValue.Value((float)propertyValue)
-                : property.PropertyType == typeof(double)
-                    ? FieldValue.Value((double)propertyValue)
-                : property.PropertyType == typeof(bool)
-                    ? FieldValue.Value((bool)propertyValue)
-                : throw new ArgumentException($"Unsupported field type {property.PropertyType.Name} in {property.DeclaringType.Name}.{property.Name}");
-            return new Field(property.Name, value);
-        }
-
-        private Predecessor SerializePredecessor(PropertyInfo property, object runtimeFact)
-        {
-            string role = property.Name;
-            if (!property.PropertyType.IsArray)
-            {
-                var reference = Serialize(property.GetValue(runtimeFact));
-                return new PredecessorSingle(role, reference);
-            }
-            else
-            {
-                var array = (object[])property.GetValue(runtimeFact);
-                var references = array
-                    .Select(obj => Serialize(obj))
-                    .ToImmutableList();
-                return new PredecessorMultiple(role, references);
-            }
         }
     }
 }
