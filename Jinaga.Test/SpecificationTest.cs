@@ -241,5 +241,40 @@ namespace Jinaga.Test
     passenger
 }");
         }
+
+        [Fact]
+        public void Specification_JoinWithTwoConditionals()
+        {
+            var specification = Given<Company>.Match((company, facts) =>
+                from office in facts.OfType<Office>()
+                where office.company == company
+                where !office.IsClosed
+
+                from headcount in facts.OfType<Headcount>()
+                where headcount.office == office
+                where headcount.IsCurrent
+
+                select new
+                {
+                    office,
+                    headcount
+                }
+            );
+
+            var pipeline = specification.Pipeline;
+            var descriptiveString = pipeline.ToDescriptiveString();
+            descriptiveString.Should().Be(@"company: Corporate.Company {
+    office: Corporate.Office = company S.company Corporate.Office N(
+        S.office Corporate.Office.Closure
+    )
+    headcount: Corporate.Headcount = office S.office Corporate.Headcount N(
+        S.prior Corporate.Headcount
+    )
+    {
+        headcount = headcount
+        office = office
+    }
+}");
+        }
     }
 }

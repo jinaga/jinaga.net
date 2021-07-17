@@ -250,7 +250,8 @@ namespace Jinaga.Parsers
                 {
                     object target = InstanceOfFact(propertyInfo.DeclaringType);
                     var condition = (Condition)propertyInfo.GetGetMethod().Invoke(target, new object[0]);
-                    var innerSymbolTable = SymbolTable.WithSymbol("this", symbolValue);
+                    var instanceValue = ValueParser.ParseValue(symbolTable, member.Expression).symbolValue;
+                    var innerSymbolTable = SymbolTable.WithSymbol("this", instanceValue);
                     return ParseCondition(symbolValue, innerSymbolTable, condition.Body.Body);
                 }
                 else
