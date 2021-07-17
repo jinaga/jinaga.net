@@ -15,6 +15,8 @@ namespace Jinaga.Facts
 
         public int FactVisitsCount { get; private set; } = 0;
 
+        public ImmutableHashSet<object> visiting =
+            ImmutableHashSet<object>.Empty;
         public ImmutableDictionary<object, FactReference> referenceByObject =
             ImmutableDictionary<object, FactReference>.Empty;
 
@@ -22,7 +24,13 @@ namespace Jinaga.Facts
         {
             if (!referenceByObject.TryGetValue(runtimeFact, out var reference))
             {
+                if (visiting.Contains(runtimeFact))
+                {
+                    throw new ArgumentException("Jinaga cannot serialize a fact containing a cycle");
+                }
+                visiting = visiting.Add(runtimeFact);
                 FactVisitsCount++;
+
                 var runtimeType = runtimeFact.GetType();
                 var properties = runtimeType.GetProperties(BindingFlags.Public | BindingFlags.Instance);
                 var fields = properties
@@ -33,6 +41,7 @@ namespace Jinaga.Facts
                     .Where(property => IsPredecessor(property.PropertyType))
                     .Select(property => SerializePredecessor(property, runtimeFact))
                     .ToImmutableList();
+
                 reference = new FactReference(runtimeType.FactTypeName(), ComputeHash(fields, predecessors));
                 Graph = Graph.Add(new Fact(reference, fields, predecessors));
                 referenceByObject = referenceByObject.Add(runtimeFact, reference);
