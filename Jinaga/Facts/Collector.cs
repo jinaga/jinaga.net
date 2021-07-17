@@ -11,22 +11,32 @@ namespace Jinaga.Facts
 {
     class Collector
     {
-        public FactGraph Graph { get; set; } = new FactGraph();
+        public FactGraph Graph { get; private set; } = new FactGraph();
+
+        public int FactVisitsCount { get; private set; } = 0;
+
+        public ImmutableDictionary<object, FactReference> referenceByObject =
+            ImmutableDictionary<object, FactReference>.Empty;
 
         public FactReference Serialize(object runtimeFact)
         {
-            var runtimeType = runtimeFact.GetType();
-            var properties = runtimeType.GetProperties(BindingFlags.Public | BindingFlags.Instance);
-            var fields = properties
-                .Where(property => IsField(property.PropertyType))
-                .Select(property => SerializeField(property, runtimeFact))
-                .ToImmutableList();
-            var predecessors = properties
-                .Where(property => IsPredecessor(property.PropertyType))
-                .Select(property => SerializePredecessor(property, runtimeFact))
-                .ToImmutableList();
-            var reference = new FactReference(runtimeType.FactTypeName(), ComputeHash(fields, predecessors));
-            Graph = Graph.Add(new Fact(reference, fields, predecessors));
+            if (!referenceByObject.TryGetValue(runtimeFact, out var reference))
+            {
+                FactVisitsCount++;
+                var runtimeType = runtimeFact.GetType();
+                var properties = runtimeType.GetProperties(BindingFlags.Public | BindingFlags.Instance);
+                var fields = properties
+                    .Where(property => IsField(property.PropertyType))
+                    .Select(property => SerializeField(property, runtimeFact))
+                    .ToImmutableList();
+                var predecessors = properties
+                    .Where(property => IsPredecessor(property.PropertyType))
+                    .Select(property => SerializePredecessor(property, runtimeFact))
+                    .ToImmutableList();
+                reference = new FactReference(runtimeType.FactTypeName(), ComputeHash(fields, predecessors));
+                Graph = Graph.Add(new Fact(reference, fields, predecessors));
+                referenceByObject = referenceByObject.Add(runtimeFact, reference);
+            }
             return reference;
         }
 
