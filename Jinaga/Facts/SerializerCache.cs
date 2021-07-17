@@ -1,10 +1,9 @@
-using System.Collections.Immutable;
+using Jinaga.Parsers;
 using System;
+using System.Collections.Immutable;
+using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
-using System.Linq;
-using Jinaga.Parsers;
-using System.Collections.Generic;
 
 namespace Jinaga.Facts
 {
@@ -122,12 +121,63 @@ namespace Jinaga.Facts
 
         private static Expression PredecessorList(Type type, ParameterExpression instanceParameter, ParameterExpression collectorParameter)
         {
+            var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
             Expression emptyList = Expression.Field(
                null,
                typeof(ImmutableList<Predecessor>),
                nameof(ImmutableList<Predecessor>.Empty)
             );
-            return emptyList;
+            var addMethod = typeof(ImmutableList<Predecessor>).GetMethod(nameof(ImmutableList<Predecessor>.Add));
+            var addRangeMethod = typeof(ImmutableList<Predecessor>).GetMethod(nameof(ImmutableList<Predecessor>.AddRange));
+            var predecessorList = properties
+                .Where(property => IsPredecessor(property.PropertyType))
+                .Aggregate(emptyList, (list, property) => IsFactType(property.PropertyType)
+                    ? Expression.Call(list, addMethod, PredecessorGetter(property, instanceParameter, collectorParameter))
+                    : Expression.Call(list, addRangeMethod, PredecessorCollectionGetter(property, instanceParameter, collectorParameter)));
+            return predecessorList;
+        }
+
+        public static bool IsPredecessor(Type type)
+        {
+            return
+                IsFactType(type) ||
+                IsArrayOfFactType(type);
+        }
+
+        private static bool IsFactType(Type type)
+        {
+            return type
+                .GetCustomAttributes(inherit: false)
+                .OfType<FactTypeAttribute>()
+                .Any();
+        }
+
+        private static bool IsArrayOfFactType(Type type)
+        {
+            return
+                type.IsArray &&
+                IsFactType(type.GetElementType());
+        }
+
+        private static Expression PredecessorGetter(PropertyInfo propertyInfo, ParameterExpression instanceParameter, ParameterExpression collectorParameter)
+        {
+            return Expression.New(
+                typeof(PredecessorSingle).GetConstructor(new[] { typeof(string), typeof(FactReference) }),
+                Expression.Constant(propertyInfo.Name),
+                Expression.Call(
+                    collectorParameter,
+                    typeof(Collector).GetMethod(nameof(Collector.Serialize)),
+                    Expression.Convert(
+                        Expression.Property(instanceParameter, propertyInfo),
+                        typeof(object)
+                    )
+                )
+            );
+        }
+
+        private static Expression PredecessorCollectionGetter(PropertyInfo property, ParameterExpression instanceParameter, ParameterExpression collectorParameter)
+        {
+            throw new NotImplementedException();
         }
     }
 }
