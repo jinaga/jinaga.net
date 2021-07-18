@@ -60,5 +60,21 @@ namespace Jinaga.Test.Facts
             var result = collector.Serialize(secondName);
             collector.SerializerCache.TypeCount.Should().Be(4);
         }
+
+        [Fact]
+        public void Optimization_ReuseObjects()
+        {
+            var passenger = new Passenger(new Airline("IA"), new User("--- PUBLIC KEY ---"));
+            var firstName = new PassengerName(passenger, "George", new PassengerName[0]);
+            var secondName = new PassengerName(passenger, "Jorge", new PassengerName[] { firstName });
+
+            var collector = new Collector(new SerializerCache());
+            var result = collector.Serialize(secondName);
+
+            var emitter = new Emitter(collector.Graph, new DeserializerCache());
+            var deserialized = emitter.Deserialize<PassengerName>(result);
+
+            deserialized.passenger.Should().BeSameAs(deserialized.prior[0].passenger);
+        }
     }
 }
