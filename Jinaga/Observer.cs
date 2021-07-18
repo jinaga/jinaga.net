@@ -18,6 +18,8 @@ namespace Jinaga
         private Task? initialize;
         private CancellationTokenSource cancelInitialize = new CancellationTokenSource();
 
+        public Task Initialized => initialize!;
+
         internal Observer(Pipeline pipeline, FactReference startReference, FactManager factManager, Observation<TProjection> observation)
         {
             this.pipeline = pipeline;
