@@ -1,33 +1,102 @@
 ﻿using Jinaga.Facts;
 using System;
+using System.Collections.Immutable;
 using System.Linq;
+using System.Linq.Expressions;
 
 namespace Jinaga.Serialization
 {
     class DeserializerCache
     {
-        public (DeserializerCache, Func<Fact, Emitter, object>) GetDeserializer(Type type)
+        private readonly ImmutableDictionary<Type, Delegate> deserializerByType;
+
+        public DeserializerCache() : this(ImmutableDictionary<Type, Delegate>.Empty)
         {
-            var runtimeType = type;
-            Func<Fact, Emitter, object> deserializer = (fact, emitter) =>
-            {
-                var constructor = runtimeType.GetConstructors().Single();
-                var parameters = constructor.GetParameters();
-                var parameterValues = parameters
-                    .Select(parameter =>
-                        Interrogate.IsField(parameter.ParameterType)
-                            ? GetFieldValue(parameter.ParameterType, fact.Fields.Single(f => f.Name == parameter.Name).Value) :
-                        Interrogate.IsPredecessor(parameter.ParameterType)
-                            ? GetPredecessorValue(parameter.ParameterType, fact.Predecessors.Single(p => p.Role == parameter.Name), emitter) :
-                        throw new NotImplementedException()
-                    )
-                    .ToArray();
-                var runtimeFact = constructor.Invoke(parameterValues);
-                return runtimeFact;
-            };
-            return (this, deserializer);
         }
 
+        private DeserializerCache(ImmutableDictionary<Type, Delegate> deserializerByType)
+        {
+            this.deserializerByType = deserializerByType;
+        }
+
+        public (DeserializerCache, Func<Fact, Emitter, object>) GetDeserializer(Type type)
+        {
+            DeserializerCache after = this;
+            if (!deserializerByType.TryGetValue(type, out var deserializer))
+            {
+                deserializer = Deserialize(type).Compile();
+                after = new DeserializerCache(deserializerByType.Add(type, deserializer));
+            }
+            return (after, (fact, emitter) => deserializer.DynamicInvoke(fact, emitter));
+        }
+
+        private static LambdaExpression Deserialize(Type type)
+        {
+            var factParameter = Expression.Parameter(typeof(Fact));
+            var emitterParameter = Expression.Parameter(typeof(Emitter));
+            return Expression.Lambda(
+                CreateObject(type, factParameter, emitterParameter),
+                factParameter,
+                emitterParameter
+            );
+        }
+
+        private static Expression CreateObject(Type type, ParameterExpression factParameter, ParameterExpression emitterParameter)
+        {
+            var constructor = type.GetConstructors().Single();
+            var parameters = constructor.GetParameters();
+            var parameterExpressions = parameters
+                .Select(parameter =>
+                    Interrogate.IsField(parameter.ParameterType)
+                        ? GetFieldValue(parameter.Name, parameter.ParameterType, factParameter) :
+                    Interrogate.IsFactType(parameter.ParameterType)
+                        ? GetPredecessor(parameter.Name, parameter.ParameterType, factParameter, emitterParameter) :
+                    Interrogate.IsArrayOfFactType(parameter.ParameterType)
+                        ? GetPredecessorArray(parameter.Name, parameter.ParameterType.GetElementType(), factParameter, emitterParameter) :
+                    throw new NotImplementedException()
+                )
+                .ToArray();
+            return Expression.New(
+                constructor,
+                parameterExpressions
+            );
+        }
+
+        private static Expression GetFieldValue(string name, Type parameterType, ParameterExpression factParameter)
+        {
+            var getFieldValueMethod = typeof(Fact).GetMethod(nameof(Fact.GetFieldValue));
+            var getFieldValue = Expression.Call(
+                factParameter,
+                getFieldValueMethod,
+                Expression.Constant(name)
+            );
+            if (parameterType == typeof(string))
+            {
+                return Expression.Property(
+                    Expression.Convert(
+                        getFieldValue,
+                        typeof(FieldValueString)
+                    ),
+                    nameof(FieldValueString.StringValue)
+                );
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
+        }
+
+        private static Expression GetPredecessor(string name, Type parameterType, ParameterExpression factParameter, ParameterExpression emitterParameter)
+        {
+            throw new NotImplementedException();
+        }
+
+        private static Expression GetPredecessorArray(string name, Type elementType, ParameterExpression factParameter, ParameterExpression emitterParameter)
+        {
+            throw new NotImplementedException();
+        }
+
+        /*
         private static object GetFieldValue(Type parameterType, FieldValue value)
         {
             switch (value)
@@ -71,5 +140,6 @@ namespace Jinaga.Serialization
                     throw new NotImplementedException();
             }
         }
+        */
     }
 }

@@ -26,6 +26,16 @@ namespace Jinaga.Facts
         public ImmutableList<Field> Fields { get; }
         public ImmutableList<Predecessor> Predecessors { get; }
 
+        public FieldValue GetFieldValue(string name)
+        {
+            return Fields.Single(f => f.Name == name).Value;
+        }
+
+        public Predecessor GetPredecessor(string role)
+        {
+            return Predecessors.Single(p => p.Role == role);
+        }
+
         public static string ComputeHash(ImmutableList<Field> fields, ImmutableList<Predecessor> predecessors)
         {
             string json = Canonicalize(fields, predecessors);

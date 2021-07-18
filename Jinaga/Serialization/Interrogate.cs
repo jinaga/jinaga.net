@@ -31,7 +31,7 @@ namespace Jinaga.Serialization
                 .Any();
         }
 
-        private static bool IsArrayOfFactType(Type type)
+        public static bool IsArrayOfFactType(Type type)
         {
             return
                 type.IsArray &&
