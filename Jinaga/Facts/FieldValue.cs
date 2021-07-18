@@ -11,6 +11,11 @@ namespace Jinaga.Facts
                 : dateTime.ToUniversalTime();
             return utcDateTime.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
         }
+
+        public static DateTime FromIso8601String(string str)
+        {
+            return DateTime.Parse(str).ToUniversalTime();
+        }
     }
 
     public class FieldValueString : FieldValue

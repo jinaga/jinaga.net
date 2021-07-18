@@ -81,9 +81,9 @@ namespace Jinaga
             lock (this)
             {
                 var emitter = new Emitter(graph, deserializerCache);
-                var fact = emitter.Deserialize(reference, typeof(TFact));
+                var fact = emitter.Deserialize<TFact>(reference);
                 deserializerCache = emitter.DeserializerCache;
-                return (TFact)fact;
+                return fact;
             }
         }
     }

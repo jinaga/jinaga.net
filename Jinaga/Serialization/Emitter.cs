@@ -20,8 +20,9 @@ namespace Jinaga.Serialization
             DeserializerCache = deserializerCache;
         }
 
-        public object Deserialize(FactReference reference, Type type)
+        public TFact Deserialize<TFact>(FactReference reference)
         {
+            Type type = typeof(TFact);
             if (!objectByReference.TryGetValue(reference, out var runtimeFact))
             {
                 var (newCache, deserializer) = DeserializerCache.GetDeserializer(type);
@@ -37,7 +38,7 @@ namespace Jinaga.Serialization
                 }
             }
 
-            return runtimeFact;
+            return (TFact)runtimeFact;
         }
     }
 }

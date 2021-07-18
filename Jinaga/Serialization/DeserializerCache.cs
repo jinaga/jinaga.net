@@ -80,15 +80,38 @@ namespace Jinaga.Serialization
                     nameof(FieldValueString.StringValue)
                 );
             }
+            else if (parameterType == typeof(DateTime))
+            {
+                return Expression.Call(
+                    typeof(FieldValue).GetMethod(nameof(FieldValue.FromIso8601String)),
+                    Expression.Property(
+                        Expression.Convert(
+                            getFieldValue,
+                            typeof(FieldValueString)
+                        ),
+                        nameof(FieldValueString.StringValue)
+                    )
+                );
+            }
             else
             {
                 throw new NotImplementedException();
             }
         }
 
-        private static Expression GetPredecessor(string name, Type parameterType, ParameterExpression factParameter, ParameterExpression emitterParameter)
+        private static Expression GetPredecessor(string role, Type parameterType, ParameterExpression factParameter, ParameterExpression emitterParameter)
         {
-            throw new NotImplementedException();
+            var predecessorSingle = Expression.Call(
+                factParameter,
+                typeof(Fact).GetMethod(nameof(Fact.GetPredecessorSingle)),
+                Expression.Constant(role)
+            );
+            var deserialize = Expression.Call(
+                emitterParameter,
+                typeof(Emitter).GetMethod(nameof(Emitter.Deserialize)).MakeGenericMethod(parameterType),
+                predecessorSingle
+            );
+            return deserialize;
         }
 
         private static Expression GetPredecessorArray(string name, Type elementType, ParameterExpression factParameter, ParameterExpression emitterParameter)

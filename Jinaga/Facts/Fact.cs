@@ -28,12 +28,64 @@ namespace Jinaga.Facts
 
         public FieldValue GetFieldValue(string name)
         {
-            return Fields.Single(f => f.Name == name).Value;
+            var values = Fields
+                .Where(f => f.Name == name)
+                .Select(f => f.Value)
+                .ToImmutableList();
+            if (values.Count == 0)
+            {
+                throw new ArgumentException($"The fact {Reference.Type} did not contain any fields named {name}");
+            }
+            else if (values.Count > 1)
+            {
+                throw new ArgumentException($"The fact {Reference.Type} contained {values.Count} fields named {name}; there should only be 1");
+            }
+            else
+            {
+                return values.Single();
+            }
         }
 
-        public Predecessor GetPredecessor(string role)
+        public FactReference GetPredecessorSingle(string role)
         {
-            return Predecessors.Single(p => p.Role == role);
+            var references = Predecessors
+                .Where(p => p.Role == role)
+                .OfType<PredecessorSingle>()
+                .Select(p => p.Reference)
+                .ToImmutableList();
+            if (references.Count == 0)
+            {
+                throw new ArgumentException($"The fact {Reference.Type} did not contain any predecessors in role {role}");
+            }
+            else if (references.Count > 1)
+            {
+                throw new ArgumentException($"The fact {Reference.Type} contained {references.Count} predecessors in role {role}; there should only be 1");
+            }
+            else
+            {
+                return references.Single();
+            }
+        }
+
+        public ImmutableList<FactReference> GetPredecessorMultiple(string role)
+        {
+            var references = Predecessors
+                .Where(p => p.Role == role)
+                .OfType<PredecessorMultiple>()
+                .Select(p => p.References)
+                .ToImmutableList();
+            if (references.Count == 0)
+            {
+                throw new ArgumentException($"The fact {Reference.Type} did not contain any predecessors in role {role}");
+            }
+            else if (references.Count > 1)
+            {
+                throw new ArgumentException($"The fact {Reference.Type} contained {references.Count} predecessors in role {role}; there should only be 1");
+            }
+            else
+            {
+                return references.Single();
+            }
         }
 
         public static string ComputeHash(ImmutableList<Field> fields, ImmutableList<Predecessor> predecessors)
