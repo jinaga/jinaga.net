@@ -2,10 +2,7 @@
 using Jinaga.Managers;
 using Jinaga.Observers;
 using Jinaga.Pipelines;
-using Jinaga.Services;
 using System;
-using System.Collections.Generic;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -35,15 +32,20 @@ namespace Jinaga
             initialize = Task.Run(() => RunInitialQuery(cancellationToken), cancellationToken);
         }
 
-        public void Stop()
+        public async Task Stop()
         {
-            cancelInitialize.Cancel();
+            if (initialize != null)
+            {
+                cancelInitialize.CancelAfter(TimeSpan.FromSeconds(2));
+                await initialize;
+            }
         }
 
         private async Task RunInitialQuery(CancellationToken cancellationToken)
         {
             var products = await factManager.Query(startReference, pipeline.InitialTag, pipeline.Paths, cancellationToken);
             var results = await factManager.ComputeProjections<TProjection>(pipeline.Projection, products, cancellationToken);
+            await observation.NotifyAdded(results);
         }
     }
 }

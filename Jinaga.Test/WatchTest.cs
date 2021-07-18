@@ -28,7 +28,7 @@ namespace Jinaga.Test
                 .OnAdded(async office => await officeRepository.Insert(office))
             );
 
-            officeObserver.Stop();
+            await officeObserver.Stop();
 
             officeRepository.Items.Should().BeEmpty();
         }
@@ -43,7 +43,7 @@ namespace Jinaga.Test
                 .OnAdded(async office => await officeRepository.Insert(office))
             );
 
-            officeObserver.Stop();
+            await officeObserver.Stop();
 
             officeRepository.Items.Should().ContainSingle().Which.Should().BeEquivalentTo(newOffice);
         }
@@ -58,7 +58,7 @@ namespace Jinaga.Test
             );
 
             var newOffice = await j.Fact(new Office(company, new City("Dallas")));
-            officeObserver.Stop();
+            await officeObserver.Stop();
 
             officeRepository.Items.Should().ContainSingle().Which.Should().BeEquivalentTo(newOffice);
         }
@@ -75,7 +75,7 @@ namespace Jinaga.Test
             );
 
             await j.Fact(new OfficeClosure(newOffice, DateTime.Now));
-            officeObserver.Stop();
+            await officeObserver.Stop();
 
             officeRepository.Items.Should().BeEmpty();
         }
@@ -92,7 +92,7 @@ namespace Jinaga.Test
 
             var newOffice = await j.Fact(new Office(company, new City("Dallas")));
             await j.Fact(new OfficeClosure(newOffice, DateTime.Now));
-            officeObserver.Stop();
+            await officeObserver.Stop();
 
             officeRepository.Items.Should().BeEmpty();
         }
@@ -106,7 +106,7 @@ namespace Jinaga.Test
                 .OnAdded(async office => await officeRepository.Insert(office))
             );
 
-            officeObserver.Stop();
+            await officeObserver.Stop();
 
             var newOffice = await j.Fact(new Office(company, new City("Dallas")));
 
@@ -124,7 +124,7 @@ namespace Jinaga.Test
                 .OnRemoved(async id => await officeRepository.Delete(id))
             );
 
-            officeObserver.Stop();
+            await officeObserver.Stop();
 
             await j.Fact(new OfficeClosure(newOffice, DateTime.Now));
 
@@ -142,7 +142,7 @@ namespace Jinaga.Test
             );
 
             var newOffice = await j.Fact(new Office(company, new City("Dallas")));
-            officeObserver.Stop();
+            await officeObserver.Stop();
 
             await j.Fact(new OfficeClosure(newOffice, DateTime.Now));
 
