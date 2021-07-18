@@ -3,6 +3,7 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Threading.Tasks;
 using Jinaga.Facts;
+using Jinaga.Observers;
 using Jinaga.Pipelines;
 using Jinaga.Serialization;
 using Jinaga.Services;
@@ -45,6 +46,11 @@ namespace Jinaga
             var products = await store.Query(startReference, pipeline.InitialTag, pipeline.Paths);
             var results = await ComputeProjections<TProjection>(pipeline.Projection, products);
             return results;
+        }
+
+        public Observer<TProjection> Watch<TFact, TProjection>(TFact company, Specification<TFact, TProjection> officesInCompany, Func<Observation<TProjection>, Observation<TProjection>> p)
+        {
+            return new Observer<TProjection>();
         }
 
         private async Task<ImmutableList<TProjection>> ComputeProjections<TProjection>(Projection projection, ImmutableList<Product> products)
