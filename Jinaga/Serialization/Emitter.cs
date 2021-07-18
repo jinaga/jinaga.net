@@ -1,6 +1,7 @@
 ﻿using Jinaga.Facts;
 using System;
 using System.Collections.Immutable;
+using System.Linq;
 using System.Reflection;
 
 namespace Jinaga.Serialization
@@ -39,6 +40,13 @@ namespace Jinaga.Serialization
             }
 
             return (TFact)runtimeFact;
+        }
+
+        public TFact[] DeserializeArray<TFact>(ImmutableList<FactReference> references)
+        {
+            return references
+                .Select(reference => Deserialize<TFact>(reference))
+                .ToArray();
         }
     }
 }

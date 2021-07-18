@@ -93,6 +93,52 @@ namespace Jinaga.Serialization
                     )
                 );
             }
+            else if (parameterType == typeof(int))
+            {
+                return Expression.Convert(
+                    Expression.Property(
+                        Expression.Convert(
+                            getFieldValue,
+                            typeof(FieldValueNumber)
+                        ),
+                        nameof(FieldValueNumber.DoubleValue)
+                    ),
+                    typeof(int)
+                );
+            }
+            else if (parameterType == typeof(float))
+            {
+                return Expression.Convert(
+                    Expression.Property(
+                        Expression.Convert(
+                            getFieldValue,
+                            typeof(FieldValueNumber)
+                        ),
+                        nameof(FieldValueNumber.DoubleValue)
+                    ),
+                    typeof(float)
+                );
+            }
+            else if (parameterType == typeof(double))
+            {
+                return Expression.Property(
+                    Expression.Convert(
+                        getFieldValue,
+                        typeof(FieldValueNumber)
+                    ),
+                    nameof(FieldValueNumber.DoubleValue)
+                );
+            }
+            else if (parameterType == typeof(bool))
+            {
+                return Expression.Property(
+                    Expression.Convert(
+                        getFieldValue,
+                        typeof(FieldValueBoolean)
+                    ),
+                    nameof(FieldValueBoolean.BoolValue)
+                );
+            }
             else
             {
                 throw new NotImplementedException();
@@ -114,55 +160,19 @@ namespace Jinaga.Serialization
             return deserialize;
         }
 
-        private static Expression GetPredecessorArray(string name, Type elementType, ParameterExpression factParameter, ParameterExpression emitterParameter)
+        private static Expression GetPredecessorArray(string role, Type elementType, ParameterExpression factParameter, ParameterExpression emitterParameter)
         {
-            throw new NotImplementedException();
+            var predecessorMultiple = Expression.Call(
+                factParameter,
+                typeof(Fact).GetMethod(nameof(Fact.GetPredecessorMultiple)),
+                Expression.Constant(role)
+            );
+            var deserialize = Expression.Call(
+                emitterParameter,
+                typeof(Emitter).GetMethod(nameof(Emitter.DeserializeArray)).MakeGenericMethod(elementType),
+                predecessorMultiple
+            );
+            return deserialize;
         }
-
-        /*
-        private static object GetFieldValue(Type parameterType, FieldValue value)
-        {
-            switch (value)
-            {
-                case FieldValueString str:
-                    return
-                        parameterType == typeof(string)
-                            ? str.StringValue :
-                        parameterType == typeof(DateTime)
-                            ? (object)DateTime.Parse(str.StringValue).ToUniversalTime() :
-                        throw new NotImplementedException();
-                case FieldValueNumber number:
-                    return
-                        parameterType == typeof(int)
-                            ? (object)(int)number.DoubleValue :
-                        parameterType == typeof(float)
-                            ? (object)(float)number.DoubleValue :
-                        parameterType == typeof(double)
-                            ? (object)(double)number.DoubleValue :
-                        throw new NotImplementedException();
-                default:
-                    throw new NotImplementedException();
-            }
-        }
-
-        private static object GetPredecessorValue(Type parameterType, Predecessor predecessor, Emitter emitter)
-        {
-            switch (predecessor)
-            {
-                case PredecessorSingle single:
-                    return emitter.Deserialize(single.Reference, parameterType);
-                case PredecessorMultiple multiple:
-                    var elementType = parameterType.GetElementType();
-                    var facts = multiple.References.Select(r =>
-                        emitter.Deserialize(r, elementType)
-                    ).ToArray();
-                    var value = (Array)Activator.CreateInstance(parameterType, facts.Length);
-                    Array.Copy(facts, value, facts.Length);
-                    return value;
-                default:
-                    throw new NotImplementedException();
-            }
-        }
-        */
     }
 }
