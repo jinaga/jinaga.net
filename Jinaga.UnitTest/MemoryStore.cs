@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Jinaga.Facts;
 using Jinaga.Pipelines;
@@ -15,7 +16,7 @@ namespace Jinaga.UnitTest
         private ImmutableList<Edge> edges = ImmutableList<Edge>.Empty;
         private ImmutableDictionary<FactReference, ImmutableList<FactReference>> ancestors = ImmutableDictionary<FactReference, ImmutableList<FactReference>>.Empty;
 
-        public Task<ImmutableList<Fact>> Save(FactGraph graph)
+        public Task<ImmutableList<Fact>> Save(FactGraph graph, CancellationToken cancellationToken)
         {
             var newFacts = graph.FactReferences
                 .Where(reference => !factsByReference.ContainsKey(reference))
@@ -49,7 +50,7 @@ namespace Jinaga.UnitTest
             return Task.FromResult(newFacts);
         }
 
-        public Task<ImmutableList<Product>> Query(FactReference startReference, string initialTag, ImmutableList<Path> paths)
+        public Task<ImmutableList<Product>> Query(FactReference startReference, string initialTag, ImmutableList<Path> paths, CancellationToken cancellationToken)
         {
             var startingProducts = new Product[]
             {
@@ -62,7 +63,7 @@ namespace Jinaga.UnitTest
             return Task.FromResult(products);
         }
 
-        public Task<FactGraph> Load(ImmutableList<FactReference> references)
+        public Task<FactGraph> Load(ImmutableList<FactReference> references, CancellationToken cancellationToken)
         {
             var graph = references
                 .SelectMany(reference => ancestors[reference])

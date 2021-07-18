@@ -97,6 +97,58 @@ namespace Jinaga.Test
             officeRepository.Items.Should().BeEmpty();
         }
 
+        [Fact]
+        public async Task Watch_AddedAfterStopped()
+        {
+            var company = await j.Fact(new Company("Contoso"));
+
+            var officeObserver = j.Watch(company, officesInCompany, obs => obs
+                .OnAdded(async office => await officeRepository.Insert(office))
+            );
+
+            officeObserver.Stop();
+
+            var newOffice = await j.Fact(new Office(company, new City("Dallas")));
+
+            officeRepository.Items.Should().BeEmpty();
+        }
+
+        [Fact]
+        public async Task Watch_ExistingRemovedAfterStopped()
+        {
+            var company = await j.Fact(new Company("Contoso"));
+            var newOffice = await j.Fact(new Office(company, new City("Dallas")));
+
+            var officeObserver = j.Watch(company, officesInCompany, obs => obs
+                .OnAdded(async office => await officeRepository.Insert(office))
+                .OnRemoved(async id => await officeRepository.Delete(id))
+            );
+
+            officeObserver.Stop();
+
+            await j.Fact(new OfficeClosure(newOffice, DateTime.Now));
+
+            officeRepository.Items.Should().ContainSingle().Which.Should().BeEquivalentTo(newOffice);
+        }
+
+        [Fact]
+        public async Task Watch_NewRemovedAfterStopped()
+        {
+            var company = await j.Fact(new Company("Contoso"));
+
+            var officeObserver = j.Watch(company, officesInCompany, obs => obs
+                .OnAdded(async office => await officeRepository.Insert(office))
+                .OnRemoved(async id => await officeRepository.Delete(id))
+            );
+
+            var newOffice = await j.Fact(new Office(company, new City("Dallas")));
+            officeObserver.Stop();
+
+            await j.Fact(new OfficeClosure(newOffice, DateTime.Now));
+
+            officeRepository.Items.Should().ContainSingle().Which.Should().BeEquivalentTo(newOffice);
+        }
+
         private static Specification<Company, Office> officesInCompany = Given<Company>.Match((company, facts) =>
             from office in facts.OfType<Office>()
             where office.company == company
