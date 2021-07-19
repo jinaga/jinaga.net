@@ -93,7 +93,33 @@ namespace Jinaga.Pipelines
 
         public ImmutableList<Inverse> ComputeInverses()
         {
-            throw new NotImplementedException();
+            var firstPath = this.paths.First(p => p.StartingTag == initialFactName);
+            var firstStep = firstPath.Steps.First();
+            switch (firstStep)
+            {
+                case SuccessorStep successor:
+                    return ImmutableList<Inverse>.Empty.Add(
+                        new Inverse(new Pipeline(
+                            firstPath.Tag,
+                            successor.TargetType,
+                            ImmutableList<Path>.Empty.Add(new Path(
+                                initialFactName,
+                                initialFactType,
+                                firstPath.Tag,
+                                ImmutableList<Step>.Empty.Add(new PredecessorStep(
+                                    successor.TargetType,
+                                    successor.Role,
+                                    successor.InitialType
+                                ))
+                            )),
+                            new CompoundProjection()
+                                .With("affected", initialFactName)
+                                .With("added", firstPath.Tag)
+                        ))
+                    );
+                default:
+                    return ImmutableList<Inverse>.Empty;
+            }
         }
 
         public string ToDescriptiveString()
