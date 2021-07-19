@@ -25,7 +25,7 @@ namespace Jinaga
             }
 
             var graph = factManager.Serialize(prototype);
-            var added = await factManager.Save(graph, default(CancellationToken));
+            await factManager.Save(graph, default(CancellationToken));
             return factManager.Deserialize<TFact>(graph, graph.Last);
         }
 
@@ -62,6 +62,7 @@ namespace Jinaga
             var pipeline = specification.Pipeline;
             var observation = config(new Observation<TProjection>());
             var observer = new Observer<TProjection>(pipeline, startReference, factManager, observation);
+            factManager.AddObserver(observer);
             observer.Start();
             return observer;
         }

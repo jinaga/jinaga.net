@@ -13,12 +13,12 @@ namespace Jinaga.Observers
 
         public ObservationWithIdentity<TProjection, TIdentity> OnModified(Func<TIdentity, TProjection, Task> modify)
         {
-            throw new NotImplementedException();
+            return this;
         }
 
         public ObservationWithIdentity<TProjection, TIdentity> OnRemoved(Func<TIdentity, Task> remove)
         {
-            throw new NotImplementedException();
+            return this;
         }
     }
 }

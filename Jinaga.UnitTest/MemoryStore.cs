@@ -63,6 +63,14 @@ namespace Jinaga.UnitTest
             return Task.FromResult(products);
         }
 
+        public async Task<ImmutableList<Product>> QueryAll(ImmutableList<FactReference> startReferences, string initialTag, ImmutableList<Path> paths, CancellationToken cancellationToken)
+        {
+            var productLists = await Task.WhenAll(startReferences.Select(async startReference =>
+                await Query(startReference, initialTag, paths, cancellationToken)
+            ));
+            return productLists.SelectMany(p => p).ToImmutableList();
+        }
+
         public Task<FactGraph> Load(ImmutableList<FactReference> references, CancellationToken cancellationToken)
         {
             var graph = references

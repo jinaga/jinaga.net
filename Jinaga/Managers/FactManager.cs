@@ -1,4 +1,5 @@
 ﻿using Jinaga.Facts;
+using Jinaga.Observers;
 using Jinaga.Pipelines;
 using Jinaga.Serialization;
 using Jinaga.Services;
@@ -21,15 +22,26 @@ namespace Jinaga.Managers
 
         private SerializerCache serializerCache = new SerializerCache();
         private DeserializerCache deserializerCache = new DeserializerCache();
+        private ImmutableList<IObserver> observers = ImmutableList<IObserver>.Empty;
 
         public async Task<ImmutableList<Fact>> Save(FactGraph graph, CancellationToken cancellationToken)
         {
-            return await store.Save(graph, cancellationToken);
+            var added = await store.Save(graph, cancellationToken);
+            foreach (var observer in observers)
+            {
+                await observer.FactsAdded(added, graph, cancellationToken);
+            }
+            return added;
         }
 
         public async Task<ImmutableList<Product>> Query(FactReference startReference, string initialTag, ImmutableList<Path> paths, CancellationToken cancellationToken)
         {
             return await store.Query(startReference, initialTag, paths, cancellationToken);
+        }
+
+        public async Task<ImmutableList<Product>> QueryAll(ImmutableList<FactReference> startReferences, string initialTag, ImmutableList<Path> paths, CancellationToken cancellationToken)
+        {
+            return await store.QueryAll(startReferences, initialTag, paths, cancellationToken);
         }
 
         public async Task<ImmutableList<TProjection>> ComputeProjections<TProjection>(Projection projection, ImmutableList<Product> products, CancellationToken cancellationToken)
@@ -69,6 +81,22 @@ namespace Jinaga.Managers
                 var fact = emitter.Deserialize<TFact>(reference);
                 deserializerCache = emitter.DeserializerCache;
                 return fact;
+            }
+        }
+
+        public void AddObserver(IObserver observer)
+        {
+            lock (this)
+            {
+                observers = observers.Add(observer);
+            }
+        }
+
+        public void RemoveObserver(IObserver observer)
+        {
+            lock (this)
+            {
+                observers.Remove(observer);
             }
         }
     }

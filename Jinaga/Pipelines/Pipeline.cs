@@ -12,6 +12,7 @@ namespace Jinaga.Pipelines
         private readonly Projection projection;
 
         public string InitialTag => initialFactName;
+        public string InitialFactType => initialFactType;
         public ImmutableList<Path> Paths => paths;
         public Projection Projection => projection;
 
@@ -88,6 +89,11 @@ namespace Jinaga.Pipelines
             {
                 throw new NotImplementedException();
             }
+        }
+
+        public ImmutableList<Inverse> ComputeInverses()
+        {
+            throw new NotImplementedException();
         }
 
         public string ToDescriptiveString()
