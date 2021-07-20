@@ -112,10 +112,8 @@ namespace Jinaga.Pipelines
                                     successor.InitialType
                                 ))
                             )),
-                            new CompoundProjection()
-                                .With("affected", initialFactName)
-                                .With("added", firstPath.Tag)
-                        ))
+                            projection
+                        ), initialFactName)
                     );
                 default:
                     return ImmutableList<Inverse>.Empty;

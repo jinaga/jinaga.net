@@ -75,7 +75,7 @@ namespace Jinaga
                         cancellationToken);
                     foreach (var product in products)
                     {
-                        var affected = product.GetFactReference("affected");
+                        var affected = product.GetFactReference(inverse.AffectedTag);
                         if (affected == startReference)
                         {
                             productsAdded = productsAdded.Add(product);

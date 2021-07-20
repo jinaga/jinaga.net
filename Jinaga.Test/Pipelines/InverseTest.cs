@@ -19,10 +19,7 @@ namespace Jinaga.Test.Pipelines
             inverses.Should().ContainSingle().Which.InversePipeline.ToDescriptiveString()
                 .Should().Be(@"office: Corporate.Office {
     company: Corporate.Company = office P.company Corporate.Company
-    {
-        affected = company
-        added = office
-    }
+    office
 }");
         }
     }
