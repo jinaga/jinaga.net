@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 
@@ -91,35 +92,6 @@ namespace Jinaga.Pipelines
             }
         }
 
-        public ImmutableList<Inverse> ComputeInverses()
-        {
-            var firstPath = this.paths.First(p => p.StartingTag == initialFactName);
-            var firstStep = firstPath.Steps.First();
-            switch (firstStep)
-            {
-                case SuccessorStep successor:
-                    return ImmutableList<Inverse>.Empty.Add(
-                        new Inverse(new Pipeline(
-                            firstPath.Tag,
-                            successor.TargetType,
-                            ImmutableList<Path>.Empty.Add(new Path(
-                                initialFactName,
-                                initialFactType,
-                                firstPath.Tag,
-                                ImmutableList<Step>.Empty.Add(new PredecessorStep(
-                                    successor.TargetType,
-                                    successor.Role,
-                                    successor.InitialType
-                                ))
-                            )),
-                            projection
-                        ), initialFactName)
-                    );
-                default:
-                    return ImmutableList<Inverse>.Empty;
-            }
-        }
-
         public string ToDescriptiveString()
         {
             string pathDescriptiveString = string.Join("", paths
@@ -135,5 +107,95 @@ namespace Jinaga.Pipelines
                 .Select(step => step.ToOldDescriptiveString()));
             return oldDescriptiveString;
         }
+
+        public ImmutableList<Inverse> ComputeInverses()
+        {
+            var inverses = this.paths
+                .Where(path => path.StartingTag == initialFactName)
+                .SelectMany(path => InvertPath(path))
+                .ToImmutableList();
+            return inverses;
+        }
+
+        private IEnumerable<Inverse> InvertPath(Path path)
+        {
+            var returnSteps = path.Steps.Aggregate(
+                ImmutableList<Step>.Empty,
+                (tail, step) => InvertStep(tail, step)
+            );
+            var returnPath = new Path(
+                initialFactName,
+                initialFactType,
+                path.Tag,
+                returnSteps
+            );
+            yield return new Inverse(new Pipeline(
+                path.Tag,
+                path.TargetType,
+                ImmutableList<Path>.Empty.Add(returnPath),
+                projection
+            ), initialFactName);
+            var inverses = path.Steps.SelectMany(step =>
+                InvertConditional(step, returnPath, path.Tag, path.TargetType)
+            );
+            foreach (var inverse in inverses)
+            {
+                yield return inverse;
+            }
+        }
+
+        private ImmutableList<Step> InvertStep(ImmutableList<Step> tail, Step step)
+        {
+            switch (step)
+            {
+                case SuccessorStep successor:
+                    return tail.Add(new PredecessorStep(
+                        successor.TargetType,
+                        successor.Role,
+                        successor.InitialType
+                    ));
+                case PredecessorStep predecessor:
+                    return tail.Add(new SuccessorStep(
+                        predecessor.TargetType,
+                        predecessor.Role,
+                        predecessor.InitialType
+                    ));
+                default:
+                    return tail;
+            }
+        }
+
+        private IEnumerable<Inverse> InvertConditional(Step step, Path returnPath, string sourceTag, string sourceType)
+        {
+            if (step is ConditionalStep conditional)
+            {
+                var firstConditionalStep = conditional.Steps.First();
+                if (firstConditionalStep is SuccessorStep conditionalSuccessor)
+                {
+                    yield return new Inverse(new Pipeline(
+                        "<t1>",
+                        conditionalSuccessor.TargetType,
+                        ImmutableList<Path>.Empty.Add(new Path(
+                            sourceTag,
+                            sourceType,
+                            "<t1>",
+                            ImmutableList<Step>.Empty.Add(
+                                new PredecessorStep(
+                                    conditionalSuccessor.TargetType,
+                                    conditionalSuccessor.Role,
+                                    conditionalSuccessor.InitialType
+                                )
+                            )
+                        )).Add(returnPath),
+                        projection
+                    ), initialFactName);
+                }
+            }
+        }
+
+        // private IEnumerable<Inverse> InvertCondition()
+        // {
+
+        // }
     }
 }
