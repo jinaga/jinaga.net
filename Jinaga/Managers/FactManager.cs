@@ -96,7 +96,7 @@ namespace Jinaga.Managers
         {
             lock (this)
             {
-                observers.Remove(observer);
+                observers = observers.Remove(observer);
             }
         }
     }
