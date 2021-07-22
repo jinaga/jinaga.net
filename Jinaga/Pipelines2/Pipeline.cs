@@ -62,10 +62,32 @@ namespace Jinaga.Pipelines2
         public string ToOldDescriptiveString()
         {
             var start = starts.Single();
+            return PathOldDescriptiveString(start);
+        }
+
+        private string PathOldDescriptiveString(Label start)
+        {
             var path = paths
                 .Where(path => path.Start == start)
-                .Single();
-            return path.ToOldDescriptiveString();
+                .SingleOrDefault();
+            if (path == null)
+            {
+                return "";
+            }
+
+            var conditional = conditionals
+                .Where(conditional => conditional.Start == path.Target)
+                .Select(conditional => conditional.ToOldDescriptiveString())
+                .Join(" ");
+            var tail = PathOldDescriptiveString(path.Target);
+            return new[]
+            {
+                path.ToOldDescriptiveString(),
+                conditional,
+                tail
+            }
+            .Where(str => !string.IsNullOrWhiteSpace(str))
+            .Join(" ");
         }
 
         public override string ToString()

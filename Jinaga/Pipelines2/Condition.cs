@@ -1,4 +1,5 @@
-﻿using Jinaga.Visualizers;
+﻿using System;
+using Jinaga.Visualizers;
 
 namespace Jinaga.Pipelines2
 {
@@ -24,7 +25,14 @@ namespace Jinaga.Pipelines2
             string op = exists ? "E" : "N";
             string indent = Strings.Indent(depth);
             string child = childPipeline.ToDescriptiveString(depth + 1);
-            return $"{indent}{op}(\n{child}{indent})\r\n";
+            return $"{indent}{op}(\r\n{child}{indent})\r\n";
+        }
+
+        public string ToOldDescriptiveString()
+        {
+            string op = exists ? "E" : "N";
+            string child = childPipeline.ToOldDescriptiveString();
+            return $"{op}({child})";
         }
 
         public override string ToString()
