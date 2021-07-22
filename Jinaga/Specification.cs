@@ -2,7 +2,7 @@ using System;
 using System.Linq;
 using System.Linq.Expressions;
 using Jinaga.Parsers;
-using Jinaga.Pipelines;
+using Jinaga.Pipelines2;
 using Jinaga.Repository;
 using Jinaga.Definitions;
 using Jinaga.Generators;
@@ -21,11 +21,12 @@ namespace Jinaga
             var value = SpecificationParser.ParseSpecification(symbolTable, spec.Body);
             if (value is SymbolValueSetDefinition setDefinitionValue)
             {
-                return new Specification<TFact, TProjection>(PipelineGenerator_Old.CreatePipeline(setDefinitionValue.SetDefinition));
+                return new Specification<TFact, TProjection>(PipelineGenerator.CreatePipeline(setDefinitionValue.SetDefinition));
             }
             else if (value is SymbolValueComposite compositeValue)
             {
-                return new Specification<TFact, TProjection>(compositeValue.CreateProjectionDefinition().CreatePipeline());
+                throw new NotImplementedException();
+                //return new Specification<TFact, TProjection>(compositeValue.CreateProjectionDefinition().CreatePipeline());
             }
             else
             {
@@ -48,7 +49,7 @@ namespace Jinaga
             switch (ValueParser.ParseValue(symbolTable, spec.Body).symbolValue)
             {
                 case SymbolValueSetDefinition setValue:
-                    var pipeline = PipelineGenerator_Old.CreatePipeline(setValue.SetDefinition);
+                    var pipeline = PipelineGenerator.CreatePipeline(setValue.SetDefinition);
                     return new Specification<TFact, TProjection>(pipeline);
                 default:
                     throw new NotImplementedException();

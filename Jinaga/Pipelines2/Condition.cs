@@ -24,7 +24,7 @@ namespace Jinaga.Pipelines2
             string op = exists ? "E" : "N";
             string indent = Strings.Indent(depth);
             string child = childPipeline.ToDescriptiveString(depth + 1);
-            return $"{indent}{op}(\n{child}{indent})\n";
+            return $"{indent}{op}(\n{child}{indent})\r\n";
         }
 
         public override string ToString()

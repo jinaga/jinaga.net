@@ -29,7 +29,7 @@ namespace Jinaga
             return factManager.Deserialize<TFact>(graph, graph.Last);
         }
 
-        public async Task<ImmutableList<TProjection>> Query<TFact, TProjection>(
+        public Task<ImmutableList<TProjection>> Query<TFact, TProjection>(
             TFact start,
             Specification<TFact, TProjection> specification,
             CancellationToken cancellationToken = default) where TFact : class
@@ -42,9 +42,10 @@ namespace Jinaga
             var graph = factManager.Serialize(start);
             var startReference = graph.Last;
             var pipeline = specification.Pipeline;
-            var products = await factManager.Query(startReference, pipeline.InitialTag, pipeline.Paths, cancellationToken);
-            var results = await factManager.ComputeProjections<TProjection>(pipeline.Projection, products, cancellationToken);
-            return results;
+            throw new NotImplementedException();
+            // var products = await factManager.Query(startReference, pipeline.InitialTag, pipeline.Paths, cancellationToken);
+            // var results = await factManager.ComputeProjections<TProjection>(pipeline.Projection, products, cancellationToken);
+            // return results;
         }
 
         public Observer<TProjection> Watch<TFact, TProjection>(
@@ -61,10 +62,11 @@ namespace Jinaga
             var startReference = graph.Last;
             var pipeline = specification.Pipeline;
             var observation = config(new Observation<TProjection>());
-            var observer = new Observer<TProjection>(pipeline, startReference, factManager, observation);
-            factManager.AddObserver(observer);
-            observer.Start();
-            return observer;
+            throw new NotImplementedException();
+            // var observer = new Observer<TProjection>(pipeline, startReference, factManager, observation);
+            // factManager.AddObserver(observer);
+            // observer.Start();
+            // return observer;
         }
     }
 }

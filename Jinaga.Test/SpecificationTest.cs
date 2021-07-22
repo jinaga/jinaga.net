@@ -1,6 +1,5 @@
 using System.Linq;
 using FluentAssertions;
-using Jinaga.Pipelines;
 using Jinaga.Test.Model;
 using Xunit;
 
@@ -16,12 +15,12 @@ namespace Jinaga.Test
                 where flight.airlineDay.airline == airline
                 select flight
             );
-            Pipeline pipeline = specification.Pipeline;
+            var pipeline = specification.Pipeline;
             string descriptiveString = pipeline.ToDescriptiveString();
             descriptiveString.Should().Be(@"airline: Skylane.Airline {
     flight: Skylane.Flight = airline S.airline Skylane.Airline.Day S.airlineDay Skylane.Flight
-    flight
-}");
+}
+");
             string oldDescriptiveString = pipeline.ToOldDescriptiveString();
             oldDescriptiveString.Should().Be("S.airline F.type=\"Skylane.Airline.Day\" S.airlineDay F.type=\"Skylane.Flight\"");
         }
@@ -34,7 +33,7 @@ namespace Jinaga.Test
                 where flightCancellation.flight == flight
                 select flight
             );
-            Pipeline pipeline = specification.Pipeline;
+            var pipeline = specification.Pipeline;
             string descriptiveString = pipeline.ToDescriptiveString();
             descriptiveString.Should().Be(@"flightCancellation: Skylane.Flight.Cancellation {
     flight: Skylane.Flight = flightCancellation P.flight Skylane.Flight
@@ -50,7 +49,7 @@ namespace Jinaga.Test
             Specification<FlightCancellation, Flight> specification = Given<FlightCancellation>.Match(flightCancellation =>
                 flightCancellation.flight
             );
-            Pipeline pipeline = specification.Pipeline;
+            var pipeline = specification.Pipeline;
             string descriptiveString = pipeline.ToDescriptiveString();
             descriptiveString.Should().Be(@"flightCancellation: Skylane.Flight.Cancellation {
     flight: Skylane.Flight = flightCancellation P.flight Skylane.Flight

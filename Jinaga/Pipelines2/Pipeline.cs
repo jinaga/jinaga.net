@@ -1,4 +1,5 @@
 ﻿using Jinaga.Visualizers;
+using System;
 using System.Collections.Immutable;
 using System.Linq;
 
@@ -38,6 +39,11 @@ namespace Jinaga.Pipelines2
             return new Pipeline(starts, paths, conditionals.Add(conditional));
         }
 
+        internal ImmutableList<Inverse> ComputeInverses()
+        {
+            throw new NotImplementedException();
+        }
+
         public string ToDescriptiveString(int depth = 0)
         {
             string indent = Strings.Indent(depth);
@@ -50,7 +56,12 @@ namespace Jinaga.Pipelines2
                         .Join("")
                 )
                 .Join("");
-            return $"{indent}{starts.Join(", ")} {{\n{pathLines}{indent}}}\n";
+            return $"{indent}{starts.Join(", ")} {{\r\n{pathLines}{indent}}}\r\n";
+        }
+
+        public string ToOldDescriptiveString()
+        {
+            throw new NotImplementedException();
         }
 
         public override string ToString()

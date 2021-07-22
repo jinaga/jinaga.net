@@ -49,7 +49,7 @@ namespace Jinaga.Pipelines2
                     .Select(step => $" S.{step.Role} {step.TargetType}")
                 )
                 .Join("");
-            return $"{Strings.Indent(depth)}{target} = {start.Name}{steps}\n";
+            return $"{Strings.Indent(depth)}{target} = {start.Name}{steps}\r\n";
         }
 
         public override string ToString()

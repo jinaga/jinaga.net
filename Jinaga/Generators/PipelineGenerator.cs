@@ -27,11 +27,12 @@ namespace Jinaga.Generators
             {
                 var head = joinSet.Head;
                 var tail = joinSet.Tail;
-                var targetSetDefinition = head.TargetSetDefinition;
-                var pipeline = CreatePipeline(targetSetDefinition);
-                var start = new Label(targetSetDefinition.Tag, targetSetDefinition.FactType);
-                var target = new Label(tail.Tag, tail.TargetType);
-                var path = new Path(start, target);
+                var sourceSetDefinition = head.TargetSetDefinition;
+                var targetSetDefinition = tail.TargetSetDefinition;
+                var pipeline = CreatePipeline(sourceSetDefinition);
+                var source = new Label(sourceSetDefinition.Tag, sourceSetDefinition.FactType);
+                var target = new Label(joinSet.Tag, targetSetDefinition.FactType);
+                var path = new Path(source, target);
                 return pipeline.AddPath(PrependSuccessorSteps(AddPredecessorSteps(path, head), tail));
             }
             else if (setDefinition is SetDefinitionConditional conditionalSet)
