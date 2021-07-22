@@ -103,11 +103,14 @@ namespace Jinaga.Test
             var pipeline = activeFlights.Pipeline;
             var descriptiveString = pipeline.ToDescriptiveString();
             descriptiveString.Should().Be(@"airlineDay: Skylane.Airline.Day {
-    flight: Skylane.Flight = airlineDay S.airlineDay Skylane.Flight N(
-        S.flight Skylane.Flight.Cancellation
+    flight: Skylane.Flight = airlineDay S.airlineDay Skylane.Flight
+    N(
+        flight: Skylane.Flight {
+            cancellation: Skylane.Flight.Cancellation = flight S.flight Skylane.Flight.Cancellation
+        }
     )
-    flight
-}");
+}
+");
             var oldDescriptiveString = pipeline.ToOldDescriptiveString();
             oldDescriptiveString.Should().Be("S.airlineDay F.type=\"Skylane.Flight\" N(S.flight F.type=\"Skylane.Flight.Cancellation\")");
         }
@@ -139,14 +142,20 @@ namespace Jinaga.Test
             var pipeline = bookingsToRefund.Pipeline;
             var descriptiveString = pipeline.ToDescriptiveString();
             descriptiveString.Should().Be(@"airline: Skylane.Airline {
-    flight: Skylane.Flight = airline S.airline Skylane.Airline.Day S.airlineDay Skylane.Flight E(
-        S.flight Skylane.Flight.Cancellation
+    flight: Skylane.Flight = airline S.airline Skylane.Airline.Day S.airlineDay Skylane.Flight
+    E(
+        flight: Skylane.Flight {
+            cancellation: Skylane.Flight.Cancellation = flight S.flight Skylane.Flight.Cancellation
+        }
     )
-    booking: Skylane.Booking = flight S.flight Skylane.Booking N(
-        S.booking Skylane.Refund
+    booking: Skylane.Booking = flight S.flight Skylane.Booking
+    N(
+        booking: Skylane.Booking {
+            refund: Skylane.Refund = booking S.booking Skylane.Refund
+        }
     )
-    booking
-}");
+}
+");
             var oldDescriptiveString = pipeline.ToOldDescriptiveString();
             oldDescriptiveString.Should().Be("S.airline F.type=\"Skylane.Airline.Day\" S.airlineDay F.type=\"Skylane.Flight\" E(S.flight F.type=\"Skylane.Flight.Cancellation\") S.flight F.type=\"Skylane.Booking\" N(S.booking F.type=\"Skylane.Refund\")");
         }
@@ -174,14 +183,20 @@ namespace Jinaga.Test
             var pipeline = bookingsToRefund.Pipeline;
             var descriptiveString = pipeline.ToDescriptiveString();
             descriptiveString.Should().Be(@"airline: Skylane.Airline {
-    flight: Skylane.Flight = airline S.airline Skylane.Airline.Day S.airlineDay Skylane.Flight E(
-        S.flight Skylane.Flight.Cancellation
+    flight: Skylane.Flight = airline S.airline Skylane.Airline.Day S.airlineDay Skylane.Flight
+    E(
+        flight: Skylane.Flight {
+            cancellation: Skylane.Flight.Cancellation = flight S.flight Skylane.Flight.Cancellation
+        }
     )
-    booking: Skylane.Booking = flight S.flight Skylane.Booking N(
-        S.booking Skylane.Refund
+    booking: Skylane.Booking = flight S.flight Skylane.Booking
+    N(
+        booking: Skylane.Booking {
+            refund: Skylane.Refund = booking S.booking Skylane.Refund
+        }
     )
-    booking
-}");
+}
+");
             var oldDescriptiveString = pipeline.ToOldDescriptiveString();
             oldDescriptiveString.Should().Be("S.airline F.type=\"Skylane.Airline.Day\" S.airlineDay F.type=\"Skylane.Flight\" E(S.flight F.type=\"Skylane.Flight.Cancellation\") S.flight F.type=\"Skylane.Booking\" N(S.booking F.type=\"Skylane.Refund\")");
         }
