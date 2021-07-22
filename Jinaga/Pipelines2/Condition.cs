@@ -1,15 +1,14 @@
 ﻿using Jinaga.Visualizers;
-using System;
 
 namespace Jinaga.Pipelines2
 {
-    public class Condition
+    public class Conditional
     {
         private readonly Label start;
         private readonly bool exists;
         private readonly Pipeline childPipeline;
 
-        public Condition(Label start, bool exists, Pipeline childPipeline)
+        public Conditional(Label start, bool exists, Pipeline childPipeline)
         {
             this.start = start;
             this.exists = exists;

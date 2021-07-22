@@ -21,7 +21,7 @@ namespace Jinaga
             var value = SpecificationParser.ParseSpecification(symbolTable, spec.Body);
             if (value is SymbolValueSetDefinition setDefinitionValue)
             {
-                return new Specification<TFact, TProjection>(PipelineGenerator.CreatePipeline(setDefinitionValue.SetDefinition));
+                return new Specification<TFact, TProjection>(PipelineGenerator_Old.CreatePipeline(setDefinitionValue.SetDefinition));
             }
             else if (value is SymbolValueComposite compositeValue)
             {
@@ -48,7 +48,7 @@ namespace Jinaga
             switch (ValueParser.ParseValue(symbolTable, spec.Body).symbolValue)
             {
                 case SymbolValueSetDefinition setValue:
-                    var pipeline = PipelineGenerator.CreatePipeline(setValue.SetDefinition);
+                    var pipeline = PipelineGenerator_Old.CreatePipeline(setValue.SetDefinition);
                     return new Specification<TFact, TProjection>(pipeline);
                 default:
                     throw new NotImplementedException();

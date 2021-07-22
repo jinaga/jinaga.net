@@ -24,7 +24,7 @@ namespace Jinaga.Definitions
 
         public Step CreateConditionalStep()
         {
-            var pipeline = PipelineGenerator.CreatePipeline(set);
+            var pipeline = PipelineGenerator_Old.CreatePipeline(set);
             var steps = pipeline.Linearize(set.Tag);
             return new ConditionalStep(steps, exists);
         }

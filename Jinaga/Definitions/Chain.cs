@@ -42,7 +42,7 @@ namespace Jinaga.Definitions
 
         public override Pipeline CreatePipeline()
         {
-            return PipelineGenerator.CreatePipeline(setDefinition);
+            return PipelineGenerator_Old.CreatePipeline(setDefinition);
         }
 
         public override ImmutableList<Step> CreatePredecessorSteps()
@@ -69,6 +69,8 @@ namespace Jinaga.Definitions
             this.targetType = targetType;
         }
 
+        public Chain Prior => prior;
+        public string Role => role;
         public override bool IsTarget => prior.IsTarget;
         public override SetDefinition TargetSetDefinition => prior.TargetSetDefinition;
 

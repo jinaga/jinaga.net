@@ -36,9 +36,9 @@ namespace Jinaga.Pipelines2
             return new Path(start, target, predecessorSteps.Add(predecessorStep), successorSteps);
         }
 
-        public Path AddSuccessorStep(Step successorStep)
+        public Path PrependSuccessorStep(Step successorStep)
         {
-            return new Path(start, target, predecessorSteps, successorSteps.Add(successorStep));
+            return new Path(start, target, predecessorSteps, successorSteps.Insert(0, successorStep));
         }
 
         public string ToDescriptiveString(int depth = 0)
