@@ -1,5 +1,4 @@
 ﻿using Jinaga.Visualizers;
-using System;
 using System.Collections.Immutable;
 using System.Linq;
 
@@ -20,10 +19,27 @@ namespace Jinaga.Pipelines2
             this.successorSteps = successorSteps;
         }
 
+        public Path(Label start, Label target) : this (start, target,
+            ImmutableList<Step>.Empty,
+            ImmutableList<Step>.Empty
+        )
+        {
+        }
+
         public Label Start => start;
         public Label Target => target;
         public ImmutableList<Step> PredecessorSteps => predecessorSteps;
         public ImmutableList<Step> SuccessorSteps => successorSteps;
+
+        public Path AddPredecessorStep(Step predecessorStep)
+        {
+            return new Path(start, target, predecessorSteps.Add(predecessorStep), successorSteps);
+        }
+
+        public Path AddSuccessorStep(Step successorStep)
+        {
+            return new Path(start, target, predecessorSteps, successorSteps.Add(successorStep));
+        }
 
         public string ToDescriptiveString(int depth = 0)
         {
