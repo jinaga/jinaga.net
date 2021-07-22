@@ -1,4 +1,5 @@
-﻿namespace Jinaga.Pipelines2
+﻿using System;
+namespace Jinaga.Pipelines2
 {
     public class Label
     {
@@ -17,6 +18,32 @@
         public override string ToString()
         {
             return $"{name}: {type}";
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (obj == null || GetType() != obj.GetType())
+            {
+                return false;
+            }
+            
+            Label that = (Label)obj;
+            return this.name == that.name && this.type == that.type;
+        }
+        
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(this.name, this.type);
+        }
+
+        public static bool operator ==(Label a, Label b)
+        {
+            return a.Equals(b);
+        }
+
+        public static bool operator !=(Label a, Label b)
+        {
+            return !a.Equals(b);
         }
     }
 }

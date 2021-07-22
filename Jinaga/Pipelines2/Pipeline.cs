@@ -61,7 +61,11 @@ namespace Jinaga.Pipelines2
 
         public string ToOldDescriptiveString()
         {
-            throw new NotImplementedException();
+            var start = starts.Single();
+            var path = paths
+                .Where(path => path.Start == start)
+                .Single();
+            return path.ToOldDescriptiveString();
         }
 
         public override string ToString()

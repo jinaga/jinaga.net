@@ -1,4 +1,5 @@
 ﻿using Jinaga.Visualizers;
+using System;
 using System.Collections.Immutable;
 using System.Linq;
 
@@ -50,6 +51,17 @@ namespace Jinaga.Pipelines2
                 )
                 .Join("");
             return $"{Strings.Indent(depth)}{target} = {start.Name}{steps}\r\n";
+        }
+
+        public string ToOldDescriptiveString()
+        {
+            string steps = predecessorSteps
+                .Select(step => $"P.{step.Role} F.type=\"{step.TargetType}\"")
+                .Concat(successorSteps
+                    .Select(step => $"S.{step.Role} F.type=\"{step.TargetType}\"")
+                )
+                .Join(" ");
+            return steps;
         }
 
         public override string ToString()
