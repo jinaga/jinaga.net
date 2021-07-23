@@ -6,12 +6,12 @@ namespace Jinaga.Generators
 {
     public static class PipelineGenerator
     {
-        public static Pipeline CreatePipeline(SetDefinition setDefinition, string seekTag = "")
+        public static Pipeline CreatePipeline(SetDefinition setDefinition, SetDefinition? seekSetDefinition = null, Label? replaceLabel = null)
         {
-            if (setDefinition.Tag == seekTag)
+            if (setDefinition == seekSetDefinition)
             {
                 return Pipeline.Empty
-                    .AddStart(new Label(setDefinition.Tag, setDefinition.FactType));
+                    .AddStart(replaceLabel!);
             }
             else if (setDefinition is SetDefinitionInitial initialSet)
             {
@@ -22,7 +22,7 @@ namespace Jinaga.Generators
             {
                 var chainRole = chainRoleSet.ChainRole;
                 var targetSetDefinition = chainRole.TargetSetDefinition;
-                var pipeline = CreatePipeline(targetSetDefinition, seekTag);
+                var pipeline = CreatePipeline(targetSetDefinition, seekSetDefinition, replaceLabel);
                 var start = new Label(targetSetDefinition.Tag, targetSetDefinition.FactType);
                 var target = new Label(chainRole.InferredTag, chainRole.TargetType);
                 var path = new Path(start, target);
@@ -34,7 +34,7 @@ namespace Jinaga.Generators
                 var tail = joinSet.Tail;
                 var sourceSetDefinition = head.TargetSetDefinition;
                 var targetSetDefinition = tail.TargetSetDefinition;
-                var pipeline = CreatePipeline(sourceSetDefinition, seekTag);
+                var pipeline = CreatePipeline(sourceSetDefinition, seekSetDefinition, replaceLabel);
                 var source = new Label(sourceSetDefinition.Tag, sourceSetDefinition.FactType);
                 var target = new Label(joinSet.Tag, targetSetDefinition.FactType);
                 var path = new Path(source, target);
@@ -43,11 +43,12 @@ namespace Jinaga.Generators
             else if (setDefinition is SetDefinitionConditional conditionalSet)
             {
                 var targetSetDefinition = conditionalSet.Source;
-                var pipeline = CreatePipeline(targetSetDefinition, seekTag);
+                var pipeline = CreatePipeline(targetSetDefinition, seekSetDefinition, replaceLabel);
                 var start = new Label(targetSetDefinition.Tag, targetSetDefinition.FactType);
                 var childPipeline = CreatePipeline(
                     conditionalSet.Condition.Set,
-                    targetSetDefinition.Tag);
+                    targetSetDefinition,
+                    start);
                 var conditional = new Conditional(start, conditionalSet.Condition.Exists, childPipeline);
                 return pipeline.AddConditional(conditional);
             }

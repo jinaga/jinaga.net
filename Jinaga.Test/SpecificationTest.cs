@@ -255,8 +255,8 @@ namespace Jinaga.Test
             descriptiveString.Should().Be(@"flight: Skylane.Flight {
     booking: Skylane.Booking = flight S.flight Skylane.Booking
     passenger: Skylane.Passenger = booking P.passenger Skylane.Passenger
-    passenger
-}");
+}
+");
         }
 
         [Fact]
