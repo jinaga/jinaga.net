@@ -68,5 +68,27 @@ namespace Jinaga.Pipelines2
         {
             return ToDescriptiveString();
         }
+
+        public override bool Equals(object obj)
+        {
+            if (obj == null || GetType() != obj.GetType())
+            {
+                return false;
+            }
+            
+            var that = (Path)obj;
+            return
+                that.start == this.start &&
+                that.target == this.target &&
+                that.predecessorSteps.SequenceEqual(this.predecessorSteps) &&
+                that.successorSteps.SequenceEqual(this.successorSteps);
+        }
+        
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(start, target,
+                predecessorSteps.SequenceHash(),
+                successorSteps.SequenceHash());
+        }
     }
 }

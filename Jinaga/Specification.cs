@@ -25,8 +25,12 @@ namespace Jinaga
             }
             else if (value is SymbolValueComposite compositeValue)
             {
-                throw new NotImplementedException();
-                //return new Specification<TFact, TProjection>(compositeValue.CreateProjectionDefinition().CreatePipeline());
+                var projectionDefinition = compositeValue.CreateProjectionDefinition();
+                var pipeline = projectionDefinition
+                    .AllSetDefinitions()
+                    .Select(s => PipelineGenerator.CreatePipeline(s))
+                    .Aggregate((a, b) => a.Compose(b));
+                return new Specification<TFact, TProjection>(pipeline);
             }
             else
             {

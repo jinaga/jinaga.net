@@ -281,17 +281,20 @@ namespace Jinaga.Test
             var pipeline = specification.Pipeline;
             var descriptiveString = pipeline.ToDescriptiveString();
             descriptiveString.Should().Be(@"company: Corporate.Company {
-    office: Corporate.Office = company S.company Corporate.Office N(
-        S.office Corporate.Office.Closure
+    office: Corporate.Office = company S.company Corporate.Office
+    N(
+        office: Corporate.Office {
+            closure: Corporate.Office.Closure = office S.office Corporate.Office.Closure
+        }
     )
-    headcount: Corporate.Headcount = office S.office Corporate.Headcount N(
-        S.prior Corporate.Headcount
+    headcount: Corporate.Headcount = office S.office Corporate.Headcount
+    N(
+        headcount: Corporate.Headcount {
+            next: Corporate.Headcount = headcount S.prior Corporate.Headcount
+        }
     )
-    {
-        headcount = headcount
-        office = office
-    }
-}");
+}
+");
         }
     }
 }

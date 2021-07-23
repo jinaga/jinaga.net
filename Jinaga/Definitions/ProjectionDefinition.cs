@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using Jinaga.Generators;
@@ -32,6 +33,31 @@ namespace Jinaga.Definitions
             }
 
             return pipeline;
+        }
+
+        public IEnumerable<SetDefinition> AllSetDefinitions()
+        {
+            return fields
+                .OrderBy(field => field.Key)
+                .SelectMany(field => AllSetDefinitions(field.Value));
+        }
+
+        private IEnumerable<SetDefinition> AllSetDefinitions(SymbolValue value)
+        {
+            if (value is SymbolValueSetDefinition setDefinitionValue)
+            {
+                return new [] { setDefinitionValue.SetDefinition };
+            }
+            else if (value is SymbolValueComposite compositValue)
+            {
+                return compositValue.Fields
+                    .OrderBy(field => field.Key)
+                    .SelectMany(field => AllSetDefinitions(field.Value));
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
         }
     }
 }

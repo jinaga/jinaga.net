@@ -39,5 +39,24 @@ namespace Jinaga.Pipelines2
         {
             return ToDescriptiveString();
         }
+
+        public override bool Equals(object obj)
+        {
+            if (obj == null || GetType() != obj.GetType())
+            {
+                return false;
+            }
+            
+            var that = (Conditional)obj;
+            return
+                that.exists == this.exists &&
+                that.start == this.start &&
+                that.childPipeline.Equals(this.childPipeline);
+        }
+        
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(exists, start, childPipeline);
+        }
     }
 }

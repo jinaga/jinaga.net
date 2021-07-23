@@ -44,6 +44,20 @@ namespace Jinaga.Pipelines2
             throw new NotImplementedException();
         }
 
+        public Pipeline Compose(Pipeline pipeline)
+        {
+            var combinedStarts = starts
+                .Union(pipeline.Starts)
+                .ToImmutableList();
+            var combinedPaths = paths
+                .Union(pipeline.paths)
+                .ToImmutableList();
+            var combinedConditionals = conditionals
+                .Union(pipeline.conditionals)
+                .ToImmutableList();
+            return new Pipeline(combinedStarts, combinedPaths, combinedConditionals);
+        }
+
         public string ToDescriptiveString(int depth = 0)
         {
             string indent = Strings.Indent(depth);
@@ -93,6 +107,28 @@ namespace Jinaga.Pipelines2
         public override string ToString()
         {
             return ToDescriptiveString();
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (obj == null || GetType() != obj.GetType())
+            {
+                return false;
+            }
+            
+            var that = (Pipeline)obj;
+            return
+                that.starts.SetEquals(this.starts) &&
+                that.paths.SetEquals(this.paths) &&
+                that.conditionals.SetEquals(this.conditionals);
+        }
+        
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(
+                starts.SetHash(),
+                paths.SetHash(),
+                conditionals.SetHash());
         }
     }
 }
