@@ -5,7 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Jinaga.Facts;
-using Jinaga.Pipelines;
+using Jinaga.Pipelines2;
 using Jinaga.Services;
 
 namespace Jinaga.UnitTest
@@ -50,23 +50,16 @@ namespace Jinaga.UnitTest
             return Task.FromResult(newFacts);
         }
 
-        public Task<ImmutableList<Product>> Query(FactReference startReference, string initialTag, ImmutableList<Path> paths, CancellationToken cancellationToken)
+        public Task<ImmutableList<Product>> Query(FactReference startReference, Pipeline pipeline, CancellationToken cancellationToken)
         {
-            var startingProducts = new Product[]
-            {
-                Product.Init(initialTag, startReference)
-            }.ToImmutableList();
-            var products = paths.Aggregate(
-                startingProducts,
-                (products, path) => ExecutePath(products, path)
-            );
+            var products = ExecutePipeline(startReference, pipeline);
             return Task.FromResult(products);
         }
 
-        public async Task<ImmutableList<Product>> QueryAll(ImmutableList<FactReference> startReferences, string initialTag, ImmutableList<Path> paths, CancellationToken cancellationToken)
+        public async Task<ImmutableList<Product>> QueryAll(ImmutableList<FactReference> startReferences, Pipeline pipeline, CancellationToken cancellationToken)
         {
             var productLists = await Task.WhenAll(startReferences.Select(async startReference =>
-                await Query(startReference, initialTag, paths, cancellationToken)
+                await Query(startReference, pipeline, cancellationToken)
             ));
             return productLists.SelectMany(p => p).ToImmutableList();
         }
@@ -99,34 +92,49 @@ namespace Jinaga.UnitTest
             }
         }
 
-        private ImmutableList<Product> ExecutePath(ImmutableList<Product> products, Path path)
+        private ImmutableList<Product> ExecutePipeline(FactReference startReference, Pipeline pipeline)
         {
-            return products
-                .SelectMany(product => ExecuteSteps(product.GetFactReference(path.StartingTag), path.Steps)
-                    .Select(factReference => product.With(path.Tag, factReference))
-                )
+            var initialTag = pipeline.Starts.Single().Name;
+            var startingProducts = new Product[]
+            {
+                Product.Empty.With(initialTag, startReference)
+            }.ToImmutableList();
+            return pipeline.Paths.Aggregate(
+                startingProducts,
+                (products, path) => ExecutePath(products, path, pipeline)
+            );
+        }
+
+        private ImmutableList<Product> ExecutePath(ImmutableList<Product> products, Path path, Pipeline pipeline)
+        {
+            var results = products
+                .SelectMany(product =>
+                    ExecuteSteps(product.GetFactReference(path.Start.Name), path)
+                        .Select(factReference => product.With(path.Target.Name, factReference)))
+                .ToImmutableList();
+            var conditionals = pipeline
+                .Conditionals
+                .Where(conditional => conditional.Start == path.Target);
+            return results
+                .Where(result => !conditionals.Any(conditional => ConditionIsTrue(
+                    result.GetFactReference(conditional.Start.Name),
+                    conditional.ChildPipeline,
+                    conditional.Exists)))
                 .ToImmutableList();
         }
 
-        private ImmutableList<FactReference> ExecuteSteps(FactReference startingFactReference, ImmutableList<Step> steps)
+        private ImmutableList<FactReference> ExecuteSteps(FactReference startingFactReference, Path path)
         {
             var startingSet = new FactReference[] { startingFactReference }.ToImmutableList();
-            return steps.Aggregate(startingSet, (set, step) => ExecuteStep(set, step));
-        }
-
-        private ImmutableList<FactReference> ExecuteStep(ImmutableList<FactReference> set, Step step)
-        {
-            switch (step)
-            {
-                case PredecessorStep predecessor:
-                    return ExecutePredecessorStep(set, predecessor.Role, predecessor.TargetType);
-                case SuccessorStep successor:
-                    return ExecuteSuccessorStep(set, successor.Role, successor.TargetType);
-                case ConditionalStep conditional:
-                    return ExecuteConditionalStep(set, conditional.Steps, conditional.Exists);
-                default:
-                    throw new NotImplementedException();
-            }
+            var afterPredecessors = path.PredecessorSteps
+                .Aggregate(startingSet, (set, predecessorStep) => ExecutePredecessorStep(
+                    set, predecessorStep.Role, predecessorStep.TargetType
+                ));
+            var afterSuccessors = path.SuccessorSteps
+                .Aggregate(afterPredecessors, (set, successorStep) => ExecuteSuccessorStep(
+                    set, successorStep.Role, successorStep.TargetType
+                ));
+            return afterSuccessors;
         }
 
         private ImmutableList<FactReference> ExecutePredecessorStep(ImmutableList<FactReference> set, string role, string targetType)
@@ -157,13 +165,10 @@ namespace Jinaga.UnitTest
                 .ToImmutableList();
         }
 
-        private ImmutableList<FactReference> ExecuteConditionalStep(ImmutableList<FactReference> set, ImmutableList<Step> steps, bool wantAny)
+        private bool ConditionIsTrue(FactReference factReference, Pipeline pipeline, bool wantAny)
         {
-            return set.Where(factReference =>
-            {
-                var hasAny = ExecuteSteps(factReference, steps).Any();
-                return wantAny && hasAny || !wantAny && !hasAny;
-            }).ToImmutableList();
+            var hasAny = ExecutePipeline(factReference, pipeline).Any();
+            return wantAny && hasAny || !wantAny && !hasAny;
         }
     }
 }

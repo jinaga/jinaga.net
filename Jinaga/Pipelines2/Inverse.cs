@@ -12,5 +12,7 @@ namespace Jinaga.Pipelines2
         }
 
         public Pipeline InversePipeline => inversePipeline;
+
+        public string AffectedTag => throw new NotImplementedException();
     }
 }

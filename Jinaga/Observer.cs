@@ -1,7 +1,8 @@
 ﻿using Jinaga.Facts;
 using Jinaga.Managers;
 using Jinaga.Observers;
-using Jinaga.Pipelines;
+using Jinaga.Pipelines2;
+using Jinaga.Projections;
 using System;
 using System.Collections.Immutable;
 using System.Linq;
@@ -13,6 +14,7 @@ namespace Jinaga
     public class Observer<TProjection> : IObserver
     {
         private readonly Pipeline pipeline;
+        private readonly Projection projection;
         private readonly FactReference startReference;
         private readonly FactManager factManager;
         private readonly Observation<TProjection> observation;
@@ -23,9 +25,10 @@ namespace Jinaga
 
         public Task Initialized => initialize!;
 
-        internal Observer(Pipeline pipeline, FactReference startReference, FactManager factManager, Observation<TProjection> observation)
+        internal Observer(Pipeline pipeline, Projection projection, FactReference startReference, FactManager factManager, Observation<TProjection> observation)
         {
             this.pipeline = pipeline;
+            this.projection = projection;
             this.startReference = startReference;
             this.factManager = factManager;
             this.observation = observation;
@@ -50,8 +53,8 @@ namespace Jinaga
 
         private async Task RunInitialQuery(CancellationToken cancellationToken)
         {
-            var products = await factManager.Query(startReference, pipeline.InitialTag, pipeline.Paths, cancellationToken);
-            var results = await factManager.ComputeProjections<TProjection>(pipeline.Projection, products, cancellationToken);
+            var products = await factManager.Query(startReference, pipeline, cancellationToken);
+            var results = await factManager.ComputeProjections<TProjection>(projection, products, cancellationToken);
             await observation.NotifyAdded(results);
         }
 
@@ -64,14 +67,13 @@ namespace Jinaga
                 var productsAdded = ImmutableList<Product>.Empty;
                 var inversePipeline = inverse.InversePipeline;
                 var matchingReferences = startReferences
-                    .Where(r => r.Type == inversePipeline.InitialFactType)
+                    .Where(r => inversePipeline.Starts.Any(start => r.Type == start.Type))
                     .ToImmutableList();
                 if (matchingReferences.Any())
                 {
                     var products = await factManager.QueryAll(
                         startReferences,
-                        inversePipeline.InitialTag,
-                        inversePipeline.Paths,
+                        inversePipeline,
                         cancellationToken);
                     foreach (var product in products)
                     {
@@ -84,7 +86,7 @@ namespace Jinaga
                 }
                 if (productsAdded.Any())
                 {
-                    var results = await factManager.ComputeProjections<TProjection>(inversePipeline.Projection, productsAdded, cancellationToken);
+                    var results = await factManager.ComputeProjections<TProjection>(projection, productsAdded, cancellationToken);
                     resultsAdded = resultsAdded.AddRange(results);
                 }
             }

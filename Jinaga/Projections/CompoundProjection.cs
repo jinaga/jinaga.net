@@ -1,8 +1,7 @@
-using System;
 using System.Collections.Immutable;
 using System.Linq;
 
-namespace Jinaga.Pipelines
+namespace Jinaga.Projections
 {
     public class CompoundProjection : Projection
     {
@@ -24,7 +23,7 @@ namespace Jinaga.Pipelines
 
         public override string ToDescriptiveString()
         {
-            var fieldString = String.Join("", fields.Select(field => $"        {field.Item1} = {field.Item2}\r\n"));
+            var fieldString = string.Join("", fields.Select(field => $"        {field.Item1} = {field.Item2}\r\n"));
             return $"{{\r\n{fieldString}    }}";
         }
     }

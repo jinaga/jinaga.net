@@ -35,6 +35,25 @@ namespace Jinaga.Definitions
             return pipeline;
         }
 
+        public IEnumerable<string> AllTags()
+        {
+            return fields
+                .SelectMany(field => AllTags(field.Value).Prepend(field.Key));
+        }
+
+        public static IEnumerable<string> AllTags(SymbolValue value)
+        {
+            if (value is SymbolValueComposite compositeValue)
+            {
+                return compositeValue.Fields
+                    .SelectMany(field => AllTags(field.Value).Prepend(field.Key));
+            }
+            else
+            {
+                return Enumerable.Empty<string>();
+            }
+        }
+
         public IEnumerable<SetDefinition> AllSetDefinitions()
         {
             return fields
@@ -42,7 +61,7 @@ namespace Jinaga.Definitions
                 .SelectMany(field => AllSetDefinitions(field.Value));
         }
 
-        private IEnumerable<SetDefinition> AllSetDefinitions(SymbolValue value)
+        private static IEnumerable<SetDefinition> AllSetDefinitions(SymbolValue value)
         {
             if (value is SymbolValueSetDefinition setDefinitionValue)
             {

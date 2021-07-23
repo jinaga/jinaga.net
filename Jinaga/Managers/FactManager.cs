@@ -1,6 +1,7 @@
 ﻿using Jinaga.Facts;
 using Jinaga.Observers;
-using Jinaga.Pipelines;
+using Jinaga.Pipelines2;
+using Jinaga.Projections;
 using Jinaga.Serialization;
 using Jinaga.Services;
 using System;
@@ -34,14 +35,14 @@ namespace Jinaga.Managers
             return added;
         }
 
-        public async Task<ImmutableList<Product>> Query(FactReference startReference, string initialTag, ImmutableList<Path> paths, CancellationToken cancellationToken)
+        public async Task<ImmutableList<Product>> Query(FactReference startReference, Pipeline pipeline, CancellationToken cancellationToken)
         {
-            return await store.Query(startReference, initialTag, paths, cancellationToken);
+            return await store.Query(startReference, pipeline, cancellationToken);
         }
 
-        public async Task<ImmutableList<Product>> QueryAll(ImmutableList<FactReference> startReferences, string initialTag, ImmutableList<Path> paths, CancellationToken cancellationToken)
+        public async Task<ImmutableList<Product>> QueryAll(ImmutableList<FactReference> startReferences, Pipeline  pipeline, CancellationToken cancellationToken)
         {
-            return await store.QueryAll(startReferences, initialTag, paths, cancellationToken);
+            return await store.QueryAll(startReferences, pipeline, cancellationToken);
         }
 
         public async Task<ImmutableList<TProjection>> ComputeProjections<TProjection>(Projection projection, ImmutableList<Product> products, CancellationToken cancellationToken)

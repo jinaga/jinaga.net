@@ -6,6 +6,7 @@ using Jinaga.Pipelines2;
 using Jinaga.Repository;
 using Jinaga.Definitions;
 using Jinaga.Generators;
+using Jinaga.Projections;
 
 namespace Jinaga
 {
@@ -21,7 +22,10 @@ namespace Jinaga
             var value = SpecificationParser.ParseSpecification(symbolTable, spec.Body);
             if (value is SymbolValueSetDefinition setDefinitionValue)
             {
-                return new Specification<TFact, TProjection>(PipelineGenerator.CreatePipeline(setDefinitionValue.SetDefinition));
+                return new Specification<TFact, TProjection>(
+                    PipelineGenerator.CreatePipeline(setDefinitionValue.SetDefinition),
+                    new SimpleProjection(setDefinitionValue.SetDefinition.Tag)
+                );
             }
             else if (value is SymbolValueComposite compositeValue)
             {
@@ -30,7 +34,13 @@ namespace Jinaga
                     .AllSetDefinitions()
                     .Select(s => PipelineGenerator.CreatePipeline(s))
                     .Aggregate((a, b) => a.Compose(b));
-                return new Specification<TFact, TProjection>(pipeline);
+                var projection = projectionDefinition
+                    .AllTags()
+                    .Aggregate(new CompoundProjection(), (p, tag) => p.With(tag, tag));
+                return new Specification<TFact, TProjection>(
+                    pipeline,
+                    new CompoundProjection()
+                );
             }
             else
             {
@@ -50,11 +60,15 @@ namespace Jinaga
             var initialFactType = parameter.Type.FactTypeName();
             var symbolTable = SymbolTable.WithParameter(initialFactName, initialFactType);
 
-            switch (ValueParser.ParseValue(symbolTable, spec.Body).symbolValue)
+            var (symbolValue, tag) = ValueParser.ParseValue(symbolTable, spec.Body);
+            switch (symbolValue)
             {
                 case SymbolValueSetDefinition setValue:
                     var pipeline = PipelineGenerator.CreatePipeline(setValue.SetDefinition);
-                    return new Specification<TFact, TProjection>(pipeline);
+                    return new Specification<TFact, TProjection>(
+                        pipeline,
+                        new SimpleProjection(tag)
+                    );
                 default:
                     throw new NotImplementedException();
             }
@@ -62,11 +76,16 @@ namespace Jinaga
     }
     public class Specification<TFact, TProjection>
     {
-        public Pipeline Pipeline { get; }
+        private readonly Pipeline pipeline;
+        private readonly Projection projection;
 
-        public Specification(Pipeline pipeline)
+        public Specification(Pipeline pipeline, Projection projection)
         {
-            this.Pipeline = pipeline;
+            this.pipeline = pipeline;
+            this.projection = projection;
         }
+
+        public Pipeline Pipeline => pipeline;
+        public Projection Projection => projection;
     }
 }
