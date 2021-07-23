@@ -2,8 +2,15 @@ using System;
 
 namespace Jinaga.Pipelines2
 {
-    internal class Inverse
+    public class Inverse
     {
-        public Pipeline InversePipeline => throw new NotImplementedException();
+        private readonly Pipeline inversePipeline;
+
+        public Inverse(Pipeline inversePipeline)
+        {
+            this.inversePipeline = inversePipeline;
+        }
+
+        public Pipeline InversePipeline => inversePipeline;
     }
 }

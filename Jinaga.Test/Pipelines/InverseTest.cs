@@ -20,8 +20,8 @@ namespace Jinaga.Test.Pipelines
             inverses.Should().ContainSingle().Which.InversePipeline.ToDescriptiveString()
                 .Should().Be(@"office: Corporate.Office {
     company: Corporate.Company = office P.company Corporate.Company
-    office
-}");
+}
+");
         }
 
         [Fact]
@@ -42,13 +42,13 @@ namespace Jinaga.Test.Pipelines
             inverses.Select(i => i.InversePipeline.ToDescriptiveString()).Should().BeEquivalentTo(new [] {
 @"office: Corporate.Office {
     company: Corporate.Company = office P.company Corporate.Company
-    office
-}",
-@"<t1>: Corporate.Office.Closure {
-    office: Corporate.Office = <t1> P.office Corporate.Office
+}
+",
+@"officeClosure: Corporate.Office.Closure {
+    office: Corporate.Office = officeClosure P.office Corporate.Office
     company: Corporate.Company = office P.company Corporate.Company
-    office
-}"
+}
+"
             });
         }
     }

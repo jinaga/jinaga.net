@@ -34,14 +34,19 @@ namespace Jinaga.Pipelines2
             return new Pipeline(starts, paths.Add(path), conditionals);
         }
 
+        public Pipeline PrependPath(Path path)
+        {
+            return new Pipeline(starts, paths.Insert(0, path), conditionals);
+        }
+
         public Pipeline AddConditional(Conditional conditional)
         {
             return new Pipeline(starts, paths, conditionals.Add(conditional));
         }
 
-        internal ImmutableList<Inverse> ComputeInverses()
+        public ImmutableList<Inverse> ComputeInverses()
         {
-            throw new NotImplementedException();
+            return Inverter.InvertPipeline(this).ToImmutableList();
         }
 
         public Pipeline Compose(Pipeline pipeline)
