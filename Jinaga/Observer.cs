@@ -1,7 +1,7 @@
 ﻿using Jinaga.Facts;
 using Jinaga.Managers;
 using Jinaga.Observers;
-using Jinaga.Pipelines2;
+using Jinaga.Pipelines;
 using Jinaga.Projections;
 using System;
 using System.Collections.Immutable;

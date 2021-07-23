@@ -1,6 +1,6 @@
 using System;
 using Jinaga.Definitions;
-using Jinaga.Pipelines2;
+using Jinaga.Pipelines;
 
 namespace Jinaga.Generators
 {

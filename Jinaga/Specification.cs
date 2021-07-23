@@ -2,11 +2,11 @@ using System;
 using System.Linq;
 using System.Linq.Expressions;
 using Jinaga.Parsers;
-using Jinaga.Pipelines2;
 using Jinaga.Repository;
 using Jinaga.Definitions;
 using Jinaga.Generators;
 using Jinaga.Projections;
+using Jinaga.Pipelines;
 
 namespace Jinaga
 {

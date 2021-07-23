@@ -1,7 +1,7 @@
 ﻿using System;
 using Jinaga.Visualizers;
 
-namespace Jinaga.Pipelines2
+namespace Jinaga.Pipelines
 {
     public class Conditional
     {
@@ -46,14 +46,14 @@ namespace Jinaga.Pipelines2
             {
                 return false;
             }
-            
+
             var that = (Conditional)obj;
             return
-                that.exists == this.exists &&
-                that.start == this.start &&
-                that.childPipeline.Equals(this.childPipeline);
+                that.exists == exists &&
+                that.start == start &&
+                that.childPipeline.Equals(childPipeline);
         }
-        
+
         public override int GetHashCode()
         {
             return HashCode.Combine(exists, start, childPipeline);

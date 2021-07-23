@@ -1,5 +1,6 @@
 ﻿using System;
-namespace Jinaga.Pipelines2
+
+namespace Jinaga.Pipelines
 {
     public class Label
     {
@@ -26,14 +27,14 @@ namespace Jinaga.Pipelines2
             {
                 return false;
             }
-            
+
             Label that = (Label)obj;
-            return this.name == that.name && this.type == that.type;
+            return name == that.name && type == that.type;
         }
-        
+
         public override int GetHashCode()
         {
-            return HashCode.Combine(this.name, this.type);
+            return HashCode.Combine(name, type);
         }
 
         public static bool operator ==(Label a, Label b)

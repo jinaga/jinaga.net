@@ -1,6 +1,6 @@
 ﻿using Jinaga.Facts;
 using Jinaga.Observers;
-using Jinaga.Pipelines2;
+using Jinaga.Pipelines;
 using Jinaga.Projections;
 using Jinaga.Serialization;
 using Jinaga.Services;

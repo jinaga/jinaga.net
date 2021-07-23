@@ -2,7 +2,7 @@ using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 using Jinaga.Facts;
-using Jinaga.Pipelines2;
+using Jinaga.Pipelines;
 
 namespace Jinaga.Services
 {

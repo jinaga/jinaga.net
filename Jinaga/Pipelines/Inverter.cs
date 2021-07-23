@@ -1,7 +1,7 @@
 using System.Linq;
 using System.Collections.Generic;
 
-namespace Jinaga.Pipelines2
+namespace Jinaga.Pipelines
 {
     class Inverter
     {
@@ -50,5 +50,5 @@ namespace Jinaga.Pipelines2
             }
             return reverse;
         }
-   }
+    }
 }
