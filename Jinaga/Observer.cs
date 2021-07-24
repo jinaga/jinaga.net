@@ -59,11 +59,21 @@ namespace Jinaga
         {
             var products = await factManager.Query(startReference, pipeline, cancellationToken);
             var productProjections = await factManager.ComputeProjections<TProjection>(projection, products, cancellationToken);
-            await observation.NotifyAdded(productProjections);
+            var identities = await observation.NotifyAdded(productProjections);
+            lock (this)
+            {
+                identityByProduct = identityByProduct.AddRange(identities);
+            }
         }
 
         public async Task FactsAdded(ImmutableList<Fact> added, FactGraph graph, CancellationToken cancellationToken)
         {
+            if (initialize == null)
+            {
+                return;
+            }
+            await initialize;
+
             var resultsAdded = ImmutableList<ProductProjection<TProjection>>.Empty;
             var productsRemoved = ImmutableList<Product>.Empty;
             var startReferences = added.Select(a => a.Reference).ToImmutableList();
@@ -82,16 +92,17 @@ namespace Jinaga
                         cancellationToken);
                     foreach (var product in products)
                     {
-                        var affected = product.GetFactReference(inverse.AffectedTag);
+                        var identifyingProduct = inverse.Subset.Of(product);
+                        var affected = identifyingProduct.GetFactReference(inverse.AffectedTag);
                         if (affected == startReference)
                         {
                             if (inverse.Operation == Operation.Add)
                             {
-                                productsAdded = productsAdded.Add(product);
+                                productsAdded = productsAdded.Add(identifyingProduct);
                             }
                             else if (inverse.Operation == Operation.Remove)
                             {
-                                productsRemoved = productsRemoved.Add(product);
+                                productsRemoved = productsRemoved.Add(identifyingProduct);
                             }
                         }
                     }
@@ -109,7 +120,6 @@ namespace Jinaga
                 {
                     identityByProduct = identityByProduct.AddRange(identities);
                 }
-                
             }
             if (productsRemoved.Any())
             {

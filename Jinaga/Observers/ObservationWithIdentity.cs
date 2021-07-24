@@ -7,11 +7,6 @@ using Jinaga.Managers;
 
 namespace Jinaga.Observers
 {
-    public interface IObservation<TProjection>
-    {
-        Task<ImmutableList<KeyValuePair<Product, object>>> NotifyAdded(ImmutableList<ProductProjection<TProjection>> results);
-        Task NotifyRemoved(ImmutableList<object> identities);
-    }
     public class ObservationWithIdentity<TProjection, TIdentity> : IObservation<TProjection>
     {
         private readonly ImmutableList<Func<TProjection, Task<object>>> onAddedHandlers;
@@ -51,15 +46,22 @@ namespace Jinaga.Observers
             {
                 foreach (var result in results)
                 {
-                    await onAddedHandler(result.Projection);
+                    var identity = await onAddedHandler(result.Projection);
+                    identities = identities.Add(new KeyValuePair<Product, object>(result.Product, identity));
                 }
             }
             return identities;
         }
 
-        public Task NotifyRemoved(ImmutableList<object> identities)
+        public async Task NotifyRemoved(ImmutableList<object> identities)
         {
-            throw new NotImplementedException();
+            foreach (var onRemovedHandler in onRemovedHandlers)
+            {
+                foreach (var identity in identities)
+                {
+                    await onRemovedHandler(identity);
+                }
+            }
         }
     }
 }
