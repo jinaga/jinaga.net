@@ -116,7 +116,7 @@ namespace Jinaga.UnitTest
                 .Conditionals
                 .Where(conditional => conditional.Start == path.Target);
             return results
-                .Where(result => !conditionals.Any(conditional => ConditionIsTrue(
+                .Where(result => !conditionals.Any(conditional => !ConditionIsTrue(
                     result.GetFactReference(conditional.Start.Name),
                     conditional.ChildPipeline,
                     conditional.Exists)))
