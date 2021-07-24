@@ -60,12 +60,12 @@ namespace Jinaga
             var graph = factManager.Serialize(start);
             var startReference = graph.Last;
             var pipeline = specification.Pipeline;
+            var projection = specification.Projection;
             var observation = config(new Observation<TProjection>());
-            throw new NotImplementedException();
-            // var observer = new Observer<TProjection>(pipeline, startReference, factManager, observation);
-            // factManager.AddObserver(observer);
-            // observer.Start();
-            // return observer;
+            var observer = new Observer<TProjection>(pipeline, projection, startReference, factManager, observation);
+            factManager.AddObserver(observer);
+            observer.Start();
+            return observer;
         }
     }
 }

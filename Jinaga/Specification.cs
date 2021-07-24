@@ -60,14 +60,14 @@ namespace Jinaga
             var initialFactType = parameter.Type.FactTypeName();
             var symbolTable = SymbolTable.WithParameter(initialFactName, initialFactType);
 
-            var (symbolValue, tag) = ValueParser.ParseValue(symbolTable, spec.Body);
+            var symbolValue = ValueParser.ParseValue(symbolTable, spec.Body).symbolValue;
             switch (symbolValue)
             {
                 case SymbolValueSetDefinition setValue:
                     var pipeline = PipelineGenerator.CreatePipeline(setValue.SetDefinition);
                     return new Specification<TFact, TProjection>(
                         pipeline,
-                        new SimpleProjection(tag)
+                        new SimpleProjection(setValue.SetDefinition.Tag)
                     );
                 default:
                     throw new NotImplementedException();

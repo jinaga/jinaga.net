@@ -16,22 +16,23 @@ namespace Jinaga.Pipelines
 
         public static IEnumerable<Inverse> InvertPaths(Pipeline pipeline, Path path, Pipeline backward)
         {
+            string affectedTag = pipeline.Starts.Single().Name;
             var nextBackward = backward.PrependPath(ReversePath(path));
             var conditionalInverses = pipeline.Conditionals
                 .Where(conditional => conditional.Start == path.Target)
-                .SelectMany(conditional => InvertConditionals(conditional, nextBackward));
+                .SelectMany(conditional => InvertConditionals(conditional, nextBackward, affectedTag));
             return pipeline.Paths
                 .Where(p => p.Start == path.Target)
                 .SelectMany(next => InvertPaths(pipeline, next, nextBackward))
                 .Concat(conditionalInverses)
-                .Prepend(new Inverse(nextBackward.AddStart(path.Target)));
+                .Prepend(new Inverse(nextBackward.AddStart(path.Target), affectedTag));
         }
 
-        public static IEnumerable<Inverse> InvertConditionals(Conditional conditional, Pipeline backward)
+        public static IEnumerable<Inverse> InvertConditionals(Conditional conditional, Pipeline backward, string affectedTag)
         {
             return InvertPipeline(conditional.ChildPipeline)
                 .Select(childInverse => childInverse.InversePipeline.Compose(backward))
-                .Select(pipeline => new Inverse(pipeline));
+                .Select(pipeline => new Inverse(pipeline, affectedTag));
         }
 
         public static Path ReversePath(Path path)
