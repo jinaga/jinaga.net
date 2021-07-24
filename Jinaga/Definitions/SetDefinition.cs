@@ -54,6 +54,7 @@ namespace Jinaga.Definitions
         public ChainRole ChainRole => chainRole;
 
         public override string FactType => throw new NotImplementedException();
+        public override string Tag => chainRole.Role;
 
         public SetDefinitionChainRole(ChainRole chainRole)
         {
