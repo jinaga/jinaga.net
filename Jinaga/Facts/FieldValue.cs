@@ -20,6 +20,7 @@ namespace Jinaga.Facts
 
     public class FieldValueString : FieldValue
     {
+        // This constructor is called via a compiled expression
         public FieldValueString(string stringValue)
         {
             StringValue = stringValue;
@@ -30,6 +31,7 @@ namespace Jinaga.Facts
 
     public class FieldValueNumber : FieldValue
     {
+        // This constructor is called via a compiled expression
         public FieldValueNumber(double doubleValue)
         {
             DoubleValue = doubleValue;
@@ -40,6 +42,7 @@ namespace Jinaga.Facts
 
     public class FieldValueBoolean : FieldValue
     {
+        // This constructor is called via a compiled expression
         public FieldValueBoolean(bool boolValue)
         {
             BoolValue = boolValue;

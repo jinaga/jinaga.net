@@ -70,7 +70,7 @@ namespace Jinaga.UnitTest
                 .SelectMany(reference => ancestors[reference])
                 .Distinct()
                 .Select(reference => factsByReference[reference])
-                .Aggregate(new FactGraph(), (graph, fact) => graph.Add(fact));
+                .Aggregate(FactGraph.Empty, (graph, fact) => graph.Add(fact));
             return Task.FromResult(graph);
         }
 

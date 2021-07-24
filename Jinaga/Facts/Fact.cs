@@ -15,7 +15,7 @@ namespace Jinaga.Facts
             return new Fact(reference, fields, predecessors);
         }
 
-        public Fact(FactReference reference, ImmutableList<Field> fields, ImmutableList<Predecessor> predecessors)
+        private Fact(FactReference reference, ImmutableList<Field> fields, ImmutableList<Predecessor> predecessors)
         {
             Reference = reference;
             Fields = fields;
@@ -88,7 +88,7 @@ namespace Jinaga.Facts
             }
         }
 
-        public static string ComputeHash(ImmutableList<Field> fields, ImmutableList<Predecessor> predecessors)
+        private static string ComputeHash(ImmutableList<Field> fields, ImmutableList<Predecessor> predecessors)
         {
             string json = Canonicalize(fields, predecessors);
             var bytes = Encoding.UTF8.GetBytes(json);

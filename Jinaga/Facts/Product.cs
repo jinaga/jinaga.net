@@ -11,7 +11,7 @@ namespace Jinaga.Facts
 
         private readonly ImmutableDictionary<string, FactReference> factReferencesByTag;
 
-        public Product(ImmutableDictionary<string, FactReference> factReferencesByTag)
+        private Product(ImmutableDictionary<string, FactReference> factReferencesByTag)
         {
             this.factReferencesByTag = factReferencesByTag;
         }
