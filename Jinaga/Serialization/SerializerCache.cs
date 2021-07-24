@@ -10,11 +10,11 @@ namespace Jinaga.Serialization
 {
     class SerializerCache
     {
-        private readonly ImmutableDictionary<Type, Delegate> serializerByType;
+        public static SerializerCache Empty = new SerializerCache(
+            ImmutableDictionary<Type, Delegate>.Empty
+        );
 
-        public SerializerCache() : this(ImmutableDictionary<Type, Delegate>.Empty)
-        {
-        }
+        private readonly ImmutableDictionary<Type, Delegate> serializerByType;
 
         private SerializerCache(ImmutableDictionary<Type, Delegate> serializerByType)
         {

@@ -47,7 +47,7 @@ namespace Jinaga.Test.Facts
 
         private static T Deserialize<T>(FactGraph graph, FactReference reference)
         {
-            var emitter = new Emitter(graph, new DeserializerCache());
+            var emitter = new Emitter(graph, DeserializerCache.Empty);
             var runtimeFact = emitter.Deserialize<T>(reference);
             return runtimeFact;
         }

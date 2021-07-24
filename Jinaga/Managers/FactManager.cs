@@ -21,8 +21,8 @@ namespace Jinaga.Managers
             this.store = store;
         }
 
-        private SerializerCache serializerCache = new SerializerCache();
-        private DeserializerCache deserializerCache = new DeserializerCache();
+        private SerializerCache serializerCache = SerializerCache.Empty;
+        private DeserializerCache deserializerCache = DeserializerCache.Empty;
         private ImmutableList<IObserver> observers = ImmutableList<IObserver>.Empty;
 
         public async Task<ImmutableList<Fact>> Save(FactGraph graph, CancellationToken cancellationToken)
