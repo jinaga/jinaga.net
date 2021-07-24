@@ -20,7 +20,7 @@ namespace Jinaga.Definitions
                 .SelectMany(field => AllTags(field.Value).Prepend(field.Key));
         }
 
-        public static IEnumerable<string> AllTags(SymbolValue value)
+        private static IEnumerable<string> AllTags(SymbolValue value)
         {
             if (value is SymbolValueComposite compositeValue)
             {

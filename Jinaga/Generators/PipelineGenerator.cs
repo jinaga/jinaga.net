@@ -18,15 +18,15 @@ namespace Jinaga.Generators
                 return Pipeline.Empty
                     .AddStart(new Label(initialSet.Tag, initialSet.FactType));
             }
-            else if (setDefinition is SetDefinitionChainRole chainRoleSet)
+            else if (setDefinition is SetDefinitionPredecessorChain predecessorChainSet)
             {
-                var chainRole = chainRoleSet.ChainRole;
-                var targetSetDefinition = chainRole.TargetSetDefinition;
+                var chain = predecessorChainSet.ToChain();
+                var targetSetDefinition = chain.TargetSetDefinition;
                 var pipeline = CreatePipeline(targetSetDefinition, seekSetDefinition, replaceLabel);
                 var start = new Label(targetSetDefinition.Tag, targetSetDefinition.FactType);
-                var target = new Label(chainRole.InferredTag, chainRole.TargetType);
+                var target = new Label(predecessorChainSet.Tag, chain.TargetType);
                 var path = new Path(start, target);
-                return pipeline.AddPath(AddPredecessorSteps(path, chainRole));
+                return pipeline.AddPath(AddPredecessorSteps(path, chain));
             }
             else if (setDefinition is SetDefinitionJoin joinSet)
             {
