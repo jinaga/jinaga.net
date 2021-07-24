@@ -4,6 +4,7 @@ using Jinaga.Observers;
 using Jinaga.Pipelines;
 using Jinaga.Projections;
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
@@ -17,15 +18,18 @@ namespace Jinaga
         private readonly Projection projection;
         private readonly FactReference startReference;
         private readonly FactManager factManager;
-        private readonly Observation<TProjection> observation;
+        private readonly IObservation<TProjection> observation;
         private readonly ImmutableList<Inverse> inverses;
 
         private Task? initialize;
         private CancellationTokenSource cancelInitialize = new CancellationTokenSource();
 
+        private ImmutableDictionary<Product, object> identityByProduct =
+            ImmutableDictionary<Product, object>.Empty;
+
         public Task Initialized => initialize!;
 
-        internal Observer(Pipeline pipeline, Projection projection, FactReference startReference, FactManager factManager, Observation<TProjection> observation)
+        internal Observer(Pipeline pipeline, Projection projection, FactReference startReference, FactManager factManager, IObservation<TProjection> observation)
         {
             this.pipeline = pipeline;
             this.projection = projection;
@@ -100,11 +104,24 @@ namespace Jinaga
             }
             if (resultsAdded.Any())
             {
-                await observation.NotifyAdded(resultsAdded);
+                var identities = await observation.NotifyAdded(resultsAdded);
+                lock (this)
+                {
+                    identityByProduct = identityByProduct.AddRange(identities);
+                }
+                
             }
             if (productsRemoved.Any())
             {
-                await observation.NotifyRemoved(productsRemoved);
+                var identities = productsRemoved
+                    .Select(product => identityByProduct.GetValueOrDefault(product)!)
+                    .Where(identity => identity != null)
+                    .ToImmutableList();
+                await observation.NotifyRemoved(identities);
+                lock (this)
+                {
+                    identityByProduct = identityByProduct.RemoveRange(productsRemoved);
+                }
             }
         }
     }

@@ -54,7 +54,7 @@ namespace Jinaga
         public Observer<TProjection> Watch<TFact, TProjection>(
             TFact start,
             Specification<TFact, TProjection> specification,
-            Func<Observation<TProjection>, Observation<TProjection>> config)
+            Func<Observation<TProjection>, IObservation<TProjection>> config)
         {
             if (start == null)
             {

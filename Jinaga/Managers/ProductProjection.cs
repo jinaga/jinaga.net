@@ -2,7 +2,7 @@ using Jinaga.Facts;
 
 namespace Jinaga.Managers
 {
-    internal class ProductProjection<TProjection>
+    public class ProductProjection<TProjection>
     {
         private readonly Product product;
         private readonly TProjection projection;

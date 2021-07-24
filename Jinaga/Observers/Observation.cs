@@ -1,43 +1,29 @@
 ﻿using System;
 using System.Collections.Immutable;
 using System.Threading.Tasks;
-using Jinaga.Facts;
-using Jinaga.Managers;
 
 namespace Jinaga.Observers
 {
     public class Observation<TProjection>
     {
-        private readonly ImmutableList<Func<TProjection, Task>> onAddedHandlers;
+        protected readonly ImmutableList<Func<TProjection, Task<object>>> onAddedHandlers;
 
-        public Observation() : this(ImmutableList<Func<TProjection, Task>>.Empty)
+        public Observation() : this(ImmutableList<Func<TProjection, Task<object>>>.Empty)
         {
         }
 
-        public Observation(ImmutableList<Func<TProjection, Task>> onAddedHandlers)
+        public Observation(ImmutableList<Func<TProjection, Task<object>>> onAddedHandlers)
         {
             this.onAddedHandlers = onAddedHandlers;
         }
 
-        public ObservationWithIdentity<TProjection, TIdentity> OnAdded<TIdentity>(Func<TProjection, Task<TIdentity>> added)
+        public ObservationWithIdentity<TProjection, TIdentity> OnAdded<TIdentity>(Func<TProjection, Task<TIdentity>> added) where TIdentity: struct
         {
-            return new ObservationWithIdentity<TProjection, TIdentity>(onAddedHandlers.Add(async projection => await added(projection)));
-        }
-
-        internal async Task NotifyAdded(ImmutableList<ProductProjection<TProjection>> results)
-        {
-            foreach (var onAddedHandler in onAddedHandlers)
-            {
-                foreach (var result in results)
-                {
-                    await onAddedHandler(result.Projection);
-                }
-            }
-        }
-
-        internal Task NotifyRemoved(ImmutableList<Product> products)
-        {
-            throw new NotImplementedException();
+            return new ObservationWithIdentity<TProjection, TIdentity>(
+                onAddedHandlers.Add(async projection => (object)(await added(projection))),
+                ImmutableList<Func<object, TProjection, Task>>.Empty,
+                ImmutableList<Func<object, Task>>.Empty
+            );
         }
     }
 }
