@@ -45,19 +45,23 @@ namespace Jinaga.Managers
             return await store.QueryAll(startReferences, pipeline, cancellationToken);
         }
 
-        public async Task<ImmutableList<TProjection>> ComputeProjections<TProjection>(Projection projection, ImmutableList<Product> products, CancellationToken cancellationToken)
+        public async Task<ImmutableList<ProductProjection<TProjection>>> ComputeProjections<TProjection>(Projection projection, ImmutableList<Product> products, CancellationToken cancellationToken)
         {
             switch (projection)
             {
                 case SimpleProjection simple:
-                    var references = products
-                        .Select(product => product.GetFactReference(simple.Tag))
+                    var productReferences = products
+                        .Select(product => (product, reference: product.GetFactReference(simple.Tag)))
+                        .ToImmutableList();
+                    var references = productReferences
+                        .Select(pair => pair.reference)
                         .ToImmutableList();
                     var graph = await store.Load(references, cancellationToken);
-                    var projections = references
-                        .Select(reference => Deserialize<TProjection>(graph, reference))
+                    var productProjections = productReferences
+                        .Select(pair => new ProductProjection<TProjection>(pair.product,
+                            Deserialize<TProjection>(graph, pair.reference)))
                         .ToImmutableList();
-                    return projections;
+                    return productProjections;
                 default:
                     throw new NotImplementedException();
             }

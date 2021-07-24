@@ -54,13 +54,14 @@ namespace Jinaga
         private async Task RunInitialQuery(CancellationToken cancellationToken)
         {
             var products = await factManager.Query(startReference, pipeline, cancellationToken);
-            var results = await factManager.ComputeProjections<TProjection>(projection, products, cancellationToken);
-            await observation.NotifyAdded(results);
+            var productProjections = await factManager.ComputeProjections<TProjection>(projection, products, cancellationToken);
+            await observation.NotifyAdded(productProjections);
         }
 
         public async Task FactsAdded(ImmutableList<Fact> added, FactGraph graph, CancellationToken cancellationToken)
         {
-            var resultsAdded = ImmutableList<TProjection>.Empty;
+            var resultsAdded = ImmutableList<ProductProjection<TProjection>>.Empty;
+            var productsRemoved = ImmutableList<Product>.Empty;
             var startReferences = added.Select(a => a.Reference).ToImmutableList();
             foreach (var inverse in inverses)
             {
@@ -80,19 +81,30 @@ namespace Jinaga
                         var affected = product.GetFactReference(inverse.AffectedTag);
                         if (affected == startReference)
                         {
-                            productsAdded = productsAdded.Add(product);
+                            if (inverse.Operation == Operation.Add)
+                            {
+                                productsAdded = productsAdded.Add(product);
+                            }
+                            else if (inverse.Operation == Operation.Remove)
+                            {
+                                productsRemoved = productsRemoved.Add(product);
+                            }
                         }
                     }
                 }
                 if (productsAdded.Any())
                 {
-                    var results = await factManager.ComputeProjections<TProjection>(projection, productsAdded, cancellationToken);
-                    resultsAdded = resultsAdded.AddRange(results);
+                    var productProjections = await factManager.ComputeProjections<TProjection>(projection, productsAdded, cancellationToken);
+                    resultsAdded = resultsAdded.AddRange(productProjections);
                 }
             }
             if (resultsAdded.Any())
             {
                 await observation.NotifyAdded(resultsAdded);
+            }
+            if (productsRemoved.Any())
+            {
+                await observation.NotifyRemoved(productsRemoved);
             }
         }
     }

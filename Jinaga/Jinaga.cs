@@ -3,6 +3,7 @@ using Jinaga.Observers;
 using Jinaga.Services;
 using System;
 using System.Collections.Immutable;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -43,8 +44,11 @@ namespace Jinaga
             var startReference = graph.Last;
             var pipeline = specification.Pipeline;
             var products = await factManager.Query(startReference, pipeline, cancellationToken);
-            var results = await factManager.ComputeProjections<TProjection>(specification.Projection, products, cancellationToken);
-            return results;
+            var productProjections = await factManager.ComputeProjections<TProjection>(specification.Projection, products, cancellationToken);
+            var projections = productProjections
+                .Select(pair => pair.Projection)
+                .ToImmutableList();
+            return projections;
         }
 
         public Observer<TProjection> Watch<TFact, TProjection>(

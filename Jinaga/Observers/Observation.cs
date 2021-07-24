@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Immutable;
 using System.Threading.Tasks;
+using Jinaga.Facts;
+using Jinaga.Managers;
 
 namespace Jinaga.Observers
 {
@@ -22,15 +24,20 @@ namespace Jinaga.Observers
             return new ObservationWithIdentity<TProjection, TIdentity>(onAddedHandlers.Add(async projection => await added(projection)));
         }
 
-        internal async Task NotifyAdded(ImmutableList<TProjection> results)
+        internal async Task NotifyAdded(ImmutableList<ProductProjection<TProjection>> results)
         {
             foreach (var onAddedHandler in onAddedHandlers)
             {
                 foreach (var result in results)
                 {
-                    await onAddedHandler(result);
+                    await onAddedHandler(result.Projection);
                 }
             }
+        }
+
+        internal Task NotifyRemoved(ImmutableList<Product> products)
+        {
+            throw new NotImplementedException();
         }
     }
 }
