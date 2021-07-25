@@ -1,6 +1,3 @@
-using Jinaga.Generators;
-using Jinaga.Pipelines;
-
 namespace Jinaga.Definitions
 {
     public class ConditionDefinition
@@ -20,13 +17,6 @@ namespace Jinaga.Definitions
         public ConditionDefinition Invert()
         {
             return new ConditionDefinition(set, exists: false);
-        }
-
-        public Step CreateConditionalStep()
-        {
-            var pipeline = PipelineGenerator.CreatePipeline(set);
-            var steps = pipeline.Linearize(set.Tag);
-            return new ConditionalStep(steps, exists);
         }
     }
 }

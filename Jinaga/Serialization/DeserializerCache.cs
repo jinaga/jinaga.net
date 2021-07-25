@@ -8,11 +8,11 @@ namespace Jinaga.Serialization
 {
     class DeserializerCache
     {
-        private readonly ImmutableDictionary<Type, Delegate> deserializerByType;
+        public static DeserializerCache Empty = new DeserializerCache(
+            ImmutableDictionary<Type, Delegate>.Empty
+        );
 
-        public DeserializerCache() : this(ImmutableDictionary<Type, Delegate>.Empty)
-        {
-        }
+        private readonly ImmutableDictionary<Type, Delegate> deserializerByType;
 
         private DeserializerCache(ImmutableDictionary<Type, Delegate> deserializerByType)
         {

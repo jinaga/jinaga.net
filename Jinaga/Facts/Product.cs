@@ -1,12 +1,17 @@
+using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
+using Jinaga.Pipelines;
 
 namespace Jinaga.Facts
 {
     public class Product
     {
+        public static Product Empty = new Product(ImmutableDictionary<string, FactReference>.Empty);
+
         private readonly ImmutableDictionary<string, FactReference> factReferencesByTag;
 
-        public Product(ImmutableDictionary<string, FactReference> factReferencesByTag)
+        private Product(ImmutableDictionary<string, FactReference> factReferencesByTag)
         {
             this.factReferencesByTag = factReferencesByTag;
         }
@@ -21,9 +26,26 @@ namespace Jinaga.Facts
             return new Product(factReferencesByTag.Add(tag, factReference));
         }
 
-        public static Product Init(string tag, FactReference factReference)
+        public override bool Equals(object obj)
         {
-            return new Product(ImmutableDictionary<string, FactReference>.Empty.Add(tag, factReference));
+            if (obj == null || GetType() != obj.GetType())
+            {
+                return false;
+            }
+            
+            var that = (Product)obj;
+            var thoseReferences = that.factReferencesByTag
+                .Select(pair => ComparablePair.From(pair.Key, pair.Value));
+            var theseReferences = this.factReferencesByTag
+                .Select(pair => ComparablePair.From(pair.Key, pair.Value));
+            return thoseReferences.SetEquals(theseReferences);
+        }
+
+        public override int GetHashCode()
+        {
+            var theseReferences = this.factReferencesByTag
+                .Select(pair => ComparablePair.From(pair.Key, pair.Value));
+            return theseReferences.SetHash();
         }
     }
 }

@@ -1,3 +1,4 @@
+﻿using Jinaga.Visualizers;
 using System;
 using System.Collections.Immutable;
 using System.Linq;
@@ -6,25 +7,93 @@ namespace Jinaga.Pipelines
 {
     public class Path
     {
-        public string Tag { get; }
-        public string TargetType { get; }
-        public string StartingTag { get; }
-        public ImmutableList<Step> Steps { get; }
+        private readonly Label start;
+        private readonly Label target;
+        private readonly ImmutableList<Step> predecessorSteps;
+        private readonly ImmutableList<Step> successorSteps;
 
-        public Path(string tag, string targetType, string startingTag, ImmutableList<Step> steps)
+        public Path(Label start, Label target, ImmutableList<Step> predecessorSteps, ImmutableList<Step> successorSteps)
         {
-            Tag = tag;
-            TargetType = targetType;
-            StartingTag = startingTag;
-            Steps = steps;
+            this.start = start;
+            this.target = target;
+            this.predecessorSteps = predecessorSteps;
+            this.successorSteps = successorSteps;
         }
 
-        public string ToDescriptiveString(int depth = 1)
+        public Path(Label start, Label target) : this(start, target,
+            ImmutableList<Step>.Empty,
+            ImmutableList<Step>.Empty
+        )
         {
-            string stepsDescriptiveString = string.Join(" ", Steps
-                .Select(step => step.ToDescriptiveString(depth)));
-            string indent = String.Join("", Enumerable.Repeat("    ", depth).ToArray());
-            return $"{indent}{Tag}: {TargetType} = {StartingTag} {stepsDescriptiveString}\r\n";
+        }
+
+        public Label Start => start;
+        public Label Target => target;
+        public ImmutableList<Step> PredecessorSteps => predecessorSteps;
+        public ImmutableList<Step> SuccessorSteps => successorSteps;
+
+        public Path AddPredecessorStep(Step predecessorStep)
+        {
+            return new Path(start, target, predecessorSteps.Add(predecessorStep), successorSteps);
+        }
+
+        public Path PrependPredecessorStep(Step predecessorStep)
+        {
+            return new Path(start, target, predecessorSteps.Insert(0, predecessorStep), successorSteps);
+        }
+
+        public Path PrependSuccessorStep(Step successorStep)
+        {
+            return new Path(start, target, predecessorSteps, successorSteps.Insert(0, successorStep));
+        }
+
+        public string ToDescriptiveString(int depth = 0)
+        {
+            string steps = predecessorSteps
+                .Select(step => $" P.{step.Role} {step.TargetType}")
+                .Concat(successorSteps
+                    .Select(step => $" S.{step.Role} {step.TargetType}")
+                )
+                .Join("");
+            return $"{Strings.Indent(depth)}{target} = {start.Name}{steps}\r\n";
+        }
+
+        public string ToOldDescriptiveString()
+        {
+            string steps = predecessorSteps
+                .Select(step => $"P.{step.Role} F.type=\"{step.TargetType}\"")
+                .Concat(successorSteps
+                    .Select(step => $"S.{step.Role} F.type=\"{step.TargetType}\"")
+                )
+                .Join(" ");
+            return steps;
+        }
+
+        public override string ToString()
+        {
+            return ToDescriptiveString();
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (obj == null || GetType() != obj.GetType())
+            {
+                return false;
+            }
+
+            var that = (Path)obj;
+            return
+                that.start == start &&
+                that.target == target &&
+                that.predecessorSteps.SequenceEqual(predecessorSteps) &&
+                that.successorSteps.SequenceEqual(successorSteps);
+        }
+
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(start, target,
+                predecessorSteps.SequenceHash(),
+                successorSteps.SequenceHash());
         }
     }
 }

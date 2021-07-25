@@ -1,6 +1,5 @@
 using System.Linq;
 using FluentAssertions;
-using Jinaga.Pipelines;
 using Jinaga.Test.Model;
 using Xunit;
 
@@ -16,12 +15,12 @@ namespace Jinaga.Test
                 where flight.airlineDay.airline == airline
                 select flight
             );
-            Pipeline pipeline = specification.Pipeline;
+            var pipeline = specification.Pipeline;
             string descriptiveString = pipeline.ToDescriptiveString();
             descriptiveString.Should().Be(@"airline: Skylane.Airline {
     flight: Skylane.Flight = airline S.airline Skylane.Airline.Day S.airlineDay Skylane.Flight
-    flight
-}");
+}
+");
             string oldDescriptiveString = pipeline.ToOldDescriptiveString();
             oldDescriptiveString.Should().Be("S.airline F.type=\"Skylane.Airline.Day\" S.airlineDay F.type=\"Skylane.Flight\"");
         }
@@ -34,12 +33,12 @@ namespace Jinaga.Test
                 where flightCancellation.flight == flight
                 select flight
             );
-            Pipeline pipeline = specification.Pipeline;
+            var pipeline = specification.Pipeline;
             string descriptiveString = pipeline.ToDescriptiveString();
             descriptiveString.Should().Be(@"flightCancellation: Skylane.Flight.Cancellation {
     flight: Skylane.Flight = flightCancellation P.flight Skylane.Flight
-    flight
-}");
+}
+");
             string oldDescriptiveString = pipeline.ToOldDescriptiveString();
             oldDescriptiveString.Should().Be("P.flight F.type=\"Skylane.Flight\"");
         }
@@ -50,12 +49,12 @@ namespace Jinaga.Test
             Specification<FlightCancellation, Flight> specification = Given<FlightCancellation>.Match(flightCancellation =>
                 flightCancellation.flight
             );
-            Pipeline pipeline = specification.Pipeline;
+            var pipeline = specification.Pipeline;
             string descriptiveString = pipeline.ToDescriptiveString();
             descriptiveString.Should().Be(@"flightCancellation: Skylane.Flight.Cancellation {
     flight: Skylane.Flight = flightCancellation P.flight Skylane.Flight
-    flight
-}");
+}
+");
             string oldDescriptiveString = pipeline.ToOldDescriptiveString();
             oldDescriptiveString.Should().Be("P.flight F.type=\"Skylane.Flight\"");
         }
@@ -78,11 +77,14 @@ namespace Jinaga.Test
             var pipeline = activeFlights.Pipeline;
             var descriptiveString = pipeline.ToDescriptiveString();
             descriptiveString.Should().Be(@"airlineDay: Skylane.Airline.Day {
-    flight: Skylane.Flight = airlineDay S.airlineDay Skylane.Flight N(
-        S.flight Skylane.Flight.Cancellation
+    flight: Skylane.Flight = airlineDay S.airlineDay Skylane.Flight
+    N(
+        flight: Skylane.Flight {
+            cancellation: Skylane.Flight.Cancellation = flight S.flight Skylane.Flight.Cancellation
+        }
     )
-    flight
-}");
+}
+");
             var oldDescriptiveString = pipeline.ToOldDescriptiveString();
             oldDescriptiveString.Should().Be("S.airlineDay F.type=\"Skylane.Flight\" N(S.flight F.type=\"Skylane.Flight.Cancellation\")");
         }
@@ -101,11 +103,14 @@ namespace Jinaga.Test
             var pipeline = activeFlights.Pipeline;
             var descriptiveString = pipeline.ToDescriptiveString();
             descriptiveString.Should().Be(@"airlineDay: Skylane.Airline.Day {
-    flight: Skylane.Flight = airlineDay S.airlineDay Skylane.Flight N(
-        S.flight Skylane.Flight.Cancellation
+    flight: Skylane.Flight = airlineDay S.airlineDay Skylane.Flight
+    N(
+        flight: Skylane.Flight {
+            cancellation: Skylane.Flight.Cancellation = flight S.flight Skylane.Flight.Cancellation
+        }
     )
-    flight
-}");
+}
+");
             var oldDescriptiveString = pipeline.ToOldDescriptiveString();
             oldDescriptiveString.Should().Be("S.airlineDay F.type=\"Skylane.Flight\" N(S.flight F.type=\"Skylane.Flight.Cancellation\")");
         }
@@ -137,14 +142,20 @@ namespace Jinaga.Test
             var pipeline = bookingsToRefund.Pipeline;
             var descriptiveString = pipeline.ToDescriptiveString();
             descriptiveString.Should().Be(@"airline: Skylane.Airline {
-    flight: Skylane.Flight = airline S.airline Skylane.Airline.Day S.airlineDay Skylane.Flight E(
-        S.flight Skylane.Flight.Cancellation
+    flight: Skylane.Flight = airline S.airline Skylane.Airline.Day S.airlineDay Skylane.Flight
+    E(
+        flight: Skylane.Flight {
+            cancellation: Skylane.Flight.Cancellation = flight S.flight Skylane.Flight.Cancellation
+        }
     )
-    booking: Skylane.Booking = flight S.flight Skylane.Booking N(
-        S.booking Skylane.Refund
+    booking: Skylane.Booking = flight S.flight Skylane.Booking
+    N(
+        booking: Skylane.Booking {
+            refund: Skylane.Refund = booking S.booking Skylane.Refund
+        }
     )
-    booking
-}");
+}
+");
             var oldDescriptiveString = pipeline.ToOldDescriptiveString();
             oldDescriptiveString.Should().Be("S.airline F.type=\"Skylane.Airline.Day\" S.airlineDay F.type=\"Skylane.Flight\" E(S.flight F.type=\"Skylane.Flight.Cancellation\") S.flight F.type=\"Skylane.Booking\" N(S.booking F.type=\"Skylane.Refund\")");
         }
@@ -172,14 +183,20 @@ namespace Jinaga.Test
             var pipeline = bookingsToRefund.Pipeline;
             var descriptiveString = pipeline.ToDescriptiveString();
             descriptiveString.Should().Be(@"airline: Skylane.Airline {
-    flight: Skylane.Flight = airline S.airline Skylane.Airline.Day S.airlineDay Skylane.Flight E(
-        S.flight Skylane.Flight.Cancellation
+    flight: Skylane.Flight = airline S.airline Skylane.Airline.Day S.airlineDay Skylane.Flight
+    E(
+        flight: Skylane.Flight {
+            cancellation: Skylane.Flight.Cancellation = flight S.flight Skylane.Flight.Cancellation
+        }
     )
-    booking: Skylane.Booking = flight S.flight Skylane.Booking N(
-        S.booking Skylane.Refund
+    booking: Skylane.Booking = flight S.flight Skylane.Booking
+    N(
+        booking: Skylane.Booking {
+            refund: Skylane.Refund = booking S.booking Skylane.Refund
+        }
     )
-    booking
-}");
+}
+");
             var oldDescriptiveString = pipeline.ToOldDescriptiveString();
             oldDescriptiveString.Should().Be("S.airline F.type=\"Skylane.Airline.Day\" S.airlineDay F.type=\"Skylane.Flight\" E(S.flight F.type=\"Skylane.Flight.Cancellation\") S.flight F.type=\"Skylane.Booking\" N(S.booking F.type=\"Skylane.Refund\")");
         }
@@ -213,15 +230,15 @@ namespace Jinaga.Test
             var descriptiveString = pipeline.ToDescriptiveString();
             descriptiveString.Should().Be(@"airline: Skylane.Airline {
     flight: Skylane.Flight = airline S.airline Skylane.Airline.Day S.airlineDay Skylane.Flight
-    booking: Skylane.Booking = flight S.flight Skylane.Booking N(
-        S.booking Skylane.Refund
+    booking: Skylane.Booking = flight S.flight Skylane.Booking
+    N(
+        booking: Skylane.Booking {
+            refund: Skylane.Refund = booking S.booking Skylane.Refund
+        }
     )
     cancellation: Skylane.Flight.Cancellation = flight S.flight Skylane.Flight.Cancellation
-    {
-        Booking = booking
-        Cancellation = cancellation
-    }
-}");
+}
+");
         }
 
         [Fact]
@@ -238,8 +255,8 @@ namespace Jinaga.Test
             descriptiveString.Should().Be(@"flight: Skylane.Flight {
     booking: Skylane.Booking = flight S.flight Skylane.Booking
     passenger: Skylane.Passenger = booking P.passenger Skylane.Passenger
-    passenger
-}");
+}
+");
         }
 
         [Fact]
@@ -264,17 +281,20 @@ namespace Jinaga.Test
             var pipeline = specification.Pipeline;
             var descriptiveString = pipeline.ToDescriptiveString();
             descriptiveString.Should().Be(@"company: Corporate.Company {
-    office: Corporate.Office = company S.company Corporate.Office N(
-        S.office Corporate.Office.Closure
+    office: Corporate.Office = company S.company Corporate.Office
+    N(
+        office: Corporate.Office {
+            closure: Corporate.Office.Closure = office S.office Corporate.Office.Closure
+        }
     )
-    headcount: Corporate.Headcount = office S.office Corporate.Headcount N(
-        S.prior Corporate.Headcount
+    headcount: Corporate.Headcount = office S.office Corporate.Headcount
+    N(
+        headcount: Corporate.Headcount {
+            next: Corporate.Headcount = headcount S.prior Corporate.Headcount
+        }
     )
-    {
-        headcount = headcount
-        office = office
-    }
-}");
+}
+");
         }
     }
 }

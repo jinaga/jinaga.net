@@ -7,14 +7,14 @@ namespace Jinaga.Serialization
 {
     class Collector
     {
-        public FactGraph Graph { get; private set; } = new FactGraph();
+        public FactGraph Graph { get; private set; } = FactGraph.Empty;
 
         public int FactVisitsCount { get; private set; } = 0;
         public SerializerCache SerializerCache { get; private set; }
 
-        public ImmutableHashSet<object> visiting =
+        private ImmutableHashSet<object> visiting =
             ImmutableHashSet<object>.Empty;
-        public ImmutableDictionary<object, FactReference> referenceByObject =
+        private ImmutableDictionary<object, FactReference> referenceByObject =
             ImmutableDictionary<object, FactReference>.Empty;
 
         public Collector(SerializerCache serializerCache)

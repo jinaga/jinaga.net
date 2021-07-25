@@ -1,23 +1,21 @@
+using Jinaga.Managers;
+using Jinaga.Observers;
+using Jinaga.Services;
 using System;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
-using Jinaga.Facts;
-using Jinaga.Pipelines;
-using Jinaga.Serialization;
-using Jinaga.Services;
 
 namespace Jinaga
 {
     public class Jinaga
     {
-        private readonly IStore store;
-        private SerializerCache serializerCache = new SerializerCache();
-        private DeserializerCache deserializerCache = new DeserializerCache();
+        private readonly FactManager factManager;
 
         public Jinaga(IStore store)
         {
-            this.store = store;
+            this.factManager = new FactManager(store);
         }
 
         public async Task<TFact> Fact<TFact>(TFact prototype) where TFact: class
@@ -27,64 +25,51 @@ namespace Jinaga
                 throw new ArgumentNullException(nameof(prototype));
             }
 
-            var graph = Serialize(prototype);
-            var added = await store.Save(graph);
-            return Deserialize<TFact>(graph, graph.Last);
+            var graph = factManager.Serialize(prototype);
+            await factManager.Save(graph, default(CancellationToken));
+            return factManager.Deserialize<TFact>(graph, graph.Last);
         }
 
-        public async Task<ImmutableList<TProjection>> Query<TFact, TProjection>(TFact start, Specification<TFact, TProjection> specification) where TFact: class
+        public async Task<ImmutableList<TProjection>> Query<TFact, TProjection>(
+            TFact start,
+            Specification<TFact, TProjection> specification,
+            CancellationToken cancellationToken = default) where TFact : class
         {
             if (start == null)
             {
                 throw new ArgumentNullException(nameof(start));
             }
 
-            var graph = Serialize(start);
+            var graph = factManager.Serialize(start);
             var startReference = graph.Last;
             var pipeline = specification.Pipeline;
-            var products = await store.Query(startReference, pipeline.InitialTag, pipeline.Paths);
-            var results = await ComputeProjections<TProjection>(pipeline.Projection, products);
-            return results;
+            var products = await factManager.Query(startReference, pipeline, cancellationToken);
+            var productProjections = await factManager.ComputeProjections<TProjection>(specification.Projection, products, cancellationToken);
+            var projections = productProjections
+                .Select(pair => pair.Projection)
+                .ToImmutableList();
+            return projections;
         }
 
-        private async Task<ImmutableList<TProjection>> ComputeProjections<TProjection>(Projection projection, ImmutableList<Product> products)
+        public Observer<TProjection> Watch<TFact, TProjection>(
+            TFact start,
+            Specification<TFact, TProjection> specification,
+            Func<Observation<TProjection>, IObservation<TProjection>> config)
         {
-            switch (projection)
+            if (start == null)
             {
-                case SimpleProjection simple:
-                    var references = products
-                        .Select(product => product.GetFactReference(simple.Tag))
-                        .ToImmutableList();
-                    var graph = await store.Load(references);
-                    var projections = references
-                        .Select(reference => Deserialize<TProjection>(graph, reference))
-                        .ToImmutableList();
-                    return projections;
-                default:
-                    throw new NotImplementedException();
+                throw new ArgumentNullException(nameof(start));
             }
-        }
 
-        private FactGraph Serialize(object prototype)
-        {
-            lock (this)
-            {
-                var collector = new Collector(serializerCache);
-                collector.Serialize(prototype);
-                serializerCache = collector.SerializerCache;
-                return collector.Graph;
-            }
-        }
-
-        private TFact Deserialize<TFact>(FactGraph graph, FactReference reference)
-        {
-            lock (this)
-            {
-                var emitter = new Emitter(graph, deserializerCache);
-                var fact = emitter.Deserialize<TFact>(reference);
-                deserializerCache = emitter.DeserializerCache;
-                return fact;
-            }
+            var graph = factManager.Serialize(start);
+            var startReference = graph.Last;
+            var pipeline = specification.Pipeline;
+            var projection = specification.Projection;
+            var observation = config(new Observation<TProjection>());
+            var observer = new Observer<TProjection>(pipeline, projection, startReference, factManager, observation);
+            factManager.AddObserver(observer);
+            observer.Start();
+            return observer;
         }
     }
 }

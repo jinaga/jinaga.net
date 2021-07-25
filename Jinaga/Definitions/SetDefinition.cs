@@ -9,7 +9,7 @@ namespace Jinaga.Definitions
 
         public virtual SetDefinition AppendChain(string role, string predecessorType)
         {
-            return new SetDefinitionChainRole(
+            return new SetDefinitionPredecessorChain(
                 new ChainRole(new ChainStart(this), role, predecessorType)
             );
         }
@@ -47,22 +47,21 @@ namespace Jinaga.Definitions
         public override string FactType => factType;
     }
 
-    public class SetDefinitionChainRole : SetDefinition
+    public class SetDefinitionPredecessorChain : SetDefinition
     {
         private readonly ChainRole chainRole;
 
-        public ChainRole ChainRole => chainRole;
-
         public override string FactType => throw new NotImplementedException();
+        public override string Tag => chainRole.Role;
 
-        public SetDefinitionChainRole(ChainRole chainRole)
+        public SetDefinitionPredecessorChain(ChainRole chainRole)
         {
             this.chainRole = chainRole;
         }
 
         public override SetDefinition AppendChain(string role, string predecessorType)
         {
-            return new SetDefinitionChainRole(
+            return new SetDefinitionPredecessorChain(
                 new ChainRole(chainRole, role, predecessorType)
             );
         }

@@ -16,7 +16,7 @@ namespace Jinaga.Test.Facts
             var firstName = new PassengerName(passenger, "George", new PassengerName[0]);
             var secondName = new PassengerName(passenger, "Jorge", new PassengerName[] { firstName });
 
-            var collector = new Collector(new SerializerCache());
+            var collector = new Collector(SerializerCache.Empty);
             var result = collector.Serialize(secondName);
             int factVisits = collector.FactVisitsCount;
 
@@ -34,7 +34,7 @@ namespace Jinaga.Test.Facts
             // You have to really want to do this
             prior[0] = secondName;
 
-            var collector = new Collector(new SerializerCache());
+            var collector = new Collector(SerializerCache.Empty);
             Action serialize = () => collector.Serialize(secondName);
             serialize.Should().Throw<ArgumentException>()
                 .WithMessage("Jinaga cannot serialize a fact containing a cycle");
@@ -43,7 +43,7 @@ namespace Jinaga.Test.Facts
         [Fact]
         public void Optimization_CreateSerializer()
         {
-            var serializerCache = new SerializerCache();
+            var serializerCache = SerializerCache.Empty;
             var (newCache, serializer) = serializerCache.GetSerializer(typeof(Airline));
             newCache.TypeCount.Should().Be(1);
         }
@@ -55,7 +55,7 @@ namespace Jinaga.Test.Facts
             var firstName = new PassengerName(passenger, "George", new PassengerName[0]);
             var secondName = new PassengerName(passenger, "Jorge", new PassengerName[] { firstName });
 
-            var serializerCache = new SerializerCache();
+            var serializerCache = SerializerCache.Empty;
             var collector = new Collector(serializerCache);
             var result = collector.Serialize(secondName);
             collector.SerializerCache.TypeCount.Should().Be(4);
@@ -68,10 +68,10 @@ namespace Jinaga.Test.Facts
             var firstName = new PassengerName(passenger, "George", new PassengerName[0]);
             var secondName = new PassengerName(passenger, "Jorge", new PassengerName[] { firstName });
 
-            var collector = new Collector(new SerializerCache());
+            var collector = new Collector(SerializerCache.Empty);
             var result = collector.Serialize(secondName);
 
-            var emitter = new Emitter(collector.Graph, new DeserializerCache());
+            var emitter = new Emitter(collector.Graph, DeserializerCache.Empty);
             var deserialized = emitter.Deserialize<PassengerName>(result);
 
             deserialized.passenger.Should().BeSameAs(deserialized.prior[0].passenger);

@@ -1,4 +1,4 @@
-namespace Jinaga.Pipelines
+namespace Jinaga.Projections
 {
     public abstract class Projection
     {

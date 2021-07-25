@@ -120,14 +120,14 @@ namespace Jinaga.Test.Facts
 
         private static FactGraph Serialize(object runtimeFact)
         {
-            var collector = new Collector(new SerializerCache());
+            var collector = new Collector(SerializerCache.Empty);
             var reference = collector.Serialize(runtimeFact);
             return collector.Graph;
         }
 
         private static T Deserialize<T>(FactGraph graph, FactReference reference)
         {
-            var emitter = new Emitter(graph, new DeserializerCache());
+            var emitter = new Emitter(graph, DeserializerCache.Empty);
             var runtimeFact = emitter.Deserialize<T>(reference);
             return runtimeFact;
         }

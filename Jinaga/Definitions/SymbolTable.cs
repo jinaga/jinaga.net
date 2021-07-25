@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Immutable;
-using Jinaga.Pipelines;
 
 namespace Jinaga.Definitions
 {

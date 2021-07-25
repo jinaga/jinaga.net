@@ -1,3 +1,4 @@
+﻿using Jinaga.Visualizers;
 using System;
 using System.Collections.Immutable;
 using System.Linq;
@@ -6,104 +7,133 @@ namespace Jinaga.Pipelines
 {
     public class Pipeline
     {
-        private readonly string initialFactName;
-        private readonly string initialFactType;
+        public static Pipeline Empty = new Pipeline(ImmutableList<Label>.Empty, ImmutableList<Path>.Empty, ImmutableList<Conditional>.Empty);
+
+        private readonly ImmutableList<Label> starts;
         private readonly ImmutableList<Path> paths;
-        private readonly Projection projection;
+        private readonly ImmutableList<Conditional> conditionals;
 
-        public string InitialTag => initialFactName;
-        public ImmutableList<Path> Paths => paths;
-        public Projection Projection => projection;
-
-        public static Pipeline FromInitialFact(string name, string type)
+        public Pipeline(ImmutableList<Label> starts, ImmutableList<Path> paths, ImmutableList<Conditional> conditionals)
         {
-            return new Pipeline(name, type, ImmutableList<Path>.Empty, new SimpleProjection(name));
-        }
-
-        private Pipeline(string initialFactName, string initialFactType, ImmutableList<Path> paths, Projection projection)
-        {
-            this.initialFactName = initialFactName;
-            this.initialFactType = initialFactType;
+            this.starts = starts;
             this.paths = paths;
-            this.projection = projection;
+            this.conditionals = conditionals;
         }
 
-        public Pipeline WithProjection(string name, string tag)
+        public ImmutableList<Label> Starts => starts;
+        public ImmutableList<Path> Paths => paths;
+        public ImmutableList<Conditional> Conditionals => conditionals;
+
+        public Pipeline AddStart(Label label)
         {
-            if (projection is SimpleProjection)
-            {
-                return new Pipeline(initialFactName, initialFactType, paths, new CompoundProjection().With(name, tag));
-            }
-            else if (projection is CompoundProjection compoundProjection)
-            {
-                return new Pipeline(initialFactName, initialFactType, paths, compoundProjection.With(name, tag));
-            }
-            else
-            {
-                throw new NotImplementedException();
-            }
+            return new Pipeline(starts.Add(label), paths, conditionals);
+        }
+
+        public Pipeline AddPath(Path path)
+        {
+            return new Pipeline(starts, paths.Add(path), conditionals);
+        }
+
+        public Pipeline PrependPath(Path path)
+        {
+            return new Pipeline(starts, paths.Insert(0, path), conditionals);
+        }
+
+        public Pipeline AddConditional(Conditional conditional)
+        {
+            return new Pipeline(starts, paths, conditionals.Add(conditional));
+        }
+
+        public ImmutableList<Inverse> ComputeInverses()
+        {
+            return Inverter.InvertPipeline(this).ToImmutableList();
         }
 
         public Pipeline Compose(Pipeline pipeline)
         {
-            if (this.initialFactName != pipeline.initialFactName)
-            {
-                throw new ArgumentException("Initial fact names to not agree");
-            }
-            if (this.initialFactType != pipeline.initialFactType)
-            {
-                throw new ArgumentException("Initial fact types to not agree");
-            }
-
-            var combinedPaths = paths
-                .Union(pipeline.paths, new PathTagComparer())
+            var combinedStarts = starts
+                .Union(pipeline.Starts)
                 .ToImmutableList();
-            return new Pipeline(initialFactName, initialFactType, combinedPaths, projection);
+            var combinedPaths = paths
+                .Union(pipeline.paths)
+                .ToImmutableList();
+            var combinedConditionals = conditionals
+                .Union(pipeline.conditionals)
+                .ToImmutableList();
+            return new Pipeline(combinedStarts, combinedPaths, combinedConditionals);
         }
 
-        public Pipeline WithPath(Path path)
+        public string ToDescriptiveString(int depth = 0)
         {
-            return new Pipeline(initialFactName, initialFactType, paths.Add(path), new SimpleProjection(path.Tag));
-        }
-
-        public ImmutableList<Step> Linearize(string? outerTag)
-        {
-            if (projection is SimpleProjection simpleProjection)
-            {
-                var tag = simpleProjection.Tag;
-                ImmutableList<Step> steps = ImmutableList<Step>.Empty;
-                while (tag != initialFactName)
-                {
-                    var path = paths.Where(p => p.Tag == tag).Single();
-                    steps = path.Steps.AddRange(steps);
-                    if (tag == outerTag)
-                    {
-                        break;
-                    }
-                    tag = path.StartingTag;
-                }
-                return steps;
-            }
-            else
-            {
-                throw new NotImplementedException();
-            }
-        }
-
-        public string ToDescriptiveString()
-        {
-            string pathDescriptiveString = string.Join("", paths
-                .Select(path => path.ToDescriptiveString(1)));
-            string projectionDescriptiveString = projection.ToDescriptiveString();
-            return $"{initialFactName}: {initialFactType} {{\r\n{pathDescriptiveString}    {projectionDescriptiveString}\r\n}}";
+            string indent = Strings.Indent(depth);
+            string pathLines = paths
+                .Select(path =>
+                    path.ToDescriptiveString(depth + 1) +
+                    conditionals
+                        .Where(condition => condition.Start == path.Target)
+                        .Select(condition => condition.ToDescriptiveString(depth + 1))
+                        .Join("")
+                )
+                .Join("");
+            return $"{indent}{starts.Join(", ")} {{\r\n{pathLines}{indent}}}\r\n";
         }
 
         public string ToOldDescriptiveString()
         {
-            var steps = Linearize(null);
-            string oldDescriptiveString = string.Join(" ", steps
-                .Select(step => step.ToOldDescriptiveString()));
-            return oldDescriptiveString;
+            var start = starts.Single();
+            return PathOldDescriptiveString(start);
+        }
+
+        private string PathOldDescriptiveString(Label start)
+        {
+            var path = paths
+                .Where(path => path.Start == start)
+                .SingleOrDefault();
+            if (path == null)
+            {
+                return "";
+            }
+
+            var conditional = conditionals
+                .Where(conditional => conditional.Start == path.Target)
+                .Select(conditional => conditional.ToOldDescriptiveString())
+                .Join(" ");
+            var tail = PathOldDescriptiveString(path.Target);
+            return new[]
+            {
+                path.ToOldDescriptiveString(),
+                conditional,
+                tail
+            }
+            .Where(str => !string.IsNullOrWhiteSpace(str))
+            .Join(" ");
+        }
+
+        public override string ToString()
+        {
+            return ToDescriptiveString();
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (obj == null || GetType() != obj.GetType())
+            {
+                return false;
+            }
+
+            var that = (Pipeline)obj;
+            return
+                that.starts.SetEquals(starts) &&
+                that.paths.SetEquals(paths) &&
+                that.conditionals.SetEquals(conditionals);
+        }
+
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(
+                starts.SetHash(),
+                paths.SetHash(),
+                conditionals.SetHash());
         }
     }
 }

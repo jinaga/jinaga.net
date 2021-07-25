@@ -5,15 +5,13 @@ namespace Jinaga.Facts
 {
     public class FactGraph
     {
-        private readonly ImmutableDictionary<FactReference, Fact> factsByReference;
-        private readonly ImmutableList<FactReference> topologicalOrder;
-
-        public FactGraph() : this(
+        public static FactGraph Empty = new FactGraph(
             ImmutableDictionary<FactReference, Fact>.Empty,
             ImmutableList<FactReference>.Empty
-        )
-        {
-        }
+        );
+
+        private readonly ImmutableDictionary<FactReference, Fact> factsByReference;
+        private readonly ImmutableList<FactReference> topologicalOrder;
 
         private FactGraph(ImmutableDictionary<FactReference, Fact> factsByReference, ImmutableList<FactReference> topologicalOrder)
         {
