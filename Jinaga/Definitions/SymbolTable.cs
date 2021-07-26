@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Immutable;
+using System.Linq;
 
 namespace Jinaga.Definitions
 {
@@ -32,7 +33,8 @@ namespace Jinaga.Definitions
             }
             else
             {
-                throw new NotImplementedException();
+                var symbolNames = string.Join(", ", symbols.Select(s => s.Key).ToArray());
+                throw new ArgumentException($"The symbol table does not contain a member named {name}: {symbolNames}");
             }
         }
 
