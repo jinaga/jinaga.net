@@ -3,7 +3,7 @@ using System.Linq.Expressions;
 
 namespace Jinaga.Repository
 {
-    class RepositoryQueryProvider : IQueryProvider
+    class JinagaQueryProvider : IQueryProvider
     {
         public IQueryable CreateQuery(Expression expression)
         {
@@ -12,7 +12,7 @@ namespace Jinaga.Repository
 
         public IQueryable<TElement> CreateQuery<TElement>(Expression expression)
         {
-            return new RepositoryQueryable<TElement>(this, expression);
+            return new JinagaQueryable<TElement>(this, expression);
         }
 
         public object Execute(Expression expression)

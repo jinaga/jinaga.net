@@ -6,12 +6,12 @@ using System.Linq.Expressions;
 
 namespace Jinaga.Repository
 {
-    class RepositoryQueryable<TFact> : IQueryable<TFact>
+    class JinagaQueryable<TFact> : IQueryable<TFact>
     {
-        private readonly RepositoryQueryProvider queryProvider;
+        private readonly JinagaQueryProvider queryProvider;
         private readonly Expression expression;
 
-        public RepositoryQueryable(RepositoryQueryProvider queryProvider, Expression expression)
+        public JinagaQueryable(JinagaQueryProvider queryProvider, Expression expression)
         {
             this.queryProvider = queryProvider;
             this.expression = expression;

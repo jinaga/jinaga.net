@@ -1,14 +1,11 @@
 using System.Linq.Expressions;
-using System;
 using System.Linq;
-using Jinaga.Definitions;
-using Jinaga.Parsers;
 
 namespace Jinaga.Repository
 {
     public class FactRepository
     {
-        private readonly RepositoryQueryProvider queryProvider = new RepositoryQueryProvider();
+        private readonly JinagaQueryProvider queryProvider = new JinagaQueryProvider();
 
         public IQueryable<TFact> OfType<TFact>()
         {
@@ -16,7 +13,7 @@ namespace Jinaga.Repository
                 Expression.Constant(this),
                 GetType().GetMethod(nameof(OfType)).MakeGenericMethod(typeof(TFact))
             );
-            return new RepositoryQueryable<TFact>(queryProvider, expression);
+            return new JinagaQueryable<TFact>(queryProvider, expression);
         }
     }
 }
