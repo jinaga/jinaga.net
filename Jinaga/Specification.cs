@@ -7,7 +7,6 @@ using Jinaga.Definitions;
 using Jinaga.Generators;
 using Jinaga.Projections;
 using Jinaga.Pipelines;
-using Jinaga.Visualizers;
 
 namespace Jinaga
 {
@@ -46,18 +45,14 @@ namespace Jinaga
                 throw new NotImplementedException();
             }
         }
-
-        // public static Specification<TFact, TProjection> Match<TProjection>(Expression<Func<TFact, FactRepository, TProjection>> spec)
-        // {
-        //     throw new NotImplementedException();
-        // }
         
         public static Specification<TFact, TProjection> Match<TProjection>(Expression<Func<TFact, TProjection>> spec)
         {
             var parameter = spec.Parameters[0];
             var initialFactName = parameter.Name;
             var initialFactType = parameter.Type.FactTypeName();
-            var symbolTable = SymbolTable.WithParameter(initialFactName, initialFactType);
+            var startingSet = new SetDefinitionInitial(initialFactName, initialFactType);
+            var symbolTable = SymbolTable.Empty.With(initialFactName, new SymbolValueSetDefinition(startingSet));
 
             var symbolValue = ValueParser.ParseValue(symbolTable, spec.Body).symbolValue;
             switch (symbolValue)
