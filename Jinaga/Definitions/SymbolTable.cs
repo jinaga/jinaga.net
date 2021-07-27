@@ -6,6 +6,7 @@ namespace Jinaga.Definitions
 {
     public class SymbolTable
     {
+        public static SymbolTable Empty = new SymbolTable(ImmutableDictionary<string, SymbolValue>.Empty);
         private readonly ImmutableDictionary<string, SymbolValue> symbols;
 
         public static SymbolTable WithParameter(string name, string type)

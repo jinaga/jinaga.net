@@ -285,7 +285,7 @@ namespace Jinaga.Parsers
             }
         }
 
-        private static object InstanceOfFact(Type factType)
+        public static object InstanceOfFact(Type factType)
         {
             var constructor = factType.GetConstructors().First();
             var parameters = constructor.GetParameters()

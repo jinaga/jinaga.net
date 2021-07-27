@@ -7,19 +7,18 @@ using Jinaga.Definitions;
 using Jinaga.Generators;
 using Jinaga.Projections;
 using Jinaga.Pipelines;
+using Jinaga.Visualizers;
 
 namespace Jinaga
 {
     public static class Given<TFact>
     {
-        public static Specification<TFact, TProjection> Match<TProjection>(Expression<Func<TFact, FactRepository, IQueryable<TProjection>>> spec)
+        public static Specification<TFact, TProjection> Match<TProjection>(Func<TFact, FactRepository, IQueryable<TProjection>> spec)
         {
-            var parameter = spec.Parameters[0];
-            var initialFactName = parameter.Name;
-            var initialFactType = parameter.Type.FactTypeName();
-            var symbolTable = SymbolTable.WithParameter(initialFactName, initialFactType);
+            object proxy = SpecificationParser.InstanceOfFact(typeof(TFact));
+            var result = (JinagaQueryable<TProjection>)spec((TFact)proxy, new FactRepository());
 
-            var value = SpecificationParser.ParseSpecification(symbolTable, spec.Body);
+            var value = SpecificationParser.ParseSpecification(SymbolTable.Empty, result.Expression);
             if (value is SymbolValueSetDefinition setDefinitionValue)
             {
                 return new Specification<TFact, TProjection>(
@@ -48,10 +47,10 @@ namespace Jinaga
             }
         }
 
-        public static Specification<TFact, TProjection> Match<TProjection>(Expression<Func<TFact, FactRepository, TProjection>> spec)
-        {
-            throw new NotImplementedException();
-        }
+        // public static Specification<TFact, TProjection> Match<TProjection>(Expression<Func<TFact, FactRepository, TProjection>> spec)
+        // {
+        //     throw new NotImplementedException();
+        // }
         
         public static Specification<TFact, TProjection> Match<TProjection>(Expression<Func<TFact, TProjection>> spec)
         {
