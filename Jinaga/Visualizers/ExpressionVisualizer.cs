@@ -4,9 +4,9 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 
-namespace Jinaga.Test.Observers
+namespace Jinaga.Visualizers
 {
-    class ExpressionVisualizer
+    public class ExpressionVisualizer
     {
         public static string DumpExpression(Expression expression, int depth = 0)
         {
@@ -40,11 +40,11 @@ namespace Jinaga.Test.Observers
             if (value == null)
                 return "null";
             Type type = value.GetType();
-            if (type.IsAssignableTo(typeof(Expression)))
+            if (typeof(Expression).IsAssignableFrom(type))
                 return DumpExpression((Expression)value, depth);
             else if (type == typeof(string))
                 return $"\"{value}\"";
-            else if (type.IsAssignableTo(typeof(IEnumerable)))
+            else if (typeof(IEnumerable).IsAssignableFrom(type))
             {
                 var values = ((IEnumerable)value)
                     .OfType<object>()

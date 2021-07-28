@@ -5,6 +5,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using Jinaga.Definitions;
+using Jinaga.Visualizers;
 
 namespace Jinaga.Parsers
 {
@@ -47,9 +48,18 @@ namespace Jinaga.Parsers
             {
                 return (symbolTable.GetField("this"), "this");
             }
+            else if (expression is MemberExpression {
+                Expression: ConstantExpression {}
+            } constantMemberExpression)
+            {
+                var type = constantMemberExpression.Type.FactTypeName();
+                var name = constantMemberExpression.Member.Name;
+                var setDefinition = new SetDefinitionInitial(name, type);
+                return (new SymbolValueSetDefinition(setDefinition), name);
+            }
             else
             {
-                throw new NotImplementedException();
+                throw new NotImplementedException($"ParseValue: {ExpressionVisualizer.DumpExpression(expression)}");
             }
         }
     }

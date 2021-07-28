@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Immutable;
+using Jinaga.Visualizers;
 
 namespace Jinaga.Definitions
 {
@@ -24,7 +25,8 @@ namespace Jinaga.Definitions
             }
             else
             {
-                throw new NotImplementedException();
+                var fieldNames = Fields.Keys.Join(", ");
+                throw new ArgumentException($"Field not found in symbol table: {name} not in ({fieldNames})");
             }
         }
 

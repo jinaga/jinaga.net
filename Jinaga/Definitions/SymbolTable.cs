@@ -1,23 +1,13 @@
 using System;
 using System.Collections.Immutable;
+using System.Linq;
 
 namespace Jinaga.Definitions
 {
     public class SymbolTable
     {
+        public static SymbolTable Empty = new SymbolTable(ImmutableDictionary<string, SymbolValue>.Empty);
         private readonly ImmutableDictionary<string, SymbolValue> symbols;
-
-        public static SymbolTable WithParameter(string name, string type)
-        {
-            var startingSet = new SetDefinitionInitial(name, type);
-            var symbolTable = new SymbolTable(ImmutableDictionary<string, SymbolValue>.Empty.Add(name, new SymbolValueSetDefinition(startingSet)));
-            return symbolTable;
-        }
-
-        public static SymbolTable WithSymbol(string name, SymbolValue value)
-        {
-            return new SymbolTable(ImmutableDictionary<string, SymbolValue>.Empty.Add(name, value));
-        }
 
         private SymbolTable(ImmutableDictionary<string, SymbolValue> symbols)
         {
@@ -32,7 +22,8 @@ namespace Jinaga.Definitions
             }
             else
             {
-                throw new NotImplementedException();
+                var symbolNames = string.Join(", ", symbols.Select(s => s.Key).ToArray());
+                throw new ArgumentException($"The symbol table does not contain a member named {name}: {symbolNames}");
             }
         }
 
