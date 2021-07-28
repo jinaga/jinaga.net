@@ -19,7 +19,9 @@ jobs:
         dotnet-version: 5.0.x
     - name: Restore dependencies
       run: dotnet restore
-    - name: Build
-      run: dotnet build --no-restore
+    - name: Build Jinaga
+      run: dotnet build Jinaga --no-restore
+    - name: Build Jinaga.Test
+      run: dotnet build Jinaga.Test --no-restore
     - name: Test
-      run: dotnet test --no-build --verbosity normal
+      run: dotnet test Jinaga.Test --no-build --verbosity normal
