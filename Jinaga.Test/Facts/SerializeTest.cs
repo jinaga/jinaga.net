@@ -44,21 +44,6 @@ namespace Jinaga.Test.Facts
         }
 
         [Fact]
-        public void SerializeConvertDateTimeToUTC()
-        {
-            // This test will fail if the local timezone offset is 0
-            // Sorry, London
-            DateTime now = DateTime.Parse("7/4/2021 1:39:43.241");
-            var graph = Serialize(new AirlineDay(new Airline("value"), now));
-
-            var airlineDay = graph.GetFact(graph.Last);
-            var field = airlineDay.Fields.Should().ContainSingle().Subject;
-            field.Name.Should().Be("date");
-            field.Value.Should().BeOfType<FieldValueString>().Which
-                .StringValue.Should().NotBe("2021-07-04T01:39:43.241Z");
-        }
-
-        [Fact]
         public void SerializeInteger()
         {
             var graph = Serialize(new Flight(new AirlineDay(new Airline("IA"), DateTime.Today), 4272));
