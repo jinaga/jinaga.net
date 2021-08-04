@@ -107,5 +107,24 @@ namespace Jinaga.Test.Facts
             var user = emitter.Deserialize<User>(userReference);
             user.publicKey.Should().Be("--- PUBLIC KEY ---");
         }
+
+        [Fact]
+        public async Task Optimization_RunPipelineOnGraph()
+        {
+            var userWithName = Given<PassengerName>.Match(passengerName =>
+                passengerName.passenger.user);
+
+            var pipeline = userWithName.Pipeline;
+            var passenger = new Passenger(new Airline("IA"), new User("--- PUBLIC KEY ---"));
+            var passengerName = new PassengerName(passenger, "George", new PassengerName[0]);
+
+            // This instance does not contain the facts.
+            var j = JinagaTest.Create();
+            var users = await j.Query(passengerName, userWithName);
+
+            // But the graph does.
+            users.Should().ContainSingle().Which
+                .publicKey.Should().Be("--- PUBLIC KEY ---");
+        }
     }
 }

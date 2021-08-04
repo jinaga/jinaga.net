@@ -1,5 +1,6 @@
 using Jinaga.Managers;
 using Jinaga.Observers;
+using Jinaga.Projections;
 using Jinaga.Services;
 using System;
 using System.Collections.Immutable;
@@ -43,12 +44,29 @@ namespace Jinaga
             var graph = factManager.Serialize(start);
             var startReference = graph.Last;
             var pipeline = specification.Pipeline;
-            var products = await factManager.Query(startReference, pipeline, cancellationToken);
-            var productProjections = await factManager.ComputeProjections<TProjection>(specification.Projection, products, cancellationToken);
-            var projections = productProjections
-                .Select(pair => pair.Projection)
-                .ToImmutableList();
-            return projections;
+            if (pipeline.CanRunOnGraph)
+            {
+                var products = pipeline.Execute(startReference, graph);
+                var projection = specification.Projection;
+                return projection switch
+                {
+                    SimpleProjection simple => products
+                        .Select(product => factManager.Deserialize<TProjection>(
+                            graph, product.GetFactReference(simple.Tag)
+                        ))
+                        .ToImmutableList(),
+                    _ => throw new NotImplementedException()
+                };
+            }
+            else
+            {
+                var products = await factManager.Query(startReference, pipeline, cancellationToken);
+                var productProjections = await factManager.ComputeProjections<TProjection>(specification.Projection, products, cancellationToken);
+                var projections = productProjections
+                    .Select(pair => pair.Projection)
+                    .ToImmutableList();
+                return projections;
+            }
         }
 
         public Observer<TProjection> Watch<TFact, TProjection>(
