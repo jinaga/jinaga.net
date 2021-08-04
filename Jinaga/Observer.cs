@@ -86,10 +86,12 @@ namespace Jinaga
                     .ToImmutableList();
                 if (matchingReferences.Any())
                 {
-                    var products = await factManager.QueryAll(
-                        startReferences,
-                        inversePipeline,
-                        cancellationToken);
+                    var products = inversePipeline.CanRunOnGraph
+                        ? inversePipeline.Execute(startReferences, graph)
+                        : await factManager.QueryAll(
+                            startReferences,
+                            inversePipeline,
+                            cancellationToken);
                     foreach (var product in products)
                     {
                         var identifyingProduct = inverse.Subset.Of(product);
