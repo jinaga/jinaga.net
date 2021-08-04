@@ -88,6 +88,27 @@ namespace Jinaga.Facts
             }
         }
 
+        public ImmutableList<FactReference> GetPredecessors(string role)
+        {
+            var references = Predecessors
+                .Where(p => p.Role == role)
+                .ToImmutableList();
+            if (references.Count == 0)
+            {
+                throw new ArgumentException($"The fact {Reference.Type} did not contain any predecessors in role {role}");
+            }
+            else if (references.Count > 1)
+            {
+                throw new ArgumentException($"The fact {Reference.Type} contained {references.Count} predecessors in role {role}; there should only be 1");
+            }
+            return references.Single() switch
+            {
+                PredecessorSingle single => ImmutableList<FactReference>.Empty.Add(single.Reference),
+                PredecessorMultiple multiple => multiple.References,
+                _ => throw new InvalidOperationException("Unknown predecessor type")
+            };
+        }
+
         private static string ComputeHash(ImmutableList<Field> fields, ImmutableList<Predecessor> predecessors)
         {
             string json = Canonicalize(fields, predecessors);

@@ -1,4 +1,5 @@
-﻿using Jinaga.Visualizers;
+﻿using Jinaga.Facts;
+using Jinaga.Visualizers;
 using System;
 using System.Collections.Immutable;
 using System.Linq;
@@ -7,17 +8,19 @@ namespace Jinaga.Pipelines
 {
     public class Pipeline
     {
-        public static Pipeline Empty = new Pipeline(ImmutableList<Label>.Empty, ImmutableList<Path>.Empty, ImmutableList<Conditional>.Empty);
+        public static Pipeline Empty = new Pipeline(ImmutableList<Label>.Empty, ImmutableList<Path>.Empty, ImmutableList<Conditional>.Empty, true);
 
         private readonly ImmutableList<Label> starts;
         private readonly ImmutableList<Path> paths;
         private readonly ImmutableList<Conditional> conditionals;
+        private readonly bool canRunOnGraph;
 
-        public Pipeline(ImmutableList<Label> starts, ImmutableList<Path> paths, ImmutableList<Conditional> conditionals)
+        public Pipeline(ImmutableList<Label> starts, ImmutableList<Path> paths, ImmutableList<Conditional> conditionals, bool canRunOnGraph)
         {
             this.starts = starts;
             this.paths = paths;
             this.conditionals = conditionals;
+            this.canRunOnGraph = canRunOnGraph;
         }
 
         public ImmutableList<Label> Starts => starts;
@@ -26,22 +29,24 @@ namespace Jinaga.Pipelines
 
         public Pipeline AddStart(Label label)
         {
-            return new Pipeline(starts.Add(label), paths, conditionals);
+            return new Pipeline(starts.Add(label), paths, conditionals, canRunOnGraph);
         }
 
         public Pipeline AddPath(Path path)
         {
-            return new Pipeline(starts, paths.Add(path), conditionals);
+            return new Pipeline(starts, paths.Add(path), conditionals,
+                canRunOnGraph && !path.SuccessorSteps.Any());
         }
 
         public Pipeline PrependPath(Path path)
         {
-            return new Pipeline(starts, paths.Insert(0, path), conditionals);
+            return new Pipeline(starts, paths.Insert(0, path), conditionals,
+                canRunOnGraph && !path.SuccessorSteps.Any());
         }
 
         public Pipeline AddConditional(Conditional conditional)
         {
-            return new Pipeline(starts, paths, conditionals.Add(conditional));
+            return new Pipeline(starts, paths, conditionals.Add(conditional), false);
         }
 
         public ImmutableList<Inverse> ComputeInverses()
@@ -60,7 +65,23 @@ namespace Jinaga.Pipelines
             var combinedConditionals = conditionals
                 .Union(pipeline.conditionals)
                 .ToImmutableList();
-            return new Pipeline(combinedStarts, combinedPaths, combinedConditionals);
+            return new Pipeline(combinedStarts, combinedPaths, combinedConditionals,
+                this.canRunOnGraph && pipeline.canRunOnGraph);
+        }
+
+        public bool CanRunOnGraph => canRunOnGraph;
+
+        public ImmutableList<Product> Execute(FactReference startReference, FactGraph graph)
+        {
+            var initialTag = starts.Single().Name;
+            var startingProducts = new Product[]
+            {
+                Product.Empty.With(initialTag, startReference)
+            }.ToImmutableList();
+            return paths.Aggregate(
+                startingProducts,
+                (products, path) => path.Execute(products, graph)
+            );
         }
 
         public string ToDescriptiveString(int depth = 0)

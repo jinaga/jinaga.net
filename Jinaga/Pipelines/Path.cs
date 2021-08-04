@@ -1,4 +1,5 @@
-﻿using Jinaga.Visualizers;
+﻿using Jinaga.Facts;
+using Jinaga.Visualizers;
 using System;
 using System.Collections.Immutable;
 using System.Linq;
@@ -45,6 +46,39 @@ namespace Jinaga.Pipelines
         public Path PrependSuccessorStep(Step successorStep)
         {
             return new Path(start, target, predecessorSteps, successorSteps.Insert(0, successorStep));
+        }
+
+        public ImmutableList<Product> Execute(ImmutableList<Product> products, FactGraph graph)
+        {
+            var results = products
+                .SelectMany(product =>
+                    ExecuteSteps(product.GetFactReference(Start.Name), graph)
+                        .Select(factReference => product.With(Target.Name, factReference)))
+                .ToImmutableList();
+            return results;
+        }
+
+        private ImmutableList<FactReference> ExecuteSteps(FactReference startingFactReference, FactGraph graph)
+        {
+            var startingSet = new FactReference[] { startingFactReference }.ToImmutableList();
+            var afterPredecessors = PredecessorSteps
+                .Aggregate(startingSet, (set, predecessorStep) => ExecutePredecessorStep(
+                    set, predecessorStep.Role, predecessorStep.TargetType, graph
+                ));
+            return afterPredecessors;
+        }
+
+        private static ImmutableList<FactReference> ExecutePredecessorStep(ImmutableList<FactReference> set, string role, string targetType, FactGraph graph)
+        {
+            var results = set.SelectMany(
+                factReference =>
+                    graph
+                        .GetFact(factReference)
+                        .GetPredecessors(role)
+                        .Where(r => r.Type == targetType)
+                )
+                .ToImmutableList();
+            return results;
         }
 
         public string ToDescriptiveString(int depth = 0)

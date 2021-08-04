@@ -2,7 +2,11 @@ using FluentAssertions;
 using Jinaga.Facts;
 using Jinaga.Serialization;
 using Jinaga.Test.Model;
+using Jinaga.UnitTest;
 using System;
+using System.Collections.Immutable;
+using System.Linq;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace Jinaga.Test.Facts
@@ -75,6 +79,33 @@ namespace Jinaga.Test.Facts
             var deserialized = emitter.Deserialize<PassengerName>(result);
 
             deserialized.passenger.Should().BeSameAs(deserialized.prior[0].passenger);
+        }
+
+        [Fact]
+        public void Optimize_PredecessorQueryCanRunOnGraph()
+        {
+            var userWithName = Given<PassengerName>.Match(passengerName =>
+                passengerName.passenger.user);
+
+            var pipeline = userWithName.Pipeline;
+            pipeline.CanRunOnGraph.Should().BeTrue();
+
+            var passenger = new Passenger(new Airline("IA"), new User("--- PUBLIC KEY ---"));
+            var passengerName = new PassengerName(passenger, "George", new PassengerName[0]);
+
+            var collector = new Collector(SerializerCache.Empty);
+            var reference = collector.Serialize(passengerName);
+            var graph = collector.Graph;
+
+            var references = pipeline
+                .Execute(reference, graph)
+                .Select(p => p.GetFactReference("user"))
+                .ToImmutableList();
+            var userReference = references.Should().ContainSingle().Subject;
+
+            var emitter = new Emitter(graph, DeserializerCache.Empty);
+            var user = emitter.Deserialize<User>(userReference);
+            user.publicKey.Should().Be("--- PUBLIC KEY ---");
         }
     }
 }
