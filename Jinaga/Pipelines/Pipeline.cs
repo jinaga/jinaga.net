@@ -73,11 +73,18 @@ namespace Jinaga.Pipelines
 
         public ImmutableList<Product> Execute(FactReference startReference, FactGraph graph)
         {
-            var initialTag = starts.Single().Name;
-            var startingProducts = new Product[]
-            {
-                Product.Empty.With(initialTag, startReference)
-            }.ToImmutableList();
+            return Execute(ImmutableList<FactReference>.Empty.Add(startReference), graph);
+        }
+
+        public ImmutableList<Product> Execute(ImmutableList<FactReference> startReferences, FactGraph graph)
+        {
+            var start = starts.Single();
+            var initialTag = start.Name;
+            var initialType = start.Type;
+            var startingProducts = startReferences
+                .Where(startReference => startReference.Type == initialType)
+                .Select(startReference => Product.Empty.With(initialTag, startReference))
+                .ToImmutableList();
             return paths.Aggregate(
                 startingProducts,
                 (products, path) => path.Execute(products, graph)

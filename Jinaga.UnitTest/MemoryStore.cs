@@ -52,6 +52,10 @@ namespace Jinaga.UnitTest
 
         public Task<ImmutableList<Product>> Query(FactReference startReference, Pipeline pipeline, CancellationToken cancellationToken)
         {
+            if (pipeline.CanRunOnGraph)
+            {
+                throw new ArgumentException("This pipeline can run on the graph. Do that.");
+            }
             var products = ExecutePipeline(startReference, pipeline);
             return Task.FromResult(products);
         }

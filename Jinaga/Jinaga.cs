@@ -47,8 +47,7 @@ namespace Jinaga
             if (pipeline.CanRunOnGraph)
             {
                 var products = pipeline.Execute(startReference, graph);
-                var projection = specification.Projection;
-                return projection switch
+                return specification.Projection switch
                 {
                     SimpleProjection simple => products
                         .Select(product => factManager.Deserialize<TProjection>(
