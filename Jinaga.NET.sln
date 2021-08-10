@@ -21,6 +21,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SampleApp.Android", "Jinaga
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Jinaga.UnitTest", "Jinaga.UnitTest\Jinaga.UnitTest.csproj", "{EE103BF1-C934-4E86-A9BE-D2FA91667873}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Jinaga.Graphviz", "Jinaga.Graphviz\Jinaga.Graphviz.csproj", "{827789E7-7CFC-412D-8085-99EA2F044F3A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|iPhoneSimulator = Debug|iPhoneSimulator
@@ -85,6 +87,14 @@ Global
 		{EE103BF1-C934-4E86-A9BE-D2FA91667873}.Debug|iPhone.Build.0 = Debug|Any CPU
 		{EE103BF1-C934-4E86-A9BE-D2FA91667873}.Release|iPhone.ActiveCfg = Release|Any CPU
 		{EE103BF1-C934-4E86-A9BE-D2FA91667873}.Release|iPhone.Build.0 = Release|Any CPU
+		{827789E7-7CFC-412D-8085-99EA2F044F3A}.Debug|iPhoneSimulator.ActiveCfg = Debug|Any CPU
+		{827789E7-7CFC-412D-8085-99EA2F044F3A}.Debug|iPhoneSimulator.Build.0 = Debug|Any CPU
+		{827789E7-7CFC-412D-8085-99EA2F044F3A}.Release|iPhoneSimulator.ActiveCfg = Release|Any CPU
+		{827789E7-7CFC-412D-8085-99EA2F044F3A}.Release|iPhoneSimulator.Build.0 = Release|Any CPU
+		{827789E7-7CFC-412D-8085-99EA2F044F3A}.Debug|iPhone.ActiveCfg = Debug|Any CPU
+		{827789E7-7CFC-412D-8085-99EA2F044F3A}.Debug|iPhone.Build.0 = Debug|Any CPU
+		{827789E7-7CFC-412D-8085-99EA2F044F3A}.Release|iPhone.ActiveCfg = Release|Any CPU
+		{827789E7-7CFC-412D-8085-99EA2F044F3A}.Release|iPhone.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{EE103BF1-C934-4E86-A9BE-D2FA91667873} = {554E5584-2CBE-4BCE-91C7-717994FAAE3A}

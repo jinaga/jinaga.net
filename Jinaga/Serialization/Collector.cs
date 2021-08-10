@@ -5,7 +5,7 @@ using System.Reflection;
 
 namespace Jinaga.Serialization
 {
-    class Collector
+    public class Collector
     {
         public FactGraph Graph { get; private set; } = FactGraph.Empty;
 

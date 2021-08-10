@@ -8,7 +8,7 @@ using System.Reflection;
 
 namespace Jinaga.Serialization
 {
-    class SerializerCache
+    public class SerializerCache
     {
         public static SerializerCache Empty = new SerializerCache(
             ImmutableDictionary<Type, Delegate>.Empty
