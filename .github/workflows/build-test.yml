@@ -1,0 +1,31 @@
+name: "Build and Test"
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: "0"
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: 5.0.x
+    - name: Restore dependencies
+      run: dotnet restore
+    - name: Build
+      run: |
+        dotnet build Jinaga --no-restore
+        dotnet build Jinaga.UnitTest --no-restore
+        dotnet build Jinaga.Test --no-restore
+        dotnet build Jinaga.Graphviz --no-restore
+    - name: Test
+      run: dotnet test Jinaga.Test --no-build --verbosity normal

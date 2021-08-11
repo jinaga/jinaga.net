@@ -1,0 +1,35 @@
+#!csharp
+
+#r "../Jinaga.Test/bin/Debug/net5.0/Jinaga.Test.dll"
+using Jinaga.Test.Model;
+using Jinaga;
+
+var compoundSpecification = Given<Airline>.Match((airline, facts) =>
+    from flight in facts.OfType<Flight>()
+    where flight.airlineDay.airline == airline
+    from booking in facts.OfType<Booking>()
+    where booking.flight == flight
+    from cancellation in facts.OfType<FlightCancellation>()
+    where cancellation.flight == flight
+    select new
+    {
+        booking,
+        cancellation
+    }
+);
+
+var simpleSpecification = Given<Airline>.Match((airline, facts) =>
+    from flight in facts.OfType<Flight>()
+    where flight.airlineDay.airline == airline
+    from booking in facts.OfType<Booking>()
+    where booking.flight == flight
+    from cancellation in facts.OfType<FlightCancellation>()
+    where cancellation.flight == flight
+    select cancellation
+);
+
+simpleSpecification.Pipeline.ToDescriptiveString()
+
+#!csharp
+
+compoundSpecification.Pipeline.ToDescriptiveString()

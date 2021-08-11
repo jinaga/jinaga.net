@@ -1,0 +1,58 @@
+#!csharp
+
+#r "../Jinaga.Graphviz/bin/Debug/net5.0/Jinaga.UnitTest.dll"
+using Jinaga;
+using Jinaga.UnitTest;
+
+[FactType("Nested.Family")]
+public record Family(string name);
+
+[FactType("Nested.Person")]
+public record Person(Family family, DateTime birthdate);
+
+[FactType("Nested.Person.Name")]
+public record PersonName(Person person, string value, PersonName[] prior)
+{
+    public Condition IsCurrent => new Condition(facts =>
+        !(
+            facts.OfType<PersonName>(next => next.prior.Contains(this))
+        ).Any()
+    );
+}
+
+var j = JinagaTest.Create();
+
+#!csharp
+
+var namesOfPerson = Given<Person>.Match((person, facts) =>
+    facts.OfType<PersonName>(name => name.person == person)
+        .Where(name => name.IsCurrent)
+);
+
+var peopleInFamily = Given<Family>.Match((family, facts) =>
+    from person in facts.OfType<Person>()
+    where person.family == family
+    select new
+    {
+        Person = person,
+        Names = facts.All(person, namesOfPerson)
+    }
+);
+
+peopleInFamily.Pipeline.ToDescriptiveString() +
+peopleInFamily.Projection.ToDescriptiveString()
+
+#!csharp
+
+var perry = new Family("Perry");
+
+j.Watch(perry, peopleInFamily, async result =>
+{
+    var personId = await InsertPerson();
+    result.Names.OnAdded(async name => await UpdatePerson(personId, name.value));
+    return async () => await DeletePerson(personId);
+});
+
+Task<int> InsertPerson() => Task.FromResult(0);
+Task DeletePerson(int personId) => Task.CompletedTask;
+Task UpdatePerson(int personId, string name) => Task.CompletedTask;
