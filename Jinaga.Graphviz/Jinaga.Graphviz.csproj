@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Jinaga\Jinaga.csproj" />
+    <ProjectReference Include="..\Jinaga.UnitTest\Jinaga.UnitTest.csproj" />
   </ItemGroup>
 
   <ItemGroup>
