@@ -2,6 +2,6 @@
 {
     public class PredecessorSetSingle : PredecessorSet
     {
-        public FactReference Reference { get; set; }
+        public FactReference Reference { get; set; } = new FactReference();
     }
 }

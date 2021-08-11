@@ -30,7 +30,7 @@ namespace Jinaga.Http
 
         public static TResponse Deserialize<TResponse>(string json)
         {
-            return JsonSerializer.Deserialize<TResponse>(json, options);
+            return CheckedDeserialize<TResponse>(json);
         }
 
         private class PredecessorSetConverter : JsonConverter<PredecessorSet>
@@ -40,13 +40,13 @@ namespace Jinaga.Http
                 switch (reader.TokenType)
                 {
                     case JsonTokenType.StartObject:
-                        var reference = JsonSerializer.Deserialize<FactReference>(ref reader, options);
+                        var reference = CheckedDeserialize<FactReference>(ref reader, options);
                         return new PredecessorSetSingle
                         {
                             Reference = reference
                         };
                     case JsonTokenType.StartArray:
-                        var references = JsonSerializer.Deserialize<List<FactReference>>(ref reader, options);
+                        var references = CheckedDeserialize<List<FactReference>>(ref reader, options);
                         return new PredecessorSetMultiple
                         {
                             References = references
@@ -79,7 +79,7 @@ namespace Jinaga.Http
                 switch (reader.TokenType)
                 {
                     case JsonTokenType.String:
-                        return FieldValue.From(reader.GetString());
+                        return FieldValue.From(reader.GetString() ?? "");
                     case JsonTokenType.True:
                     case JsonTokenType.False:
                         return FieldValue.From(reader.GetBoolean());
@@ -107,6 +107,26 @@ namespace Jinaga.Http
                         throw new JsonException();
                 }
             }
+        }
+
+        private static T CheckedDeserialize<T>(ref Utf8JsonReader reader, JsonSerializerOptions options)
+        {
+            var response = JsonSerializer.Deserialize<T>(ref reader, options);
+            if (response == null)
+            {
+                throw new ArgumentException($"Object is not a {nameof(T)}");
+            }
+            return response;
+        }
+
+        private static T CheckedDeserialize<T>(string json)
+        {
+            var response = JsonSerializer.Deserialize<T>(json, options);
+            if (response == null)
+            {
+                throw new ArgumentException($"Object is not a {nameof(T)}: {json}");
+            }
+            return response;
         }
     }
 }

@@ -5,6 +5,6 @@ namespace Jinaga.Http
 {
     public class LoadRequest
     {
-        public List<FactReference> References { get; set; }
+        public List<FactReference> References { get; set; } = new List<FactReference>();
     }
 }

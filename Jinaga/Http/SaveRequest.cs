@@ -5,6 +5,6 @@ namespace Jinaga.Http
 {
     public class SaveRequest
     {
-        public List<FactRecord> Facts { get; set; }
+        public List<FactRecord> Facts { get; set; } = new List<FactRecord>();
     }
 }
