@@ -17,6 +17,7 @@ namespace Jinaga.Definitions
         public IEnumerable<string> AllTags()
         {
             return fields
+                .OrderBy(field => field.Key)
                 .SelectMany(field => AllTags(field.Value).Prepend(field.Key));
         }
 

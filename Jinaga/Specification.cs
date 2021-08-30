@@ -37,7 +37,7 @@ namespace Jinaga
                     .Aggregate(new CompoundProjection(), (p, tag) => p.With(tag, tag));
                 return new Specification<TFact, TProjection>(
                     pipeline,
-                    new CompoundProjection()
+                    projection
                 );
             }
             else
