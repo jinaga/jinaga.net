@@ -5,7 +5,7 @@ namespace Jinaga.Projections
 {
     public class CompoundProjection : Projection
     {
-        private ImmutableList<(string, string)> fields = ImmutableList<(string, string)>.Empty;
+        private ImmutableList<(string name, string tag)> fields = ImmutableList<(string name, string tag)>.Empty;
 
         public CompoundProjection()
         {
@@ -21,9 +21,17 @@ namespace Jinaga.Projections
             return new CompoundProjection(fields.Add((name, tag)));
         }
 
+        public string GetTag(string name)
+        {
+            return fields
+                .Where(field => field.name == name)
+                .Select(field => field.tag)
+                .Single();
+        }
+
         public override string ToDescriptiveString()
         {
-            var fieldString = string.Join("", fields.Select(field => $"        {field.Item1} = {field.Item2}\r\n"));
+            var fieldString = string.Join("", fields.Select(field => $"        {field.name} = {field.tag}\r\n"));
             return $"{{\r\n{fieldString}    }}";
         }
     }

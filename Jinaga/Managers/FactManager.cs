@@ -47,23 +47,46 @@ namespace Jinaga.Managers
 
         public async Task<ImmutableList<ProductProjection<TProjection>>> ComputeProjections<TProjection>(Projection projection, ImmutableList<Product> products, CancellationToken cancellationToken)
         {
-            switch (projection)
+            if (projection is SimpleProjection simple)
             {
-                case SimpleProjection simple:
-                    var productReferences = products
-                        .Select(product => (product, reference: product.GetFactReference(simple.Tag)))
-                        .ToImmutableList();
-                    var references = productReferences
-                        .Select(pair => pair.reference)
-                        .ToImmutableList();
-                    var graph = await store.Load(references, cancellationToken);
-                    var productProjections = productReferences
-                        .Select(pair => new ProductProjection<TProjection>(pair.product,
-                            Deserialize<TProjection>(graph, pair.reference)))
-                        .ToImmutableList();
-                    return productProjections;
-                default:
-                    throw new NotImplementedException();
+                var productReferences = products
+                    .Select(product => (product, reference: product.GetFactReference(simple.Tag)))
+                    .ToImmutableList();
+                var references = productReferences
+                    .Select(pair => pair.reference)
+                    .ToImmutableList();
+                var graph = await store.Load(references, cancellationToken);
+                var productProjections = productReferences
+                    .Select(pair => new ProductProjection<TProjection>(pair.product,
+                        Deserialize<TProjection>(graph, pair.reference)))
+                    .ToImmutableList();
+                return productProjections;
+            }
+            else if (projection is CompoundProjection compound)
+            {
+                var constructor = typeof(TProjection).GetConstructors().Single();
+                var parameters = constructor.GetParameters();
+                var references = (
+                    from product in products
+                    from parameter in parameters
+                    let tag = compound.GetTag(parameter.Name)
+                    select product.GetFactReference(tag)
+                ).Distinct().ToImmutableList();
+                var graph = await store.Load(references, cancellationToken);
+                var productProjections =
+                    from product in products
+                    let result = constructor.Invoke((
+                        from parameter in parameters
+                        let tag = compound.GetTag(parameter.Name)
+                        let reference = product.GetFactReference(tag)
+                        select Deserialize(graph, reference, parameter.ParameterType)
+                    ).ToArray())
+                    select new ProductProjection<TProjection>(product, (TProjection)result);
+                return productProjections.ToImmutableList();
+            }
+            else
+            {
+                throw new NotImplementedException();
             }
         }
 
@@ -84,6 +107,17 @@ namespace Jinaga.Managers
             {
                 var emitter = new Emitter(graph, deserializerCache);
                 var fact = emitter.Deserialize<TFact>(reference);
+                deserializerCache = emitter.DeserializerCache;
+                return fact;
+            }
+        }
+
+        public object Deserialize(FactGraph graph, FactReference reference, Type type)
+        {
+            lock (this)
+            {
+                var emitter = new Emitter(graph, deserializerCache);
+                var fact = emitter.DeserializeToType(reference, type);
                 deserializerCache = emitter.DeserializerCache;
                 return fact;
             }
