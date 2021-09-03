@@ -17,7 +17,7 @@ namespace Jinaga.Test
             j = JinagaTest.Create();
         }
 
-        //[Fact]
+        [Fact]
         public async Task Projection_FirstOrDefault()
         {
             var airline = await j.Fact(new Airline("IA"));
