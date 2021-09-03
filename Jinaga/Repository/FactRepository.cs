@@ -1,5 +1,7 @@
+using System;
 using System.Linq.Expressions;
 using System.Linq;
+using Jinaga.Observers;
 
 namespace Jinaga.Repository
 {
@@ -11,9 +13,23 @@ namespace Jinaga.Repository
         {
             var expression = Expression.Call(
                 Expression.Constant(this),
-                GetType().GetMethod(nameof(OfType)).MakeGenericMethod(typeof(TFact))
+                GetType().GetMethods()
+                    .Single(method => method.Name == nameof(OfType) && method.GetParameters().Count() == 0)
+                    .MakeGenericMethod(typeof(TFact))
             );
             return new JinagaQueryable<TFact>(queryProvider, expression);
+        }
+
+        public IQueryable<TFact> OfType<TFact>(Expression<Func<TFact, bool>> predicate)
+        {
+            return this.OfType<TFact>().Where(predicate);
+        }
+
+        public Observation<TProjection> Observe<TFact, TProjection>(
+            TFact start,
+            Specification<TFact, TProjection> specification)
+        {
+            throw new NotImplementedException();
         }
     }
 }
