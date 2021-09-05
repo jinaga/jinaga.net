@@ -55,28 +55,6 @@ namespace Jinaga.Projections
                 .Single();
         }
 
-        public string GetTag(string name)
-        {
-            return fields
-                .Where(field => field.name == name)
-                .Select(field => GetTagOf(field.value))
-                .Single();
-        }
-
-        private string GetTagOf(SymbolValue value)
-        {
-            if (value is SymbolValueSetDefinition {
-                SetDefinition: SetDefinition setDefinition
-            })
-            {
-                return setDefinition.Tag;
-            }
-            else
-            {
-                throw new NotImplementedException();
-            }
-        }
-
         public override string ToDescriptiveString()
         {
             var fieldString = string.Join("", fields.Select(field => $"        {field.name} = {ValueDescriptiveString(field.value)}\r\n"));
