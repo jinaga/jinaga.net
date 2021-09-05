@@ -1,6 +1,7 @@
 ﻿using Jinaga.Definitions;
 using Jinaga.Facts;
 using Jinaga.Observers;
+using Jinaga.Parsers;
 using Jinaga.Pipelines;
 using Jinaga.Projections;
 using Jinaga.Serialization;
@@ -86,11 +87,32 @@ namespace Jinaga.Managers
                     let result = constructor.Invoke((
                         from parameter in parameters
                         let value = compound.GetValue(parameter.Name)
-                        from reference in GetFactReferences(product, value)
-                        select Deserialize(graph, reference, parameter.ParameterType)
+                        select DeserializeParameter(product, value, graph, parameter.ParameterType)
                     ).ToArray())
                     select new ProductProjection<TProjection>(product, (TProjection)result);
                 return productProjections.ToImmutableList();
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
+        }
+
+        private object DeserializeParameter(Product product, SymbolValue value, FactGraph graph, Type parameterType)
+        {
+            if (parameterType.IsFactType())
+            {
+                var reference = GetFactReferences(product, value).Single();
+                return Deserialize(graph, reference, parameterType);
+            }
+            else if (parameterType.IsGenericType &&
+                parameterType.GetGenericTypeDefinition() == typeof(IObservableCollection<>))
+            {
+                var elementType = parameterType.GetGenericArguments()[0];
+                var elements =  GetFactReferences(product, value)
+                    .Select(reference => Deserialize(graph, reference, elementType))
+                    .ToImmutableList();
+                return ImmutableObservableCollection.Create(elementType, elements);
             }
             else
             {

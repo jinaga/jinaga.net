@@ -18,12 +18,23 @@ namespace Jinaga.Test
         }
 
         [Fact]
-        public async Task Projection_FirstOrDefault()
+        public async Task Projection_Query()
         {
             var airline = await j.Fact(new Airline("IA"));
             var user = await j.Fact(new User("--- PUBLIC KEY ---"));
             var passenger = await j.Fact(new Passenger(airline, user));
             await j.Fact(new PassengerName(passenger, "Joe", new PassengerName[0]));
+
+            var namesOfPassenger = Given<Passenger>.Match((passenger, facts) =>
+                from passengerName in facts.OfType<PassengerName>()
+                where passengerName.passenger == passenger
+                where !(
+                    from next in facts.OfType<PassengerName>()
+                    where next.prior.Contains(passengerName)
+                    select next
+                ).Any()
+                select passengerName
+            );
 
             var passengers = await j.Query(airline, Given<Airline>.Match((airline, facts) =>
                 from passenger in facts.OfType<Passenger>()
@@ -31,16 +42,13 @@ namespace Jinaga.Test
                 select new
                 {
                     passenger,
-                    name = (
-                        from passengerName in facts.OfType<PassengerName>()
-                        where passengerName.passenger == passenger
-                        select passengerName.value
-                    ).FirstOrDefault()
+                    names = facts.All(passenger, namesOfPassenger)
                 }
             ));
 
             passengers.Should().ContainSingle().Which
-                .name.Should().Be("Joe");
+                .names.Should().ContainSingle().Which
+                .value.Should().Be("Joe");
         }
     }
 }

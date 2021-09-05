@@ -1,10 +1,12 @@
 ﻿using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Threading.Tasks;
 
 namespace Jinaga.Observers
 {
-    public class Observation<TProjection>
+    public class Observation<TProjection> : IObservableCollection<TProjection>
     {
         protected readonly ImmutableList<Func<TProjection, Task<object>>> onAddedHandlers;
 
@@ -24,6 +26,16 @@ namespace Jinaga.Observers
                 ImmutableList<Func<object, TProjection, Task>>.Empty,
                 ImmutableList<Func<object, Task>>.Empty
             );
+        }
+
+        public IEnumerator<TProjection> GetEnumerator()
+        {
+            throw new InvalidOperationException("You cannot enumerate a collection after j.Watch.");
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            throw new InvalidOperationException("You cannot enumerate a collection after j.Watch.");
         }
     }
 }
