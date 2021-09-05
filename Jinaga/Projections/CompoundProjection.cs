@@ -47,6 +47,14 @@ namespace Jinaga.Projections
             }
         }
 
+        public SymbolValue GetValue(string name)
+        {
+            return fields
+                .Where(field => field.name == name)
+                .Select(field => field.value)
+                .Single();
+        }
+
         public string GetTag(string name)
         {
             return fields

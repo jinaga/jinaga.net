@@ -1,10 +1,12 @@
-﻿using Jinaga.Facts;
+﻿using Jinaga.Definitions;
+using Jinaga.Facts;
 using Jinaga.Observers;
 using Jinaga.Pipelines;
 using Jinaga.Projections;
 using Jinaga.Serialization;
 using Jinaga.Services;
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
@@ -64,25 +66,51 @@ namespace Jinaga.Managers
             }
             else if (projection is CompoundProjection compound)
             {
-                var constructor = typeof(TProjection).GetConstructors().Single();
+                var constructorInfos = typeof(TProjection).GetConstructors();
+                if (constructorInfos.Length != 1)
+                {
+                    throw new NotImplementedException($"Multiple constructors for {typeof(TProjection).Name}");
+                }
+                var constructor = constructorInfos.Single();
                 var parameters = constructor.GetParameters();
                 var references = (
                     from product in products
                     from parameter in parameters
-                    let tag = compound.GetTag(parameter.Name)
-                    select product.GetFactReference(tag)
+                    let value = compound.GetValue(parameter.Name)
+                    from reference in GetFactReferences(product, value)
+                    select reference
                 ).Distinct().ToImmutableList();
                 var graph = await store.Load(references, cancellationToken);
                 var productProjections =
                     from product in products
                     let result = constructor.Invoke((
                         from parameter in parameters
-                        let tag = compound.GetTag(parameter.Name)
-                        let reference = product.GetFactReference(tag)
+                        let value = compound.GetValue(parameter.Name)
+                        from reference in GetFactReferences(product, value)
                         select Deserialize(graph, reference, parameter.ParameterType)
                     ).ToArray())
                     select new ProductProjection<TProjection>(product, (TProjection)result);
                 return productProjections.ToImmutableList();
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
+        }
+
+        private IEnumerable<FactReference> GetFactReferences(Product product, SymbolValue value)
+        {
+            if (value is SymbolValueSetDefinition {
+                SetDefinition: SetDefinition setDefinition
+            })
+            {
+                return new [] { product.GetFactReference(setDefinition.Tag) };
+            }
+            else if (value is SymbolValueCollection {
+                Projection: SimpleProjection simpleProjection
+            })
+            {
+                return new [] { product.GetFactReference(simpleProjection.Tag) };
             }
             else
             {

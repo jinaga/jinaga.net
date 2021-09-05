@@ -59,15 +59,15 @@ namespace Jinaga.Parsers
                 var setDefinition = new SetDefinitionInitial(name, type);
                 return (new SymbolValueSetDefinition(setDefinition), name);
             }
-            else if (expression is MethodCallExpression observeCallExpression &&
-                observeCallExpression.Method.DeclaringType.Name == nameof(FactRepository) &&
-                observeCallExpression.Method.Name == nameof(FactRepository.Observe))
+            else if (expression is MethodCallExpression allCallExpression &&
+                allCallExpression.Method.DeclaringType.Name == nameof(FactRepository) &&
+                allCallExpression.Method.Name == nameof(FactRepository.All))
             {
-                var start = ParseValue(symbolTable, observeCallExpression.Arguments[0]).symbolValue;
+                var start = ParseValue(symbolTable, allCallExpression.Arguments[0]).symbolValue;
                 if (start is SymbolValueSetDefinition startValue)
                 {
                     var startSetDefinition = startValue.SetDefinition;
-                    var specification = ParseSpecification(symbolTable, observeCallExpression.Arguments[1]);
+                    var specification = ParseSpecification(symbolTable, allCallExpression.Arguments[1]);
                     var parameterLabel = specification.Pipeline.Starts.First();
                     var argument = new Label(startSetDefinition.Tag, startSetDefinition.FactType);
                     var pipeline = specification.Pipeline.Apply(parameterLabel, argument);

@@ -49,7 +49,7 @@ namespace Jinaga.Test.Pipelines
                 select new
                 {
                     passenger,
-                    names = facts.Observe(passenger, namesOfPassenger)
+                    names = facts.All(passenger, namesOfPassenger)
                 }
             );
 
