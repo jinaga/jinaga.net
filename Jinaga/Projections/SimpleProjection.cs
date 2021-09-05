@@ -1,3 +1,5 @@
+using Jinaga.Pipelines;
+
 namespace Jinaga.Projections
 {
     public class SimpleProjection : Projection
@@ -12,6 +14,18 @@ namespace Jinaga.Projections
         public override string ToDescriptiveString()
         {
             return Tag;
+        }
+
+        public override Projection Apply(Label parameter, Label argument)
+        {
+            if (Tag == parameter.Name)
+            {
+                return new SimpleProjection(argument.Name);
+            }
+            else
+            {
+                return this;
+            }
         }
     }
 }

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using Jinaga.Pipelines;
 
 namespace Jinaga.Definitions
 {
@@ -53,9 +54,32 @@ namespace Jinaga.Definitions
                     .OrderBy(field => field.Key)
                     .SelectMany(field => AllSetDefinitions(field.Value));
             }
+            else if (value is SymbolValueCollection collectionValue)
+            {
+                return new [] { collectionValue.StartSetDefinition };
+            }
             else
             {
                 throw new NotImplementedException();
+            }
+        }
+
+        public IEnumerable<Pipeline> AllPipelines()
+        {
+            return fields
+                .OrderBy(field => field.Key)
+                .SelectMany(field => AllPipelines(field.Value));
+        }
+
+        private IEnumerable<Pipeline> AllPipelines(SymbolValue value)
+        {
+            if (value is SymbolValueCollection collectionValue)
+            {
+                return new [] { collectionValue.Pipeline };
+            }
+            else
+            {
+                return new Pipeline[0];
             }
         }
     }

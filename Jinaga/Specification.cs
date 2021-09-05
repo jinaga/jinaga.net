@@ -31,6 +31,7 @@ namespace Jinaga
                 var pipeline = projectionDefinition
                     .AllSetDefinitions()
                     .Select(s => PipelineGenerator.CreatePipeline(s))
+                    .Union(projectionDefinition.AllPipelines())
                     .Aggregate((a, b) => a.Compose(b));
                 var projection = projectionDefinition
                     .AllTags()
@@ -68,7 +69,14 @@ namespace Jinaga
             }
         }
     }
-    public class Specification<TFact, TProjection>
+
+    public interface ISpecification
+    {
+        Pipeline Pipeline { get; }
+        Projection Projection { get; }
+    }
+
+    public class Specification<TFact, TProjection> : ISpecification
     {
         private readonly Pipeline pipeline;
         private readonly Projection projection;

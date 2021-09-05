@@ -5,6 +5,8 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using Jinaga.Definitions;
+using Jinaga.Pipelines;
+using Jinaga.Repository;
 using Jinaga.Visualizers;
 
 namespace Jinaga.Parsers
@@ -57,9 +59,44 @@ namespace Jinaga.Parsers
                 var setDefinition = new SetDefinitionInitial(name, type);
                 return (new SymbolValueSetDefinition(setDefinition), name);
             }
+            else if (expression is MethodCallExpression observeCallExpression &&
+                observeCallExpression.Method.DeclaringType.Name == nameof(FactRepository) &&
+                observeCallExpression.Method.Name == nameof(FactRepository.Observe))
+            {
+                var start = ParseValue(symbolTable, observeCallExpression.Arguments[0]).symbolValue;
+                if (start is SymbolValueSetDefinition startValue)
+                {
+                    var startSetDefinition = startValue.SetDefinition;
+                    var specification = ParseSpecification(symbolTable, observeCallExpression.Arguments[1]);
+                    var parameterLabel = specification.Pipeline.Starts.First();
+                    var argument = new Label(startSetDefinition.Tag, startSetDefinition.FactType);
+                    var pipeline = specification.Pipeline.Apply(parameterLabel, argument);
+                    var projection = specification.Projection.Apply(parameterLabel, argument);
+                    return (new SymbolValueCollection(startSetDefinition, pipeline, projection), "");
+                }
+                else
+                {
+                    throw new NotImplementedException($"ParseValue: {ExpressionVisualizer.DumpExpression(expression)}");
+                }
+            }
             else
             {
                 throw new NotImplementedException($"ParseValue: {ExpressionVisualizer.DumpExpression(expression)}");
+            }
+        }
+
+        private static ISpecification ParseSpecification(SymbolTable symbolTable, Expression expression)
+        {
+            if (expression is MemberExpression {
+                Expression: ConstantExpression constantExpression,
+                Member: FieldInfo field
+            })
+            {
+                return (ISpecification)field.GetValue(constantExpression.Value);
+            }
+            else
+            {
+                throw new NotImplementedException($"ParseSpecification: {ExpressionVisualizer.DumpExpression(expression)}");
             }
         }
     }

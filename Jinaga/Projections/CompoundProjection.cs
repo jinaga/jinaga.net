@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using System.Linq;
+using Jinaga.Pipelines;
 
 namespace Jinaga.Projections
 {
@@ -19,6 +20,14 @@ namespace Jinaga.Projections
         public CompoundProjection With(string name, string tag)
         {
             return new CompoundProjection(fields.Add((name, tag)));
+        }
+
+        public override Projection Apply(Label parameter, Label argument)
+        {
+            return new CompoundProjection(fields
+                .Select(field => (field.name, field.tag == parameter.Name ? argument.Name : field.tag))
+                .ToImmutableList()
+            );
         }
 
         public string GetTag(string name)

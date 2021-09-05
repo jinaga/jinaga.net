@@ -48,6 +48,18 @@ namespace Jinaga.Pipelines
             return new Path(start, target, predecessorSteps, successorSteps.Insert(0, successorStep));
         }
 
+        public Path Apply(Label parameter, Label argument)
+        {
+            if (start == parameter)
+            {
+                return new Path(argument, target, predecessorSteps, successorSteps);
+            }
+            else
+            {
+                return this;
+            }
+        }
+
         public ImmutableList<Product> Execute(ImmutableList<Product> products, FactGraph graph)
         {
             var results = products

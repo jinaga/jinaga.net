@@ -69,6 +69,18 @@ namespace Jinaga.Pipelines
                 this.canRunOnGraph && pipeline.canRunOnGraph);
         }
 
+        public Pipeline Apply(Label parameter, Label argument)
+        {
+            var starts = this.starts.Remove(parameter);
+            var paths = this.paths
+                .Select(path => path.Apply(parameter, argument))
+                .ToImmutableList();
+            var conditionals = this.conditionals
+                .Select(conditional => conditional.Apply(parameter, argument))
+                .ToImmutableList();
+            return new Pipeline(starts, paths, conditionals, this.canRunOnGraph);
+        }
+
         public bool CanRunOnGraph => canRunOnGraph;
 
         public ImmutableList<Product> Execute(FactReference startReference, FactGraph graph)
