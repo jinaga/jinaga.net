@@ -64,8 +64,8 @@ namespace Jinaga.Test.Pipelines
 }
 ");
             specification.Projection.ToDescriptiveString().Should().Be(@"{
-        passenger = passenger
         names = [passengerName]
+        passenger = passenger
     }");
         }
     }

@@ -15,6 +15,11 @@ namespace Jinaga.Definitions
             this.fields = fields;
         }
 
+        public SymbolValue GetValue(string tag)
+        {
+            return fields[tag];
+        }
+
         public IEnumerable<string> AllTags()
         {
             return fields
