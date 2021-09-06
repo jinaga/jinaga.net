@@ -44,7 +44,7 @@ namespace Jinaga.Observers
             return projections.GetEnumerator();
         }
 
-        public ObservationWithIdentity<TProjection, TIdentity> OnAdded<TIdentity>(Func<TProjection, Task<TIdentity>> added) where TIdentity : struct
+        public void OnAdded(Func<TProjection, Task<Func<Task>>> added)
         {
             throw new InvalidOperationException("You cannot receive notification from a collection after j.Query.");
         }

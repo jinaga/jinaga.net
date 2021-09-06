@@ -24,8 +24,8 @@ namespace Jinaga.Test
         {
             var company = await j.Fact(new Company("Contoso"));
 
-            var officeObserver = j.Watch(company, officesInCompany, obs => obs
-                .OnAdded(async office => await officeRepository.Insert(office))
+            var officeObserver = j.Watch(company, officesInCompany,
+                async office => await officeRepository.Insert(office)
             );
             await officeObserver.Initialized;
 
@@ -40,8 +40,8 @@ namespace Jinaga.Test
             var company = await j.Fact(new Company("Contoso"));
             var newOffice = await j.Fact(new Office(company, new City("Dallas")));
 
-            var officeObserver = j.Watch(company, officesInCompany, obs => obs
-                .OnAdded(async office => await officeRepository.Insert(office))
+            var officeObserver = j.Watch(company, officesInCompany,
+                async office => await officeRepository.Insert(office)
             );
             await officeObserver.Initialized;
 
@@ -55,8 +55,8 @@ namespace Jinaga.Test
         {
             var company = await j.Fact(new Company("Contoso"));
 
-            var officeObserver = j.Watch(company, officesInCompany, obs => obs
-                .OnAdded(async office => await officeRepository.Insert(office))
+            var officeObserver = j.Watch(company, officesInCompany,
+                async office => await officeRepository.Insert(office)
             );
             await officeObserver.Initialized;
 
@@ -72,10 +72,14 @@ namespace Jinaga.Test
             var company = await j.Fact(new Company("Contoso"));
             var newOffice = await j.Fact(new Office(company, new City("Dallas")));
 
-            var officeObserver = j.Watch(company, officesInCompany, obs => obs
-                .OnAdded(async office => await officeRepository.Insert(office))
-                .OnRemoved(async id => await officeRepository.Delete(id))
-            );
+            var officeObserver = j.Watch(company, officesInCompany, async office =>
+            {
+                int officeId = await officeRepository.Insert(office);
+                return async () =>
+                {
+                    await officeRepository.Delete(officeId);
+                };
+            });
             await officeObserver.Initialized;
 
             await j.Fact(new OfficeClosure(newOffice, DateTime.Now));
@@ -89,10 +93,14 @@ namespace Jinaga.Test
         {
             var company = await j.Fact(new Company("Contoso"));
 
-            var officeObserver = j.Watch(company, officesInCompany, obs => obs
-                .OnAdded(async office => await officeRepository.Insert(office))
-                .OnRemoved(async id => await officeRepository.Delete(id))
-            );
+            var officeObserver = j.Watch(company, officesInCompany, async office =>
+            {
+                int officeId = await officeRepository.Insert(office);
+                return async () =>
+                {
+                    await officeRepository.Delete(officeId);
+                };
+            });
             await officeObserver.Initialized;
 
             var newOffice = await j.Fact(new Office(company, new City("Dallas")));
@@ -107,8 +115,8 @@ namespace Jinaga.Test
         {
             var company = await j.Fact(new Company("Contoso"));
 
-            var officeObserver = j.Watch(company, officesInCompany, obs => obs
-                .OnAdded(async office => await officeRepository.Insert(office))
+            var officeObserver = j.Watch(company, officesInCompany,
+                async office => await officeRepository.Insert(office)
             );
             await officeObserver.Initialized;
 
@@ -125,10 +133,14 @@ namespace Jinaga.Test
             var company = await j.Fact(new Company("Contoso"));
             var newOffice = await j.Fact(new Office(company, new City("Dallas")));
 
-            var officeObserver = j.Watch(company, officesInCompany, obs => obs
-                .OnAdded(async office => await officeRepository.Insert(office))
-                .OnRemoved(async id => await officeRepository.Delete(id))
-            );
+            var officeObserver = j.Watch(company, officesInCompany, async office =>
+            {
+                int officeId = await officeRepository.Insert(office);
+                return async () =>
+                {
+                    await officeRepository.Delete(officeId);
+                };
+            });
             await officeObserver.Initialized;
 
             await officeObserver.Stop();
@@ -143,10 +155,14 @@ namespace Jinaga.Test
         {
             var company = await j.Fact(new Company("Contoso"));
 
-            var officeObserver = j.Watch(company, officesInCompany, obs => obs
-                .OnAdded(async office => await officeRepository.Insert(office))
-                .OnRemoved(async id => await officeRepository.Delete(id))
-            );
+            var officeObserver = j.Watch(company, officesInCompany, async office =>
+            {
+                int id = await officeRepository.Insert(office);
+                return async () =>
+                {
+                    await officeRepository.Delete(id);
+                };
+            });
             await officeObserver.Initialized;
 
             var newOffice = await j.Fact(new Office(company, new City("Dallas")));

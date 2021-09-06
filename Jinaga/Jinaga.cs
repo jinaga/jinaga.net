@@ -71,7 +71,21 @@ namespace Jinaga
         public Observer<TProjection> Watch<TFact, TProjection>(
             TFact start,
             Specification<TFact, TProjection> specification,
-            Func<Observation<TProjection>, IObservation<TProjection>> config)
+            Func<TProjection, Task> added)
+        {
+            return Watch<TFact, TProjection>(start, specification,
+                async projection =>
+                {
+                    await added(projection);
+                    return () => Task.CompletedTask;
+                }
+            );
+        }
+
+        public Observer<TProjection> Watch<TFact, TProjection>(
+            TFact start,
+            Specification<TFact, TProjection> specification,
+            Func<TProjection, Task<Func<Task>>> added)
         {
             if (start == null)
             {
@@ -82,7 +96,7 @@ namespace Jinaga
             var startReference = graph.Last;
             var pipeline = specification.Pipeline;
             var projection = specification.Projection;
-            var observation = config(new Observation<TProjection>());
+            var observation = new FunctionObservation<TProjection>(added);
             var observer = new Observer<TProjection>(pipeline, projection, startReference, factManager, observation);
             factManager.AddObserver(observer);
             observer.Start();

@@ -37,7 +37,7 @@ j.Watch(perry, Given<Family>.Match((family, facts) =>
     select new
     {
         Person = person,
-        Names = facts.Observe(person, namesOfPerson)
+        Names = facts.All(person, namesOfPerson)
     }
 ), observation => observation
     .OnAdded(async result =>
