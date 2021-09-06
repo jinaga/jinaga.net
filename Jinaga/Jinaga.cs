@@ -71,6 +71,40 @@ namespace Jinaga
         public Observer<TProjection> Watch<TFact, TProjection>(
             TFact start,
             Specification<TFact, TProjection> specification,
+            Action<TProjection> added)
+        {
+            return Watch<TFact, TProjection>(start, specification,
+                projection =>
+                {
+                    added(projection);
+                    Func<Task> result = () => Task.CompletedTask;
+                    return Task.FromResult(result);
+                }
+            );
+        }
+
+        public Observer<TProjection> Watch<TFact, TProjection>(
+            TFact start,
+            Specification<TFact, TProjection> specification,
+            Func<TProjection, Action> added)
+        {
+            return Watch<TFact, TProjection>(start, specification,
+                projection =>
+                {
+                    var removed = added(projection);
+                    Func<Task> result = () =>
+                    {
+                        removed();
+                        return Task.CompletedTask;
+                    };
+                    return Task.FromResult(result);
+                }
+            );
+        }
+
+        public Observer<TProjection> Watch<TFact, TProjection>(
+            TFact start,
+            Specification<TFact, TProjection> specification,
             Func<TProjection, Task> added)
         {
             return Watch<TFact, TProjection>(start, specification,
