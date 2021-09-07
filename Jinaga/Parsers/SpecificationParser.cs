@@ -23,7 +23,16 @@ namespace Jinaga.Parsers
                     var factType = method.GetGenericArguments()[0].FactTypeName();
 
                     var set = FactsOfType(factType);
-                    return new SymbolValueSetDefinition(set);
+                    var source = new SymbolValueSetDefinition(set);
+
+                    if (methodCall.Arguments.Count == 0)
+                    {
+                        return source;
+                    }
+                    else
+                    {
+                        return ParseWhere(source, symbolTable, methodCall.Arguments[0]);
+                    }
                 }
                 else if (method.DeclaringType == typeof(Queryable))
                 {

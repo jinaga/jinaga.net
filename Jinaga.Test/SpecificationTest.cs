@@ -26,6 +26,22 @@ namespace Jinaga.Test
         }
 
         [Fact]
+        public void CanSpecifyShortSuccessors()
+        {
+            Specification<Airline, Flight> specification = Given<Airline>.Match((airline, facts) =>
+                facts.OfType<Flight>(flight => flight.airlineDay.airline == airline)
+            );
+            var pipeline = specification.Pipeline;
+            string descriptiveString = pipeline.ToDescriptiveString();
+            descriptiveString.Should().Be(@"airline: Skylane.Airline {
+    flight: Skylane.Flight = airline S.airline Skylane.Airline.Day S.airlineDay Skylane.Flight
+}
+");
+            string oldDescriptiveString = pipeline.ToOldDescriptiveString();
+            oldDescriptiveString.Should().Be("S.airline F.type=\"Skylane.Airline.Day\" S.airlineDay F.type=\"Skylane.Flight\"");
+        }
+
+        [Fact]
         public void CanSpecifyPredecessors()
         {
             Specification<FlightCancellation, Flight> specification = Given<FlightCancellation>.Match((flightCancellation, facts) =>
@@ -97,6 +113,32 @@ namespace Jinaga.Test
                 where flight.airlineDay == airlineDay
 
                 where !flight.IsCancelled
+
+                select flight
+            );
+            var pipeline = activeFlights.Pipeline;
+            var descriptiveString = pipeline.ToDescriptiveString();
+            descriptiveString.Should().Be(@"airlineDay: Skylane.Airline.Day {
+    flight: Skylane.Flight = airlineDay S.airlineDay Skylane.Flight
+    N(
+        flight: Skylane.Flight {
+            cancellation: Skylane.Flight.Cancellation = flight S.flight Skylane.Flight.Cancellation
+        }
+    )
+}
+");
+            var oldDescriptiveString = pipeline.ToOldDescriptiveString();
+            oldDescriptiveString.Should().Be("S.airlineDay F.type=\"Skylane.Flight\" N(S.flight F.type=\"Skylane.Flight.Cancellation\")");
+        }
+
+        [Fact]
+        public void CanSpecifyNamedShortNegativeExistentialConditions()
+        {
+            Specification<AirlineDay, Flight> activeFlights = Given<AirlineDay>.Match((airlineDay, facts) =>
+                from flight in facts.OfType<Flight>()
+                where flight.airlineDay == airlineDay
+
+                where !flight.ShortIsCancelled
 
                 select flight
             );
