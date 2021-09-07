@@ -29,9 +29,7 @@ var namesOfPerson = Given<Person>.Match((person, facts) =>
         .Where(name => name.IsCurrent)
 );
 
-var perry = new Family("Perry");
-
-j.Watch(perry, Given<Family>.Match((family, facts) =>
+var peopleInFamily = Given<Family>.Match((family, facts) =>
     from person in facts.OfType<Person>()
     where person.family == family
     select new
@@ -39,17 +37,17 @@ j.Watch(perry, Given<Family>.Match((family, facts) =>
         Person = person,
         Names = facts.All(person, namesOfPerson)
     }
-), observation => observation
-    .OnAdded(async result =>
-    {
-        var personId = await InsertPerson();
-        result.Names
-            .OnAdded(async name => await UpdatePerson(personId, name.value));
-        return personId;
-    })
-    .OnRemoved(async personId => await DeletePerson(personId))
 );
+
+var perry = new Family("Perry");
+
+j.Watch(perry, peopleInFamily, async result =>
+{
+    var personId = await InsertPerson();
+    result.Names.OnAdded(async name => await UpdatePerson(personId, name.value));
+    return async () => await DeletePerson(personId);
+});
 
 Task<int> InsertPerson() => Task.FromResult(0);
 Task DeletePerson(int personId) => Task.CompletedTask;
-Task<int> UpdatePerson(int personId, string name) => Task.FromResult(personId);
+Task UpdatePerson(int personId, string name) => Task.CompletedTask;
