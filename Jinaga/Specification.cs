@@ -31,7 +31,6 @@ namespace Jinaga
                 var pipeline = projectionDefinition
                     .AllSetDefinitions()
                     .Select(s => PipelineGenerator.CreatePipeline(s))
-                    .Union(projectionDefinition.AllPipelines())
                     .Aggregate((a, b) => a.Compose(b));
                 var projection = projectionDefinition
                     .AllTags()

@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
-using Jinaga.Pipelines;
 
 namespace Jinaga.Definitions
 {
@@ -66,25 +65,6 @@ namespace Jinaga.Definitions
             else
             {
                 throw new NotImplementedException();
-            }
-        }
-
-        public IEnumerable<Pipeline> AllPipelines()
-        {
-            return fields
-                .OrderBy(field => field.Key)
-                .SelectMany(field => AllPipelines(field.Value));
-        }
-
-        private IEnumerable<Pipeline> AllPipelines(SymbolValue value)
-        {
-            if (value is SymbolValueCollection collectionValue)
-            {
-                return new Pipeline[0];
-            }
-            else
-            {
-                return new Pipeline[0];
             }
         }
     }
