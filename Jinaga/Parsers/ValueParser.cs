@@ -60,7 +60,7 @@ namespace Jinaga.Parsers
                 return (new SymbolValueSetDefinition(setDefinition), name);
             }
             else if (expression is MethodCallExpression allCallExpression &&
-                allCallExpression.Method.DeclaringType.Name == nameof(FactRepository) &&
+                allCallExpression.Method.DeclaringType == typeof(FactRepository) &&
                 allCallExpression.Method.Name == nameof(FactRepository.All))
             {
                 var start = ParseValue(symbolTable, allCallExpression.Arguments[0]).symbolValue;

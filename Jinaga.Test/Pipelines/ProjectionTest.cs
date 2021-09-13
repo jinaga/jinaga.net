@@ -24,9 +24,9 @@ namespace Jinaga.Test.Pipelines
             );
 
             specification.Projection.ToDescriptiveString().Should().Be(@"{
-        passenger = passenger
-        passengerName = passengerName
-    }");
+    passenger = passenger
+    passengerName = passengerName
+}");
         }
 
         [Fact]
@@ -55,18 +55,22 @@ namespace Jinaga.Test.Pipelines
 
             specification.Pipeline.ToDescriptiveString().Should().Be(@"airline: Skylane.Airline {
     passenger: Skylane.Passenger = airline S.airline Skylane.Passenger
-    passengerName: Skylane.Passenger.Name = passenger S.passenger Skylane.Passenger.Name
-    N(
-        passengerName: Skylane.Passenger.Name {
-            next: Skylane.Passenger.Name = passengerName S.prior Skylane.Passenger.Name
-        }
-    )
 }
 ");
             specification.Projection.ToDescriptiveString().Should().Be(@"{
-        names = [passengerName]
-        passenger = passenger
-    }");
+    names = [
+        {
+            passengerName: Skylane.Passenger.Name = passenger S.passenger Skylane.Passenger.Name
+            N(
+                passengerName: Skylane.Passenger.Name {
+                    next: Skylane.Passenger.Name = passengerName S.prior Skylane.Passenger.Name
+                }
+            )
+        }
+        passengerName
+    ]
+    passenger = passenger
+}");
         }
     }
 }

@@ -11,7 +11,7 @@ namespace Jinaga.Projections
             Tag = tag;
         }
 
-        public override string ToDescriptiveString()
+        public override string ToDescriptiveString(int depth = 0)
         {
             return Tag;
         }

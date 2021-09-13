@@ -3,6 +3,7 @@ using System.Collections.Immutable;
 using System.Linq;
 using Jinaga.Definitions;
 using Jinaga.Pipelines;
+using Jinaga.Visualizers;
 
 namespace Jinaga.Projections
 {
@@ -55,13 +56,14 @@ namespace Jinaga.Projections
                 .Single();
         }
 
-        public override string ToDescriptiveString()
+        public override string  ToDescriptiveString(int depth = 0)
         {
-            var fieldString = string.Join("", fields.Select(field => $"        {field.name} = {ValueDescriptiveString(field.value)}\r\n"));
-            return $"{{\r\n{fieldString}    }}";
+            string indent = Strings.Indent(depth);
+            var fieldString = string.Join("", fields.Select(field => $"    {indent}{field.name} = {ValueDescriptiveString(field.value, depth + 1)}\r\n"));
+            return $"{{\r\n{fieldString}{indent}}}";
         }
 
-        private string ValueDescriptiveString(SymbolValue value)
+        private string ValueDescriptiveString(SymbolValue value, int depth)
         {
             if (value is SymbolValueSetDefinition {
                 SetDefinition: SetDefinition setDefinition
@@ -70,10 +72,14 @@ namespace Jinaga.Projections
                 return setDefinition.Tag;
             }
             else if (value is SymbolValueCollection {
+                Pipeline: Pipeline pipeline,
                 Projection: Projection projection
             })
             {
-                return $"[{projection.ToDescriptiveString()}]";
+                string indent = Strings.Indent(depth);
+                string strPipeline = pipeline.ToDescriptiveString(depth + 1);
+                string strProjection = projection.ToDescriptiveString(depth + 1);
+                return $"[\r\n{strPipeline}    {indent}{strProjection}\r\n{indent}]";
             }
             else
             {

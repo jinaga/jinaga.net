@@ -115,7 +115,8 @@ namespace Jinaga.Pipelines
                         .Join("")
                 )
                 .Join("");
-            return $"{indent}{starts.Join(", ")} {{\r\n{pathLines}{indent}}}\r\n";
+            string strStarts = starts.Any() ? starts.Join(", ") + " " : "";
+            return $"{indent}{strStarts}{{\r\n{pathLines}{indent}}}\r\n";
         }
 
         public string ToOldDescriptiveString()

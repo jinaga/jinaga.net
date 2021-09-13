@@ -80,7 +80,7 @@ namespace Jinaga.Definitions
         {
             if (value is SymbolValueCollection collectionValue)
             {
-                return new [] { collectionValue.Pipeline };
+                return new Pipeline[0];
             }
             else
             {
