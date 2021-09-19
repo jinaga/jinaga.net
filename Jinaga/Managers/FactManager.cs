@@ -40,12 +40,13 @@ namespace Jinaga.Managers
 
         public async Task<ImmutableList<Product>> Query(FactReference startReference, Pipeline pipeline, CancellationToken cancellationToken)
         {
-            return await store.Query(startReference, pipeline, cancellationToken);
+            var startReferences = ImmutableList<FactReference>.Empty.Add(startReference);
+            return await store.Query(startReferences, pipeline, cancellationToken);
         }
 
         public async Task<ImmutableList<Product>> QueryAll(ImmutableList<FactReference> startReferences, Pipeline  pipeline, CancellationToken cancellationToken)
         {
-            return await store.QueryAll(startReferences, pipeline, cancellationToken);
+            return await store.Query(startReferences, pipeline, cancellationToken);
         }
 
         public async Task<ImmutableList<ProductProjection<TProjection>>> ComputeProjections<TProjection>(Projection projection, ImmutableList<Product> products, CancellationToken cancellationToken)

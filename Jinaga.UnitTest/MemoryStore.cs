@@ -50,22 +50,16 @@ namespace Jinaga.UnitTest
             return Task.FromResult(newFacts);
         }
 
-        public Task<ImmutableList<Product>> Query(FactReference startReference, Pipeline pipeline, CancellationToken cancellationToken)
+        public Task<ImmutableList<Product>> Query(ImmutableList<FactReference> startReferences, Pipeline pipeline, CancellationToken cancellationToken)
         {
             if (pipeline.CanRunOnGraph)
             {
                 throw new ArgumentException("This pipeline can run on the graph. Do that.");
             }
-            var products = ExecutePipeline(startReference, pipeline);
-            return Task.FromResult(products);
-        }
-
-        public async Task<ImmutableList<Product>> QueryAll(ImmutableList<FactReference> startReferences, Pipeline pipeline, CancellationToken cancellationToken)
-        {
-            var productLists = await Task.WhenAll(startReferences.Select(async startReference =>
-                await Query(startReference, pipeline, cancellationToken)
-            ));
-            return productLists.SelectMany(p => p).ToImmutableList();
+            var productLists = startReferences.Select(startReference =>
+                ExecutePipeline(startReference, pipeline)
+            );
+            return Task.FromResult(productLists.SelectMany(p => p).ToImmutableList());
         }
 
         public Task<FactGraph> Load(ImmutableList<FactReference> references, CancellationToken cancellationToken)
