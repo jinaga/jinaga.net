@@ -1,3 +1,4 @@
+using Jinaga.Facts;
 using Jinaga.Managers;
 using Jinaga.Observers;
 using Jinaga.Projections;
@@ -59,7 +60,8 @@ namespace Jinaga
             }
             else
             {
-                var products = await factManager.Query(startReference, pipeline, cancellationToken);
+                var startReferences = ImmutableList<FactReference>.Empty.Add(startReference);
+                var products = await factManager.Query(startReferences, pipeline, cancellationToken);
                 var productProjections = await factManager.ComputeProjections<TProjection>(specification.Projection, products, cancellationToken);
                 var projections = productProjections
                     .Select(pair => pair.Projection)

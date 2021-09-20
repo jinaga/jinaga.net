@@ -46,8 +46,8 @@ namespace Jinaga.Test
                 }
             ));
 
-            passengers.Should().ContainSingle().Which
-                .names.Should().ContainSingle().Which
+            var result = passengers.Should().ContainSingle().Subject;
+            result.names.Should().ContainSingle().Which
                 .value.Should().Be("Joe");
         }
     }

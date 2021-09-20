@@ -57,7 +57,8 @@ namespace Jinaga
 
         private async Task RunInitialQuery(CancellationToken cancellationToken)
         {
-            var products = await factManager.Query(startReference, pipeline, cancellationToken);
+            var startReferences = ImmutableList<FactReference>.Empty.Add(startReference);
+            var products = await factManager.Query(startReferences, pipeline, cancellationToken);
             var productProjections = await factManager.ComputeProjections<TProjection>(projection, products, cancellationToken);
             var identities = await observation.NotifyAdded(productProjections);
             lock (this)
@@ -88,7 +89,7 @@ namespace Jinaga
                 {
                     var products = inversePipeline.CanRunOnGraph
                         ? inversePipeline.Execute(startReferences, graph)
-                        : await factManager.QueryAll(
+                        : await factManager.Query(
                             startReferences,
                             inversePipeline,
                             cancellationToken);

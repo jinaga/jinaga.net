@@ -37,13 +37,7 @@ namespace Jinaga.Managers
             return added;
         }
 
-        public async Task<ImmutableList<Product>> Query(FactReference startReference, Pipeline pipeline, CancellationToken cancellationToken)
-        {
-            var startReferences = ImmutableList<FactReference>.Empty.Add(startReference);
-            return await store.Query(startReferences, pipeline, cancellationToken);
-        }
-
-        public async Task<ImmutableList<Product>> QueryAll(ImmutableList<FactReference> startReferences, Pipeline  pipeline, CancellationToken cancellationToken)
+        public async Task<ImmutableList<Product>> Query(ImmutableList<FactReference> startReferences, Pipeline  pipeline, CancellationToken cancellationToken)
         {
             return await store.Query(startReferences, pipeline, cancellationToken);
         }
