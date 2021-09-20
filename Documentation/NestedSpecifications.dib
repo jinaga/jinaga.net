@@ -39,6 +39,11 @@ var peopleInFamily = Given<Family>.Match((family, facts) =>
     }
 );
 
+peopleInFamily.Pipeline.ToDescriptiveString() +
+peopleInFamily.Projection.ToDescriptiveString()
+
+#!csharp
+
 var perry = new Family("Perry");
 
 j.Watch(perry, peopleInFamily, async result =>

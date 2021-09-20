@@ -50,15 +50,16 @@ namespace Jinaga.Definitions
 
     public class SymbolValueCollection : SymbolValue
     {
-        public SetDefinition StartSetDefinition { get; }
-        public Pipeline Pipeline { get; }
-        public Projection Projection { get; }
+        private readonly Specification specification;
 
-        public SymbolValueCollection(SetDefinition startSetDefinition, Pipeline pipeline, Projection projection)
+        public SetDefinition StartSetDefinition { get; }
+        public Pipeline Pipeline => specification.Pipeline;
+        public Projection Projection => specification.Projection;
+
+        public SymbolValueCollection(SetDefinition startSetDefinition, Specification specification)
         {
             StartSetDefinition = startSetDefinition;
-            Pipeline = pipeline;
-            Projection = projection;
+            this.specification = specification;
         }
     }
 }

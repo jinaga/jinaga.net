@@ -1,7 +1,6 @@
-using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
-using Jinaga.Definitions;
 using Jinaga.Pipelines;
 using Jinaga.Visualizers;
 
@@ -9,82 +8,45 @@ namespace Jinaga.Projections
 {
     public class CompoundProjection : Projection
     {
-        private ImmutableList<(string name, SymbolValue value)> fields =
-            ImmutableList<(string name, SymbolValue value)>.Empty;
+        private ImmutableDictionary<string, Projection> projections =
+            ImmutableDictionary<string, Projection>.Empty;
 
         public CompoundProjection()
         {
         }
 
-        private CompoundProjection(ImmutableList<(string name, SymbolValue value)> fields)
+        public CompoundProjection(ImmutableDictionary<string, Projection> projections)
         {
-            this.fields = fields;
+            this.projections = projections;
         }
 
-        public CompoundProjection With(string name, SymbolValue value)
+        public IEnumerable<string> Names => projections.Keys;
+
+        public CompoundProjection With(string name, Projection projection)
         {
-            return new CompoundProjection(fields.Add((name, value)));
+            return new CompoundProjection(projections.Add(name, projection));
         }
 
         public override Projection Apply(Label parameter, Label argument)
         {
-            return new CompoundProjection(fields
-                .Select(field => (field.name, Apply(field.value, parameter, argument)))
-                .ToImmutableList()
+            return new CompoundProjection(projections
+                .ToImmutableDictionary(
+                    pair => pair.Key,
+                    pair => pair.Value.Apply(parameter, argument)
+                )
             );
         }
 
-        private SymbolValue Apply(SymbolValue value, Label parameter, Label argument)
+        public Projection GetProjection(string name)
         {
-            if (value is SymbolValueSetDefinition {
-                SetDefinition: SetDefinitionInitial initialSetDefinition
-            })
-            {
-                return new SymbolValueSetDefinition(new SetDefinitionInitial(argument.Name, argument.Type));
-            }
-            else
-            {
-                return value;
-            }
-        }
-
-        public SymbolValue GetValue(string name)
-        {
-            return fields
-                .Where(field => field.name == name)
-                .Select(field => field.value)
-                .Single();
+            return projections[name];
         }
 
         public override string  ToDescriptiveString(int depth = 0)
         {
             string indent = Strings.Indent(depth);
-            var fieldString = string.Join("", fields.Select(field => $"    {indent}{field.name} = {ValueDescriptiveString(field.value, depth + 1)}\r\n"));
+            var fieldString = string.Join("", projections.Select(field => $"    {indent}{field.Key} = {field.Value.ToDescriptiveString(depth + 1)}\r\n"));
             return $"{{\r\n{fieldString}{indent}}}";
-        }
-
-        private string ValueDescriptiveString(SymbolValue value, int depth)
-        {
-            if (value is SymbolValueSetDefinition {
-                SetDefinition: SetDefinition setDefinition
-            })
-            {
-                return setDefinition.Tag;
-            }
-            else if (value is SymbolValueCollection {
-                Pipeline: Pipeline pipeline,
-                Projection: Projection projection
-            })
-            {
-                string indent = Strings.Indent(depth);
-                string strPipeline = pipeline.ToDescriptiveString(depth + 1);
-                string strProjection = projection.ToDescriptiveString(depth + 1);
-                return $"[\r\n{strPipeline}    {indent}{strProjection}\r\n{indent}]";
-            }
-            else
-            {
-                throw new NotImplementedException();
-            }
         }
     }
 }

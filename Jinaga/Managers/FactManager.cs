@@ -1,5 +1,4 @@
-﻿using Jinaga.Definitions;
-using Jinaga.Facts;
+﻿using Jinaga.Facts;
 using Jinaga.Observers;
 using Jinaga.Parsers;
 using Jinaga.Pipelines;
@@ -78,7 +77,7 @@ namespace Jinaga.Managers
                 var references = (
                     from product in products
                     from parameter in parameters
-                    let value = compound.GetValue(parameter.Name)
+                    let value = compound.GetProjection(parameter.Name)
                     from reference in GetFactReferences(product, value)
                     select reference
                 ).Distinct().ToImmutableList();
@@ -87,7 +86,7 @@ namespace Jinaga.Managers
                     from product in products
                     let result = constructor.Invoke((
                         from parameter in parameters
-                        let value = compound.GetValue(parameter.Name)
+                        let value = compound.GetProjection(parameter.Name)
                         select DeserializeParameter(product, value, graph, parameter.ParameterType)
                     ).ToArray())
                     select new ProductProjection<TProjection>(product, (TProjection)result);
@@ -99,18 +98,18 @@ namespace Jinaga.Managers
             }
         }
 
-        private object DeserializeParameter(Product product, SymbolValue value, FactGraph graph, Type parameterType)
+        private object DeserializeParameter(Product product, Projection projection, FactGraph graph, Type parameterType)
         {
             if (parameterType.IsFactType())
             {
-                var reference = GetFactReferences(product, value).Single();
+                var reference = GetFactReferences(product, projection).Single();
                 return Deserialize(graph, reference, parameterType);
             }
             else if (parameterType.IsGenericType &&
                 parameterType.GetGenericTypeDefinition() == typeof(IObservableCollection<>))
             {
                 var elementType = parameterType.GetGenericArguments()[0];
-                var elements =  GetFactReferences(product, value)
+                var elements =  GetFactReferences(product, projection)
                     .Select(reference => Deserialize(graph, reference, elementType))
                     .ToImmutableList();
                 return ImmutableObservableCollection.Create(elementType, elements);
@@ -121,19 +120,23 @@ namespace Jinaga.Managers
             }
         }
 
-        private IEnumerable<FactReference> GetFactReferences(Product product, SymbolValue value)
+        private IEnumerable<FactReference> GetFactReferences(Product product, Projection projection)
         {
-            if (value is SymbolValueSetDefinition {
-                SetDefinition: SetDefinition setDefinition
-            })
+            if (projection is SimpleProjection simple)
             {
-                return new [] { product.GetFactReference(setDefinition.Tag) };
+                return new [] { product.GetFactReference(simple.Tag) };
             }
-            else if (value is SymbolValueCollection {
-                Projection: SimpleProjection simpleProjection
-            })
+            else if (projection is CompoundProjection compound)
             {
-                return new [] { product.GetFactReference(simpleProjection.Tag) };
+                return compound.Names
+                    .SelectMany(name => GetFactReferences(
+                        product,
+                        compound.GetProjection(name)
+                    ));
+            }
+            else if (projection is CollectionProjection collection)
+            {
+                return new FactReference[0];
             }
             else
             {

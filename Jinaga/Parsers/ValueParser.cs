@@ -6,6 +6,7 @@ using System.Linq.Expressions;
 using System.Reflection;
 using Jinaga.Definitions;
 using Jinaga.Pipelines;
+using Jinaga.Projections;
 using Jinaga.Repository;
 using Jinaga.Visualizers;
 
@@ -72,7 +73,8 @@ namespace Jinaga.Parsers
                     var argument = new Label(startSetDefinition.Tag, startSetDefinition.FactType);
                     var pipeline = specification.Pipeline.Apply(parameterLabel, argument);
                     var projection = specification.Projection.Apply(parameterLabel, argument);
-                    return (new SymbolValueCollection(startSetDefinition, pipeline, projection), "");
+                    var specificationObj = new Specification(pipeline, projection);
+                    return (new SymbolValueCollection(startSetDefinition, specificationObj), "");
                 }
                 else
                 {
