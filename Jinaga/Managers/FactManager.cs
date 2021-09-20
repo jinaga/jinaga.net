@@ -2,6 +2,7 @@
 using Jinaga.Observers;
 using Jinaga.Parsers;
 using Jinaga.Pipelines;
+using Jinaga.Products;
 using Jinaga.Projections;
 using Jinaga.Serialization;
 using Jinaga.Services;
@@ -46,16 +47,16 @@ namespace Jinaga.Managers
         {
             if (projection is SimpleProjection simple)
             {
-                var productReferences = products
-                    .Select(product => (product, reference: product.GetFactReference(simple.Tag)))
+                var productElements = products
+                    .Select(product => (product, element: product.GetElement(simple.Tag)))
                     .ToImmutableList();
-                var references = productReferences
-                    .Select(pair => pair.reference)
+                var references = productElements
+                    .SelectMany(pair => pair.element.GetFactReferences())
                     .ToImmutableList();
                 var graph = await store.Load(references, cancellationToken);
-                var productProjections = productReferences
+                var productProjections = productElements
                     .Select(pair => new ProductProjection<TProjection>(pair.product,
-                        Deserialize<TProjection>(graph, pair.reference)))
+                        Deserialize<TProjection>(graph, pair.element)))
                     .ToImmutableList();
                 return productProjections;
             }
@@ -118,7 +119,7 @@ namespace Jinaga.Managers
         {
             if (projection is SimpleProjection simple)
             {
-                return new [] { product.GetFactReference(simple.Tag) };
+                return product.GetElement(simple.Tag).GetFactReferences();
             }
             else if (projection is CompoundProjection compound)
             {
@@ -146,6 +147,24 @@ namespace Jinaga.Managers
                 collector.Serialize(prototype);
                 serializerCache = collector.SerializerCache;
                 return collector.Graph;
+            }
+        }
+
+        public TFact Deserialize<TFact>(FactGraph graph, Element element)
+        {
+            if (element is SimpleElement simple)
+            {
+                lock (this)
+                {
+                    var emitter = new Emitter(graph, deserializerCache);
+                    var fact = emitter.Deserialize<TFact>(simple.FactReference);
+                    deserializerCache = emitter.DeserializerCache;
+                    return fact;
+                }
+            }
+            else
+            {
+                throw new NotImplementedException();
             }
         }
 

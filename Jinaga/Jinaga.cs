@@ -52,7 +52,7 @@ namespace Jinaga
                 {
                     SimpleProjection simple => products
                         .Select(product => factManager.Deserialize<TProjection>(
-                            graph, product.GetFactReference(simple.Tag)
+                            graph, product.GetElement(simple.Tag)
                         ))
                         .ToImmutableList(),
                     _ => throw new NotImplementedException()

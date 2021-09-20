@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Jinaga.Facts;
 using Jinaga.Pipelines;
+using Jinaga.Products;
 using Jinaga.Services;
 
 namespace Jinaga.UnitTest
@@ -95,7 +96,7 @@ namespace Jinaga.UnitTest
             var initialTag = pipeline.Starts.Single().Name;
             var startingProducts = new Product[]
             {
-                Product.Empty.With(initialTag, startReference)
+                Product.Empty.With(initialTag, new SimpleElement(startReference))
             }.ToImmutableList();
             return pipeline.Paths.Aggregate(
                 startingProducts,
@@ -107,18 +108,30 @@ namespace Jinaga.UnitTest
         {
             var results = products
                 .SelectMany(product =>
-                    ExecuteSteps(product.GetFactReference(path.Start.Name), path)
-                        .Select(factReference => product.With(path.Target.Name, factReference)))
+                    ExecuteSteps(product.GetElement(path.Start.Name), path)
+                        .Select(factReference => product.With(path.Target.Name, new SimpleElement(factReference))))
                 .ToImmutableList();
             var conditionals = pipeline
                 .Conditionals
                 .Where(conditional => conditional.Start == path.Target);
             return results
                 .Where(result => !conditionals.Any(conditional => !ConditionIsTrue(
-                    result.GetFactReference(conditional.Start.Name),
+                    result.GetElement(conditional.Start.Name),
                     conditional.ChildPipeline,
                     conditional.Exists)))
                 .ToImmutableList();
+        }
+
+        private ImmutableList<FactReference> ExecuteSteps(Element element, Path path)
+        {
+            if (element is SimpleElement simple)
+            {
+                return ExecuteSteps(simple.FactReference, path);
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
         }
 
         private ImmutableList<FactReference> ExecuteSteps(FactReference startingFactReference, Path path)
@@ -161,6 +174,18 @@ namespace Jinaga.UnitTest
                     .Select(edge => edge.Successor)
                 )
                 .ToImmutableList();
+        }
+
+        private bool ConditionIsTrue(Element element, Pipeline pipeline, bool exists)
+        {
+            if (element is SimpleElement simple)
+            {
+                return ConditionIsTrue(simple.FactReference, pipeline, exists);
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
         }
 
         private bool ConditionIsTrue(FactReference factReference, Pipeline pipeline, bool wantAny)

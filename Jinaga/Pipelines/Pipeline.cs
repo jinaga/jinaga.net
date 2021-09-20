@@ -1,4 +1,5 @@
 ﻿using Jinaga.Facts;
+using Jinaga.Products;
 using Jinaga.Visualizers;
 using System;
 using System.Collections.Immutable;
@@ -95,7 +96,7 @@ namespace Jinaga.Pipelines
             var initialType = start.Type;
             var startingProducts = startReferences
                 .Where(startReference => startReference.Type == initialType)
-                .Select(startReference => Product.Empty.With(initialTag, startReference))
+                .Select(startReference => Product.Empty.With(initialTag, new SimpleElement(startReference)))
                 .ToImmutableList();
             return paths.Aggregate(
                 startingProducts,

@@ -1,4 +1,4 @@
-using Jinaga.Facts;
+using Jinaga.Products;
 
 namespace Jinaga.Managers
 {

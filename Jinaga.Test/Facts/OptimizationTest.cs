@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Jinaga.Facts;
+using Jinaga.Products;
 using Jinaga.Serialization;
 using Jinaga.Test.Model;
 using Jinaga.UnitTest;
@@ -99,7 +100,9 @@ namespace Jinaga.Test.Facts
 
             var references = pipeline
                 .Execute(reference, graph)
-                .Select(p => p.GetFactReference("user"))
+                .Select(p => p.GetElement("user"))
+                .OfType<SimpleElement>()
+                .Select(e => e.FactReference)
                 .ToImmutableList();
             var userReference = references.Should().ContainSingle().Subject;
 

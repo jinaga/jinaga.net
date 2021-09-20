@@ -2,6 +2,7 @@
 using Jinaga.Managers;
 using Jinaga.Observers;
 using Jinaga.Pipelines;
+using Jinaga.Products;
 using Jinaga.Projections;
 using System;
 using System.Collections.Generic;
@@ -96,8 +97,8 @@ namespace Jinaga
                     foreach (var product in products)
                     {
                         var identifyingProduct = inverse.Subset.Of(product);
-                        var affected = identifyingProduct.GetFactReference(inverse.AffectedTag);
-                        if (affected == startReference)
+                        var affected = identifyingProduct.GetElement(inverse.AffectedTag);
+                        if (affected is SimpleElement simple && simple.FactReference == startReference)
                         {
                             if (inverse.Operation == Operation.Add)
                             {

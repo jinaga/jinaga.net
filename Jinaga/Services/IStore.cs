@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Jinaga.Facts;
 using Jinaga.Pipelines;
+using Jinaga.Products;
 
 namespace Jinaga.Services
 {
