@@ -45,7 +45,9 @@ namespace Jinaga.Projections
         public override string  ToDescriptiveString(int depth = 0)
         {
             string indent = Strings.Indent(depth);
-            var fieldString = string.Join("", projections.Select(field => $"    {indent}{field.Key} = {field.Value.ToDescriptiveString(depth + 1)}\r\n"));
+            var fieldString = string.Join("", projections
+                .OrderBy(pair => pair.Key)
+                .Select(pair => $"    {indent}{pair.Key} = {pair.Value.ToDescriptiveString(depth + 1)}\r\n"));
             return $"{{\r\n{fieldString}{indent}}}";
         }
     }

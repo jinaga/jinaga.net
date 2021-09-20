@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Immutable;
-using Jinaga.Pipelines;
 using Jinaga.Projections;
 using Jinaga.Visualizers;
 
@@ -50,16 +49,13 @@ namespace Jinaga.Definitions
 
     public class SymbolValueCollection : SymbolValue
     {
-        private readonly Specification specification;
-
         public SetDefinition StartSetDefinition { get; }
-        public Pipeline Pipeline => specification.Pipeline;
-        public Projection Projection => specification.Projection;
+        public Specification Specification { get; }
 
         public SymbolValueCollection(SetDefinition startSetDefinition, Specification specification)
         {
             StartSetDefinition = startSetDefinition;
-            this.specification = specification;
+            Specification = specification;
         }
     }
 }

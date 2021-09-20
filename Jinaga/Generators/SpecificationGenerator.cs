@@ -53,7 +53,7 @@ namespace Jinaga.Generators
             }
             else if (value is SymbolValueCollection collectionValue)
             {
-                return new CollectionProjection();
+                return new CollectionProjection(collectionValue.Specification);
             }
             else
             {
