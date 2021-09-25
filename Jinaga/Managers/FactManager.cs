@@ -45,36 +45,12 @@ namespace Jinaga.Managers
 
         public async Task<ImmutableList<ProductProjection<TProjection>>> ComputeProjections<TProjection>(Projection projection, ImmutableList<Product> products, CancellationToken cancellationToken)
         {
-            var references = GetFactReferences(projection, products, typeof(TProjection));
+            var references = Projector.GetFactReferences(projection, products, typeof(TProjection));
             var graph = await store.Load(references, cancellationToken);
             var productProjections = DeserializeProductsFromGraph(graph, projection, products, typeof(TProjection));
             return productProjections
                 .Select(pair => new ProductProjection<TProjection>(pair.Product, (TProjection)pair.Projection))
                 .ToImmutableList();
-        }
-
-        private IEnumerable<FactReference> GetFactReferences(Product product, Projection projection)
-        {
-            if (projection is SimpleProjection simple)
-            {
-                return product.GetElement(simple.Tag).GetFactReferences();
-            }
-            else if (projection is CompoundProjection compound)
-            {
-                return compound.Names
-                    .SelectMany(name => GetFactReferences(
-                        product,
-                        compound.GetProjection(name)
-                    ));
-            }
-            else if (projection is CollectionProjection collection)
-            {
-                return new FactReference[0];
-            }
-            else
-            {
-                throw new NotImplementedException();
-            }
         }
 
         public FactGraph Serialize(object prototype)
@@ -114,38 +90,6 @@ namespace Jinaga.Managers
                 var fact = emitter.Deserialize<TFact>(reference);
                 deserializerCache = emitter.DeserializerCache;
                 return fact;
-            }
-        }
-
-        private ImmutableList<FactReference> GetFactReferences(Projection projection, ImmutableList<Product> products, Type type)
-        {
-            if (projection is SimpleProjection simple)
-            {
-                return products
-                    .Select(product => product.GetFactReference(simple.Tag))
-                    .ToImmutableList();
-            }
-            else if (projection is CompoundProjection compound)
-            {
-                var constructorInfos = type.GetConstructors();
-                if (constructorInfos.Length != 1)
-                {
-                    throw new NotImplementedException($"Multiple constructors for {type.Name}");
-                }
-                var constructor = constructorInfos.Single();
-                var parameters = constructor.GetParameters();
-                var references = (
-                    from product in products
-                    from parameter in parameters
-                    let value = compound.GetProjection(parameter.Name)
-                    from reference in GetFactReferences(product, value)
-                    select reference
-                ).Distinct().ToImmutableList();
-                return references;
-            }
-            else
-            {
-                throw new NotImplementedException();
             }
         }
 
@@ -211,14 +155,14 @@ namespace Jinaga.Managers
         {
             if (parameterType.IsFactType())
             {
-                var reference = GetFactReferences(product, projection).Single();
+                var reference = Projector.GetFactReferences(projection, product).Single();
                 return emitter.DeserializeToType(reference, parameterType);
             }
             else if (parameterType.IsGenericType &&
                 parameterType.GetGenericTypeDefinition() == typeof(IObservableCollection<>))
             {
                 var elementType = parameterType.GetGenericArguments()[0];
-                var elements = GetFactReferences(product, projection)
+                var elements = Projector.GetFactReferences(projection, product)
                     .Select(reference => emitter.DeserializeToType(reference, parameterType))
                     .ToImmutableList();
                 return ImmutableObservableCollection.Create(elementType, elements);
