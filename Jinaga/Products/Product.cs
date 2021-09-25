@@ -1,6 +1,8 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using Jinaga.Facts;
 using Jinaga.Pipelines;
 
 namespace Jinaga.Products
@@ -18,6 +20,18 @@ namespace Jinaga.Products
         public IEnumerable<string> Names => elements.Keys;
 
         public Element GetElement(string name) => elements[name];
+
+        public FactReference GetFactReference(string name)
+        {
+            if (elements[name] is SimpleElement simple)
+            {
+                return simple.FactReference;
+            }
+            else
+            {
+                throw new InvalidOperationException($"The element {name} is not a simple fact reference");
+            }
+        }
 
         public Product With(string name, Element element)
         {
