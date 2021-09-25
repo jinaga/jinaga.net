@@ -10,11 +10,11 @@ namespace Jinaga.Managers
 {
     class Projector
     {
-        public static IEnumerable<FactReference> GetFactReferences(Projection projection, Product product)
+        public static IEnumerable<FactReference> GetFactReferences(Projection projection, Product product, string name = "")
         {
             if (projection is SimpleProjection simple)
             {
-                return product.GetElement(simple.Tag).GetFactReferences();
+                return new[] { product.GetFactReference(simple.Tag) };
             }
             else if (projection is CompoundProjection compound)
             {
@@ -25,7 +25,42 @@ namespace Jinaga.Managers
             }
             else if (projection is CollectionProjection collection)
             {
-                return new FactReference[0];
+                var element = product.GetElement(name);
+                if (element is CollectionElement collectionElement)
+                {
+                    return GetFactReferences(collection.Specification.Projection, collectionElement.Products);
+                }
+                else
+                {
+                    throw new NotImplementedException();
+                }
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
+        }
+
+        public static ImmutableList<FactReference> GetFactReferences(Projection projection, ImmutableList<Product> products)
+        {
+            if (projection is SimpleProjection simple)
+            {
+                return products
+                    .Select(product => product.GetFactReference(simple.Tag))
+                    .ToImmutableList();
+            }
+            else if (projection is CompoundProjection compound)
+            {
+                var references = (
+                    from product in products
+                    from name in compound.Names
+                    from reference in GetFactReferences(
+                        compound.GetProjection(name),
+                        product,
+                        name)
+                    select reference
+                ).Distinct().ToImmutableList();
+                return references;
             }
             else
             {
@@ -55,7 +90,8 @@ namespace Jinaga.Managers
                     from parameter in parameters
                     from reference in GetFactReferences(
                         compound.GetProjection(parameter.Name),
-                        product)
+                        product,
+                        parameter.Name)
                     select reference
                 ).Distinct().ToImmutableList();
                 return references;

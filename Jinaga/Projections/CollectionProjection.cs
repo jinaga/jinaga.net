@@ -6,11 +6,11 @@ namespace Jinaga.Projections
 {
     public class CollectionProjection : Projection
     {
-        private readonly Specification specification;
+        public Specification Specification { get; }
 
         public CollectionProjection(Specification specification)
         {
-            this.specification = specification;
+            Specification = specification;
         }
 
         public override Projection Apply(Label parameter, Label argument)
@@ -21,8 +21,8 @@ namespace Jinaga.Projections
         public override string ToDescriptiveString(int depth = 0)
         {
             string indent = Strings.Indent(depth);
-            string pipelineStr = specification.Pipeline.ToDescriptiveString(depth + 1);
-            string projectionStr = specification.Projection.ToDescriptiveString(depth + 1);
+            string pipelineStr = Specification.Pipeline.ToDescriptiveString(depth + 1);
+            string projectionStr = Specification.Projection.ToDescriptiveString(depth + 1);
             return $"[\r\n{pipelineStr}    {indent}{projectionStr}\r\n{indent}]";
         }
     }
