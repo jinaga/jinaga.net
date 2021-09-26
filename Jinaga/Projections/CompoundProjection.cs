@@ -37,6 +37,21 @@ namespace Jinaga.Projections
             );
         }
 
+        public override ImmutableList<(string name, Specification specification)> GetNamedSpecifications()
+        {
+            var namedSpecifications =
+                from projection in projections
+                let name = projection.Key
+                where projection.Value is CollectionProjection
+                let collection = (CollectionProjection)projection.Value
+                select (name, collection.Specification);
+            var nested =
+                from projection in projections
+                from namedSpecification in projection.Value.GetNamedSpecifications()
+                select namedSpecification;
+            return namedSpecifications.Concat(nested).ToImmutableList();
+        }
+
         public Projection GetProjection(string name)
         {
             return projections[name];

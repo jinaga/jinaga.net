@@ -55,10 +55,39 @@ namespace Jinaga.UnitTest
         public Task<ImmutableList<Product>> Query(ImmutableList<FactReference> startReferences, Specification specification, CancellationToken cancellationToken)
         {
             var pipeline = specification.Pipeline;
-            var products = startReferences.Select(startReference =>
-                ExecutePipeline(startReference, pipeline)
-            ).SelectMany(p => p).ToImmutableList();
-            return Task.FromResult(products);
+            var projection = specification.Projection;
+            var subset = Subset.FromPipeline(pipeline);
+            var namedSpecifications = projection.GetNamedSpecifications();
+            var products = (
+                from startReference in startReferences
+                from product in ExecutePipeline(startReference, pipeline)
+                select product).ToImmutableList();
+            var collections =
+                from namedSpecification in namedSpecifications
+                let name = namedSpecification.name
+                let childPipeline = pipeline.Compose(namedSpecification.specification.Pipeline)
+                let childProducts = (
+                    from startReference in startReferences
+                    from childProduct in ExecutePipeline(startReference, childPipeline)
+                    select childProduct
+                ).ToImmutableList()
+                select (name, childProducts);
+            var mergedProducts = collections
+                .Aggregate(products, (source, collection) => MergeProducts(subset, collection.name, collection.childProducts, source));
+            return Task.FromResult(mergedProducts.ToImmutableList());
+        }
+
+        private ImmutableList<Product> MergeProducts(Subset subset, string name, ImmutableList<Product> childProducts, ImmutableList<Product> products)
+        {
+            var mergedProducts =
+                from product in products
+                let matchingChildProducts = (
+                    from childProduct in childProducts
+                    where subset.Of(childProduct).Equals(product)
+                    select childProduct
+                ).ToImmutableList()
+                select product.With(name, new CollectionElement(matchingChildProducts));
+            return mergedProducts.ToImmutableList();
         }
 
         public Task<FactGraph> Load(ImmutableList<FactReference> references, CancellationToken cancellationToken)
