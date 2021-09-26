@@ -10,7 +10,7 @@ namespace Jinaga.Managers
 {
     class Projector
     {
-        public static IEnumerable<FactReference> GetFactReferences(Projection projection, Product product, string name = "")
+        public static IEnumerable<FactReference> GetFactReferences(Projection projection, Product product, string name)
         {
             if (projection is SimpleProjection simple)
             {
@@ -21,7 +21,8 @@ namespace Jinaga.Managers
                 return compound.Names
                     .SelectMany(name => GetFactReferences(
                         compound.GetProjection(name),
-                        product));
+                        product,
+                        name));
             }
             else if (projection is CollectionProjection collection)
             {

@@ -47,7 +47,7 @@ namespace Jinaga.Managers
                 let result = constructor.Invoke((
                     from parameter in parameters
                     let projection = compoundProjection.GetProjection(parameter.Name)
-                    select DeserializeParameter(emitter, projection, parameter.ParameterType, product)
+                    select DeserializeParameter(emitter, projection, parameter.ParameterType, parameter.Name, product)
                 ).ToArray())
                 select new ProductProjection(product, result);
             return productProjections.ToImmutableList();
@@ -58,18 +58,18 @@ namespace Jinaga.Managers
             throw new NotImplementedException();
         }
 
-        private static object DeserializeParameter(Emitter emitter, Projection projection, Type parameterType, Product product)
+        private static object DeserializeParameter(Emitter emitter, Projection projection, Type parameterType, string parameterName, Product product)
         {
             if (parameterType.IsFactType())
             {
-                var reference = Projector.GetFactReferences(projection, product).Single();
+                var reference = Projector.GetFactReferences(projection, product, parameterName).Single();
                 return emitter.DeserializeToType(reference, parameterType);
             }
             else if (parameterType.IsGenericType &&
                 parameterType.GetGenericTypeDefinition() == typeof(IObservableCollection<>))
             {
                 var elementType = parameterType.GetGenericArguments()[0];
-                var elements = Projector.GetFactReferences(projection, product)
+                var elements = Projector.GetFactReferences(projection, product, parameterName)
                     .Select(reference => emitter.DeserializeToType(reference, parameterType))
                     .ToImmutableList();
                 return ImmutableObservableCollection.Create(elementType, elements);
