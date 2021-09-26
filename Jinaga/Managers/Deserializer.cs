@@ -70,7 +70,7 @@ namespace Jinaga.Managers
             {
                 var elementType = parameterType.GetGenericArguments()[0];
                 var elements = Projector.GetFactReferences(projection, product, parameterName)
-                    .Select(reference => emitter.DeserializeToType(reference, parameterType))
+                    .Select(reference => emitter.DeserializeToType(reference, elementType))
                     .ToImmutableList();
                 return ImmutableObservableCollection.Create(elementType, elements);
             }
