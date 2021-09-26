@@ -35,6 +35,6 @@ jobs:
         dotnet pack ./Jinaga.UnitTest/ -c Release -p:PublicRelease=true -o ./packages
         dotnet pack ./Jinaga.Graphviz/ -c Release -p:PublicRelease=true -o ./packages
     - name: Publish Nuget to GitHub registry
-      run: dotnet nuget push ./packages/*.nupkg -k ${GITHUB_TOKEN} -s https://nuget.pkg.github.com/jinaga/index.json --skip-duplicate --no-symbols 
+      run: dotnet nuget push ./packages/*.nupkg -k ${GITHUB_TOKEN} -s https://nuget.pkg.github.com/jinaga/index.json --skip-duplicate --no-symbols true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
