@@ -1,8 +1,8 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Threading.Tasks;
-using Jinaga.Facts;
 using Jinaga.Managers;
+using Jinaga.Products;
 
 namespace Jinaga.Observers
 {

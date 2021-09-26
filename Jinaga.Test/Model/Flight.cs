@@ -15,5 +15,9 @@ namespace Jinaga.Test.Model
                 select cancellation
             ).Any()
         );
+
+        public Condition ShortIsCancelled => new Condition(facts =>
+            facts.OfType<FlightCancellation>(cancellation => cancellation.flight == this).Any()
+        );
     }
 }

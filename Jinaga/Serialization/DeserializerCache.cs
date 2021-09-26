@@ -43,7 +43,12 @@ namespace Jinaga.Serialization
 
         private static Expression CreateObject(Type type, ParameterExpression factParameter, ParameterExpression emitterParameter)
         {
-            var constructor = type.GetConstructors().Single();
+            var constructorInfos = type.GetConstructors();
+            if (constructorInfos.Length != 1)
+            {
+                throw new NotImplementedException($"More than one constructor for {type.Name}");
+            }
+            var constructor = constructorInfos.Single();
             var parameters = constructor.GetParameters();
             var parameterExpressions = parameters
                 .Select(parameter =>

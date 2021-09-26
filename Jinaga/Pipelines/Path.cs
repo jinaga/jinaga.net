@@ -1,4 +1,5 @@
 ﻿using Jinaga.Facts;
+using Jinaga.Products;
 using Jinaga.Visualizers;
 using System;
 using System.Collections.Immutable;
@@ -48,24 +49,44 @@ namespace Jinaga.Pipelines
             return new Path(start, target, predecessorSteps, successorSteps.Insert(0, successorStep));
         }
 
+        public Path Apply(Label parameter, Label argument)
+        {
+            if (start == parameter)
+            {
+                return new Path(argument, target, predecessorSteps, successorSteps);
+            }
+            else
+            {
+                return this;
+            }
+        }
+
         public ImmutableList<Product> Execute(ImmutableList<Product> products, FactGraph graph)
         {
             var results = products
                 .SelectMany(product =>
-                    ExecuteSteps(product.GetFactReference(Start.Name), graph)
-                        .Select(factReference => product.With(Target.Name, factReference)))
+                    ExecuteSteps(product.GetElement(Start.Name), graph)
+                        .Select(factReference => product.With(Target.Name, new SimpleElement(factReference))))
                 .ToImmutableList();
             return results;
         }
 
-        private ImmutableList<FactReference> ExecuteSteps(FactReference startingFactReference, FactGraph graph)
+        private ImmutableList<FactReference> ExecuteSteps(Element element, FactGraph graph)
         {
-            var startingSet = new FactReference[] { startingFactReference }.ToImmutableList();
-            var afterPredecessors = PredecessorSteps
-                .Aggregate(startingSet, (set, predecessorStep) => ExecutePredecessorStep(
-                    set, predecessorStep.Role, predecessorStep.TargetType, graph
-                ));
-            return afterPredecessors;
+            if (element is SimpleElement simple)
+            {
+                var startingFactReference = simple.FactReference;
+                var startingSet = new FactReference[] { startingFactReference }.ToImmutableList();
+                var afterPredecessors = PredecessorSteps
+                    .Aggregate(startingSet, (set, predecessorStep) => ExecutePredecessorStep(
+                        set, predecessorStep.Role, predecessorStep.TargetType, graph
+                    ));
+                return afterPredecessors;
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
         }
 
         private static ImmutableList<FactReference> ExecutePredecessorStep(ImmutableList<FactReference> set, string role, string targetType, FactGraph graph)

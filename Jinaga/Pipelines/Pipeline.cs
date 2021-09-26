@@ -1,4 +1,5 @@
 ﻿using Jinaga.Facts;
+using Jinaga.Products;
 using Jinaga.Visualizers;
 using System;
 using System.Collections.Immutable;
@@ -69,6 +70,18 @@ namespace Jinaga.Pipelines
                 this.canRunOnGraph && pipeline.canRunOnGraph);
         }
 
+        public Pipeline Apply(Label parameter, Label argument)
+        {
+            var starts = this.starts.Remove(parameter);
+            var paths = this.paths
+                .Select(path => path.Apply(parameter, argument))
+                .ToImmutableList();
+            var conditionals = this.conditionals
+                .Select(conditional => conditional.Apply(parameter, argument))
+                .ToImmutableList();
+            return new Pipeline(starts, paths, conditionals, this.canRunOnGraph);
+        }
+
         public bool CanRunOnGraph => canRunOnGraph;
 
         public ImmutableList<Product> Execute(FactReference startReference, FactGraph graph)
@@ -83,7 +96,7 @@ namespace Jinaga.Pipelines
             var initialType = start.Type;
             var startingProducts = startReferences
                 .Where(startReference => startReference.Type == initialType)
-                .Select(startReference => Product.Empty.With(initialTag, startReference))
+                .Select(startReference => Product.Empty.With(initialTag, new SimpleElement(startReference)))
                 .ToImmutableList();
             return paths.Aggregate(
                 startingProducts,
@@ -103,7 +116,8 @@ namespace Jinaga.Pipelines
                         .Join("")
                 )
                 .Join("");
-            return $"{indent}{starts.Join(", ")} {{\r\n{pathLines}{indent}}}\r\n";
+            string strStarts = starts.Any() ? starts.Join(", ") + " " : "";
+            return $"{indent}{strStarts}{{\r\n{pathLines}{indent}}}\r\n";
         }
 
         public string ToOldDescriptiveString()

@@ -1,5 +1,6 @@
 using System;
-namespace Jinaga.Facts
+
+namespace Jinaga.Products
 {
     internal static class ComparablePair
     {
@@ -28,8 +29,8 @@ namespace Jinaga.Facts
 
             var that = (ComparablePair<TKey, TValue>)obj;
             return
-                AreEqual(this.key, that.key) &&
-                AreEqual(this.value, that.value);
+                AreEqual(key, that.key) &&
+                AreEqual(value, that.value);
 
             static bool AreEqual<T>(T a, T b)
             {

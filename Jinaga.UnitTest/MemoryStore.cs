@@ -1,12 +1,14 @@
+using Jinaga.Facts;
+using Jinaga.Pipelines;
+using Jinaga.Products;
+using Jinaga.Projections;
+using Jinaga.Services;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Jinaga.Facts;
-using Jinaga.Pipelines;
-using Jinaga.Services;
 
 namespace Jinaga.UnitTest
 {
@@ -50,22 +52,42 @@ namespace Jinaga.UnitTest
             return Task.FromResult(newFacts);
         }
 
-        public Task<ImmutableList<Product>> Query(FactReference startReference, Pipeline pipeline, CancellationToken cancellationToken)
+        public Task<ImmutableList<Product>> Query(ImmutableList<FactReference> startReferences, Specification specification, CancellationToken cancellationToken)
         {
-            if (pipeline.CanRunOnGraph)
-            {
-                throw new ArgumentException("This pipeline can run on the graph. Do that.");
-            }
-            var products = ExecutePipeline(startReference, pipeline);
-            return Task.FromResult(products);
+            var pipeline = specification.Pipeline;
+            var projection = specification.Projection;
+            var subset = Subset.FromPipeline(pipeline);
+            var namedSpecifications = projection.GetNamedSpecifications();
+            var products = (
+                from startReference in startReferences
+                from product in ExecutePipeline(startReference, pipeline)
+                select product).ToImmutableList();
+            var collections =
+                from namedSpecification in namedSpecifications
+                let name = namedSpecification.name
+                let childPipeline = pipeline.Compose(namedSpecification.specification.Pipeline)
+                let childProducts = (
+                    from startReference in startReferences
+                    from childProduct in ExecutePipeline(startReference, childPipeline)
+                    select childProduct
+                ).ToImmutableList()
+                select (name, childProducts);
+            var mergedProducts = collections
+                .Aggregate(products, (source, collection) => MergeProducts(subset, collection.name, collection.childProducts, source));
+            return Task.FromResult(mergedProducts.ToImmutableList());
         }
 
-        public async Task<ImmutableList<Product>> QueryAll(ImmutableList<FactReference> startReferences, Pipeline pipeline, CancellationToken cancellationToken)
+        private ImmutableList<Product> MergeProducts(Subset subset, string name, ImmutableList<Product> childProducts, ImmutableList<Product> products)
         {
-            var productLists = await Task.WhenAll(startReferences.Select(async startReference =>
-                await Query(startReference, pipeline, cancellationToken)
-            ));
-            return productLists.SelectMany(p => p).ToImmutableList();
+            var mergedProducts =
+                from product in products
+                let matchingChildProducts = (
+                    from childProduct in childProducts
+                    where subset.Of(childProduct).Equals(product)
+                    select childProduct
+                ).ToImmutableList()
+                select product.With(name, new CollectionElement(matchingChildProducts));
+            return mergedProducts.ToImmutableList();
         }
 
         public Task<FactGraph> Load(ImmutableList<FactReference> references, CancellationToken cancellationToken)
@@ -101,7 +123,7 @@ namespace Jinaga.UnitTest
             var initialTag = pipeline.Starts.Single().Name;
             var startingProducts = new Product[]
             {
-                Product.Empty.With(initialTag, startReference)
+                Product.Empty.With(initialTag, new SimpleElement(startReference))
             }.ToImmutableList();
             return pipeline.Paths.Aggregate(
                 startingProducts,
@@ -113,18 +135,30 @@ namespace Jinaga.UnitTest
         {
             var results = products
                 .SelectMany(product =>
-                    ExecuteSteps(product.GetFactReference(path.Start.Name), path)
-                        .Select(factReference => product.With(path.Target.Name, factReference)))
+                    ExecuteSteps(product.GetElement(path.Start.Name), path)
+                        .Select(factReference => product.With(path.Target.Name, new SimpleElement(factReference))))
                 .ToImmutableList();
             var conditionals = pipeline
                 .Conditionals
                 .Where(conditional => conditional.Start == path.Target);
             return results
                 .Where(result => !conditionals.Any(conditional => !ConditionIsTrue(
-                    result.GetFactReference(conditional.Start.Name),
+                    result.GetElement(conditional.Start.Name),
                     conditional.ChildPipeline,
                     conditional.Exists)))
                 .ToImmutableList();
+        }
+
+        private ImmutableList<FactReference> ExecuteSteps(Element element, Path path)
+        {
+            if (element is SimpleElement simple)
+            {
+                return ExecuteSteps(simple.FactReference, path);
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
         }
 
         private ImmutableList<FactReference> ExecuteSteps(FactReference startingFactReference, Path path)
@@ -167,6 +201,18 @@ namespace Jinaga.UnitTest
                     .Select(edge => edge.Successor)
                 )
                 .ToImmutableList();
+        }
+
+        private bool ConditionIsTrue(Element element, Pipeline pipeline, bool exists)
+        {
+            if (element is SimpleElement simple)
+            {
+                return ConditionIsTrue(simple.FactReference, pipeline, exists);
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
         }
 
         private bool ConditionIsTrue(FactReference factReference, Pipeline pipeline, bool wantAny)

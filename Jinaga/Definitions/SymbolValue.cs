@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Immutable;
+using Jinaga.Projections;
 using Jinaga.Visualizers;
 
 namespace Jinaga.Definitions
@@ -43,6 +44,18 @@ namespace Jinaga.Definitions
         public SymbolValueSetDefinition(SetDefinition setDefinition)
         {
             SetDefinition = setDefinition;
+        }
+    }
+
+    public class SymbolValueCollection : SymbolValue
+    {
+        public SetDefinition StartSetDefinition { get; }
+        public Specification Specification { get; }
+
+        public SymbolValueCollection(SetDefinition startSetDefinition, Specification specification)
+        {
+            StartSetDefinition = startSetDefinition;
+            Specification = specification;
         }
     }
 }

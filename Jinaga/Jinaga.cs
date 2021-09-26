@@ -1,3 +1,4 @@
+using Jinaga.Facts;
 using Jinaga.Managers;
 using Jinaga.Observers;
 using Jinaga.Projections;
@@ -51,7 +52,7 @@ namespace Jinaga
                 {
                     SimpleProjection simple => products
                         .Select(product => factManager.Deserialize<TProjection>(
-                            graph, product.GetFactReference(simple.Tag)
+                            graph, product.GetElement(simple.Tag)
                         ))
                         .ToImmutableList(),
                     _ => throw new NotImplementedException()
@@ -59,7 +60,8 @@ namespace Jinaga
             }
             else
             {
-                var products = await factManager.Query(startReference, pipeline, cancellationToken);
+                var startReferences = ImmutableList<FactReference>.Empty.Add(startReference);
+                var products = await factManager.Query(startReferences, specification, cancellationToken);
                 var productProjections = await factManager.ComputeProjections<TProjection>(specification.Projection, products, cancellationToken);
                 var projections = productProjections
                     .Select(pair => pair.Projection)
@@ -71,7 +73,55 @@ namespace Jinaga
         public Observer<TProjection> Watch<TFact, TProjection>(
             TFact start,
             Specification<TFact, TProjection> specification,
-            Func<Observation<TProjection>, IObservation<TProjection>> config)
+            Action<TProjection> added)
+        {
+            return Watch<TFact, TProjection>(start, specification,
+                projection =>
+                {
+                    added(projection);
+                    Func<Task> result = () => Task.CompletedTask;
+                    return Task.FromResult(result);
+                }
+            );
+        }
+
+        public Observer<TProjection> Watch<TFact, TProjection>(
+            TFact start,
+            Specification<TFact, TProjection> specification,
+            Func<TProjection, Action> added)
+        {
+            return Watch<TFact, TProjection>(start, specification,
+                projection =>
+                {
+                    var removed = added(projection);
+                    Func<Task> result = () =>
+                    {
+                        removed();
+                        return Task.CompletedTask;
+                    };
+                    return Task.FromResult(result);
+                }
+            );
+        }
+
+        public Observer<TProjection> Watch<TFact, TProjection>(
+            TFact start,
+            Specification<TFact, TProjection> specification,
+            Func<TProjection, Task> added)
+        {
+            return Watch<TFact, TProjection>(start, specification,
+                async projection =>
+                {
+                    await added(projection);
+                    return () => Task.CompletedTask;
+                }
+            );
+        }
+
+        public Observer<TProjection> Watch<TFact, TProjection>(
+            TFact start,
+            Specification<TFact, TProjection> specification,
+            Func<TProjection, Task<Func<Task>>> added)
         {
             if (start == null)
             {
@@ -82,8 +132,8 @@ namespace Jinaga
             var startReference = graph.Last;
             var pipeline = specification.Pipeline;
             var projection = specification.Projection;
-            var observation = config(new Observation<TProjection>());
-            var observer = new Observer<TProjection>(pipeline, projection, startReference, factManager, observation);
+            var observation = new FunctionObservation<TProjection>(added);
+            var observer = new Observer<TProjection>(specification, startReference, factManager, observation);
             factManager.AddObserver(observer);
             observer.Start();
             return observer;

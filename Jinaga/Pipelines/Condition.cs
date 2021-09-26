@@ -20,6 +20,18 @@ namespace Jinaga.Pipelines
         public bool Exists => exists;
         public Pipeline ChildPipeline => childPipeline;
 
+        public Conditional Apply(Label parameter, Label argument)
+        {
+            if (start == parameter)
+            {
+                return new Conditional(argument, exists, childPipeline.Apply(parameter, argument));
+            }
+            else
+            {
+                return new Conditional(start, exists, childPipeline.Apply(parameter, argument));
+            }
+        }
+
         public string ToDescriptiveString(int depth = 0)
         {
             string op = exists ? "E" : "N";

@@ -14,9 +14,15 @@ namespace Jinaga.Definitions
             this.fields = fields;
         }
 
+        public SymbolValue GetValue(string tag)
+        {
+            return fields[tag];
+        }
+
         public IEnumerable<string> AllTags()
         {
             return fields
+                .OrderBy(field => field.Key)
                 .SelectMany(field => AllTags(field.Value).Prepend(field.Key));
         }
 
@@ -51,6 +57,10 @@ namespace Jinaga.Definitions
                 return compositValue.Fields
                     .OrderBy(field => field.Key)
                     .SelectMany(field => AllSetDefinitions(field.Value));
+            }
+            else if (value is SymbolValueCollection collectionValue)
+            {
+                return new [] { collectionValue.StartSetDefinition };
             }
             else
             {

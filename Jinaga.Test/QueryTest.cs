@@ -120,5 +120,34 @@ namespace Jinaga.Test
             currentNames.Should().ContainSingle().Which
                 .value.Should().Be("Joseph");
         }
+
+        [Fact]
+        public async Task Query_ProjectTwoFacts()
+        {
+            var ia = await j.Fact(new Airline("IA"));
+            var airlineDay = await j.Fact(new AirlineDay(ia, DateTime.Today));
+            var flight = await j.Fact(new Flight(airlineDay, 4247));
+            var joe = await j.Fact(new Passenger(ia, new User("--- JOE ---")));
+            var booking = await j.Fact(new Booking(flight, joe, DateTime.UtcNow));
+            var cancellation = await j.Fact(new FlightCancellation(flight, DateTime.Now));
+
+            var bookingCancellations = await j.Query(ia, Given<Airline>.Match((airline, facts) =>
+                from flight in facts.OfType<Flight>()
+                where flight.airlineDay.airline == airline
+                from booking in facts.OfType<Booking>()
+                where booking.flight == flight
+                from cancellation in facts.OfType<FlightCancellation>()
+                where cancellation.flight == flight
+                select new
+                {
+                    booking,
+                    cancellation
+                }
+            ));
+
+            var pair = bookingCancellations.Should().ContainSingle().Subject;
+            pair.booking.Should().BeEquivalentTo(booking);
+            pair.cancellation.Should().BeEquivalentTo(cancellation);
+        }
     }
 }

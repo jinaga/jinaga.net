@@ -24,6 +24,13 @@ namespace Jinaga.Serialization
         public TFact Deserialize<TFact>(FactReference reference)
         {
             Type type = typeof(TFact);
+            object runtimeFact = DeserializeToType(reference, type);
+
+            return (TFact)runtimeFact;
+        }
+
+        public object DeserializeToType(FactReference reference, Type type)
+        {
             if (!objectByReference.TryGetValue(reference, out var runtimeFact))
             {
                 var (newCache, deserializer) = DeserializerCache.GetDeserializer(type);
@@ -39,7 +46,7 @@ namespace Jinaga.Serialization
                 }
             }
 
-            return (TFact)runtimeFact;
+            return runtimeFact;
         }
 
         public TFact[] DeserializeArray<TFact>(ImmutableList<FactReference> references)

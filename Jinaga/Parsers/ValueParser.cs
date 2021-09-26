@@ -5,6 +5,9 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using Jinaga.Definitions;
+using Jinaga.Pipelines;
+using Jinaga.Projections;
+using Jinaga.Repository;
 using Jinaga.Visualizers;
 
 namespace Jinaga.Parsers
@@ -57,9 +60,45 @@ namespace Jinaga.Parsers
                 var setDefinition = new SetDefinitionInitial(name, type);
                 return (new SymbolValueSetDefinition(setDefinition), name);
             }
+            else if (expression is MethodCallExpression allCallExpression &&
+                allCallExpression.Method.DeclaringType == typeof(FactRepository) &&
+                allCallExpression.Method.Name == nameof(FactRepository.All))
+            {
+                var start = ParseValue(symbolTable, allCallExpression.Arguments[0]).symbolValue;
+                if (start is SymbolValueSetDefinition startValue)
+                {
+                    var startSetDefinition = startValue.SetDefinition;
+                    var specification = ParseSpecification(symbolTable, allCallExpression.Arguments[1]);
+                    var parameterLabel = specification.Pipeline.Starts.First();
+                    var argument = new Label(startSetDefinition.Tag, startSetDefinition.FactType);
+                    var pipeline = specification.Pipeline.Apply(parameterLabel, argument);
+                    var projection = specification.Projection.Apply(parameterLabel, argument);
+                    var specificationObj = new Specification(pipeline, projection);
+                    return (new SymbolValueCollection(startSetDefinition, specificationObj), "");
+                }
+                else
+                {
+                    throw new NotImplementedException($"ParseValue: {ExpressionVisualizer.DumpExpression(expression)}");
+                }
+            }
             else
             {
                 throw new NotImplementedException($"ParseValue: {ExpressionVisualizer.DumpExpression(expression)}");
+            }
+        }
+
+        private static Specification ParseSpecification(SymbolTable symbolTable, Expression expression)
+        {
+            if (expression is MemberExpression {
+                Expression: ConstantExpression constantExpression,
+                Member: FieldInfo field
+            })
+            {
+                return (Specification)field.GetValue(constantExpression.Value);
+            }
+            else
+            {
+                throw new NotImplementedException($"ParseSpecification: {ExpressionVisualizer.DumpExpression(expression)}");
             }
         }
     }

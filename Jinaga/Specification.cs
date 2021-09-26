@@ -18,34 +18,10 @@ namespace Jinaga
             var result = (JinagaQueryable<TProjection>)spec((TFact)proxy, new FactRepository());
 
             var value = SpecificationParser.ParseSpecification(SymbolTable.Empty, result.Expression);
-            if (value is SymbolValueSetDefinition setDefinitionValue)
-            {
-                return new Specification<TFact, TProjection>(
-                    PipelineGenerator.CreatePipeline(setDefinitionValue.SetDefinition),
-                    new SimpleProjection(setDefinitionValue.SetDefinition.Tag)
-                );
-            }
-            else if (value is SymbolValueComposite compositeValue)
-            {
-                var projectionDefinition = compositeValue.CreateProjectionDefinition();
-                var pipeline = projectionDefinition
-                    .AllSetDefinitions()
-                    .Select(s => PipelineGenerator.CreatePipeline(s))
-                    .Aggregate((a, b) => a.Compose(b));
-                var projection = projectionDefinition
-                    .AllTags()
-                    .Aggregate(new CompoundProjection(), (p, tag) => p.With(tag, tag));
-                return new Specification<TFact, TProjection>(
-                    pipeline,
-                    new CompoundProjection()
-                );
-            }
-            else
-            {
-                throw new NotImplementedException();
-            }
+            var specification = SpecificationGenerator.CreateSpecification(value);
+            return new Specification<TFact, TProjection>(specification.Pipeline, specification.Projection);
         }
-        
+
         public static Specification<TFact, TProjection> Match<TProjection>(Expression<Func<TFact, TProjection>> spec)
         {
             var parameter = spec.Parameters[0];
@@ -59,27 +35,18 @@ namespace Jinaga
             {
                 case SymbolValueSetDefinition setValue:
                     var pipeline = PipelineGenerator.CreatePipeline(setValue.SetDefinition);
-                    return new Specification<TFact, TProjection>(
-                        pipeline,
-                        new SimpleProjection(setValue.SetDefinition.Tag)
-                    );
+                    var simpleProjection = new SimpleProjection(setValue.SetDefinition.Tag);
+                    return new Specification<TFact, TProjection>(pipeline, simpleProjection);
                 default:
                     throw new NotImplementedException();
             }
         }
     }
-    public class Specification<TFact, TProjection>
+
+    public class Specification<TFact, TProjection> : Specification
     {
-        private readonly Pipeline pipeline;
-        private readonly Projection projection;
-
-        public Specification(Pipeline pipeline, Projection projection)
+        public Specification(Pipeline pipeline, Projection projection) : base(pipeline, projection)
         {
-            this.pipeline = pipeline;
-            this.projection = projection;
         }
-
-        public Pipeline Pipeline => pipeline;
-        public Projection Projection => projection;
     }
 }

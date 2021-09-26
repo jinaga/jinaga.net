@@ -2,6 +2,7 @@ using System;
 using System.Collections.Immutable;
 using System.Linq;
 using Jinaga.Facts;
+using Jinaga.Products;
 using Jinaga.Visualizers;
 
 namespace Jinaga.Pipelines
@@ -23,11 +24,11 @@ namespace Jinaga.Pipelines
             return new Subset(startNames.Union(pathStartNames).Union(pathTargetNames).ToImmutableList());
         }
 
-        internal Product Of(Product product)
+        public Product Of(Product product)
         {
             var result = names.Aggregate(
                 Product.Empty,
-                (sub, name) => sub.With(name, product.GetFactReference(name)));
+                (sub, name) => sub.With(name, product.GetElement(name)));
             return result;
         }
 

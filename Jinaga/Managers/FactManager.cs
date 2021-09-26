@@ -1,6 +1,7 @@
 ﻿using Jinaga.Facts;
 using Jinaga.Observers;
 using Jinaga.Pipelines;
+using Jinaga.Products;
 using Jinaga.Projections;
 using Jinaga.Serialization;
 using Jinaga.Services;
@@ -35,36 +36,19 @@ namespace Jinaga.Managers
             return added;
         }
 
-        public async Task<ImmutableList<Product>> Query(FactReference startReference, Pipeline pipeline, CancellationToken cancellationToken)
+        public async Task<ImmutableList<Product>> Query(ImmutableList<FactReference> startReferences, Specification specification, CancellationToken cancellationToken)
         {
-            return await store.Query(startReference, pipeline, cancellationToken);
-        }
-
-        public async Task<ImmutableList<Product>> QueryAll(ImmutableList<FactReference> startReferences, Pipeline  pipeline, CancellationToken cancellationToken)
-        {
-            return await store.QueryAll(startReferences, pipeline, cancellationToken);
+            return await store.Query(startReferences, specification, cancellationToken);
         }
 
         public async Task<ImmutableList<ProductProjection<TProjection>>> ComputeProjections<TProjection>(Projection projection, ImmutableList<Product> products, CancellationToken cancellationToken)
         {
-            switch (projection)
-            {
-                case SimpleProjection simple:
-                    var productReferences = products
-                        .Select(product => (product, reference: product.GetFactReference(simple.Tag)))
-                        .ToImmutableList();
-                    var references = productReferences
-                        .Select(pair => pair.reference)
-                        .ToImmutableList();
-                    var graph = await store.Load(references, cancellationToken);
-                    var productProjections = productReferences
-                        .Select(pair => new ProductProjection<TProjection>(pair.product,
-                            Deserialize<TProjection>(graph, pair.reference)))
-                        .ToImmutableList();
-                    return productProjections;
-                default:
-                    throw new NotImplementedException();
-            }
+            var references = Projector.GetFactReferences(projection, products, typeof(TProjection));
+            var graph = await store.Load(references, cancellationToken);
+            var productProjections = DeserializeProductsFromGraph(graph, projection, products, typeof(TProjection));
+            return productProjections
+                .Select(pair => new ProductProjection<TProjection>(pair.Product, (TProjection)pair.Projection))
+                .ToImmutableList();
         }
 
         public FactGraph Serialize(object prototype)
@@ -78,6 +62,24 @@ namespace Jinaga.Managers
             }
         }
 
+        public TFact Deserialize<TFact>(FactGraph graph, Element element)
+        {
+            if (element is SimpleElement simple)
+            {
+                lock (this)
+                {
+                    var emitter = new Emitter(graph, deserializerCache);
+                    var fact = emitter.Deserialize<TFact>(simple.FactReference);
+                    deserializerCache = emitter.DeserializerCache;
+                    return fact;
+                }
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
+        }
+
         public TFact Deserialize<TFact>(FactGraph graph, FactReference reference)
         {
             lock (this)
@@ -86,6 +88,17 @@ namespace Jinaga.Managers
                 var fact = emitter.Deserialize<TFact>(reference);
                 deserializerCache = emitter.DeserializerCache;
                 return fact;
+            }
+        }
+
+        private ImmutableList<ProductProjection> DeserializeProductsFromGraph(FactGraph graph, Projection projection, ImmutableList<Product> products, Type type)
+        {
+            lock (this)
+            {
+                var emitter = new Emitter(graph, deserializerCache);
+                ImmutableList<ProductProjection> results = Deserializer.Deserialize(emitter, projection, type, products);
+                deserializerCache = emitter.DeserializerCache;
+                return results;
             }
         }
 
