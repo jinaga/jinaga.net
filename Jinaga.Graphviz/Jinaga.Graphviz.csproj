@@ -13,7 +13,6 @@
     <TargetFramework>net5.0</TargetFramework>
 
     <PackageId>Jinaga.Graphviz</PackageId>
-    <Version>0.1.0</Version>
     <Authors>Michael L Perry</Authors>
     <Company>Jinaga LLC</Company>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
