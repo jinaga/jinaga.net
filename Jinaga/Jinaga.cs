@@ -61,7 +61,7 @@ namespace Jinaga
             else
             {
                 var startReferences = ImmutableList<FactReference>.Empty.Add(startReference);
-                var products = await factManager.Query(startReferences, pipeline, cancellationToken);
+                var products = await factManager.Query(startReferences, specification, cancellationToken);
                 var productProjections = await factManager.ComputeProjections<TProjection>(specification.Projection, products, cancellationToken);
                 var projections = productProjections
                     .Select(pair => pair.Projection)
@@ -133,7 +133,7 @@ namespace Jinaga
             var pipeline = specification.Pipeline;
             var projection = specification.Projection;
             var observation = new FunctionObservation<TProjection>(added);
-            var observer = new Observer<TProjection>(pipeline, projection, startReference, factManager, observation);
+            var observer = new Observer<TProjection>(specification, startReference, factManager, observation);
             factManager.AddObserver(observer);
             observer.Start();
             return observer;

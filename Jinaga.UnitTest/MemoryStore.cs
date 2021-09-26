@@ -1,13 +1,14 @@
+using Jinaga.Facts;
+using Jinaga.Pipelines;
+using Jinaga.Products;
+using Jinaga.Projections;
+using Jinaga.Services;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Jinaga.Facts;
-using Jinaga.Pipelines;
-using Jinaga.Products;
-using Jinaga.Services;
 
 namespace Jinaga.UnitTest
 {
@@ -51,16 +52,13 @@ namespace Jinaga.UnitTest
             return Task.FromResult(newFacts);
         }
 
-        public Task<ImmutableList<Product>> Query(ImmutableList<FactReference> startReferences, Pipeline pipeline, CancellationToken cancellationToken)
+        public Task<ImmutableList<Product>> Query(ImmutableList<FactReference> startReferences, Specification specification, CancellationToken cancellationToken)
         {
-            if (pipeline.CanRunOnGraph)
-            {
-                throw new ArgumentException("This pipeline can run on the graph. Do that.");
-            }
-            var productLists = startReferences.Select(startReference =>
+            var pipeline = specification.Pipeline;
+            var products = startReferences.Select(startReference =>
                 ExecutePipeline(startReference, pipeline)
-            );
-            return Task.FromResult(productLists.SelectMany(p => p).ToImmutableList());
+            ).SelectMany(p => p).ToImmutableList();
+            return Task.FromResult(products);
         }
 
         public Task<FactGraph> Load(ImmutableList<FactReference> references, CancellationToken cancellationToken)

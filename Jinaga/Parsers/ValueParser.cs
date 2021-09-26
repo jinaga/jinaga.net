@@ -87,14 +87,14 @@ namespace Jinaga.Parsers
             }
         }
 
-        private static ISpecification ParseSpecification(SymbolTable symbolTable, Expression expression)
+        private static Specification ParseSpecification(SymbolTable symbolTable, Expression expression)
         {
             if (expression is MemberExpression {
                 Expression: ConstantExpression constantExpression,
                 Member: FieldInfo field
             })
             {
-                return (ISpecification)field.GetValue(constantExpression.Value);
+                return (Specification)field.GetValue(constantExpression.Value);
             }
             else
             {
