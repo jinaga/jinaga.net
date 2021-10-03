@@ -22,24 +22,52 @@ namespace Jinaga.Test
         }
 
         [Fact]
-        public async Task Watch_NoResults()
+        public async Task NestedWatch_NoResults()
         {
             var company = await j.Fact(new Company("Contoso"));
 
+            var officeObserver = await WhenWatchOffices(company);
+
+            await officeObserver.Stop();
+
+            officeRepository.Offices.Should().BeEmpty();
+        }
+
+        [Fact]
+        public async Task NestedWatch_AlreadyExists()
+        {
+            var company = await j.Fact(new Company("Contoso"));
+            var newOffice = await j.Fact(new Office(company, new City("Dallas")));
+            var newOfficeName = await j.Fact(new OfficeName(newOffice, "Headquarters", new OfficeName[0]));
+
+            var officeObserver = await WhenWatchOffices(company);
+
+            officeRepository.Offices.Should().BeEquivalentTo(new OfficeRow[]
+            {
+                new OfficeRow
+                {
+                    OfficeId = 1,
+                    City = "Dallas",
+                    Name = "Headquarters"
+                }
+            });
+
+            await officeObserver.Stop();
+        }
+
+        private async Task<Observer<OfficeProjection>> WhenWatchOffices(Company company)
+        {
             var officeObserver = j.Watch(company, officesInCompany,
                 async projection =>
                 {
-                    int officeId = await officeRepository.InsertOffice();
+                    int officeId = await officeRepository.InsertOffice(projection.Office.city.name);
                     projection.Names.OnAdded(async name =>
                     {
                         await officeRepository.UpdateOffice(officeId, name.value);
                     });
                 });
             await officeObserver.Initialized;
-
-            await officeObserver.Stop();
-
-            officeRepository.Offices.Should().BeEmpty();
+            return officeObserver;
         }
 
         class OfficeProjection

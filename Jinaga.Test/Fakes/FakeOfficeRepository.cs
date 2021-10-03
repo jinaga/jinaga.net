@@ -11,10 +11,15 @@ namespace Jinaga.Test.Fakes
 
         public IEnumerable<OfficeRow> Offices => offices.Values;
 
-        public Task<int> InsertOffice()
+        public Task<int> InsertOffice(string city)
         {
             var officeId = nextOfficeId++;
-            offices.Add(officeId, new OfficeRow { OfficeId = officeId, Name = "" });
+            offices.Add(officeId, new OfficeRow
+            {
+                OfficeId = officeId,
+                City = city,
+                Name = ""
+            });
             return Task.FromResult(officeId);
         }
 

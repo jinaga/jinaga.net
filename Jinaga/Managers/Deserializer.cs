@@ -42,15 +42,34 @@ namespace Jinaga.Managers
             }
             var constructor = constructorInfos.Single();
             var parameters = constructor.GetParameters();
-            var productProjections =
-                from product in products
-                let result = constructor.Invoke((
-                    from parameter in parameters
-                    let projection = compoundProjection.GetProjection(parameter.Name)
-                    select DeserializeParameter(emitter, projection, parameter.ParameterType, parameter.Name, product)
-                ).ToArray())
-                select new ProductProjection(product, result);
-            return productProjections.ToImmutableList();
+            if (parameters.Any())
+            {
+                var productProjections =
+                    from product in products
+                    let result = constructor.Invoke((
+                        from parameter in parameters
+                        let projection = compoundProjection.GetProjection(parameter.Name)
+                        select DeserializeParameter(emitter, projection, parameter.ParameterType, parameter.Name, product)
+                    ).ToArray())
+                    select new ProductProjection(product, result);
+                return productProjections.ToImmutableList();
+            }
+            else
+            {
+                var properties = type.GetProperties();
+                var productProjections = products.Select(product =>
+                {
+                    var result = Activator.CreateInstance(type);
+                    foreach (var property in properties)
+                    {
+                        var projection = compoundProjection.GetProjection(property.Name);
+                        var value = DeserializeParameter(emitter, projection, property.PropertyType, property.Name, product);
+                        property.SetValue(result, value);
+                    }
+                    return new ProductProjection(product, result);
+                });
+                return productProjections.ToImmutableList();
+            }
         }
 
         private static ImmutableList<ProductProjection> DeserializeCollectionProjection(Emitter emitter, CollectionProjection collectionProjection, Type type, ImmutableList<Product> products)
