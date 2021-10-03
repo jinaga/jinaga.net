@@ -15,6 +15,10 @@ record Office(Company company, City city)
 	.Any());
 }
 
+[FactType("Corporate.Office.Name")]
+record OfficeName(Office office, string value, OfficeName[] prior);
+
+
 [FactType("Corporate.Office.Closure")]
 record OfficeClosure(Office office, DateTime closureDate);
 

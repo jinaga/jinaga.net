@@ -1,14 +1,14 @@
 ﻿using FluentAssertions;
+using Jinaga.Test.Fakes;
 using Jinaga.UnitTest;
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Xunit;
 
 namespace Jinaga.Test
 {
-    public class WatchTest
+    public partial class WatchTest
     {
         private readonly Jinaga j;
         private readonly FakeRepository<Office> officeRepository;
@@ -180,26 +180,5 @@ namespace Jinaga.Test
 
             select office
         );
-
-        class FakeRepository<T>
-        {
-            private int nextId = 1;
-            private readonly Dictionary<int, T> items = new Dictionary<int, T>();
-
-            public IEnumerable<T> Items => items.Values;
-
-            public Task<int> Insert(T item)
-            {
-                int id = nextId++;
-                items.Add(id, item);
-                return Task.FromResult(id);
-            }
-
-            public Task Delete(int id)
-            {
-                items.Remove(id);
-                return Task.CompletedTask;
-            }
-        }
     }
 }
