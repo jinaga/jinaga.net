@@ -111,6 +111,13 @@ namespace Jinaga.Parsers
         private static Specification ParseSpecification(SymbolTable symbolTable, Expression expression)
         {
             if (expression is MemberExpression {
+                Expression: null,
+                Member: FieldInfo staticField
+            })
+            {
+                return (Specification)staticField.GetValue(null);
+            }
+            else if (expression is MemberExpression {
                 Expression: ConstantExpression constantExpression,
                 Member: FieldInfo field
             })
