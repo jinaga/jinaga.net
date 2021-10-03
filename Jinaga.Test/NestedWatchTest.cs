@@ -48,6 +48,12 @@ namespace Jinaga.Test
             public IObservableCollection<OfficeName> Names { get; set; }
         }
 
+        private static Specification<Office, OfficeName> namesOfOffice = Given<Office>.Match((office, facts) =>
+            from name in facts.OfType<OfficeName>()
+            where name.office == office
+            select name
+        );
+
         private static Specification<Company, OfficeProjection> officesInCompany = Given<Company>.Match((company, facts) =>
             from office in facts.OfType<Office>()
             where office.company == company
@@ -58,12 +64,6 @@ namespace Jinaga.Test
                 Office = office,
                 Names = facts.All(office, namesOfOffice)
             }
-        );
-
-        private static Specification<Office, OfficeName> namesOfOffice = Given<Office>.Match((office, facts) =>
-            from name in facts.OfType<OfficeName>()
-            where name.office == office
-            select name
         );
     }
 }
