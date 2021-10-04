@@ -58,7 +58,7 @@ namespace Jinaga
         {
             var startReferences = ImmutableList<FactReference>.Empty.Add(startReference);
             var products = await factManager.Query(startReferences, specification, cancellationToken);
-            var productProjections = await factManager.ComputeProjections<TProjection>(specification.Projection, products, cancellationToken);
+            var productProjections = await factManager.ComputeProjections<TProjection>(specification.Projection, products, observation, cancellationToken);
             var identities = await observation.NotifyAdded(productProjections);
             lock (this)
             {
@@ -111,7 +111,7 @@ namespace Jinaga
                 }
                 if (productsAdded.Any())
                 {
-                    var productProjections = await factManager.ComputeProjections<TProjection>(specification.Projection, productsAdded, cancellationToken);
+                    var productProjections = await factManager.ComputeProjections<TProjection>(specification.Projection, productsAdded, observation, cancellationToken);
                     resultsAdded = resultsAdded.AddRange(productProjections);
                 }
             }

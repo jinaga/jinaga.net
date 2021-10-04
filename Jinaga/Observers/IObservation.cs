@@ -6,7 +6,7 @@ using Jinaga.Products;
 
 namespace Jinaga.Observers
 {
-    public interface IObservation<TProjection>
+    internal interface IObservation<TProjection> : IWatchContext
     {
         Task<ImmutableList<KeyValuePair<Product, object>>> NotifyAdded(ImmutableList<ProductProjection<TProjection>> results);
         Task NotifyRemoved(ImmutableList<object> identities);

@@ -62,7 +62,7 @@ namespace Jinaga
             {
                 var startReferences = ImmutableList<FactReference>.Empty.Add(startReference);
                 var products = await factManager.Query(startReferences, specification, cancellationToken);
-                var productProjections = await factManager.ComputeProjections<TProjection>(specification.Projection, products, cancellationToken);
+                var productProjections = await factManager.ComputeProjections<TProjection>(specification.Projection, products, null, cancellationToken);
                 var projections = productProjections
                     .Select(pair => pair.Projection)
                     .ToImmutableList();

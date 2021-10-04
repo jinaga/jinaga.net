@@ -88,10 +88,17 @@ namespace Jinaga.Managers
                 parameterType.GetGenericTypeDefinition() == typeof(IObservableCollection<>))
             {
                 var elementType = parameterType.GetGenericArguments()[0];
-                var elements = Projector.GetFactReferences(projection, product, parameterName)
-                    .Select(reference => emitter.DeserializeToType(reference, elementType))
-                    .ToImmutableList();
-                return ImmutableObservableCollection.Create(elementType, elements);
+                if (emitter.WatchContext == null)
+                {
+                    var elements = Projector.GetFactReferences(projection, product, parameterName)
+                        .Select(reference => emitter.DeserializeToType(reference, elementType))
+                        .ToImmutableList();
+                    return ImmutableObservableCollection.Create(elementType, elements);
+                }
+                else
+                {
+                    return WatchedObservableCollection.Create(elementType, emitter.WatchContext);
+                }
             }
             else
             {

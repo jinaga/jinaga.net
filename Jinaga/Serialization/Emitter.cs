@@ -1,4 +1,5 @@
 ﻿using Jinaga.Facts;
+using Jinaga.Observers;
 using System;
 using System.Collections.Immutable;
 using System.Linq;
@@ -15,10 +16,13 @@ namespace Jinaga.Serialization
         private ImmutableDictionary<FactReference, object> objectByReference =
             ImmutableDictionary<FactReference, object>.Empty;
 
-        public Emitter(FactGraph graph, DeserializerCache deserializerCache)
+        public IWatchContext? WatchContext { get; }
+
+        public Emitter(FactGraph graph, DeserializerCache deserializerCache, IWatchContext? watchContext = null)
         {
             this.graph = graph;
             DeserializerCache = deserializerCache;
+            WatchContext = watchContext;
         }
 
         public TFact Deserialize<TFact>(FactReference reference)

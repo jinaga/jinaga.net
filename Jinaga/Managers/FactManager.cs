@@ -41,11 +41,15 @@ namespace Jinaga.Managers
             return await store.Query(startReferences, specification, cancellationToken);
         }
 
-        public async Task<ImmutableList<ProductProjection<TProjection>>> ComputeProjections<TProjection>(Projection projection, ImmutableList<Product> products, CancellationToken cancellationToken)
+        public async Task<ImmutableList<ProductProjection<TProjection>>> ComputeProjections<TProjection>(
+            Projection projection,
+            ImmutableList<Product> products,
+            IWatchContext? watchContext,
+            CancellationToken cancellationToken)
         {
             var references = Projector.GetFactReferences(projection, products, typeof(TProjection));
             var graph = await store.Load(references, cancellationToken);
-            var productProjections = DeserializeProductsFromGraph(graph, projection, products, typeof(TProjection));
+            var productProjections = DeserializeProductsFromGraph(graph, projection, products, typeof(TProjection), watchContext);
             return productProjections
                 .Select(pair => new ProductProjection<TProjection>(pair.Product, (TProjection)pair.Projection))
                 .ToImmutableList();
@@ -91,11 +95,16 @@ namespace Jinaga.Managers
             }
         }
 
-        private ImmutableList<ProductProjection> DeserializeProductsFromGraph(FactGraph graph, Projection projection, ImmutableList<Product> products, Type type)
+        private ImmutableList<ProductProjection> DeserializeProductsFromGraph(
+            FactGraph graph,
+            Projection projection,
+            ImmutableList<Product> products,
+            Type type,
+            IWatchContext? watchContext)
         {
             lock (this)
             {
-                var emitter = new Emitter(graph, deserializerCache);
+                var emitter = new Emitter(graph, deserializerCache, watchContext);
                 ImmutableList<ProductProjection> results = Deserializer.Deserialize(emitter, projection, type, products);
                 deserializerCache = emitter.DeserializerCache;
                 return results;
