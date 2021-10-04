@@ -97,7 +97,7 @@ namespace Jinaga.Managers
                 }
                 else
                 {
-                    return WatchedObservableCollection.Create(elementType, emitter.WatchContext);
+                    return WatchedObservableCollection.Create(elementType, product.GetAnchor(), parameterName, emitter.WatchContext);
                 }
             }
             else

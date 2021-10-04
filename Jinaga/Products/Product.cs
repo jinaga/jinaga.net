@@ -38,6 +38,14 @@ namespace Jinaga.Products
             return new Product(elements.SetItem(name, element));
         }
 
+        public Product GetAnchor()
+        {
+            var anchorElements = elements
+                .Where(pair => !(pair.Value is CollectionElement))
+                .ToImmutableDictionary();
+            return new Product(anchorElements);
+        }
+
         public override bool Equals(object obj)
         {
             if (obj == null || GetType() != obj.GetType())
