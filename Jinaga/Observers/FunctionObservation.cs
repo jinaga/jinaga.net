@@ -38,7 +38,7 @@ namespace Jinaga.Observers
 
         public void OnAdded(Product anchor, string parameterName, Type projectionType, Func<object, Task<Func<Task>>> added)
         {
-            throw new NotImplementedException();
+            // TODO: Record the handler
         }
     }
 }

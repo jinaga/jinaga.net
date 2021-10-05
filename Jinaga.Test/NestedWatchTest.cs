@@ -34,13 +34,35 @@ namespace Jinaga.Test
         }
 
         [Fact]
-        public async Task NestedWatch_AlreadyExists()
+        public async Task NestedWatch_OfficeAlreadyExists()
         {
             var company = await j.Fact(new Company("Contoso"));
             var newOffice = await j.Fact(new Office(company, new City("Dallas")));
-            var newOfficeName = await j.Fact(new OfficeName(newOffice, "Headquarters", new OfficeName[0]));
 
             var officeObserver = await WhenWatchOffices(company);
+
+            officeRepository.Offices.Should().BeEquivalentTo(new OfficeRow[]
+            {
+                new OfficeRow
+                {
+                    OfficeId = 1,
+                    City = "Dallas",
+                    Name = ""
+                }
+            });
+
+            await officeObserver.Stop();
+        }
+
+        [Fact]
+        public async Task NestedWatch_OfficeNameAdded()
+        {
+            var company = await j.Fact(new Company("Contoso"));
+            var newOffice = await j.Fact(new Office(company, new City("Dallas")));
+
+            var officeObserver = await WhenWatchOffices(company);
+
+            var newOfficeName = await j.Fact(new OfficeName(newOffice, "Headquarters", new OfficeName[0]));
 
             officeRepository.Offices.Should().BeEquivalentTo(new OfficeRow[]
             {
