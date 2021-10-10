@@ -12,21 +12,23 @@ namespace Jinaga.Pipelines
                 from start in specification.Pipeline.Starts
                 from path in specification.Pipeline.Paths
                 where path.Start == start
-                from inverse in InvertPathsWithProjection(start, specification.Pipeline, path, specification.Projection, Pipeline.Empty)
+                from inverse in InvertPaths(start, specification.Pipeline, path, specification.Projection, Pipeline.Empty)
                 select inverse;
             return inverses;
         }
 
         public static IEnumerable<Inverse> InvertPipeline(Pipeline pipeline)
         {
-            return pipeline.Starts
-                .SelectMany(start => pipeline.Paths
-                    .Where(path => path.Start == start)
-                )
-                .SelectMany(path => InvertPaths(pipeline, path, Pipeline.Empty));
+            var inverses =
+                from start in pipeline.Starts
+                from path in pipeline.Paths
+                where path.Start == start
+                from inverse in InvertPaths(start, pipeline, path, new EmptyProjection(), Pipeline.Empty)
+                select inverse;
+            return inverses;
         }
 
-        public static IEnumerable<Inverse> InvertPathsWithProjection(Label start, Pipeline pipeline, Path path, Projection projection, Pipeline backward)
+        public static IEnumerable<Inverse> InvertPaths(Label start, Pipeline pipeline, Path path, Projection projection, Pipeline backward)
         {
             var nextBackward = backward.PrependPath(ReversePath(path));
             var conditionalInverses =
@@ -39,7 +41,7 @@ namespace Jinaga.Pipelines
                 let nestedSpecification = namedSpecification.specification
                 from nestedPath in nestedSpecification.Pipeline.Paths
                 where nestedPath.Start == path.Target
-                from nestedInverse in InvertPathsWithProjection(start, nestedSpecification.Pipeline, nestedPath, nestedSpecification.Projection, nextBackward)
+                from nestedInverse in InvertPaths(start, nestedSpecification.Pipeline, nestedPath, nestedSpecification.Projection, nextBackward)
                 select nestedInverse;
             var inversePipeline = nextBackward.AddStart(path.Target);
             var newInverse = new Inverse(
@@ -50,28 +52,9 @@ namespace Jinaga.Pipelines
             var nextInverses =
                 from nextPath in pipeline.Paths
                 where nextPath.Start == path.Target
-                from nextInverse in InvertPathsWithProjection(start, pipeline, nextPath, projection, nextBackward)
+                from nextInverse in InvertPaths(start, pipeline, nextPath, projection, nextBackward)
                 select nextInverse;
             return nextInverses.Concat(conditionalInverses).Concat(nestedInverses).Prepend(newInverse);
-        }
-
-        public static IEnumerable<Inverse> InvertPaths(Pipeline pipeline, Path path, Pipeline backward)
-        {
-            string affectedTag = pipeline.Starts.Single().Name;
-            var nextBackward = backward.PrependPath(ReversePath(path));
-            var conditionalInverses = pipeline.Conditionals
-                .Where(conditional => conditional.Start == path.Target)
-                .SelectMany(conditional => InvertConditionals(conditional, nextBackward, affectedTag));
-            var inversePipeline = nextBackward.AddStart(path.Target);
-            return pipeline.Paths
-                .Where(p => p.Start == path.Target)
-                .SelectMany(next => InvertPaths(pipeline, next, nextBackward))
-                .Concat(conditionalInverses)
-                .Prepend(new Inverse(
-                    inversePipeline,
-                    affectedTag,
-                    Operation.Add,
-                    Subset.FromPipeline(inversePipeline)));
         }
 
         public static IEnumerable<Inverse> InvertConditionals(Conditional conditional, Pipeline backward, string affectedTag)
