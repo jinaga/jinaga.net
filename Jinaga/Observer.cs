@@ -35,7 +35,7 @@ namespace Jinaga
             this.startReference = startReference;
             this.factManager = factManager;
             this.observation = observation;
-            this.inverses = specification.Pipeline.ComputeInverses();
+            this.inverses = specification.ComputeInverses();
         }
 
         internal void Start()

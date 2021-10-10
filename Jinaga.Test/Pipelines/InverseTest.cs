@@ -9,13 +9,13 @@ namespace Jinaga.Test.Pipelines
         [Fact]
         public void Inverse_SuccessorStep()
         {
-            var pipeline = Given<Company>.Match((company, facts) =>
+            var specification = Given<Company>.Match((company, facts) =>
                 from office in facts.OfType<Office>()
                 where office.company == company
                 select office
-            ).Pipeline;
+            );
 
-            var inverses = pipeline.ComputeInverses();
+            var inverses = specification.ComputeInverses();
             inverses.Should().ContainSingle().Which.InversePipeline.ToDescriptiveString()
                 .Should().Be(@"office: Corporate.Office {
     company: Corporate.Company = office P.company Corporate.Company
@@ -26,7 +26,7 @@ namespace Jinaga.Test.Pipelines
         [Fact]
         public void Inverse_NegativeExistentialCondition()
         {
-            var pipeline = Given<Company>.Match((company, facts) =>
+            var specification = Given<Company>.Match((company, facts) =>
                 from office in facts.OfType<Office>()
                 where office.company == company
                 where !(
@@ -35,9 +35,9 @@ namespace Jinaga.Test.Pipelines
                     select officeClosure
                 ).Any()
                 select office
-            ).Pipeline;
+            );
 
-            var inverses = pipeline.ComputeInverses();
+            var inverses = specification.ComputeInverses();
             inverses.Select(i => i.InversePipeline.ToDescriptiveString()).Should().BeEquivalentTo(new [] {
 @"office: Corporate.Office {
     company: Corporate.Company = office P.company Corporate.Company
