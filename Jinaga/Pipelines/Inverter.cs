@@ -1,10 +1,22 @@
 using System.Linq;
 using System.Collections.Generic;
+using Jinaga.Projections;
 
 namespace Jinaga.Pipelines
 {
     class Inverter
     {
+        public static IEnumerable<Inverse> InvertSpecification(Specification specification)
+        {
+            var inverses =
+                from start in specification.Pipeline.Starts
+                from path in specification.Pipeline.Paths
+                where path.Start == start
+                from inverse in InvertPathsWithProjection(start, specification.Pipeline, path, specification.Projection, Pipeline.Empty)
+                select inverse;
+            return inverses;
+        }
+
         public static IEnumerable<Inverse> InvertPipeline(Pipeline pipeline)
         {
             return pipeline.Starts
@@ -12,6 +24,35 @@ namespace Jinaga.Pipelines
                     .Where(path => path.Start == start)
                 )
                 .SelectMany(path => InvertPaths(pipeline, path, Pipeline.Empty));
+        }
+
+        public static IEnumerable<Inverse> InvertPathsWithProjection(Label start, Pipeline pipeline, Path path, Projection projection, Pipeline backward)
+        {
+            var nextBackward = backward.PrependPath(ReversePath(path));
+            var conditionalInverses =
+                from conditional in pipeline.Conditionals
+                where conditional.Start == path.Target
+                from inverse in InvertConditionals(conditional, nextBackward, start.Name)
+                select inverse;
+            var nestedInverses =
+                from namedSpecification in projection.GetNamedSpecifications()
+                let nestedSpecification = namedSpecification.specification
+                from nestedPath in nestedSpecification.Pipeline.Paths
+                where nestedPath.Start == path.Target
+                from nestedInverse in InvertPathsWithProjection(start, nestedSpecification.Pipeline, nestedPath, nestedSpecification.Projection, nextBackward)
+                select nestedInverse;
+            var inversePipeline = nextBackward.AddStart(path.Target);
+            var newInverse = new Inverse(
+                    inversePipeline,
+                    start.Name,
+                    Operation.Add,
+                    Subset.FromPipeline(inversePipeline));
+            var nextInverses =
+                from nextPath in pipeline.Paths
+                where nextPath.Start == path.Target
+                from nextInverse in InvertPathsWithProjection(start, pipeline, nextPath, projection, nextBackward)
+                select nextInverse;
+            return nextInverses.Concat(conditionalInverses).Concat(nestedInverses).Prepend(newInverse);
         }
 
         public static IEnumerable<Inverse> InvertPaths(Pipeline pipeline, Path path, Pipeline backward)

@@ -1,4 +1,3 @@
-using System.Collections.Immutable;
 using System.Linq;
 using FluentAssertions;
 using Xunit;
@@ -50,6 +49,46 @@ namespace Jinaga.Test.Pipelines
 }
 "
             });
+        }
+
+        [Fact]
+        public void Inverse_OfNestedProjection()
+        {
+            var namesOfOffice = Given<Office>.Match((office, facts) =>
+                from name in facts.OfType<OfficeName>()
+                where name.office == office
+                select name
+            );
+
+            var specification = Given<Company>.Match((company, facts) =>
+                from office in facts.OfType<Office>()
+                where office.company == company
+                select new
+                {
+                    City = office.city,
+                    Names = facts.All(office, namesOfOffice)
+                }
+            );
+
+            var inverses = specification.ComputeInverses();
+
+            var lines = inverses
+                .Select(i => i.InversePipeline.ToDescriptiveString())
+                .ToArray();
+            string.Join("\r\n", lines).Should().Be(@"office: Corporate.Office {
+    company: Corporate.Company = office P.company Corporate.Company
+}
+
+city: Corporate.City {
+    office: Corporate.Office = city S.city Corporate.Office
+    company: Corporate.Company = office P.company Corporate.Company
+}
+
+name: Corporate.Office.Name {
+    office: Corporate.Office = name P.office Corporate.Office
+    company: Corporate.Company = office P.company Corporate.Company
+}
+");
         }
     }
 }
