@@ -18,7 +18,7 @@ namespace Jinaga
         private readonly Specification specification;
         private readonly FactReference startReference;
         private readonly FactManager factManager;
-        private readonly IObservation<TProjection> observation;
+        private readonly IObservation observation;
         private readonly ImmutableList<Inverse> inverses;
 
         private Task? initialize;
@@ -29,7 +29,7 @@ namespace Jinaga
 
         public Task Initialized => initialize!;
 
-        internal Observer(Specification specification, FactReference startReference, FactManager factManager, IObservation<TProjection> observation)
+        internal Observer(Specification specification, FactReference startReference, FactManager factManager, IObservation observation)
         {
             this.specification = specification;
             this.startReference = startReference;
@@ -58,7 +58,7 @@ namespace Jinaga
         {
             var startReferences = ImmutableList<FactReference>.Empty.Add(startReference);
             var products = await factManager.Query(startReferences, specification, cancellationToken);
-            var productProjections = await factManager.ComputeProjections<TProjection>(specification.Projection, products, observation, cancellationToken);
+            var productProjections = await factManager.ComputeProjections(specification.Projection, products, typeof(TProjection), observation, cancellationToken);
             var removals = await observation.NotifyAdded(productProjections);
             lock (this)
             {
@@ -113,10 +113,7 @@ namespace Jinaga
             {
                 var addedGraph = await factManager.LoadProducts(productsAdded, cancellationToken);
                 var productProjections = factManager.DeserializeProductsFromGraph(graph, specification.Projection, productsAdded, typeof(TProjection), observation);
-                var resultsAdded = productProjections
-                    .Select(pair => new ProductProjection<TProjection>(pair.Product, (TProjection)pair.Projection))
-                    .ToImmutableList();
-                var removals = await observation.NotifyAdded(resultsAdded);
+                var removals = await observation.NotifyAdded(productProjections);
                 lock (this)
                 {
                     removalsByProduct = removalsByProduct.AddRange(removals);

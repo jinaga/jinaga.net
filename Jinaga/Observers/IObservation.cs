@@ -7,8 +7,8 @@ using Jinaga.Products;
 
 namespace Jinaga.Observers
 {
-    internal interface IObservation<TProjection> : IWatchContext
+    internal interface IObservation : IWatchContext
     {
-        Task<ImmutableList<KeyValuePair<Product, Func<Task>>>> NotifyAdded(ImmutableList<ProductProjection<TProjection>> results);
+        Task<ImmutableList<KeyValuePair<Product, Func<Task>>>> NotifyAdded(ImmutableList<ProductProjection> results);
     }
 }

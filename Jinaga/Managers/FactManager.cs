@@ -49,18 +49,16 @@ namespace Jinaga.Managers
             return await store.Load(references, cancellationToken);
         }
 
-        public async Task<ImmutableList<ProductProjection<TProjection>>> ComputeProjections<TProjection>(
+        public async Task<ImmutableList<ProductProjection>> ComputeProjections(
             Projection projection,
             ImmutableList<Product> products,
+            Type type,
             IWatchContext? watchContext,
             CancellationToken cancellationToken)
         {
-            var references = Projector.GetFactReferences(projection, products, typeof(TProjection));
+            var references = Projector.GetFactReferences(projection, products, type);
             var graph = await store.Load(references, cancellationToken);
-            var productProjections = DeserializeProductsFromGraph(graph, projection, products, typeof(TProjection), watchContext);
-            return productProjections
-                .Select(pair => new ProductProjection<TProjection>(pair.Product, (TProjection)pair.Projection))
-                .ToImmutableList();
+            return DeserializeProductsFromGraph(graph, projection, products, type, watchContext);
         }
 
         public FactGraph Serialize(object prototype)
