@@ -24,8 +24,8 @@ namespace Jinaga
         private Task? initialize;
         private CancellationTokenSource cancelInitialize = new CancellationTokenSource();
 
-        private ImmutableDictionary<Product, object> identityByProduct =
-            ImmutableDictionary<Product, object>.Empty;
+        private ImmutableDictionary<Product, Func<Task>> removalsByProduct =
+            ImmutableDictionary<Product, Func<Task>>.Empty;
 
         public Task Initialized => initialize!;
 
@@ -59,10 +59,10 @@ namespace Jinaga
             var startReferences = ImmutableList<FactReference>.Empty.Add(startReference);
             var products = await factManager.Query(startReferences, specification, cancellationToken);
             var productProjections = await factManager.ComputeProjections<TProjection>(specification.Projection, products, observation, cancellationToken);
-            var identities = await observation.NotifyAdded(productProjections);
+            var removals = await observation.NotifyAdded(productProjections);
             lock (this)
             {
-                identityByProduct = identityByProduct.AddRange(identities);
+                removalsByProduct = removalsByProduct.AddRange(removals);
             }
         }
 
@@ -117,22 +117,25 @@ namespace Jinaga
             }
             if (resultsAdded.Any())
             {
-                var identities = await observation.NotifyAdded(resultsAdded);
+                var removals = await observation.NotifyAdded(resultsAdded);
                 lock (this)
                 {
-                    identityByProduct = identityByProduct.AddRange(identities);
+                    removalsByProduct = removalsByProduct.AddRange(removals);
                 }
             }
             if (productsRemoved.Any())
             {
-                var identities = productsRemoved
-                    .Select(product => identityByProduct.GetValueOrDefault(product)!)
+                var removals = productsRemoved
+                    .Select(product => removalsByProduct.GetValueOrDefault(product)!)
                     .Where(identity => identity != null)
                     .ToImmutableList();
-                await observation.NotifyRemoved(identities);
+                foreach (var removal in removals)
+                {
+                    await removal();
+                }
                 lock (this)
                 {
-                    identityByProduct = identityByProduct.RemoveRange(productsRemoved);
+                    removalsByProduct = removalsByProduct.RemoveRange(productsRemoved);
                 }
             }
         }

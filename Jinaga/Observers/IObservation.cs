@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Threading.Tasks;
@@ -8,7 +9,6 @@ namespace Jinaga.Observers
 {
     internal interface IObservation<TProjection> : IWatchContext
     {
-        Task<ImmutableList<KeyValuePair<Product, object>>> NotifyAdded(ImmutableList<ProductProjection<TProjection>> results);
-        Task NotifyRemoved(ImmutableList<object> identities);
+        Task<ImmutableList<KeyValuePair<Product, Func<Task>>>> NotifyAdded(ImmutableList<ProductProjection<TProjection>> results);
     }
 }

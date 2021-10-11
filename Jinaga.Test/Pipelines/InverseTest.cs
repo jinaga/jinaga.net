@@ -65,7 +65,7 @@ namespace Jinaga.Test.Pipelines
                 where office.company == company
                 select new
                 {
-                    City = office.city,
+                    Office = office,
                     Names = facts.All(office, namesOfOffice)
                 }
             );
@@ -77,17 +77,44 @@ namespace Jinaga.Test.Pipelines
     company: Corporate.Company = office P.company Corporate.Company
 }
 ",
-@"city: Corporate.City {
-    office: Corporate.Office = city S.city Corporate.Office
-    company: Corporate.Company = office P.company Corporate.Company
-}
-",
 @"name: Corporate.Office.Name {
     office: Corporate.Office = name P.office Corporate.Office
     company: Corporate.Company = office P.company Corporate.Company
 }
 "
             });
+        }
+
+        [Fact]
+        public void Inverse_GeneratesCollectionIdentifiers()
+        {
+            var namesOfOffice = Given<Office>.Match((office, facts) =>
+                from name in facts.OfType<OfficeName>()
+                where name.office == office
+                select name
+            );
+
+            var specification = Given<Company>.Match((company, facts) =>
+                from office in facts.OfType<Office>()
+                where office.company == company
+                select new
+                {
+                    Office = office,
+                    Names = facts.All(office, namesOfOffice)
+                }
+            );
+
+            var inverses = specification.ComputeInverses();
+
+            inverses[0].AffectedTag.Should().Be("company");
+            inverses[0].Subset.ToString().Should().Be("office, company");
+            inverses[0].CollectionIdentifiers.Should().BeEmpty();
+
+            inverses[1].AffectedTag.Should().Be("company");
+            inverses[1].Subset.ToString().Should().Be("name, office, company");
+            var collectionIdentifier = inverses[1].CollectionIdentifiers.Should().ContainSingle().Subject;
+            collectionIdentifier.CollectionName.Should().Be("Names");
+            // collectionIdentifier.Subset.ToString().Should().Be("name");
         }
     }
 }
