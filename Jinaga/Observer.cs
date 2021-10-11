@@ -74,12 +74,11 @@ namespace Jinaga
             }
             await initialize;
 
-            var resultsAdded = ImmutableList<ProductProjection<TProjection>>.Empty;
+            var productsAdded = ImmutableList<Product>.Empty;
             var productsRemoved = ImmutableList<Product>.Empty;
             var startReferences = added.Select(a => a.Reference).ToImmutableList();
             foreach (var inverse in inverses)
             {
-                var productsAdded = ImmutableList<Product>.Empty;
                 var inversePipeline = inverse.InversePipeline;
                 var matchingReferences = startReferences
                     .Where(r => inversePipeline.Starts.Any(start => r.Type == start.Type))
@@ -109,14 +108,14 @@ namespace Jinaga
                         }
                     }
                 }
-                if (productsAdded.Any())
-                {
-                    var productProjections = await factManager.ComputeProjections<TProjection>(specification.Projection, productsAdded, observation, cancellationToken);
-                    resultsAdded = resultsAdded.AddRange(productProjections);
-                }
             }
-            if (resultsAdded.Any())
+            if (productsAdded.Any())
             {
+                var addedGraph = await factManager.LoadProducts(productsAdded, cancellationToken);
+                var productProjections = factManager.DeserializeProductsFromGraph(graph, specification.Projection, productsAdded, typeof(TProjection), observation);
+                var resultsAdded = productProjections
+                    .Select(pair => new ProductProjection<TProjection>(pair.Product, (TProjection)pair.Projection))
+                    .ToImmutableList();
                 var removals = await observation.NotifyAdded(resultsAdded);
                 lock (this)
                 {

@@ -41,6 +41,14 @@ namespace Jinaga.Managers
             return await store.Query(startReferences, specification, cancellationToken);
         }
 
+        public async Task<FactGraph> LoadProducts(ImmutableList<Product> products, CancellationToken cancellationToken)
+        {
+            var references = products
+                .SelectMany(product => product.GetFactReferences())
+                .ToImmutableList();
+            return await store.Load(references, cancellationToken);
+        }
+
         public async Task<ImmutableList<ProductProjection<TProjection>>> ComputeProjections<TProjection>(
             Projection projection,
             ImmutableList<Product> products,
@@ -95,7 +103,7 @@ namespace Jinaga.Managers
             }
         }
 
-        private ImmutableList<ProductProjection> DeserializeProductsFromGraph(
+        public ImmutableList<ProductProjection> DeserializeProductsFromGraph(
             FactGraph graph,
             Projection projection,
             ImmutableList<Product> products,

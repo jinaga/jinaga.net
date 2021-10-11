@@ -33,6 +33,11 @@ namespace Jinaga.Products
             }
         }
 
+        public IEnumerable<FactReference> GetFactReferences()
+        {
+            return elements.Values.SelectMany(e => e.GetFactReferences());
+        }
+
         public Product With(string name, Element element)
         {
             return new Product(elements.SetItem(name, element));

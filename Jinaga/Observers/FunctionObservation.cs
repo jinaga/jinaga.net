@@ -10,6 +10,7 @@ namespace Jinaga.Observers
     public class FunctionObservation<TProjection> : IObservation<TProjection>
     {
         private readonly Func<TProjection, Task<Func<Task>>> added;
+        private ImmutableList<AddedHandler> addedHandlers = ImmutableList<AddedHandler>.Empty;
 
         public FunctionObservation(Func<TProjection, Task<Func<Task>>> added)
         {
@@ -29,7 +30,8 @@ namespace Jinaga.Observers
 
         public void OnAdded(Product anchor, string parameterName, Type projectionType, Func<object, Task<Func<Task>>> added)
         {
-            // TODO: Record the handler
+            var handler = new AddedHandler(anchor, parameterName, projectionType, added);
+            addedHandlers = addedHandlers.Add(handler);
         }
     }
 }
