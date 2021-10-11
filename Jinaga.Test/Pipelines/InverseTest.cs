@@ -72,23 +72,22 @@ namespace Jinaga.Test.Pipelines
 
             var inverses = specification.ComputeInverses();
 
-            var lines = inverses
-                .Select(i => i.InversePipeline.ToDescriptiveString())
-                .ToArray();
-            string.Join("\r\n", lines).Should().Be(@"office: Corporate.Office {
+            inverses.Select(i => i.InversePipeline.ToDescriptiveString()).Should().BeEquivalentTo(new [] {
+@"office: Corporate.Office {
     company: Corporate.Company = office P.company Corporate.Company
 }
-
-city: Corporate.City {
+",
+@"city: Corporate.City {
     office: Corporate.Office = city S.city Corporate.Office
     company: Corporate.Company = office P.company Corporate.Company
 }
-
-name: Corporate.Office.Name {
+",
+@"name: Corporate.Office.Name {
     office: Corporate.Office = name P.office Corporate.Office
     company: Corporate.Company = office P.company Corporate.Company
 }
-");
+"
+            });
         }
     }
 }
