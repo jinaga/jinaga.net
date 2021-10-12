@@ -42,7 +42,7 @@ namespace Jinaga.Pipelines
                 let nestedSpecification = namedSpecification.specification
                 from nestedPath in nestedSpecification.Pipeline.Paths
                 where nestedPath.Start == path.Target
-                let collectionIdentifier = NewCollectionIdentifier(namedSpecification.name)
+                let collectionIdentifier = NewCollectionIdentifier(namedSpecification.name, Subset.FromPipeline(nextBackward))
                 from nestedInverse in InvertPaths(
                     start,
                     nestedSpecification.Pipeline,
@@ -67,9 +67,9 @@ namespace Jinaga.Pipelines
             return nextInverses.Concat(conditionalInverses).Concat(nestedInverses).Prepend(newInverse);
         }
 
-        private static CollectionIdentifier NewCollectionIdentifier(string collectionName)
+        private static CollectionIdentifier NewCollectionIdentifier(string collectionName, Subset intermediateSubset)
         {
-            return new CollectionIdentifier(collectionName);
+            return new CollectionIdentifier(collectionName, intermediateSubset);
         }
 
         public static IEnumerable<Inverse> InvertConditionals(Conditional conditional, Pipeline backward, string affectedTag, ImmutableList<CollectionIdentifier> collectionIdentifiers)

@@ -94,7 +94,7 @@ namespace Jinaga
                     foreach (var product in products)
                     {
                         var initialProduct = inverse.InitialSubset.Of(product);
-                        var identifyingProduct = inverse.Subset.Of(product);
+                        var identifyingProduct = inverse.FinalSubset.Of(product);
                         if (initialProduct.Equals(this.initialAnchor))
                         {
                             if (inverse.Operation == Operation.Add)
