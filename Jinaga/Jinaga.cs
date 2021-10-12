@@ -1,6 +1,7 @@
 using Jinaga.Facts;
 using Jinaga.Managers;
 using Jinaga.Observers;
+using Jinaga.Products;
 using Jinaga.Projections;
 using Jinaga.Services;
 using System;
@@ -133,7 +134,7 @@ namespace Jinaga
             var pipeline = specification.Pipeline;
             var projection = specification.Projection;
             var observation = new FunctionObservation<TProjection>(added);
-            var observer = new Observer<TProjection>(specification, startReference, factManager, observation);
+            var observer = new Observer<TProjection>(specification, Product.Empty.With(specification.Pipeline.Starts.First().Name, new SimpleElement(startReference)), factManager, observation);
             factManager.AddObserver(observer);
             observer.Start();
             return observer;

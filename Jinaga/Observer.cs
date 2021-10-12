@@ -16,7 +16,7 @@ namespace Jinaga
     public class Observer<TProjection> : IObserver
     {
         private readonly Specification specification;
-        private readonly FactReference startReference;
+        private readonly Product initialAnchor;
         private readonly FactManager factManager;
         private readonly IObservation observation;
         private readonly ImmutableList<Inverse> inverses;
@@ -29,10 +29,10 @@ namespace Jinaga
 
         public Task Initialized => initialize!;
 
-        internal Observer(Specification specification, FactReference startReference, FactManager factManager, IObservation observation)
+        internal Observer(Specification specification, Product initialAnchor, FactManager factManager, IObservation observation)
         {
             this.specification = specification;
-            this.startReference = startReference;
+            this.initialAnchor = initialAnchor;
             this.factManager = factManager;
             this.observation = observation;
             this.inverses = specification.ComputeInverses();
@@ -56,7 +56,7 @@ namespace Jinaga
 
         private async Task RunInitialQuery(CancellationToken cancellationToken)
         {
-            var startReferences = ImmutableList<FactReference>.Empty.Add(startReference);
+            var startReferences = initialAnchor.GetFactReferences().ToImmutableList();
             var products = await factManager.Query(startReferences, specification, cancellationToken);
             var productProjections = await factManager.ComputeProjections(specification.Projection, products, typeof(TProjection), observation, cancellationToken);
             var removals = await observation.NotifyAdded(productProjections);
@@ -74,7 +74,7 @@ namespace Jinaga
             }
             await initialize;
 
-            var productsAdded = ImmutableList<Product>.Empty;
+            var productsAdded = ImmutableList<(Product product, Inverse inverse)>.Empty;
             var productsRemoved = ImmutableList<Product>.Empty;
             var startReferences = added.Select(a => a.Reference).ToImmutableList();
             foreach (var inverse in inverses)
@@ -93,13 +93,13 @@ namespace Jinaga
                             cancellationToken);
                     foreach (var product in products)
                     {
+                        var initialProduct = inverse.InitialSubset.Of(product);
                         var identifyingProduct = inverse.Subset.Of(product);
-                        var affected = identifyingProduct.GetElement(inverse.AffectedTag);
-                        if (affected is SimpleElement simple && simple.FactReference == startReference)
+                        if (initialProduct.Equals(this.initialAnchor))
                         {
                             if (inverse.Operation == Operation.Add)
                             {
-                                productsAdded = productsAdded.Add(identifyingProduct);
+                                productsAdded = productsAdded.Add((identifyingProduct, inverse));
                             }
                             else if (inverse.Operation == Operation.Remove)
                             {
@@ -111,8 +111,9 @@ namespace Jinaga
             }
             if (productsAdded.Any())
             {
-                var addedGraph = await factManager.LoadProducts(productsAdded, cancellationToken);
-                var productProjections = factManager.DeserializeProductsFromGraph(graph, specification.Projection, productsAdded, typeof(TProjection), observation);
+                var products = productsAdded.Select(p => p.product).ToImmutableList();
+                var addedGraph = await factManager.LoadProducts(products, cancellationToken);
+                var productProjections = DeserializeAllProducts(graph, productsAdded);
                 var removals = await observation.NotifyAdded(productProjections);
                 lock (this)
                 {
@@ -133,6 +134,35 @@ namespace Jinaga
                 {
                     removalsByProduct = removalsByProduct.RemoveRange(productsRemoved);
                 }
+            }
+        }
+
+        private ImmutableList<ProductProjection> DeserializeAllProducts(FactGraph graph, ImmutableList<(Product product, Inverse inverse)> productsAdded)
+        {
+            var productProjections =
+                from pair in productsAdded
+                let product = pair.product
+                let inverse = pair.inverse
+                let projection = inverse.Projection
+                let type = ElementType(typeof(TProjection), inverse.CollectionIdentifiers)
+                from productProjection in factManager.DeserializeProductsFromGraph(graph, projection, ImmutableList<Product>.Empty.Add(product), type, observation)
+                select productProjection;
+            return productProjections.ToImmutableList();
+        }
+
+        private static Type ElementType(Type type, IEnumerable<CollectionIdentifier> collectionIdentifiers) => collectionIdentifiers
+            .Aggregate(type, (t, c) => GetCollectionType(t, c.CollectionName));
+
+        private static Type GetCollectionType(Type type, string collectionName)
+        {
+            var propertyType = type.GetProperty(collectionName).PropertyType;
+            if (propertyType.IsGenericType && propertyType.GetGenericTypeDefinition() == typeof(IObservableCollection<>))
+            {
+                return propertyType.GetGenericArguments()[0];
+            }
+            else
+            {
+                throw new InvalidOperationException($"Collection {collectionName} is not an IObservableCollection");
             }
         }
     }

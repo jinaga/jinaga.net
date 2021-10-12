@@ -53,11 +53,12 @@ namespace Jinaga.Pipelines
                 select nestedInverse;
             var inversePipeline = nextBackward.AddStart(path.Target);
             var newInverse = new Inverse(
-                    inversePipeline,
-                    start.Name,
-                    Operation.Add,
-                    Subset.FromPipeline(inversePipeline),
-                    collectionIdentifiers);
+                inversePipeline,
+                Subset.Empty.Add(start.Name),
+                Operation.Add,
+                Subset.FromPipeline(inversePipeline),
+                projection,
+                collectionIdentifiers);
             var nextInverses =
                 from nextPath in pipeline.Paths
                 where nextPath.Start == path.Target
@@ -76,9 +77,10 @@ namespace Jinaga.Pipelines
             return InvertPipeline(conditional.ChildPipeline)
                 .Select(childInverse => new Inverse(
                     childInverse.InversePipeline.Compose(backward),
-                    affectedTag,
+                    Subset.Empty.Add(affectedTag),
                     conditional.Exists ? Operation.Add : Operation.Remove,
                     Subset.FromPipeline(backward),
+                    childInverse.Projection,
                     collectionIdentifiers));
         }
 

@@ -1,31 +1,31 @@
 using System.Collections.Immutable;
+using Jinaga.Projections;
 
 namespace Jinaga.Pipelines
 {
     public class Inverse
     {
-        private readonly Pipeline inversePipeline;
-        private readonly string affectedTag;
-        private readonly Operation operation;
-        private readonly Subset subset;
-        private readonly ImmutableList<CollectionIdentifier> collectionIdentifiers;
+        public Pipeline InversePipeline { get; }
+        public Subset InitialSubset { get; }
+        public Operation Operation { get; }
+        public Subset Subset { get; }
+        public Projection Projection { get; }
+        public ImmutableList<CollectionIdentifier> CollectionIdentifiers { get; }
 
-        public Inverse(Pipeline inversePipeline, string affectedTag, Operation operation, Subset subset, ImmutableList<CollectionIdentifier> collectionIdentifiers)
+        public Inverse(
+            Pipeline inversePipeline,
+            Subset initialSubset,
+            Operation operation,
+            Subset subset,
+            Projection projection,
+            ImmutableList<CollectionIdentifier> collectionIdentifiers)
         {
-            this.inversePipeline = inversePipeline;
-            this.affectedTag = affectedTag;
-            this.operation = operation;
-            this.subset = subset;
-            this.collectionIdentifiers = collectionIdentifiers;
+            this.InversePipeline = inversePipeline;
+            this.InitialSubset = initialSubset;
+            this.Operation = operation;
+            this.Subset = subset;
+            this.Projection = projection;
+            this.CollectionIdentifiers = collectionIdentifiers;
         }
-
-        public Pipeline InversePipeline => inversePipeline;
-
-        public string AffectedTag => affectedTag;
-
-        public Operation Operation => operation;
-        public Subset Subset => subset;
-
-        public ImmutableList<CollectionIdentifier> CollectionIdentifiers => collectionIdentifiers;
     }
 }
