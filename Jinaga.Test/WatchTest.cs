@@ -1,5 +1,6 @@
 ﻿using FluentAssertions;
 using Jinaga.Test.Fakes;
+using Jinaga.Test.Model;
 using Jinaga.UnitTest;
 using System;
 using System.Linq;

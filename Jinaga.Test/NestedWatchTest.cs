@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Jinaga.Observers;
 using Jinaga.Test.Fakes;
+using Jinaga.Test.Model;
 using Jinaga.UnitTest;
 using System;
 using System.Collections.Generic;
@@ -96,12 +97,20 @@ namespace Jinaga.Test
         {
             public Office Office { get; set; }
             public IObservableCollection<OfficeName> Names { get; set; }
+            public IObservableCollection<Headcount> Headcounts { get; set; }
         }
 
         private static Specification<Office, OfficeName> namesOfOffice = Given<Office>.Match((office, facts) =>
             from name in facts.OfType<OfficeName>()
             where name.office == office
             select name
+        );
+
+        private static Specification<Office, Headcount> headcountsOfOffice = Given<Office>.Match((office, facts) =>
+            from headcount in facts.OfType<Headcount>()
+            where headcount.office == office
+            where headcount.IsCurrent
+            select headcount
         );
 
         private static Specification<Company, OfficeProjection> officesInCompany = Given<Company>.Match((company, facts) =>
@@ -112,7 +121,8 @@ namespace Jinaga.Test
             select new OfficeProjection
             {
                 Office = office,
-                Names = facts.All(office, namesOfOffice)
+                Names = facts.All(office, namesOfOffice),
+                Headcounts = facts.All(office, headcountsOfOffice)
             }
         );
     }
