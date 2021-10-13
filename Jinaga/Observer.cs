@@ -59,7 +59,10 @@ namespace Jinaga
             var startReferences = initialAnchor.GetFactReferences().ToImmutableList();
             var products = await factManager.Query(startReferences, specification, cancellationToken);
             var productProjections = await factManager.ComputeProjections(specification.Projection, products, typeof(TProjection), observation, cancellationToken);
-            var removals = await observation.NotifyAdded(productProjections);
+            var productAnchorProjections = productProjections
+                .Select(pair => new ProductAnchorProjection(pair.Product, initialAnchor, pair.Projection))
+                .ToImmutableList();
+            var removals = await observation.NotifyAdded(productAnchorProjections);
             lock (this)
             {
                 removalsByProduct = removalsByProduct.AddRange(removals);
@@ -113,8 +116,8 @@ namespace Jinaga
             {
                 var products = productsAdded.Select(p => p.product).ToImmutableList();
                 var addedGraph = await factManager.LoadProducts(products, cancellationToken);
-                var productProjections = DeserializeAllProducts(graph, productsAdded);
-                var removals = await observation.NotifyAdded(productProjections);
+                var productAnchorProjections = DeserializeAllProducts(graph, productsAdded);
+                var removals = await observation.NotifyAdded(productAnchorProjections);
                 lock (this)
                 {
                     removalsByProduct = removalsByProduct.AddRange(removals);
@@ -137,17 +140,19 @@ namespace Jinaga
             }
         }
 
-        private ImmutableList<ProductProjection> DeserializeAllProducts(FactGraph graph, ImmutableList<(Product product, Inverse inverse)> productsAdded)
+        private ImmutableList<ProductAnchorProjection> DeserializeAllProducts(FactGraph graph, ImmutableList<(Product product, Inverse inverse)> productsAdded)
         {
-            var productProjections =
+            var productAnchorProjections =
                 from pair in productsAdded
                 let product = pair.product
                 let inverse = pair.inverse
                 let projection = inverse.Projection
                 let type = ElementType(typeof(TProjection), inverse.CollectionIdentifiers)
+                let subset = inverse.CollectionIdentifiers.Select(c => c.IntermediateSubset).LastOrDefault() ?? inverse.InitialSubset
+                let anchor = subset.Of(product)
                 from productProjection in factManager.DeserializeProductsFromGraph(graph, projection, ImmutableList<Product>.Empty.Add(product), type, observation)
-                select productProjection;
-            return productProjections.ToImmutableList();
+                select new ProductAnchorProjection(productProjection.Product, anchor, productProjection.Projection);
+            return productAnchorProjections.ToImmutableList();
         }
 
         private static Type ElementType(Type type, IEnumerable<CollectionIdentifier> collectionIdentifiers) => collectionIdentifiers

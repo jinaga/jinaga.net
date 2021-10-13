@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 using System.Threading.Tasks;
 using Jinaga.Managers;
 using Jinaga.Products;
@@ -17,13 +18,29 @@ namespace Jinaga.Observers
             this.added = added;
         }
 
-        public async Task<ImmutableList<KeyValuePair<Product, Func<Task>>>> NotifyAdded(ImmutableList<ProductProjection> results)
+        public async Task<ImmutableList<KeyValuePair<Product, Func<Task>>>> NotifyAdded(ImmutableList<ProductAnchorProjection> results)
         {
             var removals = ImmutableList<KeyValuePair<Product, Func<Task>>>.Empty;
             foreach (var result in results)
             {
-                var removal = await added((TProjection)result.Projection);
-                removals = removals.Add(new KeyValuePair<Product, Func<Task>>(result.Product, removal));
+                var matchingHandlers = addedHandlers
+                    .Where(h => h.Anchor.Equals(result.Anchor));
+                if (matchingHandlers.Any())
+                {
+                    foreach (var handler in matchingHandlers)
+                    {
+                        var removal = await handler.Added(result.Projection);
+                        if (removal != null)
+                        {
+                            removals = removals.Add(new KeyValuePair<Product, Func<Task>>(result.Product, removal));
+                        }
+                    }
+                }
+                else
+                {
+                    var removal = await added((TProjection)result.Projection);
+                    removals = removals.Add(new KeyValuePair<Product, Func<Task>>(result.Product, removal));
+                }
             }
             return removals;
         }

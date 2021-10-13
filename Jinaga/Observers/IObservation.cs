@@ -9,6 +9,6 @@ namespace Jinaga.Observers
 {
     internal interface IObservation : IWatchContext
     {
-        Task<ImmutableList<KeyValuePair<Product, Func<Task>>>> NotifyAdded(ImmutableList<ProductProjection> results);
+        Task<ImmutableList<KeyValuePair<Product, Func<Task>>>> NotifyAdded(ImmutableList<ProductAnchorProjection> results);
     }
 }
