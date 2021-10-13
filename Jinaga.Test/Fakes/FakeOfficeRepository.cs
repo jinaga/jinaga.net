@@ -28,10 +28,16 @@ namespace Jinaga.Test.Fakes
             return Task.FromResult(offices[officeId]);
         }
 
-        public Task<int> UpdateOffice(int officeId, string name)
+        public Task<int> UpdateOfficeName(int officeId, string name)
         {
             offices[officeId].Name = name;
             return Task.FromResult(officeId);
+        }
+
+        public Task UpdateOfficeHeadcount(int officeId, int value)
+        {
+            offices[officeId].Headcount = value;
+            return Task.CompletedTask;
         }
 
         public Task<int> DeleteOffice(int officeId)

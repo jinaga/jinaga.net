@@ -86,7 +86,11 @@ namespace Jinaga.Test
                     int officeId = await officeRepository.InsertOffice(projection.Office.city.name);
                     projection.Names.OnAdded(async name =>
                     {
-                        await officeRepository.UpdateOffice(officeId, name.value);
+                        await officeRepository.UpdateOfficeName(officeId, name.value);
+                    });
+                    projection.Headcounts.OnAdded(async headcount =>
+                    {
+                        await officeRepository.UpdateOfficeHeadcount(officeId, headcount.value);
                     });
                 });
             await officeObserver.Initialized;
