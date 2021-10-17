@@ -8,22 +8,22 @@ namespace Jinaga.Observers
 {
     internal static class WatchedObservableCollection
     {
-        public static object Create(Type elementType, Product anchor, string parameterName, IWatchContext context)
+        public static object Create(Type elementType, Product anchor, string collectionName, IWatchContext context)
         {
             var type = typeof(WatchedObservableCollection<>).MakeGenericType(elementType);
-            return Activator.CreateInstance(type, anchor, parameterName, context);
+            return Activator.CreateInstance(type, anchor, collectionName, context);
         }
     }
     internal class WatchedObservableCollection<TProjection> : IObservableCollection<TProjection>
     {
         private readonly Product anchor;
-        private readonly string parameterName;
+        private readonly string collectionName;
         private readonly IWatchContext context;
 
-        public WatchedObservableCollection(Product anchor, string parameterName, IWatchContext context)
+        public WatchedObservableCollection(Product anchor, string collectionName, IWatchContext context)
         {
             this.anchor = anchor;
-            this.parameterName = parameterName;
+            this.collectionName = collectionName;
             this.context = context;
         }
 
@@ -34,7 +34,7 @@ namespace Jinaga.Observers
 
         public void OnAdded(Func<TProjection, Task<Func<Task>>> added)
         {
-            context.OnAdded(anchor, parameterName, typeof(TProjection),
+            context.OnAdded(anchor, collectionName,
                 projection => added((TProjection)projection));
         }
 

@@ -24,7 +24,7 @@ namespace Jinaga.Observers
             foreach (var result in results)
             {
                 var matchingHandlers = addedHandlers
-                    .Where(h => h.Anchor.Equals(result.Anchor) && h.ParameterName == result.CollectionName);
+                    .Where(h => h.Anchor.Equals(result.Anchor) && h.CollectionName == result.CollectionName);
                 if (matchingHandlers.Any())
                 {
                     foreach (var handler in matchingHandlers)
@@ -45,9 +45,9 @@ namespace Jinaga.Observers
             return removals;
         }
 
-        public void OnAdded(Product anchor, string parameterName, Type projectionType, Func<object, Task<Func<Task>>> added)
+        public void OnAdded(Product anchor, string collectionName, Func<object, Task<Func<Task>>> added)
         {
-            var handler = new AddedHandler(anchor, parameterName, projectionType, added);
+            var handler = new AddedHandler(anchor, collectionName, added);
             addedHandlers = addedHandlers.Add(handler);
         }
     }

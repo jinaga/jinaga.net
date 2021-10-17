@@ -6,6 +6,6 @@ namespace Jinaga.Observers
 {
     internal interface IWatchContext
     {
-        void OnAdded(Product anchor, string parameterName, Type projectionType, Func<object, Task<Func<Task>>> added);
+        void OnAdded(Product anchor, string collectionName, Func<object, Task<Func<Task>>> added);
     }
 }
