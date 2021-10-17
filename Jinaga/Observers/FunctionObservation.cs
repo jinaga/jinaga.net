@@ -24,7 +24,7 @@ namespace Jinaga.Observers
             foreach (var result in results)
             {
                 var matchingHandlers = addedHandlers
-                    .Where(h => h.Anchor.Equals(result.Anchor));
+                    .Where(h => h.Anchor.Equals(result.Anchor) && h.ParameterName == result.CollectionName);
                 if (matchingHandlers.Any())
                 {
                     foreach (var handler in matchingHandlers)

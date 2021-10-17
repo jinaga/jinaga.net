@@ -60,7 +60,7 @@ namespace Jinaga
             var products = await factManager.Query(startReferences, specification, cancellationToken);
             var productProjections = await factManager.ComputeProjections(specification.Projection, products, typeof(TProjection), observation, cancellationToken);
             var productAnchorProjections = productProjections
-                .Select(pair => new ProductAnchorProjection(pair.Product, initialAnchor, pair.Projection))
+                .Select(pair => new ProductAnchorProjection(pair.Product, initialAnchor, pair.Projection, string.Empty))
                 .ToImmutableList();
             var removals = await observation.NotifyAdded(productAnchorProjections);
             lock (this)
@@ -148,10 +148,11 @@ namespace Jinaga
                 let inverse = pair.inverse
                 let projection = inverse.Projection
                 let type = ElementType(typeof(TProjection), inverse.CollectionIdentifiers)
+                let collectionName = inverse.CollectionIdentifiers.Select(id => id.CollectionName).LastOrDefault()
                 let subset = inverse.CollectionIdentifiers.Select(c => c.IntermediateSubset).LastOrDefault() ?? inverse.InitialSubset
                 let anchor = subset.Of(product)
                 from productProjection in factManager.DeserializeProductsFromGraph(graph, projection, ImmutableList<Product>.Empty.Add(product), type, observation)
-                select new ProductAnchorProjection(productProjection.Product, anchor, productProjection.Projection);
+                select new ProductAnchorProjection(productProjection.Product, anchor, productProjection.Projection, collectionName);
             return productAnchorProjections.ToImmutableList();
         }
 

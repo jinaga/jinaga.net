@@ -7,15 +7,15 @@ namespace Jinaga.Observers
     internal class AddedHandler
     {
         public Product Anchor { get; }
-        private string parameterName;
-        private Type projectionType;
+        public string ParameterName { get; }
+        private Type ProjectionType { get; }
         public Func<object, Task<Func<Task>>> Added { get; }
 
         public AddedHandler(Product anchor, string parameterName, Type projectionType, Func<object, Task<Func<Task>>> added)
         {
             this.Anchor = anchor;
-            this.parameterName = parameterName;
-            this.projectionType = projectionType;
+            this.ParameterName = parameterName;
+            this.ProjectionType = projectionType;
             this.Added = added;
         }
     }
