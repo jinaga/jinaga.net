@@ -38,4 +38,22 @@ namespace Jinaga.Test.Model
         ).Any());
     }
 
+    [FactType("Corporate.Manager")]
+    record Manager(Office office, int employeeNumber)
+    {
+        public Condition IsTerminated => new Condition(facts => !(
+            facts.OfType<ManagerTerminated>(termination => termination.Manager == this)
+        ).Any());
+    }
+
+    [FactType("Corporate.Manager.Name")]
+    record ManagerName(Manager manager, string value, ManagerName[] prior)
+    {
+        public Condition IsCurrent => new Condition(facts => !(
+            facts.OfType<ManagerName>(next => next.prior.Contains(this))
+        ).Any());
+    }
+
+    [FactType("Corporate.Manager.Terminated")]
+    record ManagerTerminated(Manager Manager, DateTime terminationDate);
 }
