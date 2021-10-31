@@ -13,29 +13,50 @@ namespace Jinaga.Managers
 {
     class Deserializer
     {
-        public static ImmutableList<ProductProjection> Deserialize(Emitter emitter, Projection projection, Type type, ImmutableList<Product> products)
+        public static ImmutableList<ProductAnchorProjection> Deserialize(
+            Emitter emitter,
+            Projection projection,
+            Type type,
+            ImmutableList<Product> products,
+            Product anchor,
+            string collectionName)
         {
             if (projection is SimpleProjection simpleProjection)
-                return DeserializeSimpleProjection(emitter, simpleProjection, type, products);
+                return DeserializeSimpleProjection(emitter, simpleProjection, type, products, anchor, collectionName);
             else if (projection is CompoundProjection compoundProjection)
-                return DeserializeCompoundProjection(emitter, compoundProjection, type, products);
+                return DeserializeCompoundProjection(emitter, compoundProjection, type, products, anchor, collectionName);
             else if (projection is CollectionProjection collectionProjection)
-                return DeserializeCollectionProjection(emitter, collectionProjection, type, products);
+                return DeserializeCollectionProjection(emitter, collectionProjection, type, products, anchor, collectionName);
             else
                 throw new NotImplementedException();
         }
 
-        private static ImmutableList<ProductProjection> DeserializeSimpleProjection(Emitter emitter, SimpleProjection simpleProjection, Type type, ImmutableList<Product> products)
+        private static ImmutableList<ProductAnchorProjection> DeserializeSimpleProjection(
+            Emitter emitter,
+            SimpleProjection simpleProjection,
+            Type type,
+            ImmutableList<Product> products,
+            Product anchor,
+            string collectionName)
         {
             var productProjections = products
-                .Select(product => new ProductProjection(product,
-                    emitter.DeserializeToType(product.GetFactReference(simpleProjection.Tag), type)
+                .Select(product => new ProductAnchorProjection(
+                    product,
+                    anchor,
+                    emitter.DeserializeToType(product.GetFactReference(simpleProjection.Tag), type),
+                    collectionName
                 ))
                 .ToImmutableList();
             return productProjections;
         }
 
-        private static ImmutableList<ProductProjection> DeserializeCompoundProjection(Emitter emitter, CompoundProjection compoundProjection, Type type, ImmutableList<Product> products)
+        private static ImmutableList<ProductAnchorProjection> DeserializeCompoundProjection(
+            Emitter emitter,
+            CompoundProjection compoundProjection,
+            Type type,
+            ImmutableList<Product> products,
+            Product anchor,
+            string collectionName)
         {
             var constructorInfos = type.GetConstructors();
             if (constructorInfos.Length != 1)
@@ -53,7 +74,7 @@ namespace Jinaga.Managers
                         let projection = compoundProjection.GetProjection(parameter.Name)
                         select DeserializeParameter(emitter, projection, parameter.ParameterType, parameter.Name, product)
                     ).ToArray())
-                    select new ProductProjection(product, result);
+                    select new ProductAnchorProjection(product, anchor, result, collectionName);
                 return productProjections.ToImmutableList();
             }
             else
@@ -61,10 +82,11 @@ namespace Jinaga.Managers
                 var properties = type.GetProperties();
                 var productProjections = products.Select(product =>
                 {
-                    return DeserializeProducts(emitter, compoundProjection, type, product, properties);
+                    return DeserializeProducts(emitter, compoundProjection, type, product, properties, anchor, collectionName);
                 });
                 var childProductProjections =
                     from product in products
+                    let parentAnchor = product.GetAnchor()
                     from property in properties
                     where
                         !property.PropertyType.IsFactType() &&
@@ -77,13 +99,20 @@ namespace Jinaga.Managers
                     where element is CollectionElement
                     let collectionElement = (CollectionElement)element
                     from childProduct in collectionElement.Products
-                    from childProductProjection in DeserializeChildParameters(emitter, collectionProjection.Specification.Projection, property.PropertyType, property.Name, childProduct)
+                    from childProductProjection in DeserializeChildParameters(emitter, collectionProjection.Specification.Projection, property.PropertyType, property.Name, childProduct, parentAnchor)
                     select childProductProjection;
-                return productProjections.Concat<ProductProjection>(childProductProjections).ToImmutableList();
+                return productProjections.Concat(childProductProjections).ToImmutableList();
             }
         }
 
-        private static ProductProjection DeserializeProducts(Emitter emitter, CompoundProjection compoundProjection, Type type, Product product, PropertyInfo[] properties)
+        private static ProductAnchorProjection DeserializeProducts(
+            Emitter emitter,
+            CompoundProjection compoundProjection,
+            Type type,
+            Product product,
+            PropertyInfo[] properties,
+            Product anchor,
+            string collectionName)
         {
             var result = Activator.CreateInstance(type);
             foreach (var property in properties)
@@ -92,27 +121,33 @@ namespace Jinaga.Managers
                 var value = DeserializeParameter(emitter, projection, property.PropertyType, property.Name, product);
                 property.SetValue(result, value);
             }
-            return new ProductProjection(product, result);
+            return new ProductAnchorProjection(product, anchor, result, collectionName);
         }
 
-        private static ImmutableList<ProductProjection> DeserializeCollectionProjection(Emitter emitter, CollectionProjection collectionProjection, Type type, ImmutableList<Product> products)
+        private static ImmutableList<ProductAnchorProjection> DeserializeCollectionProjection(Emitter emitter, CollectionProjection collectionProjection, Type type, ImmutableList<Product> products, Product anchor, string collectionName)
         {
             throw new NotImplementedException();
         }
 
-        private static IEnumerable<ProductProjection> DeserializeChildParameters(Emitter emitter, Projection projection, Type parameterType, string parameterName, Product product)
+        private static IEnumerable<ProductAnchorProjection> DeserializeChildParameters(
+            Emitter emitter,
+            Projection projection,
+            Type propertyType,
+            string parameterName,
+            Product product,
+            Product anchor)
         {
             if (emitter.WatchContext != null)
             {
-                var elementType = parameterType.GetGenericArguments()[0];
+                var elementType = propertyType.GetGenericArguments()[0];
                 var productProjections = Projector.GetFactReferences(projection, product, parameterName)
                     .Select(reference => emitter.DeserializeToType(reference, elementType))
-                    .Select(obj => new ProductProjection(product, obj));
+                    .Select(obj => new ProductAnchorProjection(product, anchor, obj, parameterName));
                 return productProjections;
             }
             else
             {
-                return Enumerable.Empty<ProductProjection>();
+                return Enumerable.Empty<ProductAnchorProjection>();
             }
         }
 

@@ -49,16 +49,18 @@ namespace Jinaga.Managers
             return await store.Load(references, cancellationToken);
         }
 
-        public async Task<ImmutableList<ProductProjection>> ComputeProjections(
+        public async Task<ImmutableList<ProductAnchorProjection>> ComputeProjections(
             Projection projection,
             ImmutableList<Product> products,
             Type type,
             IWatchContext? watchContext,
+            Product anchor,
+            string collectionName,
             CancellationToken cancellationToken)
         {
             var references = Projector.GetFactReferences(projection, products, type);
             var graph = await store.Load(references, cancellationToken);
-            return DeserializeProductsFromGraph(graph, projection, products, type, watchContext);
+            return DeserializeProductsFromGraph(graph, projection, products, type, anchor, collectionName, watchContext);
         }
 
         public FactGraph Serialize(object prototype)
@@ -101,17 +103,19 @@ namespace Jinaga.Managers
             }
         }
 
-        public ImmutableList<ProductProjection> DeserializeProductsFromGraph(
+        public ImmutableList<ProductAnchorProjection> DeserializeProductsFromGraph(
             FactGraph graph,
             Projection projection,
             ImmutableList<Product> products,
             Type type,
+            Product anchor,
+            string collectionName,
             IWatchContext? watchContext)
         {
             lock (this)
             {
                 var emitter = new Emitter(graph, deserializerCache, watchContext);
-                ImmutableList<ProductProjection> results = Deserializer.Deserialize(emitter, projection, type, products);
+                ImmutableList<ProductAnchorProjection> results = Deserializer.Deserialize(emitter, projection, type, products, anchor, collectionName);
                 deserializerCache = emitter.DeserializerCache;
                 return results;
             }
