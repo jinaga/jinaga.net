@@ -95,6 +95,7 @@ namespace Jinaga.Managers
                     let projection = compoundProjection.GetProjection(property.Name)
                     where projection is CollectionProjection
                     let collectionProjection = (CollectionProjection)projection
+                    where product.Names.Contains(property.Name)
                     let element = product.GetElement(property.Name)
                     where element is CollectionElement
                     let collectionElement = (CollectionElement)element
