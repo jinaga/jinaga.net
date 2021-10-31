@@ -4,8 +4,10 @@ using Jinaga.Products;
 using Jinaga.Projections;
 using Jinaga.Serialization;
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Reflection;
 
 namespace Jinaga.Managers
 {
@@ -59,22 +61,59 @@ namespace Jinaga.Managers
                 var properties = type.GetProperties();
                 var productProjections = products.Select(product =>
                 {
-                    var result = Activator.CreateInstance(type);
-                    foreach (var property in properties)
-                    {
-                        var projection = compoundProjection.GetProjection(property.Name);
-                        var value = DeserializeParameter(emitter, projection, property.PropertyType, property.Name, product);
-                        property.SetValue(result, value);
-                    }
-                    return new ProductProjection(product, result);
+                    return DeserializeProducts(emitter, compoundProjection, type, product, properties);
                 });
-                return productProjections.ToImmutableList();
+                var childProductProjections =
+                    from product in products
+                    from property in properties
+                    where
+                        !property.PropertyType.IsFactType() &&
+                        property.PropertyType.IsGenericType &&
+                        property.PropertyType.GetGenericTypeDefinition() == typeof(IObservableCollection<>)
+                    let projection = compoundProjection.GetProjection(property.Name)
+                    where projection is CollectionProjection
+                    let collectionProjection = (CollectionProjection)projection
+                    let element = product.GetElement(property.Name)
+                    where element is CollectionElement
+                    let collectionElement = (CollectionElement)element
+                    from childProduct in collectionElement.Products
+                    from childProductProjection in DeserializeChildParameters(emitter, collectionProjection.Specification.Projection, property.PropertyType, property.Name, childProduct)
+                    select childProductProjection;
+                return productProjections.Concat<ProductProjection>(childProductProjections).ToImmutableList();
             }
+        }
+
+        private static ProductProjection DeserializeProducts(Emitter emitter, CompoundProjection compoundProjection, Type type, Product product, PropertyInfo[] properties)
+        {
+            var result = Activator.CreateInstance(type);
+            foreach (var property in properties)
+            {
+                var projection = compoundProjection.GetProjection(property.Name);
+                var value = DeserializeParameter(emitter, projection, property.PropertyType, property.Name, product);
+                property.SetValue(result, value);
+            }
+            return new ProductProjection(product, result);
         }
 
         private static ImmutableList<ProductProjection> DeserializeCollectionProjection(Emitter emitter, CollectionProjection collectionProjection, Type type, ImmutableList<Product> products)
         {
             throw new NotImplementedException();
+        }
+
+        private static IEnumerable<ProductProjection> DeserializeChildParameters(Emitter emitter, Projection projection, Type parameterType, string parameterName, Product product)
+        {
+            if (emitter.WatchContext != null)
+            {
+                var elementType = parameterType.GetGenericArguments()[0];
+                var productProjections = Projector.GetFactReferences(projection, product, parameterName)
+                    .Select(reference => emitter.DeserializeToType(reference, elementType))
+                    .Select(obj => new ProductProjection(product, obj));
+                return productProjections;
+            }
+            else
+            {
+                return Enumerable.Empty<ProductProjection>();
+            }
         }
 
         private static object DeserializeParameter(Emitter emitter, Projection projection, Type parameterType, string parameterName, Product product)

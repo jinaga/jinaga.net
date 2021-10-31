@@ -23,24 +23,8 @@ namespace Jinaga.Observers
             var removals = ImmutableList<KeyValuePair<Product, Func<Task>>>.Empty;
             foreach (var result in results)
             {
-                var matchingHandlers = addedHandlers
-                    .Where(h => h.Anchor.Equals(result.Anchor) && h.CollectionName == result.CollectionName);
-                if (matchingHandlers.Any())
-                {
-                    foreach (var handler in matchingHandlers)
-                    {
-                        var removal = await handler.Added(result.Projection);
-                        if (removal != null)
-                        {
-                            removals = removals.Add(new KeyValuePair<Product, Func<Task>>(result.Product, removal));
-                        }
-                    }
-                }
-                else
-                {
-                    var removal = await added((TProjection)result.Projection);
-                    removals = removals.Add(new KeyValuePair<Product, Func<Task>>(result.Product, removal));
-                }
+                var newRemovals = await InvokeAddedHandler(result.Anchor, result.CollectionName, result.Projection, result.Product);
+                removals = removals.AddRange(newRemovals);
             }
             return removals;
         }
@@ -49,6 +33,31 @@ namespace Jinaga.Observers
         {
             var handler = new AddedHandler(anchor, collectionName, added);
             addedHandlers = addedHandlers.Add(handler);
+        }
+
+        private async Task<ImmutableList<KeyValuePair<Product, Func<Task>>>> InvokeAddedHandler(Product anchor, string collectionName, object projection, Product product)
+        {
+            var removals = ImmutableList<KeyValuePair<Product, Func<Task>>>.Empty;
+            var matchingHandlers = addedHandlers
+                .Where(h => h.Anchor.Equals(anchor) && h.CollectionName == collectionName);
+            if (matchingHandlers.Any())
+            {
+                foreach (var handler in matchingHandlers)
+                {
+                    var removal = await handler.Added(projection);
+                    if (removal != null)
+                    {
+                        removals = removals.Add(new KeyValuePair<Product, Func<Task>>(product.GetAnchor(), removal));
+                    }
+                }
+            }
+            else
+            {
+                var removal = await added((TProjection)projection);
+                removals = removals.Add(new KeyValuePair<Product, Func<Task>>(product.GetAnchor(), removal));
+            }
+
+            return removals;
         }
     }
 }
