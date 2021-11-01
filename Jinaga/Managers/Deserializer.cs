@@ -99,8 +99,7 @@ namespace Jinaga.Managers
                     let element = product.GetElement(property.Name)
                     where element is CollectionElement
                     let collectionElement = (CollectionElement)element
-                    from childProduct in collectionElement.Products
-                    from childProductProjection in DeserializeChildParameters(emitter, collectionProjection.Specification.Projection, property.PropertyType, property.Name, childProduct, parentAnchor)
+                    from childProductProjection in DeserializeChildParameters(emitter, collectionProjection.Specification.Projection, property.PropertyType, property.Name, collectionElement.Products, parentAnchor)
                     select childProductProjection;
                 return productProjections.Concat(childProductProjections).ToImmutableList();
             }
@@ -135,15 +134,13 @@ namespace Jinaga.Managers
             Projection projection,
             Type propertyType,
             string parameterName,
-            Product product,
+            ImmutableList<Product> products,
             Product anchor)
         {
             if (emitter.WatchContext != null)
             {
                 var elementType = propertyType.GetGenericArguments()[0];
-                var productProjections = Projector.GetFactReferences(projection, product, parameterName)
-                    .Select(reference => emitter.DeserializeToType(reference, elementType))
-                    .Select(obj => new ProductAnchorProjection(product, anchor, obj, parameterName));
+                var productProjections = Deserialize(emitter, projection, elementType, products, anchor, parameterName);
                 return productProjections;
             }
             else
