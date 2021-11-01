@@ -1,10 +1,9 @@
+using System;
 using FluentAssertions;
 using Jinaga.Observers;
 using Jinaga.Test.Fakes;
 using Jinaga.Test.Model;
 using Jinaga.UnitTest;
-using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Xunit;
@@ -51,6 +50,21 @@ namespace Jinaga.Test
                     Name = ""
                 }
             });
+
+            await officeObserver.Stop();
+        }
+
+        [Fact]
+        public async Task NestedWatch_OfficeCloses()
+        {
+            var company = await j.Fact(new Company("Contoso"));
+            var newOffice = await j.Fact(new Office(company, new City("Dallas")));
+
+            var officeObserver = await WhenWatchOffices(company);
+
+            await j.Fact(new OfficeClosure(newOffice, DateTime.UtcNow));
+
+            officeRepository.Offices.Should().BeEmpty();
 
             await officeObserver.Stop();
         }
@@ -182,6 +196,11 @@ namespace Jinaga.Test
                     {
                         await officeRepository.UpdateOfficeHeadcount(officeId, headcount.value);
                     });
+
+                    return async () =>
+                    {
+                        await officeRepository.DeleteOffice(officeId);
+                    };
                 });
             await officeObserver.Initialized;
             return officeObserver;
