@@ -145,6 +145,29 @@ namespace Jinaga.Test
             });
         }
 
+        [Fact]
+        public async Task NestedWatch_ManagerAndNameAdded()
+        {
+            var company = await j.Fact(new Company("Contoso"));
+            var newOffice = await j.Fact(new Office(company, new City("Dallas")));
+
+            var managerObserver = await WhenWatchManagement(company);
+
+            var manager42 = await j.Fact(new Manager(newOffice, 42));
+            var michael = await j.Fact(new ManagerName(manager42, "Michael", new ManagerName[0]));
+
+            officeRepository.Managers.Should().BeEquivalentTo(new ManagerRow[]
+            {
+                new ManagerRow
+                {
+                    ManagerId = 1,
+                    OfficeId = 1,
+                    EmployeeNumber = 42,
+                    Name = "Michael"
+                }
+            });
+        }
+
         private async Task<Observer<OfficeProjection>> WhenWatchOffices(Company company)
         {
             var officeObserver = j.Watch(company, officesInCompany,
