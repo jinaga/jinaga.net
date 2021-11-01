@@ -160,6 +160,21 @@ namespace Jinaga.Test
         }
 
         [Fact]
+        public async Task NestedWatch_ManagerTerminated()
+        {
+            var company = await j.Fact(new Company("Contoso"));
+            var newOffice = await j.Fact(new Office(company, new City("Dallas")));
+            var manager42 = await j.Fact(new Manager(newOffice, 42));
+            var michael = await j.Fact(new ManagerName(manager42, "Michael", new ManagerName[0]));
+
+            var managerObserver = await WhenWatchManagement(company);
+
+            await j.Fact(new ManagerTerminated(manager42, DateTime.UtcNow));
+
+            officeRepository.Managers.Should().BeEmpty();
+        }
+
+        [Fact]
         public async Task NestedWatch_ManagerAndNameAdded()
         {
             var company = await j.Fact(new Company("Contoso"));
@@ -219,7 +234,17 @@ namespace Jinaga.Test
                         {
                             await officeRepository.UpdateManagerName(managerId, name.value);
                         });
+
+                        return async () =>
+                        {
+                            await officeRepository.DeleteManager(managerId);
+                        };
                     });
+
+                    return async () =>
+                    {
+                        await officeRepository.DeleteOffice(officeId);
+                    };
                 }
             );
             await managementObserver.Initialized;

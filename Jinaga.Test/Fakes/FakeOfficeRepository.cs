@@ -62,10 +62,16 @@ namespace Jinaga.Test.Fakes
             return Task.FromResult(managerId);
         }
 
-        internal Task UpdateManagerName(int managerId, string name)
+        public Task UpdateManagerName(int managerId, string name)
         {
             managers[managerId].Name = name;
             return Task.CompletedTask;
+        }
+
+        public Task<int> DeleteManager(int managerId)
+        {
+            managers.Remove(managerId);
+            return Task.FromResult(managerId);
         }
     }
 }
