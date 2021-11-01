@@ -15,7 +15,10 @@ namespace Jinaga.Projections
 
         public override Projection Apply(Label parameter, Label argument)
         {
-            throw new NotImplementedException();
+            return new CollectionProjection(new Specification(
+                Specification.Pipeline.Apply(parameter, argument),
+                Specification.Projection.Apply(parameter, argument)
+            ));
         }
 
         public override string ToDescriptiveString(int depth = 0)
