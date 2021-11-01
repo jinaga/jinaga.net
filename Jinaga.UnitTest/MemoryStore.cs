@@ -83,7 +83,7 @@ namespace Jinaga.UnitTest
                 from product in products
                 let matchingChildProducts = (
                     from childProduct in childProducts
-                    where subset.Of(childProduct).Equals(product)
+                    where subset.Of(childProduct).Equals(subset.Of(product))
                     select childProduct
                 ).ToImmutableList()
                 select product.With(name, new CollectionElement(matchingChildProducts));
