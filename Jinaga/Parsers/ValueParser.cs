@@ -26,6 +26,13 @@ namespace Jinaga.Parsers
                     .ToImmutableDictionary();
                 return (new SymbolValueComposite(fields), "");
             }
+            else if (expression is MemberInitExpression memberInit)
+            {
+                var fields = memberInit.Bindings
+                    .Select(binding => ParseMemberBinding(symbolTable, binding))
+                    .ToImmutableDictionary();
+                return (new SymbolValueComposite(fields), "");
+            }
             else if (expression is MemberExpression {
                 Member: PropertyInfo propertyInfo
             } memberExpression)
@@ -87,9 +94,30 @@ namespace Jinaga.Parsers
             }
         }
 
+        private static KeyValuePair<string, SymbolValue> ParseMemberBinding(SymbolTable symbolTable, MemberBinding binding)
+        {
+            if (binding is MemberAssignment assignment)
+            {
+                var name = assignment.Member.Name;
+                var value = ParseValue(symbolTable, assignment.Expression).symbolValue;
+                return KeyValuePair.Create(name, value);
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
+        }
+
         private static Specification ParseSpecification(SymbolTable symbolTable, Expression expression)
         {
             if (expression is MemberExpression {
+                Expression: null,
+                Member: FieldInfo staticField
+            })
+            {
+                return (Specification)staticField.GetValue(null);
+            }
+            else if (expression is MemberExpression {
                 Expression: ConstantExpression constantExpression,
                 Member: FieldInfo field
             })

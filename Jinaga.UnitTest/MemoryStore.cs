@@ -54,8 +54,12 @@ namespace Jinaga.UnitTest
 
         public Task<ImmutableList<Product>> Query(ImmutableList<FactReference> startReferences, Specification specification, CancellationToken cancellationToken)
         {
-            var pipeline = specification.Pipeline;
-            var projection = specification.Projection;
+            var products = ExecuteNestedPipeline(startReferences, specification.Pipeline, specification.Projection);
+            return Task.FromResult(products);
+        }
+
+        private ImmutableList<Product> ExecuteNestedPipeline(ImmutableList<FactReference> startReferences, Pipeline pipeline, Projection projection)
+        {
             var subset = Subset.FromPipeline(pipeline);
             var namedSpecifications = projection.GetNamedSpecifications();
             var products = (
@@ -66,15 +70,11 @@ namespace Jinaga.UnitTest
                 from namedSpecification in namedSpecifications
                 let name = namedSpecification.name
                 let childPipeline = pipeline.Compose(namedSpecification.specification.Pipeline)
-                let childProducts = (
-                    from startReference in startReferences
-                    from childProduct in ExecutePipeline(startReference, childPipeline)
-                    select childProduct
-                ).ToImmutableList()
+                let childProducts = ExecuteNestedPipeline(startReferences, childPipeline, namedSpecification.specification.Projection)
                 select (name, childProducts);
             var mergedProducts = collections
                 .Aggregate(products, (source, collection) => MergeProducts(subset, collection.name, collection.childProducts, source));
-            return Task.FromResult(mergedProducts.ToImmutableList());
+            return mergedProducts;
         }
 
         private ImmutableList<Product> MergeProducts(Subset subset, string name, ImmutableList<Product> childProducts, ImmutableList<Product> products)
@@ -83,7 +83,7 @@ namespace Jinaga.UnitTest
                 from product in products
                 let matchingChildProducts = (
                     from childProduct in childProducts
-                    where subset.Of(childProduct).Equals(product)
+                    where subset.Of(childProduct).Equals(subset.Of(product))
                     select childProduct
                 ).ToImmutableList()
                 select product.With(name, new CollectionElement(matchingChildProducts));

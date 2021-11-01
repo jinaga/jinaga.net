@@ -41,14 +41,26 @@ namespace Jinaga.Managers
             return await store.Query(startReferences, specification, cancellationToken);
         }
 
-        public async Task<ImmutableList<ProductProjection<TProjection>>> ComputeProjections<TProjection>(Projection projection, ImmutableList<Product> products, CancellationToken cancellationToken)
+        public async Task<FactGraph> LoadProducts(ImmutableList<Product> products, CancellationToken cancellationToken)
         {
-            var references = Projector.GetFactReferences(projection, products, typeof(TProjection));
-            var graph = await store.Load(references, cancellationToken);
-            var productProjections = DeserializeProductsFromGraph(graph, projection, products, typeof(TProjection));
-            return productProjections
-                .Select(pair => new ProductProjection<TProjection>(pair.Product, (TProjection)pair.Projection))
+            var references = products
+                .SelectMany(product => product.GetFactReferences())
                 .ToImmutableList();
+            return await store.Load(references, cancellationToken);
+        }
+
+        public async Task<ImmutableList<ProductAnchorProjection>> ComputeProjections(
+            Projection projection,
+            ImmutableList<Product> products,
+            Type type,
+            IWatchContext? watchContext,
+            Product anchor,
+            string collectionName,
+            CancellationToken cancellationToken)
+        {
+            var references = Projector.GetFactReferences(projection, products, type);
+            var graph = await store.Load(references, cancellationToken);
+            return DeserializeProductsFromGraph(graph, projection, products, type, anchor, collectionName, watchContext);
         }
 
         public FactGraph Serialize(object prototype)
@@ -91,12 +103,19 @@ namespace Jinaga.Managers
             }
         }
 
-        private ImmutableList<ProductProjection> DeserializeProductsFromGraph(FactGraph graph, Projection projection, ImmutableList<Product> products, Type type)
+        public ImmutableList<ProductAnchorProjection> DeserializeProductsFromGraph(
+            FactGraph graph,
+            Projection projection,
+            ImmutableList<Product> products,
+            Type type,
+            Product anchor,
+            string collectionName,
+            IWatchContext? watchContext)
         {
             lock (this)
             {
-                var emitter = new Emitter(graph, deserializerCache);
-                ImmutableList<ProductProjection> results = Deserializer.Deserialize(emitter, projection, type, products);
+                var emitter = new Emitter(graph, deserializerCache, watchContext);
+                ImmutableList<ProductAnchorProjection> results = Deserializer.Deserialize(emitter, projection, type, products, anchor, collectionName);
                 deserializerCache = emitter.DeserializerCache;
                 return results;
             }

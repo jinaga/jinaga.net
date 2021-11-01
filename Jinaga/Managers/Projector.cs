@@ -86,13 +86,17 @@ namespace Jinaga.Managers
                 }
                 var constructor = constructorInfos.Single();
                 var parameters = constructor.GetParameters();
+                var properties = type.GetProperties();
+                var names = parameters.Select(parameter => parameter.Name).Concat(
+                    properties.Select(property => property.Name)
+                ).Distinct();
                 var references = (
                     from product in products
-                    from parameter in parameters
+                    from name in names
                     from reference in GetFactReferences(
-                        compound.GetProjection(parameter.Name),
+                        compound.GetProjection(name),
                         product,
-                        parameter.Name)
+                        name)
                     select reference
                 ).Distinct().ToImmutableList();
                 return references;

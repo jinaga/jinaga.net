@@ -1,4 +1,4 @@
-using System;
+using System.Collections.Immutable;
 using Jinaga.Pipelines;
 
 namespace Jinaga.Projections
@@ -13,5 +13,10 @@ namespace Jinaga.Projections
 
         public Pipeline Pipeline { get; }
         public Projection Projection { get; }
+
+        public ImmutableList<Inverse> ComputeInverses()
+        {
+            return Inverter.InvertSpecification(this).ToImmutableList();
+        }
     }
 }

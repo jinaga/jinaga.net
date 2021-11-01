@@ -50,11 +50,6 @@ namespace Jinaga.Pipelines
             return new Pipeline(starts, paths, conditionals.Add(conditional), false);
         }
 
-        public ImmutableList<Inverse> ComputeInverses()
-        {
-            return Inverter.InvertPipeline(this).ToImmutableList();
-        }
-
         public Pipeline Compose(Pipeline pipeline)
         {
             var combinedStarts = starts
