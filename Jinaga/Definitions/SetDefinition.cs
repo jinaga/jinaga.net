@@ -1,9 +1,11 @@
 using System;
+using Jinaga.Pipelines;
 
 namespace Jinaga.Definitions
 {
     public abstract class SetDefinition
     {
+        public Label Label => new Label(Tag, FactType);
         public abstract string FactType { get; }
         public virtual string Tag => throw new NotImplementedException();
 

@@ -77,7 +77,7 @@ namespace Jinaga.Parsers
                     var startSetDefinition = startValue.SetDefinition;
                     var specification = ParseSpecification(symbolTable, allCallExpression.Arguments[1]);
                     var parameterLabel = specification.Pipeline.Starts.First();
-                    var argument = new Label(startSetDefinition.Tag, startSetDefinition.FactType);
+                    var argument = startSetDefinition.Label;
                     var pipeline = specification.Pipeline.Apply(parameterLabel, argument);
                     var projection = specification.Projection.Apply(parameterLabel, argument);
                     var specificationObj = new Specification(pipeline, projection);

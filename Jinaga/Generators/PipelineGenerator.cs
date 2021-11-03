@@ -16,14 +16,14 @@ namespace Jinaga.Generators
             else if (setDefinition is SetDefinitionInitial initialSet)
             {
                 return Pipeline.Empty
-                    .AddStart(new Label(initialSet.Tag, initialSet.FactType));
+                    .AddStart(initialSet.Label);
             }
             else if (setDefinition is SetDefinitionPredecessorChain predecessorChainSet)
             {
                 var chain = predecessorChainSet.ToChain();
                 var targetSetDefinition = chain.TargetSetDefinition;
                 var pipeline = CreatePipeline(targetSetDefinition, seekSetDefinition, replaceLabel);
-                var start = new Label(targetSetDefinition.Tag, targetSetDefinition.FactType);
+                var start = targetSetDefinition.Label;
                 var target = new Label(predecessorChainSet.Tag, chain.TargetType);
                 var path = new Path(start, target);
                 return pipeline.AddPath(AddPredecessorSteps(path, chain));
@@ -35,8 +35,8 @@ namespace Jinaga.Generators
                 var sourceSetDefinition = head.TargetSetDefinition;
                 var targetSetDefinition = tail.TargetSetDefinition;
                 var pipeline = CreatePipeline(sourceSetDefinition, seekSetDefinition, replaceLabel);
-                var source = new Label(sourceSetDefinition.Tag, sourceSetDefinition.FactType);
-                var target = new Label(joinSet.Tag, targetSetDefinition.FactType);
+                var source = sourceSetDefinition.Label;
+                var target = joinSet.Label;
                 var path = new Path(source, target);
                 return pipeline.AddPath(PrependSuccessorSteps(AddPredecessorSteps(path, head), tail));
             }
@@ -44,7 +44,7 @@ namespace Jinaga.Generators
             {
                 var targetSetDefinition = conditionalSet.Source;
                 var pipeline = CreatePipeline(targetSetDefinition, seekSetDefinition, replaceLabel);
-                var start = new Label(targetSetDefinition.Tag, targetSetDefinition.FactType);
+                var start = targetSetDefinition.Label;
                 var childPipeline = CreatePipeline(
                     conditionalSet.Condition.Set,
                     targetSetDefinition,
