@@ -110,23 +110,48 @@ namespace Jinaga.Parsers
 
         private static Specification ParseSpecification(SymbolTable symbolTable, Expression expression)
         {
-            if (expression is MemberExpression {
+            return (Specification)GetValue(expression);
+        }
+
+        private static object GetValue(Expression expression)
+        {
+            if (expression is ConstantExpression constantExpression)
+            {
+                return constantExpression.Value;
+            }
+            else if (expression is MemberExpression {
                 Expression: null,
                 Member: FieldInfo staticField
             })
             {
-                return (Specification)staticField.GetValue(null);
+                return staticField.GetValue(null);
             }
             else if (expression is MemberExpression {
-                Expression: ConstantExpression constantExpression,
+                Expression: null,
+                Member: PropertyInfo staticProperty
+            })
+            {
+                return staticProperty.GetValue(null);
+            }
+            else if (expression is MemberExpression {
+                Expression: Expression fieldParent,
                 Member: FieldInfo field
             })
             {
-                return (Specification)field.GetValue(constantExpression.Value);
+                object obj = GetValue(fieldParent);
+                return field.GetValue(obj);
+            }
+            else if (expression is MemberExpression {
+                Expression: Expression propertyParent,
+                Member: PropertyInfo property
+            })
+            {
+                object obj = GetValue(propertyParent);
+                return property.GetValue(obj);
             }
             else
             {
-                throw new NotImplementedException($"ParseSpecification: {ExpressionVisualizer.DumpExpression(expression)}");
+                throw new NotImplementedException($"GetValue: {ExpressionVisualizer.DumpExpression(expression)}");
             }
         }
     }

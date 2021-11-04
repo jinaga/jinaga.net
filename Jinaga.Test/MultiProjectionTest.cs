@@ -1,53 +1,43 @@
 using FluentAssertions;
+using Jinaga.Test.Model.DWS;
 using System;
 using System.Linq;
 using Xunit;
 
 namespace Jinaga.Test
 {
-    [FactType("DWS.Supplier")]
-    public record Supplier(string publicKey);
-
-
-    [FactType("DWS.Client")]
-    public record Client(Supplier supplier, DateTime created);
-
-    [FactType("DWS.Client.Name")]
-    public record ClientName(Client client, string name, ClientName[] prior);
-
-
-    [FactType("DWS.Yard")]
-    public record Yard(Client client, DateTime created);
-
-    [FactType("DWS.Yard.Address")]
-    public record YardAddress(Yard yard, string name, string remark, string street, string housNb, string postalCode, string city, string country, YardAddress[] prior);
-
     public class MultiProjectionTest
     {
+        private static Specification<Yard, YardAddress> addressesOfYard = Given<Yard>.Match((yard, facts) =>
+            from yardAddress in facts.OfType<YardAddress>()
+            where yardAddress.yard == yard
+            where !(
+                from next in facts.OfType<YardAddress>()
+                where next.prior.Contains(yardAddress)
+                select next
+            ).Any()
+            select yardAddress
+        );
+
+        private static Specification<Client, ClientName> namesOfClient = Given<Client>.Match((client, facts) =>
+            from clientName in facts.OfType<ClientName>()
+            where clientName.client == client
+            where !(
+                from next in facts.OfType<ClientName>()
+                where next.prior.Contains(clientName)
+                select next
+            ).Any()
+            select clientName
+        );
+
         [Fact]
         public void MultiProjection_Specify()
         {
-            var addressesOfYard = Given<Yard>.Match((yard, facts) =>
-                from yardAddress in facts.OfType<YardAddress>()
-                where yardAddress.yard == yard
-                where !(
-                    from next in facts.OfType<YardAddress>()
-                    where next.prior.Contains(yardAddress)
-                    select next
-                ).Any()
-                select yardAddress
-            );
-
-            var namesOfClient = Given<Client>.Match((client, facts) =>
-                from clientName in facts.OfType<ClientName>()
-                where clientName.client == client
-                where !(
-                    from next in facts.OfType<ClientName>()
-                    where next.prior.Contains(clientName)
-                    select next
-                ).Any()
-                select clientName
-            );
+            var specifications = new
+            {
+                addressesOfYard,
+                namesOfClient
+            };
 
             var YardsAddressesWithClientsForSupplier = Given<Supplier>.Match((supplier, facts) =>
                 from yard in facts.OfType<Yard>()
@@ -55,9 +45,9 @@ namespace Jinaga.Test
                 select new
                 {
                     yard,
-                    yardAddresses = facts.All(yard, addressesOfYard),
+                    yardAddresses = facts.All(yard, specifications.addressesOfYard),
                     yard.client,
-                    clientNames = facts.All(yard.client, namesOfClient)
+                    clientNames = facts.All(yard.client, specifications.namesOfClient)
                 }
             );
 
