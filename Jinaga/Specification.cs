@@ -21,7 +21,7 @@ namespace Jinaga
             var result = (JinagaQueryable<TProjection>)spec((TFact)proxy, new FactRepository());
 
             var value = SpecificationParser.ParseSpecification(SymbolTable.Empty, context, result.Expression);
-            var specification = SpecificationGenerator.CreateSpecification(value);
+            var specification = SpecificationGenerator.CreateSpecification(context, value);
             return new Specification<TFact, TProjection>(specification.Pipeline, specification.Projection);
         }
 
@@ -38,7 +38,7 @@ namespace Jinaga
             switch (symbolValue)
             {
                 case SymbolValueSetDefinition setValue:
-                    var pipeline = PipelineGenerator.CreatePipeline(setValue.SetDefinition);
+                    var pipeline = PipelineGenerator.CreatePipeline(SpecificationContext.Empty, setValue.SetDefinition);
                     var simpleProjection = new SimpleProjection(setValue.SetDefinition.Tag);
                     return new Specification<TFact, TProjection>(pipeline, simpleProjection);
                 default:

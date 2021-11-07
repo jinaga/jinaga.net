@@ -1,5 +1,7 @@
 ﻿using Jinaga.Pipelines;
+using System;
 using System.Collections.Immutable;
+using System.Linq;
 
 namespace Jinaga.Parsers
 {
@@ -22,6 +24,11 @@ namespace Jinaga.Parsers
         public Label GetLabel(object value)
         {
             return labelByProxy[value];
+        }
+
+        public Label GetFirstLabel()
+        {
+            return labelByProxy.Values.First();
         }
     }
 }

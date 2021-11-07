@@ -1,12 +1,13 @@
 using System;
 using Jinaga.Definitions;
+using Jinaga.Parsers;
 using Jinaga.Pipelines;
 
 namespace Jinaga.Generators
 {
     public static class PipelineGenerator
     {
-        public static Pipeline CreatePipeline(SetDefinition setDefinition, SetDefinition? seekSetDefinition = null, Label? replaceLabel = null)
+        public static Pipeline CreatePipeline(SpecificationContext context, SetDefinition setDefinition, SetDefinition? seekSetDefinition = null, Label? replaceLabel = null)
         {
             if (setDefinition == seekSetDefinition)
             {
@@ -22,7 +23,7 @@ namespace Jinaga.Generators
             {
                 var chain = predecessorChainSet.ToChain();
                 var targetSetDefinition = chain.TargetSetDefinition;
-                var pipeline = CreatePipeline(targetSetDefinition, seekSetDefinition, replaceLabel);
+                var pipeline = CreatePipeline(context, targetSetDefinition, seekSetDefinition, replaceLabel);
                 var start = targetSetDefinition.Label;
                 var target = new Label(predecessorChainSet.Tag, chain.TargetType);
                 var path = new Path(start, target);
@@ -33,7 +34,7 @@ namespace Jinaga.Generators
                 var head = joinSet.Head;
                 var tail = joinSet.Tail;
                 var sourceSetDefinition = head.TargetSetDefinition;
-                var pipeline = CreatePipeline(sourceSetDefinition, seekSetDefinition, replaceLabel);
+                var pipeline = CreatePipeline(context, sourceSetDefinition, seekSetDefinition, replaceLabel);
                 var source = sourceSetDefinition.Label;
                 var target = joinSet.Label;
                 var path = new Path(source, target);
@@ -42,9 +43,10 @@ namespace Jinaga.Generators
             else if (setDefinition is SetDefinitionConditional conditionalSet)
             {
                 var targetSetDefinition = conditionalSet.Source;
-                var pipeline = CreatePipeline(targetSetDefinition, seekSetDefinition, replaceLabel);
+                var pipeline = CreatePipeline(context, targetSetDefinition, seekSetDefinition, replaceLabel);
                 var start = targetSetDefinition.Label;
                 var childPipeline = CreatePipeline(
+                    SpecificationContext.Empty,
                     conditionalSet.Condition.Set,
                     targetSetDefinition,
                     start);
@@ -54,7 +56,7 @@ namespace Jinaga.Generators
             else if (setDefinition is SetDefinitionLabeledTarget targetSet)
             {
                 var variable = targetSet.Label.Name;
-                var parameter = "parameter";
+                var parameter = context.GetFirstLabel().Name;
                 var path = "path";
                 throw new SpecificationException($"The variable \"{variable}\" should be joined to the parameter \"{parameter}\". Consider \"where {variable}.{path} == {parameter}\".");
             }
