@@ -24,17 +24,15 @@ namespace Jinaga.Definitions
 
     public class SetDefinitionInitial : SetDefinition
     {
-        private readonly string tag;
-        private readonly string factType;
+        private readonly Label label;
 
-        public SetDefinitionInitial(string tag, string factType)
+        public SetDefinitionInitial(Label label)
         {
-            this.tag = tag;
-            this.factType = factType;
+            this.label = label;
         }
 
-        public override string Tag => tag;
-        public override string FactType => factType;
+        public override string Tag => label.Name;
+        public override string FactType => label.Type;
     }
 
     public class SetDefinitionTarget : SetDefinition

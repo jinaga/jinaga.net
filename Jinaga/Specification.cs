@@ -12,12 +12,15 @@ namespace Jinaga
 {
     public static class Given<TFact>
     {
-        public static Specification<TFact, TProjection> Match<TProjection>(Func<TFact, FactRepository, IQueryable<TProjection>> spec)
+        public static Specification<TFact, TProjection> Match<TProjection>(Expression<Func<TFact, FactRepository, IQueryable<TProjection>>> specExpression)
         {
+            var spec = specExpression.Compile();
             object proxy = SpecificationParser.InstanceOfFact(typeof(TFact));
+            var label = new Label(specExpression.Parameters[0].Name, specExpression.Parameters[0].Type.FactTypeName());
+            var context = SpecificationContext.Empty.With(label, proxy);
             var result = (JinagaQueryable<TProjection>)spec((TFact)proxy, new FactRepository());
 
-            var value = SpecificationParser.ParseSpecification(SymbolTable.Empty, result.Expression);
+            var value = SpecificationParser.ParseSpecification(SymbolTable.Empty, context, result.Expression);
             var specification = SpecificationGenerator.CreateSpecification(value);
             return new Specification<TFact, TProjection>(specification.Pipeline, specification.Projection);
         }
@@ -27,10 +30,11 @@ namespace Jinaga
             var parameter = spec.Parameters[0];
             var initialFactName = parameter.Name;
             var initialFactType = parameter.Type.FactTypeName();
-            var startingSet = new SetDefinitionInitial(initialFactName, initialFactType);
+            var label = new Label(initialFactName, initialFactType);
+            var startingSet = new SetDefinitionInitial(label);
             var symbolTable = SymbolTable.Empty.With(initialFactName, new SymbolValueSetDefinition(startingSet));
 
-            var symbolValue = ValueParser.ParseValue(symbolTable, spec.Body).symbolValue;
+            var symbolValue = ValueParser.ParseValue(symbolTable, SpecificationContext.Empty, spec.Body).symbolValue;
             switch (symbolValue)
             {
                 case SymbolValueSetDefinition setValue:
