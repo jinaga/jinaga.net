@@ -33,7 +33,6 @@ namespace Jinaga.Generators
                 var head = joinSet.Head;
                 var tail = joinSet.Tail;
                 var sourceSetDefinition = head.TargetSetDefinition;
-                var targetSetDefinition = tail.TargetSetDefinition;
                 var pipeline = CreatePipeline(sourceSetDefinition, seekSetDefinition, replaceLabel);
                 var source = sourceSetDefinition.Label;
                 var target = joinSet.Label;
@@ -51,6 +50,13 @@ namespace Jinaga.Generators
                     start);
                 var conditional = new Conditional(start, conditionalSet.Condition.Exists, childPipeline);
                 return pipeline.AddConditional(conditional);
+            }
+            else if (setDefinition is SetDefinitionLabeledTarget targetSet)
+            {
+                var variable = targetSet.Label.Name;
+                var parameter = "parameter";
+                var path = "path";
+                throw new SpecificationException($"The variable \"{variable}\" should be joined to the parameter \"{parameter}\". Consider \"where {variable}.{path} == {parameter}\".");
             }
             else
             {

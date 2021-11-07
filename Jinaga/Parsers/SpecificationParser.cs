@@ -6,6 +6,7 @@ using System.Linq.Expressions;
 using Jinaga.Repository;
 using Jinaga.Definitions;
 using System.Collections.Generic;
+using Jinaga.Pipelines;
 
 namespace Jinaga.Parsers
 {
@@ -185,8 +186,9 @@ namespace Jinaga.Parsers
             })
             {
                 var valueParameterName = projectionLambda.Parameters[0].Name;
+                var valueParameterType = projectionLambda.Parameters[0].Type;
                 var innerSymbolTable = symbolTable
-                    .With(valueParameterName, symbolValue);
+                    .With(valueParameterName, ApplyLabel(symbolValue, valueParameterName, valueParameterType));
 
                 var (value, _) = ValueParser.ParseValue(innerSymbolTable, projectionLambda.Body);
                 return value;
@@ -194,6 +196,27 @@ namespace Jinaga.Parsers
             else
             {
                 throw new NotImplementedException();
+            }
+        }
+
+        private static SymbolValue ApplyLabel(SymbolValue symbolValue, string name, Type type)
+        {
+            if (symbolValue is SymbolValueSetDefinition
+                {
+                    SetDefinition: SetDefinitionTarget setDefinitionTarget
+                })
+            {
+                string factType = type.FactTypeName();
+                if (factType != setDefinitionTarget.FactType)
+                {
+                    throw new SpecificationException($"Parameter mismatch between {factType} and {setDefinitionTarget.FactType}");
+                }
+                var label = new Label(name, factType);
+                return new SymbolValueSetDefinition(new SetDefinitionLabeledTarget(label));
+            }
+            else
+            {
+                return symbolValue;
             }
         }
 
