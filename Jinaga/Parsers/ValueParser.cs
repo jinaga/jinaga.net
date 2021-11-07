@@ -5,7 +5,6 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using Jinaga.Definitions;
-using Jinaga.Pipelines;
 using Jinaga.Projections;
 using Jinaga.Repository;
 using Jinaga.Visualizers;
@@ -75,7 +74,7 @@ namespace Jinaga.Parsers
                 if (start is SymbolValueSetDefinition startValue)
                 {
                     var startSetDefinition = startValue.SetDefinition;
-                    var specification = ParseSpecification(symbolTable, allCallExpression.Arguments[1]);
+                    var specification = ParseSpecification(allCallExpression.Arguments[1]);
                     var parameterLabel = specification.Pipeline.Starts.First();
                     var argument = startSetDefinition.Label;
                     var pipeline = specification.Pipeline.Apply(parameterLabel, argument);
@@ -108,51 +107,10 @@ namespace Jinaga.Parsers
             }
         }
 
-        private static Specification ParseSpecification(SymbolTable symbolTable, Expression expression)
+        private static Specification ParseSpecification(Expression expression)
         {
-            return (Specification)GetValue(expression);
-        }
-
-        private static object GetValue(Expression expression)
-        {
-            if (expression is ConstantExpression constantExpression)
-            {
-                return constantExpression.Value;
-            }
-            else if (expression is MemberExpression {
-                Expression: null,
-                Member: FieldInfo staticField
-            })
-            {
-                return staticField.GetValue(null);
-            }
-            else if (expression is MemberExpression {
-                Expression: null,
-                Member: PropertyInfo staticProperty
-            })
-            {
-                return staticProperty.GetValue(null);
-            }
-            else if (expression is MemberExpression {
-                Expression: Expression fieldParent,
-                Member: FieldInfo field
-            })
-            {
-                object obj = GetValue(fieldParent);
-                return field.GetValue(obj);
-            }
-            else if (expression is MemberExpression {
-                Expression: Expression propertyParent,
-                Member: PropertyInfo property
-            })
-            {
-                object obj = GetValue(propertyParent);
-                return property.GetValue(obj);
-            }
-            else
-            {
-                throw new NotImplementedException($"GetValue: {ExpressionVisualizer.DumpExpression(expression)}");
-            }
+            var lambdaExpression = Expression.Lambda<Func<object>>(expression);
+            return (Specification)lambdaExpression.Compile().Invoke();
         }
     }
 }
