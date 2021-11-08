@@ -41,6 +41,17 @@ namespace Jinaga.Test
         }
 
         [Fact]
+        public void Specification_MissingJoinWithExtensionMethod()
+        {
+            Func<Specification<Airline, Flight>> constructor = () =>
+                Given<Airline>.Match((airline, facts) => facts.OfType<Flight>());
+            constructor.Should().Throw<SpecificationException>()
+                .WithMessage(
+                    "The set should be joined to the parameter \"airline\". " +
+                    "Consider \"facts.OfType<Flight>(flight => flight.airlineDay.airline == airline)\".");
+        }
+
+        [Fact]
         public void CanSpecifyShortSuccessors()
         {
             Specification<Airline, Flight> specification = Given<Airline>.Match((airline, facts) =>

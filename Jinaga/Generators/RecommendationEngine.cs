@@ -21,7 +21,7 @@ namespace Jinaga.Generators
 
                 if (next.variable.Type == next.parameter.Type)
                 {
-                    return $"Consider \"where {next.variable.Code} == {next.parameter.Code}\".";
+                    return $"{next.variable.Code} == {next.parameter.Code}";
                 }
                 if (next.depth < MaxDepth)
                 {
