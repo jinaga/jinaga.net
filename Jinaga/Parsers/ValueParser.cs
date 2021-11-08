@@ -1,26 +1,26 @@
+using Jinaga.Definitions;
+using Jinaga.Projections;
+using Jinaga.Repository;
+using Jinaga.Visualizers;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
-using Jinaga.Definitions;
-using Jinaga.Projections;
-using Jinaga.Repository;
-using Jinaga.Visualizers;
 
 namespace Jinaga.Parsers
 {
     public static class ValueParser
     {
-        public static (SymbolValue symbolValue, string tag) ParseValue(SymbolTable symbolTable, Expression expression)
+        public static (SymbolValue symbolValue, string tag) ParseValue(SymbolTable symbolTable, SpecificationContext context, Expression expression)
         {
             if (expression is NewExpression newBody)
             {
                 var names = newBody.Members
                     .Select(member => member.Name);
                 var values = newBody.Arguments
-                    .Select(arg => ParseValue(symbolTable, arg).symbolValue);
+                    .Select(arg => ParseValue(symbolTable, context, arg).symbolValue);
                 var fields = names.Zip(values, (name, value) => KeyValuePair.Create(name, value))
                     .ToImmutableDictionary();
                 return (new SymbolValueComposite(fields), "");
@@ -28,7 +28,7 @@ namespace Jinaga.Parsers
             else if (expression is MemberInitExpression memberInit)
             {
                 var fields = memberInit.Bindings
-                    .Select(binding => ParseMemberBinding(symbolTable, binding))
+                    .Select(binding => ParseMemberBinding(symbolTable, context, binding))
                     .ToImmutableDictionary();
                 return (new SymbolValueComposite(fields), "");
             }
@@ -36,14 +36,14 @@ namespace Jinaga.Parsers
                 Member: PropertyInfo propertyInfo
             } memberExpression)
             {
-                switch (ParseValue(symbolTable, memberExpression.Expression))
+                switch (ParseValue(symbolTable, context, memberExpression.Expression))
                 {
                     case (SymbolValueComposite compositeValue, _):
                         return (compositeValue.GetField(propertyInfo.Name), propertyInfo.Name);
                     case (SymbolValueSetDefinition setValue, string tag):
                         var role = propertyInfo.Name;
                         var predecessorType = propertyInfo.PropertyType.FactTypeName();
-                        var setDefinition = setValue.SetDefinition.AppendChain(role, predecessorType);
+                        var setDefinition = setValue.SetDefinition.AppendChain(role, predecessorType, propertyInfo.PropertyType);
                         return (new SymbolValueSetDefinition(setDefinition), tag);
                     default:
                         throw new NotImplementedException();
@@ -59,18 +59,20 @@ namespace Jinaga.Parsers
             }
             else if (expression is MemberExpression {
                 Expression: ConstantExpression {}
-            } constantMemberExpression)
+            })
             {
-                var type = constantMemberExpression.Type.FactTypeName();
-                var name = constantMemberExpression.Member.Name;
-                var setDefinition = new SetDefinitionInitial(name, type);
-                return (new SymbolValueSetDefinition(setDefinition), name);
+                var lambdaExpression = Expression.Lambda<Func<object>>(expression);
+                object value = lambdaExpression.Compile().Invoke();
+                var label = context.GetLabel(value);
+                var type = context.GetType(value);
+                var setDefinition = new SetDefinitionInitial(label, type);
+                return (new SymbolValueSetDefinition(setDefinition), label.Name);
             }
             else if (expression is MethodCallExpression allCallExpression &&
                 allCallExpression.Method.DeclaringType == typeof(FactRepository) &&
                 allCallExpression.Method.Name == nameof(FactRepository.All))
             {
-                var start = ParseValue(symbolTable, allCallExpression.Arguments[0]).symbolValue;
+                var start = ParseValue(symbolTable, context, allCallExpression.Arguments[0]).symbolValue;
                 if (start is SymbolValueSetDefinition startValue)
                 {
                     var startSetDefinition = startValue.SetDefinition;
@@ -93,12 +95,12 @@ namespace Jinaga.Parsers
             }
         }
 
-        private static KeyValuePair<string, SymbolValue> ParseMemberBinding(SymbolTable symbolTable, MemberBinding binding)
+        private static KeyValuePair<string, SymbolValue> ParseMemberBinding(SymbolTable symbolTable, SpecificationContext context, MemberBinding binding)
         {
             if (binding is MemberAssignment assignment)
             {
                 var name = assignment.Member.Name;
-                var value = ParseValue(symbolTable, assignment.Expression).symbolValue;
+                var value = ParseValue(symbolTable, context, assignment.Expression).symbolValue;
                 return KeyValuePair.Create(name, value);
             }
             else

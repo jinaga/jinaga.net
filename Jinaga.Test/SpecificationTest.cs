@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using FluentAssertions;
 using Jinaga.Test.Model;
@@ -23,6 +24,31 @@ namespace Jinaga.Test
 ");
             string oldDescriptiveString = pipeline.ToOldDescriptiveString();
             oldDescriptiveString.Should().Be("S.airline F.type=\"Skylane.Airline.Day\" S.airlineDay F.type=\"Skylane.Flight\"");
+        }
+
+        [Fact]
+        public void Specification_MissingJoin()
+        {
+            Func<Specification<Airline, Flight>> constructor = () =>
+                Given<Airline>.Match((airline, facts) =>
+                    from flight in facts.OfType<Flight>()
+                    select flight
+                );
+            constructor.Should().Throw<SpecificationException>()
+                .WithMessage(
+                    "The variable \"flight\" should be joined to the parameter \"airline\". " +
+                    "Consider \"where flight.airlineDay.airline == airline\".");
+        }
+
+        [Fact]
+        public void Specification_MissingJoinWithExtensionMethod()
+        {
+            Func<Specification<Airline, Flight>> constructor = () =>
+                Given<Airline>.Match((airline, facts) => facts.OfType<Flight>());
+            constructor.Should().Throw<SpecificationException>()
+                .WithMessage(
+                    "The set should be joined to the parameter \"airline\". " +
+                    "Consider \"facts.OfType<Flight>(flight => flight.airlineDay.airline == airline)\".");
         }
 
         [Fact]
