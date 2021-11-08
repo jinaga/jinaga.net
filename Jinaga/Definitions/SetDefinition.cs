@@ -5,14 +5,22 @@ namespace Jinaga.Definitions
 {
     public abstract class SetDefinition
     {
+        protected SetDefinition(Type type)
+        {
+            Type = type;
+        }
+
         public Label Label => new Label(Tag, FactType);
         public abstract string FactType { get; }
         public virtual string Tag => throw new NotImplementedException();
 
-        public virtual SetDefinition AppendChain(string role, string predecessorType)
+        public Type Type { get; }
+
+        public virtual SetDefinition AppendChain(string role, string predecessorType, Type type)
         {
             return new SetDefinitionPredecessorChain(
-                new ChainRole(new ChainStart(this), role, predecessorType)
+                new ChainRole(new ChainStart(this), role, predecessorType),
+                type
             );
         }
 
@@ -26,7 +34,7 @@ namespace Jinaga.Definitions
     {
         private readonly Label label;
 
-        public SetDefinitionInitial(Label label)
+        public SetDefinitionInitial(Label label, Type type) : base(type)
         {
             this.label = label;
         }
@@ -39,7 +47,7 @@ namespace Jinaga.Definitions
     {
         private readonly string factType;
 
-        public SetDefinitionTarget(string factType)
+        public SetDefinitionTarget(string factType, Type type): base(type)
         {
             this.factType = factType;
         }
@@ -51,7 +59,7 @@ namespace Jinaga.Definitions
     {
         private readonly Label label;
 
-        public SetDefinitionLabeledTarget(Label label) : base(label.Type)
+        public SetDefinitionLabeledTarget(Label label, Type type) : base(label.Type, type)
         {
             this.label = label;
         }
@@ -63,18 +71,19 @@ namespace Jinaga.Definitions
     {
         private readonly ChainRole chainRole;
 
-        public override string FactType => chainRole.TargetType;
+        public override string FactType => chainRole.TargetFactType;
         public override string Tag => chainRole.Role;
 
-        public SetDefinitionPredecessorChain(ChainRole chainRole)
+        public SetDefinitionPredecessorChain(ChainRole chainRole, Type type) : base(type)
         {
             this.chainRole = chainRole;
         }
 
-        public override SetDefinition AppendChain(string role, string predecessorType)
+        public override SetDefinition AppendChain(string role, string predecessorType, Type type)
         {
             return new SetDefinitionPredecessorChain(
-                new ChainRole(chainRole, role, predecessorType)
+                new ChainRole(chainRole, role, predecessorType),
+                type
             );
         }
 
@@ -96,7 +105,8 @@ namespace Jinaga.Definitions
         public SetDefinitionJoin(
             string tag,
             Chain head,
-            Chain tail)
+            Chain tail,
+            Type type) : base(type)
         {
             this.tag = tag;
             this.head = head;
@@ -105,7 +115,7 @@ namespace Jinaga.Definitions
 
         public override string Tag => tag;
 
-        public override string FactType => tail.SourceType;
+        public override string FactType => tail.SourceFactType;
     }
 
     public class SetDefinitionConditional : SetDefinition
@@ -118,7 +128,8 @@ namespace Jinaga.Definitions
 
         public SetDefinitionConditional(
             SetDefinition source,
-            ConditionDefinition condition)
+            ConditionDefinition condition,
+            Type type) : base(type)
         {
             this.source = source;
             this.condition = condition;

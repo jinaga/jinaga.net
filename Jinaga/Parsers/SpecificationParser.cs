@@ -21,9 +21,10 @@ namespace Jinaga.Parsers
                 if (method.DeclaringType == typeof(FactRepository) &&
                     method.Name == nameof(FactRepository.OfType))
                 {
-                    var factType = method.GetGenericArguments()[0].FactTypeName();
+                    var type = method.GetGenericArguments()[0];
+                    var factType = type.FactTypeName();
 
-                    var set = FactsOfType(factType);
+                    var set = FactsOfType(factType, type);
                     var source = new SymbolValueSetDefinition(set);
 
                     if (methodCall.Arguments.Count == 0)
@@ -111,7 +112,7 @@ namespace Jinaga.Parsers
                     var rightChain = rightSet.SetDefinition.ToChain();
                     (Chain head, Chain tail) = OrderChains(leftChain, rightChain);
                     string tag = (tail == leftChain) ? leftTag : rightTag;
-                    var join = new SetDefinitionJoin(tag, head, tail);
+                    var join = new SetDefinitionJoin(tag, head, tail, tail.SourceType);
                     var target = tail.TargetSetDefinition;
                     var replacement = ReplaceSetDefinition(symbolValue, target, join);
                     return replacement;
@@ -124,7 +125,7 @@ namespace Jinaga.Parsers
         {
             var conditionDefinition = ParseCondition(symbolValue, innerSymbolTable, context, body);
             var evaluatedSet = FindEvaluatedSet(conditionDefinition);
-            var conditionalSetDefinition = new SetDefinitionConditional(evaluatedSet, conditionDefinition);
+            var conditionalSetDefinition = new SetDefinitionConditional(evaluatedSet, conditionDefinition, evaluatedSet.Type);
             var replacement = ReplaceSetDefinition(symbolValue, evaluatedSet, conditionalSetDefinition);
             return replacement;
         }
@@ -212,7 +213,7 @@ namespace Jinaga.Parsers
                     throw new SpecificationException($"Parameter mismatch between {factType} and {setDefinitionTarget.FactType}");
                 }
                 var label = new Label(name, factType);
-                return new SymbolValueSetDefinition(new SetDefinitionLabeledTarget(label));
+                return new SymbolValueSetDefinition(new SetDefinitionLabeledTarget(label, type));
             }
             else
             {
@@ -327,9 +328,9 @@ namespace Jinaga.Parsers
             return Activator.CreateInstance(factType, parameters);
         }
 
-        private static SetDefinition FactsOfType(string factType)
+        private static SetDefinition FactsOfType(string factType, Type type)
         {
-            return new SetDefinitionTarget(factType);
+            return new SetDefinitionTarget(factType, type);
         }
 
         private static ConditionDefinition Exists(SetDefinition set)

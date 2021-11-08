@@ -17,7 +17,7 @@ namespace Jinaga
             var spec = specExpression.Compile();
             object proxy = SpecificationParser.InstanceOfFact(typeof(TFact));
             var label = new Label(specExpression.Parameters[0].Name, specExpression.Parameters[0].Type.FactTypeName());
-            var context = SpecificationContext.Empty.With(label, proxy);
+            var context = SpecificationContext.Empty.With(label, proxy, specExpression.Parameters[0].Type);
             var result = (JinagaQueryable<TProjection>)spec((TFact)proxy, new FactRepository());
 
             var value = SpecificationParser.ParseSpecification(SymbolTable.Empty, context, result.Expression);
@@ -31,7 +31,7 @@ namespace Jinaga
             var initialFactName = parameter.Name;
             var initialFactType = parameter.Type.FactTypeName();
             var label = new Label(initialFactName, initialFactType);
-            var startingSet = new SetDefinitionInitial(label);
+            var startingSet = new SetDefinitionInitial(label, parameter.Type);
             var symbolTable = SymbolTable.Empty.With(initialFactName, new SymbolValueSetDefinition(startingSet));
 
             var symbolValue = ValueParser.ParseValue(symbolTable, SpecificationContext.Empty, spec.Body).symbolValue;

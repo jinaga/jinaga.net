@@ -25,7 +25,7 @@ namespace Jinaga.Generators
                 var targetSetDefinition = chain.TargetSetDefinition;
                 var pipeline = CreatePipeline(context, targetSetDefinition, seekSetDefinition, replaceLabel);
                 var start = targetSetDefinition.Label;
-                var target = new Label(predecessorChainSet.Tag, chain.TargetType);
+                var target = new Label(predecessorChainSet.Tag, chain.TargetFactType);
                 var path = new Path(start, target);
                 return pipeline.AddPath(AddPredecessorSteps(path, chain));
             }
@@ -57,8 +57,13 @@ namespace Jinaga.Generators
             {
                 var variable = targetSet.Label.Name;
                 var parameter = context.GetFirstLabel().Name;
-                var path = "path";
-                throw new SpecificationException($"The variable \"{variable}\" should be joined to the parameter \"{parameter}\". Consider \"where {variable}.{path} == {parameter}\".");
+                var message = $"The variable \"{variable}\" should be joined to the parameter \"{parameter}\".";
+                var recommendation = RecommendationEngine.RecommendJoin(
+                    new CodeExpression(targetSet.Type, variable),
+                    new CodeExpression(context.GetFirstType(), parameter)
+                );
+
+                throw new SpecificationException(recommendation == null ? message : $"{message} {recommendation}");
             }
             else
             {
@@ -72,7 +77,7 @@ namespace Jinaga.Generators
             {
                 return AddPredecessorSteps(path, chainRole.Prior)
                     .AddPredecessorStep(new Step(
-                        chainRole.Role, chain.TargetType));
+                        chainRole.Role, chain.TargetFactType));
             }
             else
             {
@@ -86,7 +91,7 @@ namespace Jinaga.Generators
             {
                 return PrependSuccessorSteps(path, chainRole.Prior)
                     .PrependSuccessorStep(new Step(
-                        chainRole.Role, chainRole.Prior.TargetType));
+                        chainRole.Role, chainRole.Prior.TargetFactType));
             }
             else
             {

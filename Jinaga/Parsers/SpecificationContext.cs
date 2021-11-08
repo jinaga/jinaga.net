@@ -7,28 +7,38 @@ namespace Jinaga.Parsers
 {
     public class SpecificationContext
     {
-        public static SpecificationContext Empty = new SpecificationContext(ImmutableDictionary<object, Label>.Empty);
+        public static SpecificationContext Empty = new SpecificationContext(ImmutableDictionary<object, (Label label, Type type)>.Empty);
 
-        private readonly ImmutableDictionary<object, Label> labelByProxy;
+        private readonly ImmutableDictionary<object, (Label label, Type type)> proxyInfo;
 
-        private SpecificationContext(ImmutableDictionary<object, Label> labelByProxy)
+        private SpecificationContext(ImmutableDictionary<object, (Label label, Type type)> proxyInfo)
         {
-            this.labelByProxy = labelByProxy;
+            this.proxyInfo = proxyInfo;
         }
 
-        public SpecificationContext With(Label label, object proxy)
+        public SpecificationContext With(Label label, object proxy, Type type)
         {
-            return new SpecificationContext(labelByProxy.Add(proxy, label));
+            return new SpecificationContext(proxyInfo.Add(proxy, (label, type)));
         }
 
         public Label GetLabel(object value)
         {
-            return labelByProxy[value];
+            return proxyInfo[value].label;
+        }
+
+        public Type GetType(object value)
+        {
+            return proxyInfo[value].type;
         }
 
         public Label GetFirstLabel()
         {
-            return labelByProxy.Values.First();
+            return proxyInfo.Values.First().label;
+        }
+
+        public Type GetFirstType()
+        {
+            return proxyInfo.Values.First().type;
         }
     }
 }

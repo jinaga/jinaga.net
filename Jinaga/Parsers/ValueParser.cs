@@ -43,7 +43,7 @@ namespace Jinaga.Parsers
                     case (SymbolValueSetDefinition setValue, string tag):
                         var role = propertyInfo.Name;
                         var predecessorType = propertyInfo.PropertyType.FactTypeName();
-                        var setDefinition = setValue.SetDefinition.AppendChain(role, predecessorType);
+                        var setDefinition = setValue.SetDefinition.AppendChain(role, predecessorType, propertyInfo.PropertyType);
                         return (new SymbolValueSetDefinition(setDefinition), tag);
                     default:
                         throw new NotImplementedException();
@@ -64,7 +64,8 @@ namespace Jinaga.Parsers
                 var lambdaExpression = Expression.Lambda<Func<object>>(expression);
                 object value = lambdaExpression.Compile().Invoke();
                 var label = context.GetLabel(value);
-                var setDefinition = new SetDefinitionInitial(label);
+                var type = context.GetType(value);
+                var setDefinition = new SetDefinitionInitial(label, type);
                 return (new SymbolValueSetDefinition(setDefinition), label.Name);
             }
             else if (expression is MethodCallExpression allCallExpression &&
