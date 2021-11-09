@@ -17,8 +17,9 @@ namespace Jinaga.Parsers
         {
             if (expression is NewExpression newBody)
             {
-                var names = newBody.Members
-                    .Select(member => member.Name);
+                var names = newBody.Members != null
+                    ? newBody.Members.Select(member => member.Name)
+                    : newBody.Constructor.GetParameters().Select(parameter => parameter.Name);
                 var values = newBody.Arguments
                     .Select(arg => ParseValue(symbolTable, context, arg).symbolValue);
                 var fields = names.Zip(values, (name, value) => KeyValuePair.Create(name, value))
