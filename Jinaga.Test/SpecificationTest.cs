@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using FluentAssertions;
 using Jinaga.Test.Model;
+using Jinaga.Test.Model.Order;
 using Xunit;
 
 namespace Jinaga.Test
@@ -38,6 +39,21 @@ namespace Jinaga.Test
                 .WithMessage(
                     "The variable \"flight\" should be joined to the parameter \"airline\". " +
                     "Consider \"where flight.airlineDay.airline == airline\".");
+        }
+
+        [Fact]
+        public void Specification_MissingCollectionJoin()
+        {
+            Func<Specification<Item, Order>> constructor = () =>
+                Given<Item>.Match((item, facts) =>
+                    from order in facts.OfType<Order>()
+                    select order
+                );
+            constructor.Should().Throw<SpecificationException>()
+                .WithMessage(
+                    "The variable \"order\" should be joined to the parameter \"item\". " +
+                    "Consider \"where order.items.Contains(item)\"."
+                );
         }
 
         [Fact]

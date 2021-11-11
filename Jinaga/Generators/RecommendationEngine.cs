@@ -12,26 +12,25 @@ namespace Jinaga.Generators
 
         public static string? RecommendJoin(CodeExpression variable, CodeExpression parameter)
         {
-            var queue = ImmutableQueue<(CodeExpression variable, CodeExpression parameter, int depth)>.Empty.Enqueue((variable, parameter, 0));
+            var initial = SingularVariableAndParameter(variable, parameter);
+            var queue = ImmutableQueue<(CodeExpressionVisitor visitor, int depth)>.Empty
+                .Enqueue((initial, 0));
 
             while (!queue.IsEmpty)
             {
                 var next = queue.Peek();
                 queue = queue.Dequeue();
 
-                if (next.variable.Type == next.parameter.Type)
+                var recommendation = next.visitor.Recommend();
+                if (recommendation != null)
                 {
-                    return $"{next.variable.Code} == {next.parameter.Code}";
+                    return recommendation;
                 }
                 if (next.depth < MaxDepth)
                 {
-                    foreach (var variablePredecessor in SingularPredecessors(next.variable))
+                    foreach (var visitor in next.visitor.Generate())
                     {
-                        queue = queue.Enqueue((variablePredecessor, next.parameter, next.depth + 1));
-                    }
-                    foreach (var parameterPredecessor in SingularPredecessors(next.parameter))
-                    {
-                        queue = queue.Enqueue((next.variable, parameterPredecessor, next.depth + 1));
+                        queue = queue.Enqueue((visitor, next.depth + 1));
                     }
                 }
             }
@@ -39,11 +38,80 @@ namespace Jinaga.Generators
             return null;
         }
 
+        private static CodeExpressionVisitor SingularVariableAndParameter(CodeExpression variable, CodeExpression parameter)
+        {
+            return new CodeExpressionVisitor(
+                () => RecommendSingularVariableAndParameter(variable, parameter),
+                () => VisitSingularVariableAndParameter(variable, parameter)
+            );
+        }
+
+        private static string? RecommendSingularVariableAndParameter(CodeExpression variable, CodeExpression parameter)
+        {
+            if (variable.Type == parameter.Type)
+            {
+                return $"{variable.Code} == {parameter.Code}";
+            }
+            else
+            {
+                return null;
+            }
+        }
+
+        private static IEnumerable<CodeExpressionVisitor> VisitSingularVariableAndParameter(CodeExpression variable, CodeExpression parameter)
+        {
+            var singularVariable =
+                from variablePredecessor in SingularPredecessors(variable)
+                select SingularVariableAndParameter(variablePredecessor, parameter);
+            var multipleVariable =
+                from variablePredecessor in MultiplePredecessors(variable)
+                select MultipleVariableAndSingularParameter(variablePredecessor, parameter);
+            var singularParameter =
+                from parameterPredecessor in SingularPredecessors(parameter)
+                select SingularVariableAndParameter(variable, parameterPredecessor);
+            return singularVariable.Concat(multipleVariable).Concat(singularParameter);
+        }
+
+        private static CodeExpressionVisitor MultipleVariableAndSingularParameter(CodeExpression variable, CodeExpression parameter)
+        {
+            return new CodeExpressionVisitor(
+                () => RecommendMultipleVariableAndSingularParameter(variable, parameter),
+                () => VisitMultipleVariableAndSingularParameter(variable, parameter)
+            );
+        }
+
+        private static string? RecommendMultipleVariableAndSingularParameter(CodeExpression variable, CodeExpression parameter)
+        {
+            if (variable.Type == parameter.Type)
+            {
+                return $"{variable.Code}.Contains({parameter.Code})";
+            }
+            else
+            {
+                return null;
+            }
+        }
+
+        private static IEnumerable<CodeExpressionVisitor> VisitMultipleVariableAndSingularParameter(CodeExpression variable, CodeExpression parameter)
+        {
+            var singularParameter =
+                from parameterPredecessor in SingularPredecessors(parameter)
+                select MultipleVariableAndSingularParameter(variable, parameterPredecessor);
+            return singularParameter;
+        }
+
         private static IEnumerable<CodeExpression> SingularPredecessors(CodeExpression expression)
         {
             return expression.Type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
                 .Where(property => property.PropertyType.IsFactType())
                 .Select(property => new CodeExpression(property.PropertyType, $"{expression.Code}.{property.Name}"));
+        }
+
+        private static IEnumerable<CodeExpression> MultiplePredecessors(CodeExpression expression)
+        {
+            return expression.Type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                .Where(property => property.PropertyType.IsArrayOfFactType())
+                .Select(property => new CodeExpression(property.PropertyType.GetElementType(), $"{expression.Code}.{property.Name}"));
         }
     }
 }
