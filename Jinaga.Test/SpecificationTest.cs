@@ -57,6 +57,20 @@ namespace Jinaga.Test
         }
 
         [Fact]
+        public void Specification_MissingCollectionJoinWithExtension()
+        {
+            Func<Specification<Item, Order>> constructor = () =>
+                Given<Item>.Match((item, facts) =>
+                    facts.OfType<Order>()
+                );
+            constructor.Should().Throw<SpecificationException>()
+                .WithMessage(
+                    "The set should be joined to the parameter \"item\". " +
+                    "Consider \"facts.OfType<Order>(order => order.items.Contains(item))\"."
+                );
+        }
+
+        [Fact]
         public void Specification_MissingSuccessorCollectionJoin()
         {
             Func<Specification<Order, Item>> constructor = () =>
@@ -68,6 +82,20 @@ namespace Jinaga.Test
                 .WithMessage(
                     "The variable \"item\" should be joined to the parameter \"order\". " +
                     "Consider \"where order.items.Contains(item)\"."
+                );
+        }
+
+        [Fact]
+        public void Specification_MissingSuccessorCollectionJoinWithExtension()
+        {
+            Func<Specification<Order, Item>> constructor = () =>
+                Given<Order>.Match((order, facts) =>
+                    facts.OfType<Item>()
+                );
+            constructor.Should().Throw<SpecificationException>()
+                .WithMessage(
+                    "The set should be joined to the parameter \"order\". " +
+                    "Consider \"facts.OfType<Item>(item => order.items.Contains(item))\"."
                 );
         }
 
