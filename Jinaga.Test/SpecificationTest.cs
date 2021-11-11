@@ -57,6 +57,21 @@ namespace Jinaga.Test
         }
 
         [Fact]
+        public void Specification_MissingSuccessorCollectionJoin()
+        {
+            Func<Specification<Order, Item>> constructor = () =>
+                Given<Order>.Match((order, facts) =>
+                    from item in facts.OfType<Item>()
+                    select item
+                );
+            constructor.Should().Throw<SpecificationException>()
+                .WithMessage(
+                    "The variable \"item\" should be joined to the parameter \"order\". " +
+                    "Consider \"where order.items.Contains(item)\"."
+                );
+        }
+
+        [Fact]
         public void Specification_MissingJoinWithExtensionMethod()
         {
             Func<Specification<Airline, Flight>> constructor = () =>

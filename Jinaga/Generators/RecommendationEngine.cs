@@ -69,7 +69,10 @@ namespace Jinaga.Generators
             var singularParameter =
                 from parameterPredecessor in SingularPredecessors(parameter)
                 select SingularVariableAndParameter(variable, parameterPredecessor);
-            return singularVariable.Concat(multipleVariable).Concat(singularParameter);
+            var multipleParameter =
+                from parameterPredecessor in MultiplePredecessors(parameter)
+                select SingularVariableAndMultipleParameter(variable, parameterPredecessor);
+            return singularVariable.Concat(multipleVariable).Concat(singularParameter).Concat(multipleParameter);
         }
 
         private static CodeExpressionVisitor MultipleVariableAndSingularParameter(CodeExpression variable, CodeExpression parameter)
@@ -98,6 +101,34 @@ namespace Jinaga.Generators
                 from parameterPredecessor in SingularPredecessors(parameter)
                 select MultipleVariableAndSingularParameter(variable, parameterPredecessor);
             return singularParameter;
+        }
+
+        private static CodeExpressionVisitor SingularVariableAndMultipleParameter(CodeExpression variable, CodeExpression parameter)
+        {
+            return new CodeExpressionVisitor(
+                () => RecommendSingularVariableAndMultipleParameter(variable, parameter),
+                () => VisitSingularVariableAndMultipleParameter(variable, parameter)
+            );
+        }
+
+        private static string? RecommendSingularVariableAndMultipleParameter(CodeExpression variable, CodeExpression parameter)
+        {
+            if (variable.Type == parameter.Type)
+            {
+                return $"{parameter.Code}.Contains({variable.Code})";
+            }
+            else
+            {
+                return null;
+            }
+        }
+
+        private static IEnumerable<CodeExpressionVisitor> VisitSingularVariableAndMultipleParameter(CodeExpression variable, CodeExpression parameter)
+        {
+            var singularVariable =
+                from variablePredecessor in SingularPredecessors(variable)
+                select SingularVariableAndMultipleParameter(variablePredecessor, parameter);
+            return singularVariable;
         }
 
         private static IEnumerable<CodeExpression> SingularPredecessors(CodeExpression expression)
