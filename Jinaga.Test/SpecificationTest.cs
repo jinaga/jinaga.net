@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using FluentAssertions;
 using Jinaga.Test.Model;
+using Jinaga.Test.Model.Order;
 using Xunit;
 
 namespace Jinaga.Test
@@ -38,6 +39,64 @@ namespace Jinaga.Test
                 .WithMessage(
                     "The variable \"flight\" should be joined to the parameter \"airline\". " +
                     "Consider \"where flight.airlineDay.airline == airline\".");
+        }
+
+        [Fact]
+        public void Specification_MissingCollectionJoin()
+        {
+            Func<Specification<Item, Order>> constructor = () =>
+                Given<Item>.Match((item, facts) =>
+                    from order in facts.OfType<Order>()
+                    select order
+                );
+            constructor.Should().Throw<SpecificationException>()
+                .WithMessage(
+                    "The variable \"order\" should be joined to the parameter \"item\". " +
+                    "Consider \"where order.items.Contains(item)\"."
+                );
+        }
+
+        [Fact]
+        public void Specification_MissingCollectionJoinWithExtension()
+        {
+            Func<Specification<Item, Order>> constructor = () =>
+                Given<Item>.Match((item, facts) =>
+                    facts.OfType<Order>()
+                );
+            constructor.Should().Throw<SpecificationException>()
+                .WithMessage(
+                    "The set should be joined to the parameter \"item\". " +
+                    "Consider \"facts.OfType<Order>(order => order.items.Contains(item))\"."
+                );
+        }
+
+        [Fact]
+        public void Specification_MissingSuccessorCollectionJoin()
+        {
+            Func<Specification<Order, Item>> constructor = () =>
+                Given<Order>.Match((order, facts) =>
+                    from item in facts.OfType<Item>()
+                    select item
+                );
+            constructor.Should().Throw<SpecificationException>()
+                .WithMessage(
+                    "The variable \"item\" should be joined to the parameter \"order\". " +
+                    "Consider \"where order.items.Contains(item)\"."
+                );
+        }
+
+        [Fact]
+        public void Specification_MissingSuccessorCollectionJoinWithExtension()
+        {
+            Func<Specification<Order, Item>> constructor = () =>
+                Given<Order>.Match((order, facts) =>
+                    facts.OfType<Item>()
+                );
+            constructor.Should().Throw<SpecificationException>()
+                .WithMessage(
+                    "The set should be joined to the parameter \"order\". " +
+                    "Consider \"facts.OfType<Item>(item => order.items.Contains(item))\"."
+                );
         }
 
         [Fact]
