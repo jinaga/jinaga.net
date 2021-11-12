@@ -162,10 +162,29 @@ namespace Jinaga.Managers
                 var elementType = parameterType.GetGenericArguments()[0];
                 if (emitter.WatchContext == null)
                 {
-                    var elements = Projector.GetFactReferences(projection, product, parameterName)
-                        .Select(reference => emitter.DeserializeToType(reference, elementType))
-                        .ToImmutableList();
-                    return ImmutableObservableCollection.Create(elementType, elements);
+                    if (elementType.IsFactType())
+                    {
+                        var elements = Projector.GetFactReferences(projection, product, parameterName)
+                            .Select(reference => emitter.DeserializeToType(reference, elementType))
+                            .ToImmutableList();
+                        return ImmutableObservableCollection.Create(elementType, elements);
+                    }
+                    else
+                    {
+                        var collectionProjection = (CollectionProjection)projection;
+                        var collectionElement = (CollectionElement)product.GetElement(parameterName);
+                        var elements = Deserialize(
+                                emitter,
+                                collectionProjection.Specification.Projection,
+                                elementType,
+                                collectionElement.Products,
+                                product.GetAnchor(),
+                                parameterName
+                            )
+                            .Select(p => p.Projection)
+                            .ToImmutableList();
+                        return ImmutableObservableCollection.Create(elementType, elements);
+                    }
                 }
                 else
                 {
