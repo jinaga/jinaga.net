@@ -200,33 +200,16 @@ namespace Jinaga.Parsers
             }
         }
 
-        private static SymbolValue ApplyLabel(SymbolValue symbolValue, string name, Type type)
-        {
-            if (symbolValue is SymbolValueSetDefinition
-                {
-                    SetDefinition: SetDefinitionTarget setDefinitionTarget
-                })
-            {
-                string factType = type.FactTypeName();
-                if (factType != setDefinitionTarget.FactType)
-                {
-                    throw new SpecificationException($"Parameter mismatch between {factType} and {setDefinitionTarget.FactType}");
-                }
-                var label = new Label(name, factType);
-                return new SymbolValueSetDefinition(new SetDefinitionLabeledTarget(label, type));
-            }
-            else
-            {
-                return symbolValue;
-            }
-        }
-
         private static SymbolValue ParseSelectMany(SymbolValue symbolValue, SymbolTable symbolTable, SpecificationContext context, Expression collectionSelector, Expression resultSelector)
         {
             if (collectionSelector is UnaryExpression { Operand: LambdaExpression lambda })
             {
                 var parameterName = lambda.Parameters[0].Name;
-                var innerSymbolTable = symbolTable.With(parameterName, symbolValue);
+                var parameterType = lambda.Parameters[0].Type;
+                var innerSymbolTable = symbolTable.With(
+                    parameterName,
+                    ApplyLabel(symbolValue, parameterName, parameterType)
+                );
                 var continuation = ParseSpecification(innerSymbolTable, context, lambda.Body);
                 var projection = ParseProjection(symbolTable, context, symbolValue, continuation, resultSelector);
                 return projection;
@@ -305,16 +288,43 @@ namespace Jinaga.Parsers
             })
             {
                 var valueParameterName = projectionLambda.Parameters[0].Name;
+                var valueParameterType = projectionLambda.Parameters[0].Type;
                 var continuationParameterName = projectionLambda.Parameters[1].Name;
+                var continuationParameterType = projectionLambda.Parameters[1].Type;
                 var innerSymbolTable = symbolTable
-                    .With(valueParameterName, symbolValue)
-                    .With(continuationParameterName, continuation);
+                    .With(
+                        valueParameterName,
+                        ApplyLabel(symbolValue, valueParameterName, valueParameterType))
+                    .With(
+                        continuationParameterName,
+                        ApplyLabel(continuation, continuationParameterName, continuationParameterType));
 
                 return ValueParser.ParseValue(innerSymbolTable, context, projectionLambda.Body).symbolValue;
             }
             else
             {
                 throw new NotImplementedException();
+            }
+        }
+
+        private static SymbolValue ApplyLabel(SymbolValue symbolValue, string name, Type type)
+        {
+            if (symbolValue is SymbolValueSetDefinition
+                {
+                    SetDefinition: SetDefinitionTarget setDefinitionTarget
+                })
+            {
+                string factType = type.FactTypeName();
+                if (factType != setDefinitionTarget.FactType)
+                {
+                    throw new SpecificationException($"Parameter mismatch between {factType} and {setDefinitionTarget.FactType}");
+                }
+                var label = new Label(name, factType);
+                return new SymbolValueSetDefinition(new SetDefinitionLabeledTarget(label, type));
+            }
+            else
+            {
+                return symbolValue;
             }
         }
 

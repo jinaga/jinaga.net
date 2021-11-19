@@ -288,6 +288,22 @@ namespace Jinaga.Test
         }
 
         [Fact]
+        public void Specification_MissingJoinToPriorPath()
+        {
+            Func<Specification<Airline, Booking>> bookingsToRefund = () => Given<Airline>.Match((airline, facts) =>
+                from flight in facts.OfType<Flight>()
+                where flight.airlineDay.airline == airline
+                from booking in facts.OfType<Booking>()
+                select booking
+            );
+
+            bookingsToRefund.Should().Throw<SpecificationException>().WithMessage(
+                "The variable \"booking\" should be joined to the prior variable \"flight\". " +
+                "Consider \"where booking.flight == flight\"."
+            );
+        }
+
+        [Fact]
         public void CanSpecifyNamedPositiveExistentialCondition()
         {
             Specification<Airline, Booking> bookingsToRefund = Given<Airline>.Match((airline, facts) =>
