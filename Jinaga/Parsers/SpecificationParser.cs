@@ -55,49 +55,55 @@ namespace Jinaga.Parsers
                     }
                     else
                     {
-                        throw new NotImplementedException();
+                        throw new SpecificationException($"You cannot use {method.Name} in a Jinaga specification.");
                     }
                 }
                 else
                 {
-                    throw new NotImplementedException();
+                    throw new SpecificationException($"You cannot use {method.DeclaringType.Name}.{method.Name} in a Jinaga specification.");
                 }
             }
             else
             {
-                throw new NotImplementedException();
+                throw new SpecificationException($"You cannot use the syntax {body} in a Jinaga specification.");
             }
         }
 
         private static SymbolValue ParseWhere(SymbolValue symbolValue, SymbolTable symbolTable, SpecificationContext context, Expression predicate)
         {
-            switch (predicate)
+            if (predicate is UnaryExpression {
+                Operand: LambdaExpression lambda
+            })
             {
-                case UnaryExpression { Operand: LambdaExpression lambda }:
-                    var parameterName = lambda.Parameters[0].Name;
-                    var innerSymbolTable = symbolTable.With(parameterName, symbolValue);
+                var parameterName = lambda.Parameters[0].Name;
+                var innerSymbolTable = symbolTable.With(parameterName, symbolValue);
 
-                    switch (lambda.Body)
+                if (lambda.Body is BinaryExpression { NodeType: ExpressionType.Equal } binary)
+                {
+                    return ParseJoin(symbolValue, innerSymbolTable, context, binary.Left, binary.Right);
+                }
+                else if (lambda.Body is MethodCallExpression methodCall)
+                {
+                    var method = methodCall.Method;
+                    if (method.DeclaringType == typeof(Enumerable)
+                        && method.Name == nameof(Enumerable.Contains)
+                        && methodCall.Arguments.Count == 2)
                     {
-                        case BinaryExpression { NodeType: ExpressionType.Equal } binary:
-                            return ParseJoin(symbolValue, innerSymbolTable, context, binary.Left, binary.Right);
-                        case MethodCallExpression methodCall:
-                            var method = methodCall.Method;
-                            if (method.DeclaringType == typeof(Enumerable)
-                                && method.Name == nameof(Enumerable.Contains)
-                                && methodCall.Arguments.Count == 2)
-                            {
-                                return ParseJoin(symbolValue, innerSymbolTable, context, methodCall.Arguments[0], methodCall.Arguments[1]);
-                            }
-                            else
-                            {
-                                return ParseConditional(symbolValue, innerSymbolTable, context, lambda.Body);
-                            }
-                        default:
-                            return ParseConditional(symbolValue, innerSymbolTable, context, lambda.Body);
+                        return ParseJoin(symbolValue, innerSymbolTable, context, methodCall.Arguments[0], methodCall.Arguments[1]);
                     }
-                default:
-                    throw new NotImplementedException();
+                    else
+                    {
+                        return ParseConditional(symbolValue, innerSymbolTable, context, lambda.Body);
+                    }
+                }
+                else
+                {
+                    return ParseConditional(symbolValue, innerSymbolTable, context, lambda.Body);
+                }
+            }
+            else
+            {
+                throw new SpecificationException($"The parameter to Where is expected to be a lambda expression. You cannot use the syntax {predicate} in a Jinaga specification.");
             }
         }
 
@@ -117,7 +123,7 @@ namespace Jinaga.Parsers
                     var replacement = ReplaceSetDefinition(symbolValue, target, join);
                     return replacement;
                 default:
-                    throw new NotImplementedException();
+                    throw new SpecificationException($"The two sides of a join must be Jinaga facts. You cannot join {left} to {right}.");
             }
         }
 
@@ -132,33 +138,39 @@ namespace Jinaga.Parsers
 
         private static SetDefinition FindEvaluatedSet(ConditionDefinition conditionDefinition)
         {
-            switch (conditionDefinition.Set)
+            if (conditionDefinition.Set is SetDefinitionConditional conditionalSet)
             {
-                case SetDefinitionConditional conditionalSet:
-                    return FindEvaluatedSet(conditionalSet.Condition);
-                case SetDefinitionJoin joinSet:
-                    return joinSet.Head.TargetSetDefinition;
-                default:
-                    throw new NotImplementedException();
+                return FindEvaluatedSet(conditionalSet.Condition);
+            }
+            else if (conditionDefinition.Set is SetDefinitionJoin joinSet)
+            {
+                return joinSet.Head.TargetSetDefinition;
+            }
+            else
+            {
+                throw new SpecificationException($"A join must be specified before an existential condition. There is no join in {conditionDefinition}.");
             }
         }
 
         private static SymbolValue ReplaceSetDefinition(SymbolValue symbolValue, SetDefinition remove, SetDefinition insert)
         {
-            switch (symbolValue)
+            if (symbolValue is SymbolValueSetDefinition setValue)
             {
-                case SymbolValueSetDefinition setValue:
-                    return setValue.SetDefinition == remove
-                        ? new SymbolValueSetDefinition(insert)
-                        : symbolValue;
-                case SymbolValueComposite compositeValue:
-                    var fields = compositeValue.Fields
-                        .Select(pair => new KeyValuePair<string, SymbolValue>(pair.Key,
-                            ReplaceSetDefinition(pair.Value, remove, insert)))
-                        .ToImmutableDictionary();
-                    return new SymbolValueComposite(fields);
-                default:
-                    throw new NotImplementedException();
+                return setValue.SetDefinition == remove
+                    ? new SymbolValueSetDefinition(insert)
+                    : symbolValue;
+            }
+            else if (symbolValue is SymbolValueComposite compositeValue)
+            {
+                var fields = compositeValue.Fields
+                    .Select(pair => new KeyValuePair<string, SymbolValue>(pair.Key,
+                        ReplaceSetDefinition(pair.Value, remove, insert)))
+                    .ToImmutableDictionary();
+                return new SymbolValueComposite(fields);
+            }
+            else
+            {
+                throw new SpecificationException($"You cannot use the symbol {symbolValue} in this context.");
             }
         }
 
@@ -176,7 +188,7 @@ namespace Jinaga.Parsers
             }
             else
             {
-                throw new NotImplementedException();
+                throw new SpecificationException($"One side of a join must be a new set, and the other either a parameter or an established set. You cannot join {leftChain} to {rightChain}.");
             }
         }
 
@@ -196,7 +208,7 @@ namespace Jinaga.Parsers
             }
             else
             {
-                throw new NotImplementedException();
+                throw new SpecificationException($"The parameter to Select is expected to be a lambda expression. You cannot use the syntax {selector} in a Jinaga specification.");
             }
         }
 
@@ -216,7 +228,7 @@ namespace Jinaga.Parsers
             }
             else
             {
-                throw new NotImplementedException();
+                throw new SpecificationException($"The parameter to SelectMany is expected to be a lambda expression. You cannot use the syntax {collectionSelector} in a Jinaga specification.");
             }
         }
 
@@ -241,17 +253,17 @@ namespace Jinaga.Parsers
                         }
                         else
                         {
-                            throw new NotImplementedException();
+                            throw new SpecificationException($"The parameter to Any must be a lambda that returns a fact. You cannot use {value} in a Jinaga existential condition.");
                         }
                     }
                     else
                     {
-                        throw new NotImplementedException();
+                        throw new SpecificationException($"You cannot use the method {method.Name} in a Jinaga condition.");
                     }
                 }
                 else
                 {
-                    throw new NotImplementedException();
+                    throw new SpecificationException($"You cannot use the method {method.DeclaringType.Name}.{method.Name} in a Jinaga condition.");
                 }
             }
             else if (body is UnaryExpression {
@@ -272,12 +284,12 @@ namespace Jinaga.Parsers
                 }
                 else
                 {
-                    throw new NotImplementedException();
+                    throw new SpecificationException($"You cannot use the syntax {body} in a Jinaga condition.");
                 }
             }
             else
             {
-                throw new NotImplementedException();
+                throw new SpecificationException($"You cannot use the syntax {body} in a Jinaga condition.");
             }
         }
 
@@ -303,7 +315,7 @@ namespace Jinaga.Parsers
             }
             else
             {
-                throw new NotImplementedException();
+                throw new SpecificationException($"You cannot use the syntax {resultSelector} in a Jinaga projection.");
             }
         }
 
