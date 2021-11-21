@@ -18,10 +18,10 @@ namespace Jinaga
             object proxy = SpecificationParser.InstanceOfFact(typeof(TFact));
             var label = new Label(specExpression.Parameters[0].Name, specExpression.Parameters[0].Type.FactTypeName());
             var context = SpecificationContext.Empty.With(label, proxy, specExpression.Parameters[0].Type);
-            var result = (JinagaQueryable<TProjection>)spec((TFact)proxy, new FactRepository());
+            var queryable = (JinagaQueryable<TProjection>)spec((TFact)proxy, new FactRepository());
 
-            var value = SpecificationParser.ParseSpecification(SymbolTable.Empty, context, result.Expression);
-            var specification = SpecificationGenerator.CreateSpecification(context, value.SymbolValue);
+            var result = SpecificationParser.ParseSpecification(SymbolTable.Empty, context, queryable.Expression);
+            var specification = SpecificationGenerator.CreateSpecification(context, result.SymbolValue);
             return new Specification<TFact, TProjection>(specification.Pipeline, specification.Projection);
         }
 
