@@ -12,7 +12,7 @@ namespace Jinaga.Parsers
 {
     public static class SpecificationParser
     {
-        public static SymbolValue ParseSpecification(SymbolTable symbolTable, SpecificationContext context, Expression body)
+        public static SpecificationResult ParseSpecification(SymbolTable symbolTable, SpecificationContext context, Expression body)
         {
             if (body is MethodCallExpression methodCall)
             {
@@ -29,11 +29,11 @@ namespace Jinaga.Parsers
 
                     if (methodCall.Arguments.Count == 0)
                     {
-                        return source;
+                        return SpecificationResult.WithValue(source);
                     }
                     else
                     {
-                        return ParseWhere(source, symbolTable, context, methodCall.Arguments[0]);
+                        return SpecificationResult.WithValue(ParseWhere(source, symbolTable, context, methodCall.Arguments[0]));
                     }
                 }
                 else if (method.DeclaringType == typeof(Queryable))
@@ -41,17 +41,17 @@ namespace Jinaga.Parsers
                     if (method.Name == nameof(Queryable.Where) && methodCall.Arguments.Count == 2)
                     {
                         var source = ParseSpecification(symbolTable, context, methodCall.Arguments[0]);
-                        return ParseWhere(source, symbolTable, context, methodCall.Arguments[1]);
+                        return SpecificationResult.WithValue(ParseWhere(source.SymbolValue, symbolTable, context, methodCall.Arguments[1]));
                     }
                     else if (method.Name == nameof(Queryable.Select) && methodCall.Arguments.Count == 2)
                     {
                         var source = ParseSpecification(symbolTable, context, methodCall.Arguments[0]);
-                        return ParseSelect(source, symbolTable, context, methodCall.Arguments[1]);
+                        return SpecificationResult.WithValue(ParseSelect(source.SymbolValue, symbolTable, context, methodCall.Arguments[1]));
                     }
                     else if (method.Name == nameof(Queryable.SelectMany) && methodCall.Arguments.Count == 3)
                     {
                         var source = ParseSpecification(symbolTable, context, methodCall.Arguments[0]);
-                        return ParseSelectMany(source, symbolTable, context, methodCall.Arguments[1], methodCall.Arguments[2]);
+                        return SpecificationResult.WithValue(ParseSelectMany(source.SymbolValue, symbolTable, context, methodCall.Arguments[1], methodCall.Arguments[2]));
                     }
                     else
                     {
@@ -223,7 +223,7 @@ namespace Jinaga.Parsers
                     ApplyLabel(symbolValue, parameterName, parameterType)
                 );
                 var continuation = ParseSpecification(innerSymbolTable, context, lambda.Body);
-                var projection = ParseProjection(symbolTable, context, symbolValue, continuation, resultSelector);
+                var projection = ParseProjection(symbolTable, context, symbolValue, continuation.SymbolValue, resultSelector);
                 return projection;
             }
             else
@@ -247,13 +247,13 @@ namespace Jinaga.Parsers
                     {
                         var predicate = methodCall.Arguments[0];
                         var value = ParseSpecification(symbolTable, context, predicate);
-                        if (value is SymbolValueSetDefinition setDefinitionValue)
+                        if (value.SymbolValue is SymbolValueSetDefinition setDefinitionValue)
                         {
                             return Exists(setDefinitionValue.SetDefinition);
                         }
                         else
                         {
-                            throw new SpecificationException($"The parameter to Any must be a lambda that returns a fact. You cannot use {value} in a Jinaga existential condition.");
+                            throw new SpecificationException($"The parameter to Any must be a lambda that returns a fact. You cannot use {value.SymbolValue} in a Jinaga existential condition.");
                         }
                     }
                     else

@@ -21,7 +21,7 @@ namespace Jinaga
             var result = (JinagaQueryable<TProjection>)spec((TFact)proxy, new FactRepository());
 
             var value = SpecificationParser.ParseSpecification(SymbolTable.Empty, context, result.Expression);
-            var specification = SpecificationGenerator.CreateSpecification(context, value);
+            var specification = SpecificationGenerator.CreateSpecification(context, value.SymbolValue);
             return new Specification<TFact, TProjection>(specification.Pipeline, specification.Projection);
         }
 

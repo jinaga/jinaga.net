@@ -64,10 +64,9 @@ namespace Jinaga.Parsers
             {
                 var lambdaExpression = Expression.Lambda<Func<object>>(expression);
                 object value = lambdaExpression.Compile().Invoke();
-                var label = context.GetLabel(value);
-                var type = context.GetType(value);
-                var setDefinition = new SetDefinitionInitial(label, type);
-                return (new SymbolValueSetDefinition(setDefinition), label.Name);
+                var variable = context.GetVariable(value);
+                var setDefinition = new SetDefinitionInitial(variable.Label, variable.Type);
+                return (new SymbolValueSetDefinition(setDefinition), variable.Label.Name);
             }
             else if (expression is MethodCallExpression allCallExpression &&
                 allCallExpression.Method.DeclaringType == typeof(FactRepository) &&

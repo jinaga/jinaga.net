@@ -56,11 +56,11 @@ namespace Jinaga.Generators
             else if (setDefinition is SetDefinitionLabeledTarget labeledTargetSet)
             {
                 var variable = labeledTargetSet.Label.Name;
-                var parameter = context.GetFirstLabel().Name;
-                var message = $"The variable \"{variable}\" should be joined to the parameter \"{parameter}\".";
+                var parameter = context.GetFirstVariable();
+                var message = $"The variable \"{variable}\" should be joined to the parameter \"{parameter.Label.Name}\".";
                 var recommendation = RecommendationEngine.RecommendJoin(
                     new CodeExpression(labeledTargetSet.Type, variable),
-                    new CodeExpression(context.GetFirstType(), parameter)
+                    new CodeExpression(parameter.Type, parameter.Label.Name)
                 );
 
                 throw new SpecificationException(recommendation == null ? message : $"{message} Consider \"where {recommendation}\".");
@@ -69,11 +69,11 @@ namespace Jinaga.Generators
             {
                 var typeName = targetSet.Type.Name;
                 var variable = ToInitialLowerCase(typeName);
-                var parameter = context.GetFirstLabel().Name;
-                var message = $"The set should be joined to the parameter \"{parameter}\".";
+                var parameter = context.GetFirstVariable();
+                var message = $"The set should be joined to the parameter \"{parameter.Label.Name}\".";
                 var recommendation = RecommendationEngine.RecommendJoin(
                     new CodeExpression(targetSet.Type, variable),
-                    new CodeExpression(context.GetFirstType(), parameter)
+                    new CodeExpression(parameter.Type, parameter.Label.Name)
                 );
 
                 throw new SpecificationException(recommendation == null ? message : $"{message} Consider \"facts.OfType<{typeName}>({variable} => {recommendation})\".");
