@@ -1,5 +1,7 @@
+using System;
 using System.Collections.Immutable;
 using Jinaga.Definitions;
+using Jinaga.Pipelines;
 
 namespace Jinaga.Parsers
 {
@@ -14,9 +16,30 @@ namespace Jinaga.Parsers
             this.variables = variables;
         }
 
-        public static SpecificationResult WithValue(SymbolValue symbolValue)
+        public static SpecificationResult FromValue(SymbolValue symbolValue)
         {
             return new SpecificationResult(symbolValue, ImmutableList<SpecificationVariable>.Empty);
+        }
+
+        public SpecificationResult WithValue(SymbolValue symbolValue)
+        {
+            return new SpecificationResult(symbolValue, variables);
+        }
+
+        public SpecificationResult WithVariable(Label label, Type type)
+        {
+            return new SpecificationResult(
+                SymbolValue,
+                variables.Add(new SpecificationVariable(label, type))
+            );
+        }
+
+        public SpecificationResult Compose(SpecificationResult other)
+        {
+            return new SpecificationResult(
+                this.SymbolValue,
+                this.variables.AddRange(other.variables)
+            );
         }
     }
 }

@@ -25,15 +25,16 @@ namespace Jinaga.Parsers
                     var factType = type.FactTypeName();
 
                     var set = FactsOfType(factType, type);
-                    var source = new SymbolValueSetDefinition(set);
+                    var sourceSymbolValue = new SymbolValueSetDefinition(set);
+                    var source = SpecificationResult.FromValue(sourceSymbolValue);
 
                     if (methodCall.Arguments.Count == 0)
                     {
-                        return SpecificationResult.WithValue(source);
+                        return source;
                     }
                     else
                     {
-                        return SpecificationResult.WithValue(ParseWhere(source, symbolTable, context, methodCall.Arguments[0]));
+                        return ParseWhere(source, symbolTable, context, methodCall.Arguments[0]);
                     }
                 }
                 else if (method.DeclaringType == typeof(Queryable))
@@ -41,17 +42,17 @@ namespace Jinaga.Parsers
                     if (method.Name == nameof(Queryable.Where) && methodCall.Arguments.Count == 2)
                     {
                         var source = ParseSpecification(symbolTable, context, methodCall.Arguments[0]);
-                        return SpecificationResult.WithValue(ParseWhere(source.SymbolValue, symbolTable, context, methodCall.Arguments[1]));
+                        return ParseWhere(source, symbolTable, context, methodCall.Arguments[1]);
                     }
                     else if (method.Name == nameof(Queryable.Select) && methodCall.Arguments.Count == 2)
                     {
                         var source = ParseSpecification(symbolTable, context, methodCall.Arguments[0]);
-                        return SpecificationResult.WithValue(ParseSelect(source.SymbolValue, symbolTable, context, methodCall.Arguments[1]));
+                        return ParseSelect(source, symbolTable, context, methodCall.Arguments[1]);
                     }
                     else if (method.Name == nameof(Queryable.SelectMany) && methodCall.Arguments.Count == 3)
                     {
                         var source = ParseSpecification(symbolTable, context, methodCall.Arguments[0]);
-                        return SpecificationResult.WithValue(ParseSelectMany(source.SymbolValue, symbolTable, context, methodCall.Arguments[1], methodCall.Arguments[2]));
+                        return ParseSelectMany(source, symbolTable, context, methodCall.Arguments[1], methodCall.Arguments[2]);
                     }
                     else
                     {
@@ -69,18 +70,21 @@ namespace Jinaga.Parsers
             }
         }
 
-        private static SymbolValue ParseWhere(SymbolValue symbolValue, SymbolTable symbolTable, SpecificationContext context, Expression predicate)
+        private static SpecificationResult ParseWhere(SpecificationResult source, SymbolTable symbolTable, SpecificationContext context, Expression predicate)
         {
             if (predicate is UnaryExpression {
                 Operand: LambdaExpression lambda
             })
             {
                 var parameterName = lambda.Parameters[0].Name;
-                var innerSymbolTable = symbolTable.With(parameterName, symbolValue);
+                var parameterType = lambda.Parameters[0].Type;
+                var labeledSource = ApplyLabel(source, parameterName, parameterType);
+                var innerSymbolTable = symbolTable.With(parameterName, source.SymbolValue);
 
                 if (lambda.Body is BinaryExpression { NodeType: ExpressionType.Equal } binary)
                 {
-                    return ParseJoin(symbolValue, innerSymbolTable, context, binary.Left, binary.Right);
+                    var symbolValue = ParseJoin(source.SymbolValue, innerSymbolTable, context, binary.Left, binary.Right);
+                    return labeledSource.WithValue(symbolValue);
                 }
                 else if (lambda.Body is MethodCallExpression methodCall)
                 {
@@ -89,16 +93,19 @@ namespace Jinaga.Parsers
                         && method.Name == nameof(Enumerable.Contains)
                         && methodCall.Arguments.Count == 2)
                     {
-                        return ParseJoin(symbolValue, innerSymbolTable, context, methodCall.Arguments[0], methodCall.Arguments[1]);
+                        var symbolValue = ParseJoin(source.SymbolValue, innerSymbolTable, context, methodCall.Arguments[0], methodCall.Arguments[1]);
+                        return labeledSource.WithValue(symbolValue);
                     }
                     else
                     {
-                        return ParseConditional(symbolValue, innerSymbolTable, context, lambda.Body);
+                        var symbolValue = ParseConditional(source.SymbolValue, innerSymbolTable, context, lambda.Body);
+                        return labeledSource.WithValue(symbolValue);
                     }
                 }
                 else
                 {
-                    return ParseConditional(symbolValue, innerSymbolTable, context, lambda.Body);
+                    var symbolValue = ParseConditional(source.SymbolValue, innerSymbolTable, context, lambda.Body);
+                    return labeledSource.WithValue(symbolValue);
                 }
             }
             else
@@ -192,7 +199,7 @@ namespace Jinaga.Parsers
             }
         }
 
-        private static SymbolValue ParseSelect(SymbolValue symbolValue, SymbolTable symbolTable, SpecificationContext context, Expression selector)
+        private static SpecificationResult ParseSelect(SpecificationResult result, SymbolTable symbolTable, SpecificationContext context, Expression selector)
         {
             if (selector is UnaryExpression {
                 Operand: LambdaExpression projectionLambda
@@ -200,11 +207,12 @@ namespace Jinaga.Parsers
             {
                 var valueParameterName = projectionLambda.Parameters[0].Name;
                 var valueParameterType = projectionLambda.Parameters[0].Type;
+                var labeledResult = ApplyLabel(result, valueParameterName, valueParameterType);
                 var innerSymbolTable = symbolTable
-                    .With(valueParameterName, ApplyLabel(symbolValue, valueParameterName, valueParameterType));
+                    .With(valueParameterName, labeledResult.SymbolValue);
 
                 var (value, _) = ValueParser.ParseValue(innerSymbolTable, context, projectionLambda.Body);
-                return value;
+                return labeledResult.WithValue(value);
             }
             else
             {
@@ -212,18 +220,19 @@ namespace Jinaga.Parsers
             }
         }
 
-        private static SymbolValue ParseSelectMany(SymbolValue symbolValue, SymbolTable symbolTable, SpecificationContext context, Expression collectionSelector, Expression resultSelector)
+        private static SpecificationResult ParseSelectMany(SpecificationResult result, SymbolTable symbolTable, SpecificationContext context, Expression collectionSelector, Expression resultSelector)
         {
             if (collectionSelector is UnaryExpression { Operand: LambdaExpression lambda })
             {
                 var parameterName = lambda.Parameters[0].Name;
                 var parameterType = lambda.Parameters[0].Type;
+                var labeledResult = ApplyLabel(result, parameterName, parameterType);
                 var innerSymbolTable = symbolTable.With(
                     parameterName,
-                    ApplyLabel(symbolValue, parameterName, parameterType)
+                    labeledResult.SymbolValue
                 );
                 var continuation = ParseSpecification(innerSymbolTable, context, lambda.Body);
-                var projection = ParseProjection(symbolTable, context, symbolValue, continuation.SymbolValue, resultSelector);
+                var projection = ParseProjection(symbolTable, context, labeledResult, continuation, resultSelector);
                 return projection;
             }
             else
@@ -293,7 +302,7 @@ namespace Jinaga.Parsers
             }
         }
 
-        private static SymbolValue ParseProjection(SymbolTable symbolTable, SpecificationContext context, SymbolValue symbolValue, SymbolValue continuation, Expression resultSelector)
+        private static SpecificationResult ParseProjection(SymbolTable symbolTable, SpecificationContext context, SpecificationResult source, SpecificationResult continuation, Expression resultSelector)
         {
             if (resultSelector is UnaryExpression {
                 Operand: LambdaExpression projectionLambda
@@ -303,15 +312,20 @@ namespace Jinaga.Parsers
                 var valueParameterType = projectionLambda.Parameters[0].Type;
                 var continuationParameterName = projectionLambda.Parameters[1].Name;
                 var continuationParameterType = projectionLambda.Parameters[1].Type;
+                var labeledSource = ApplyLabel(source, valueParameterName, valueParameterType);
+                var labeledContinuation = ApplyLabel(continuation, continuationParameterName, continuationParameterType);
                 var innerSymbolTable = symbolTable
                     .With(
                         valueParameterName,
-                        ApplyLabel(symbolValue, valueParameterName, valueParameterType))
+                        labeledSource.SymbolValue
+                    )
                     .With(
                         continuationParameterName,
-                        ApplyLabel(continuation, continuationParameterName, continuationParameterType));
+                        labeledContinuation.SymbolValue
+                    );
 
-                return ValueParser.ParseValue(innerSymbolTable, context, projectionLambda.Body).symbolValue;
+                var value = ValueParser.ParseValue(innerSymbolTable, context, projectionLambda.Body).symbolValue;
+                return labeledSource.Compose(labeledContinuation).WithValue(value);
             }
             else
             {
@@ -319,9 +333,9 @@ namespace Jinaga.Parsers
             }
         }
 
-        private static SymbolValue ApplyLabel(SymbolValue symbolValue, string name, Type type)
+        private static SpecificationResult ApplyLabel(SpecificationResult result, string name, Type type)
         {
-            if (symbolValue is SymbolValueSetDefinition
+            if (result.SymbolValue is SymbolValueSetDefinition
                 {
                     SetDefinition: SetDefinitionTarget setDefinitionTarget
                 })
@@ -332,11 +346,12 @@ namespace Jinaga.Parsers
                     throw new SpecificationException($"Parameter mismatch between {factType} and {setDefinitionTarget.FactType}");
                 }
                 var label = new Label(name, factType);
-                return new SymbolValueSetDefinition(new SetDefinitionLabeledTarget(label, type));
+                var symbolValue = new SymbolValueSetDefinition(new SetDefinitionLabeledTarget(label, type));
+                return result.WithVariable(label, type).WithValue(symbolValue);
             }
             else
             {
-                return symbolValue;
+                return result;
             }
         }
 
