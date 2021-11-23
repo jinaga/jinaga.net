@@ -375,8 +375,12 @@ namespace Jinaga.Parsers
                     throw new SpecificationException($"Parameter mismatch between {factType} and {setDefinitionTarget.FactType}");
                 }
                 var label = new Label(name, factType);
-                var symbolValue = new SymbolValueSetDefinition(new SetDefinitionLabeledTarget(label, type));
-                return result.WithVariable(label, type).WithValue(symbolValue);
+                var setDefinition = new SetDefinitionLabeledTarget(label, type);
+                var symbolValue = new SymbolValueSetDefinition(setDefinition);
+                return result
+                    .WithVariable(label, type)
+                    .WithSetDefinition(setDefinition)
+                    .WithValue(symbolValue);
             }
             else
             {
