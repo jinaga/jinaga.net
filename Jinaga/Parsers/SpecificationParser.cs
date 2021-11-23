@@ -27,7 +27,7 @@ namespace Jinaga.Parsers
                     var set = FactsOfType(factType, type);
                     var sourceSymbolValue = new SymbolValueSetDefinition(set);
                     var source = SpecificationResult.FromValue(sourceSymbolValue)
-                        .WithSetDefinition(set);
+                        .WithTarget(set);
 
                     if (methodCall.Arguments.Count == 0)
                     {
@@ -379,7 +379,7 @@ namespace Jinaga.Parsers
                 var symbolValue = new SymbolValueSetDefinition(setDefinition);
                 return result
                     .WithVariable(label, type)
-                    .WithSetDefinition(setDefinition)
+                    .ApplyLabel(setDefinitionTarget, label)
                     .WithValue(symbolValue);
             }
             else
@@ -398,7 +398,7 @@ namespace Jinaga.Parsers
             return Activator.CreateInstance(factType, parameters);
         }
 
-        private static SetDefinition FactsOfType(string factType, Type type)
+        private static SetDefinitionTarget FactsOfType(string factType, Type type)
         {
             return new SetDefinitionTarget(factType, type);
         }

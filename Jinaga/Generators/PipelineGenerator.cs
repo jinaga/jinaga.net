@@ -133,10 +133,6 @@ namespace Jinaga.Generators
                 pipeline = pipeline.AddConditional(conditional);
                 return (pipeline, priorTarget);
             }
-            else if (setDefinition is SetDefinitionTarget)
-            {
-                return (pipeline, setDefinition);
-            }
             else
                 throw new NotImplementedException();
         }
