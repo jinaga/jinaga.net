@@ -214,6 +214,11 @@ namespace Jinaga.Parsers
                     .With(valueParameterName, labeledResult.SymbolValue);
 
                 var (value, _) = ValueParser.ParseValue(innerSymbolTable, context, projectionLambda.Body);
+                labeledResult = GetAllPredecessorChains(value)
+                    .Aggregate(
+                        labeledResult,
+                        (current, predecessorChain) => current.WithSetDefinition(predecessorChain)
+                    );
                 return labeledResult.WithValue(value);
             }
             else
@@ -327,11 +332,33 @@ namespace Jinaga.Parsers
                     );
 
                 var value = ValueParser.ParseValue(innerSymbolTable, context, projectionLambda.Body).symbolValue;
+                labeledSource = GetAllPredecessorChains(value)
+                    .Aggregate(
+                        labeledSource,
+                        (current, predecessorChain) => current.WithSetDefinition(predecessorChain)
+                    );
                 return labeledSource.Compose(labeledContinuation).WithValue(value);
             }
             else
             {
                 throw new SpecificationException($"You cannot use the syntax {resultSelector} in a Jinaga projection.");
+            }
+        }
+
+        private static IEnumerable<SetDefinition> GetAllPredecessorChains(SymbolValue value)
+        {
+            if (value is SymbolValueSetDefinition {
+                SetDefinition: SetDefinitionPredecessorChain chain
+            })
+            {
+                yield return chain;
+            }
+            else if (value is SymbolValueComposite composite)
+            {
+                foreach (var setDefinition in composite.Fields.SelectMany(field => GetAllPredecessorChains(field.Value)))
+                {
+                    yield return setDefinition;
+                }
             }
         }
 
