@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Jinaga.Definitions;
 using Jinaga.Parsers;
 using Jinaga.Pipelines;
@@ -82,6 +83,62 @@ namespace Jinaga.Generators
             {
                 throw new NotImplementedException($"Cannot generate pipeline for {setDefinition}");
             }
+        }
+
+        public static Pipeline CreatePipelineFromResult(SpecificationContext context, SpecificationResult result)
+        {
+            var pipeline = context.Labels
+                .Aggregate(Pipeline.Empty, (p, label) => p.AddStart(label));
+            SetDefinition? priorSetDefinition = null;
+            foreach (var setDefinition in result.SetDefinitions)
+            {
+                (pipeline, priorSetDefinition) = AppendToPipeline(pipeline, context, setDefinition, priorSetDefinition);
+            }
+            return pipeline;
+        }
+
+        private static (Pipeline pipeline, SetDefinition priorSetDefinition) AppendToPipeline(Pipeline pipeline, SpecificationContext context, SetDefinition setDefinition, SetDefinition? priorSetDefinition)
+        {
+            if (setDefinition is SetDefinitionPredecessorChain predecessorChainSet)
+            {
+                var chain = predecessorChainSet.ToChain();
+                var targetSetDefinition = chain.TargetSetDefinition;
+                var start = targetSetDefinition.Label;
+                var target = new Label(predecessorChainSet.Tag, chain.TargetFactType);
+                var path = new Path(start, target);
+                pipeline = pipeline.AddPath(AddPredecessorSteps(path, chain));
+                return (pipeline, setDefinition);
+            }
+            else if (setDefinition is SetDefinitionJoin joinSet)
+            {
+                var head = joinSet.Head;
+                var tail = joinSet.Tail;
+                var sourceSetDefinition = head.TargetSetDefinition;
+                var source = sourceSetDefinition.Label;
+                var target = joinSet.Label;
+                var path = new Path(source, target);
+                pipeline = pipeline.AddPath(PrependSuccessorSteps(AddPredecessorSteps(path, head), tail));
+                return (pipeline, setDefinition);
+            }
+            else if (setDefinition is SetDefinitionConditional conditionalSet)
+            {
+                var targetSetDefinition = conditionalSet.Source;
+                var start = targetSetDefinition.Label;
+                var childPipeline = CreatePipeline(
+                    SpecificationContext.Empty,
+                    conditionalSet.Condition.Set,
+                    targetSetDefinition,
+                    start);
+                var conditional = new Conditional(start, conditionalSet.Condition.Exists, childPipeline);
+                pipeline = pipeline.AddConditional(conditional);
+                return (pipeline, setDefinition);
+            }
+            else if (setDefinition is SetDefinitionTarget targetSet)
+            {
+                return (pipeline, setDefinition);
+            }
+            else
+                throw new NotImplementedException();
         }
 
         public static Path AddPredecessorSteps(Path path, Chain chain)

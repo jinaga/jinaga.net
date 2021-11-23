@@ -26,7 +26,8 @@ namespace Jinaga.Parsers
 
                     var set = FactsOfType(factType, type);
                     var sourceSymbolValue = new SymbolValueSetDefinition(set);
-                    var source = SpecificationResult.FromValue(sourceSymbolValue);
+                    var source = SpecificationResult.FromValue(sourceSymbolValue)
+                        .WithSetDefinition(set);
 
                     if (methodCall.Arguments.Count == 0)
                     {
@@ -97,14 +98,12 @@ namespace Jinaga.Parsers
                     }
                     else
                     {
-                        var symbolValue = ParseConditional(labeledSource.SymbolValue, innerSymbolTable, context, lambda.Body);
-                        return labeledSource.WithValue(symbolValue);
+                        return ParseConditional(labeledSource, innerSymbolTable, context, lambda.Body);
                     }
                 }
                 else
                 {
-                    var symbolValue = ParseConditional(labeledSource.SymbolValue, innerSymbolTable, context, lambda.Body);
-                    return labeledSource.WithValue(symbolValue);
+                    return ParseConditional(labeledSource, innerSymbolTable, context, lambda.Body);
                 }
             }
             else
@@ -128,19 +127,22 @@ namespace Jinaga.Parsers
                     var join = new SetDefinitionJoin(tag, head, tail, tail.SourceType);
                     var target = tail.TargetSetDefinition;
                     var replacement = ReplaceSetDefinition(source.SymbolValue, target, join);
-                    return source.ConsumeVariable(consumedTag).WithValue(replacement);
+                    return source
+                        .ConsumeVariable(consumedTag)
+                        .WithSetDefinition(join)
+                        .WithValue(replacement);
                 default:
                     throw new SpecificationException($"The two sides of a join must be Jinaga facts. You cannot join {left} to {right}.");
             }
         }
 
-        private static SymbolValue ParseConditional(SymbolValue symbolValue, SymbolTable innerSymbolTable, SpecificationContext context, Expression body)
+        private static SpecificationResult ParseConditional(SpecificationResult source, SymbolTable innerSymbolTable, SpecificationContext context, Expression body)
         {
-            var conditionDefinition = ParseCondition(symbolValue, innerSymbolTable, context, body);
+            var conditionDefinition = ParseCondition(source.SymbolValue, innerSymbolTable, context, body);
             var evaluatedSet = FindEvaluatedSet(conditionDefinition);
             var conditionalSetDefinition = new SetDefinitionConditional(evaluatedSet, conditionDefinition, evaluatedSet.Type);
-            var replacement = ReplaceSetDefinition(symbolValue, evaluatedSet, conditionalSetDefinition);
-            return replacement;
+            var replacement = ReplaceSetDefinition(source.SymbolValue, evaluatedSet, conditionalSetDefinition);
+            return source.WithSetDefinition(conditionalSetDefinition).WithValue(replacement);
         }
 
         private static SetDefinition FindEvaluatedSet(ConditionDefinition conditionDefinition)

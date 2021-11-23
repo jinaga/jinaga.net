@@ -1,5 +1,6 @@
 ﻿using Jinaga.Pipelines;
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 
@@ -30,5 +31,7 @@ namespace Jinaga.Parsers
         {
             return proxyInfo.Values.First();
         }
+
+        public IEnumerable<Label> Labels => proxyInfo.Values.Select(v => v.Label);
     }
 }

@@ -21,7 +21,8 @@ namespace Jinaga
             var queryable = (JinagaQueryable<TProjection>)spec((TFact)proxy, new FactRepository());
 
             var result = SpecificationParser.ParseSpecification(SymbolTable.Empty, context, queryable.Expression);
-            var specification = SpecificationGenerator.CreateSpecification(context, result.SymbolValue);
+            // Specification specification = SpecificationGenerator.CreateSpecification(context, result.SymbolValue);
+            Specification specification = SpecificationGenerator.CreateSpecification(context, result);
             return new Specification<TFact, TProjection>(specification.Pipeline, specification.Projection);
         }
 
@@ -35,14 +36,15 @@ namespace Jinaga
             var symbolTable = SymbolTable.Empty.With(initialFactName, new SymbolValueSetDefinition(startingSet));
 
             var symbolValue = ValueParser.ParseValue(symbolTable, SpecificationContext.Empty, spec.Body).symbolValue;
-            switch (symbolValue)
+            if (symbolValue is SymbolValueSetDefinition setValue)
             {
-                case SymbolValueSetDefinition setValue:
-                    var pipeline = PipelineGenerator.CreatePipeline(SpecificationContext.Empty, setValue.SetDefinition);
-                    var simpleProjection = new SimpleProjection(setValue.SetDefinition.Tag);
-                    return new Specification<TFact, TProjection>(pipeline, simpleProjection);
-                default:
-                    throw new NotImplementedException();
+                var pipeline = PipelineGenerator.CreatePipeline(SpecificationContext.Empty, setValue.SetDefinition);
+                var simpleProjection = new SimpleProjection(setValue.SetDefinition.Tag);
+                return new Specification<TFact, TProjection>(pipeline, simpleProjection);
+            }
+            else
+            {
+                throw new NotImplementedException();
             }
         }
     }
