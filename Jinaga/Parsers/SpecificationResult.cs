@@ -9,28 +9,44 @@ namespace Jinaga.Parsers
     {
         public SymbolValue SymbolValue { get; }
         private ImmutableList<SpecificationVariable> variables;
+        private ImmutableHashSet<string> consumedTags;
 
-        private SpecificationResult(SymbolValue symbolValue, ImmutableList<SpecificationVariable> variables)
+        public SpecificationResult(SymbolValue symbolValue, ImmutableList<SpecificationVariable> variables, ImmutableHashSet<string> consumedTags)
         {
             SymbolValue = symbolValue;
             this.variables = variables;
+            this.consumedTags = consumedTags;
         }
 
         public static SpecificationResult FromValue(SymbolValue symbolValue)
         {
-            return new SpecificationResult(symbolValue, ImmutableList<SpecificationVariable>.Empty);
+            return new SpecificationResult(
+                symbolValue,
+                ImmutableList<SpecificationVariable>.Empty,
+                ImmutableHashSet<string>.Empty
+            );
         }
 
         public SpecificationResult WithValue(SymbolValue symbolValue)
         {
-            return new SpecificationResult(symbolValue, variables);
+            return new SpecificationResult(symbolValue, variables, consumedTags);
         }
 
         public SpecificationResult WithVariable(Label label, Type type)
         {
             return new SpecificationResult(
                 SymbolValue,
-                variables.Add(new SpecificationVariable(label, type))
+                variables.Add(new SpecificationVariable(label, type)),
+                consumedTags
+            );
+        }
+
+        public SpecificationResult ConsumeVariable(string consumedTag)
+        {
+            return new SpecificationResult(
+                SymbolValue,
+                variables,
+                consumedTags.Add(consumedTag)
             );
         }
 
@@ -38,7 +54,8 @@ namespace Jinaga.Parsers
         {
             return new SpecificationResult(
                 this.SymbolValue,
-                this.variables.AddRange(other.variables)
+                this.variables.AddRange(other.variables),
+                consumedTags.Union(other.consumedTags)
             );
         }
     }

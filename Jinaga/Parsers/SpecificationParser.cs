@@ -78,13 +78,13 @@ namespace Jinaga.Parsers
             {
                 var parameterName = lambda.Parameters[0].Name;
                 var parameterType = lambda.Parameters[0].Type;
-                var labeledSource = ApplyLabel(source, parameterName, parameterType);
+                var labeledSource = ApplyLabel(source, parameterName, parameterType)
+                    .WithValue(source.SymbolValue);
                 var innerSymbolTable = symbolTable.With(parameterName, source.SymbolValue);
 
                 if (lambda.Body is BinaryExpression { NodeType: ExpressionType.Equal } binary)
                 {
-                    var symbolValue = ParseJoin(source.SymbolValue, innerSymbolTable, context, binary.Left, binary.Right);
-                    return labeledSource.WithValue(symbolValue);
+                    return ParseJoin(labeledSource, innerSymbolTable, context, binary.Left, binary.Right);
                 }
                 else if (lambda.Body is MethodCallExpression methodCall)
                 {
@@ -93,18 +93,17 @@ namespace Jinaga.Parsers
                         && method.Name == nameof(Enumerable.Contains)
                         && methodCall.Arguments.Count == 2)
                     {
-                        var symbolValue = ParseJoin(source.SymbolValue, innerSymbolTable, context, methodCall.Arguments[0], methodCall.Arguments[1]);
-                        return labeledSource.WithValue(symbolValue);
+                        return ParseJoin(labeledSource, innerSymbolTable, context, methodCall.Arguments[0], methodCall.Arguments[1]);
                     }
                     else
                     {
-                        var symbolValue = ParseConditional(source.SymbolValue, innerSymbolTable, context, lambda.Body);
+                        var symbolValue = ParseConditional(labeledSource.SymbolValue, innerSymbolTable, context, lambda.Body);
                         return labeledSource.WithValue(symbolValue);
                     }
                 }
                 else
                 {
-                    var symbolValue = ParseConditional(source.SymbolValue, innerSymbolTable, context, lambda.Body);
+                    var symbolValue = ParseConditional(labeledSource.SymbolValue, innerSymbolTable, context, lambda.Body);
                     return labeledSource.WithValue(symbolValue);
                 }
             }
@@ -114,7 +113,7 @@ namespace Jinaga.Parsers
             }
         }
 
-        private static SymbolValue ParseJoin(SymbolValue symbolValue, SymbolTable innerSymbolTable, SpecificationContext context, Expression leftExpression, Expression rightExpression)
+        private static SpecificationResult ParseJoin(SpecificationResult source, SymbolTable innerSymbolTable, SpecificationContext context, Expression leftExpression, Expression rightExpression)
         {
             var (left, leftTag) = ValueParser.ParseValue(innerSymbolTable, context, leftExpression);
             var (right, rightTag) = ValueParser.ParseValue(innerSymbolTable, context, rightExpression);
@@ -125,10 +124,11 @@ namespace Jinaga.Parsers
                     var rightChain = rightSet.SetDefinition.ToChain();
                     (Chain head, Chain tail) = OrderChains(leftChain, rightChain);
                     string tag = (tail == leftChain) ? leftTag : rightTag;
+                    string consumedTag = (head == leftChain) ? leftTag : rightTag;
                     var join = new SetDefinitionJoin(tag, head, tail, tail.SourceType);
                     var target = tail.TargetSetDefinition;
-                    var replacement = ReplaceSetDefinition(symbolValue, target, join);
-                    return replacement;
+                    var replacement = ReplaceSetDefinition(source.SymbolValue, target, join);
+                    return source.ConsumeVariable(consumedTag).WithValue(replacement);
                 default:
                     throw new SpecificationException($"The two sides of a join must be Jinaga facts. You cannot join {left} to {right}.");
             }
