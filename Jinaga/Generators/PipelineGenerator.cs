@@ -89,15 +89,15 @@ namespace Jinaga.Generators
         {
             var pipeline = context.Labels
                 .Aggregate(Pipeline.Empty, (p, label) => p.AddStart(label));
-            SetDefinition? priorSetDefinition = null;
+            SetDefinition? priorTarget = null;
             foreach (var setDefinition in result.SetDefinitions)
             {
-                (pipeline, priorSetDefinition) = AppendToPipeline(pipeline, context, setDefinition, priorSetDefinition);
+                (pipeline, priorTarget) = AppendToPipeline(pipeline, context, setDefinition, priorTarget);
             }
             return pipeline;
         }
 
-        private static (Pipeline pipeline, SetDefinition priorSetDefinition) AppendToPipeline(Pipeline pipeline, SpecificationContext context, SetDefinition setDefinition, SetDefinition? priorSetDefinition)
+        private static (Pipeline pipeline, SetDefinition? priorTarget) AppendToPipeline(Pipeline pipeline, SpecificationContext context, SetDefinition setDefinition, SetDefinition? priorTarget)
         {
             if (setDefinition is SetDefinitionPredecessorChain predecessorChainSet)
             {
@@ -107,7 +107,7 @@ namespace Jinaga.Generators
                 var target = new Label(predecessorChainSet.Tag, chain.TargetFactType);
                 var path = new Path(start, target);
                 pipeline = pipeline.AddPath(AddPredecessorSteps(path, chain));
-                return (pipeline, setDefinition);
+                return (pipeline, priorTarget);
             }
             else if (setDefinition is SetDefinitionJoin joinSet)
             {
@@ -118,7 +118,7 @@ namespace Jinaga.Generators
                 var target = joinSet.Label;
                 var path = new Path(source, target);
                 pipeline = pipeline.AddPath(PrependSuccessorSteps(AddPredecessorSteps(path, head), tail));
-                return (pipeline, setDefinition);
+                return (pipeline, priorTarget);
             }
             else if (setDefinition is SetDefinitionConditional conditionalSet)
             {
@@ -131,9 +131,9 @@ namespace Jinaga.Generators
                     start);
                 var conditional = new Conditional(start, conditionalSet.Condition.Exists, childPipeline);
                 pipeline = pipeline.AddConditional(conditional);
-                return (pipeline, setDefinition);
+                return (pipeline, priorTarget);
             }
-            else if (setDefinition is SetDefinitionTarget targetSet)
+            else if (setDefinition is SetDefinitionTarget)
             {
                 return (pipeline, setDefinition);
             }
