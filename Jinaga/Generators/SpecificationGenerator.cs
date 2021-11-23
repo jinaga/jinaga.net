@@ -11,8 +11,8 @@ namespace Jinaga.Generators
     {
         public static Specification CreateSpecification(SpecificationContext context, SpecificationResult result)
         {
-            Pipeline pipeline = PipelineGenerator.CreatePipelineFromResult(context, result);
-            Projection projection = CreateProjection(result.SymbolValue);
+            var pipeline = PipelineGenerator.CreatePipeline(context, result);
+            var projection = CreateProjection(result.SymbolValue);
             return new Specification(pipeline, projection);
         }
 

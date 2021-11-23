@@ -85,7 +85,7 @@ namespace Jinaga.Generators
             }
         }
 
-        public static Pipeline CreatePipelineFromResult(SpecificationContext context, SpecificationResult result)
+        public static Pipeline CreatePipeline(SpecificationContext context, SpecificationResult result)
         {
             var pipeline = context.Labels
                 .Aggregate(Pipeline.Empty, (p, label) => p.AddStart(label));
