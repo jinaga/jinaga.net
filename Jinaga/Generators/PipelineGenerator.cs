@@ -43,16 +43,7 @@ namespace Jinaga.Generators
             }
             else if (setDefinition is SetDefinitionConditional conditionalSet)
             {
-                var targetSetDefinition = conditionalSet.Source;
-                var pipeline = CreatePipeline(context, targetSetDefinition, seekSetDefinition, replaceLabel);
-                var start = targetSetDefinition.Label;
-                var childPipeline = CreatePipeline(
-                    SpecificationContext.Empty,
-                    conditionalSet.Condition.Set,
-                    targetSetDefinition,
-                    start);
-                var conditional = new Conditional(start, conditionalSet.Condition.Exists, childPipeline);
-                return pipeline.AddConditional(conditional);
+                throw new NotImplementedException();
             }
             else
             {
@@ -184,10 +175,9 @@ namespace Jinaga.Generators
                 var targetSetDefinition = conditionalSet.Source;
                 var start = targetSetDefinition.Label;
                 var childPipeline = CreatePipeline(
-                    SpecificationContext.Empty,
-                    conditionalSet.Condition.Set,
-                    targetSetDefinition,
-                    start);
+                    SpecificationContext.Empty
+                        .With(start, SpecificationParser.InstanceOfFact(targetSetDefinition.Type), targetSetDefinition.Type),
+                    conditionalSet.Condition.SpecificationResult);
                 var conditional = new Conditional(start, conditionalSet.Condition.Exists, childPipeline);
                 return pipeline.AddConditional(conditional);
             }

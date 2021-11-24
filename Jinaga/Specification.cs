@@ -30,21 +30,16 @@ namespace Jinaga
             var parameter = spec.Parameters[0];
             var initialFactName = parameter.Name;
             var initialFactType = parameter.Type.FactTypeName();
+            object proxy = SpecificationParser.InstanceOfFact(typeof(TFact));
             var label = new Label(initialFactName, initialFactType);
+            var context = SpecificationContext.Empty.With(label, proxy, parameter.Type);
             var startingSet = new SetDefinitionInitial(label, parameter.Type);
             var symbolTable = SymbolTable.Empty.With(initialFactName, new SymbolValueSetDefinition(startingSet));
 
-            var symbolValue = ValueParser.ParseValue(symbolTable, SpecificationContext.Empty, spec.Body).symbolValue;
-            if (symbolValue is SymbolValueSetDefinition setValue)
-            {
-                var pipeline = PipelineGenerator.CreatePipeline(SpecificationContext.Empty, setValue.SetDefinition);
-                var simpleProjection = new SimpleProjection(setValue.SetDefinition.Tag);
-                return new Specification<TFact, TProjection>(pipeline, simpleProjection);
-            }
-            else
-            {
-                throw new NotImplementedException();
-            }
+            var symbolValue = ValueParser.ParseValue(symbolTable, context, spec.Body).symbolValue;
+            var result = SpecificationParser.ParseValue(symbolValue);
+            var specification = SpecificationGenerator.CreateSpecification(context, result);
+            return new Specification<TFact, TProjection>(specification.Pipeline, specification.Projection);
         }
     }
 
