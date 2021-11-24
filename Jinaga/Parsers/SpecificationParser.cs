@@ -123,12 +123,10 @@ namespace Jinaga.Parsers
                     var rightChain = rightSet.SetDefinition.ToChain();
                     (Chain head, Chain tail) = OrderChains(leftChain, rightChain);
                     string tag = (tail == leftChain) ? leftTag : rightTag;
-                    string consumedTag = (head == leftChain) ? leftTag : rightTag;
                     var join = new SetDefinitionJoin(tag, head, tail, tail.SourceType);
                     var target = tail.TargetSetDefinition;
                     var replacement = ReplaceSetDefinition(source.SymbolValue, target, join);
                     return source
-                        .ConsumeVariable(consumedTag)
                         .WithSetDefinition(join)
                         .WithValue(replacement);
                 default:
@@ -375,12 +373,7 @@ namespace Jinaga.Parsers
                     throw new SpecificationException($"Parameter mismatch between {factType} and {setDefinitionTarget.FactType}");
                 }
                 var label = new Label(name, factType);
-                var setDefinition = new SetDefinitionLabeledTarget(label, type);
-                var symbolValue = new SymbolValueSetDefinition(setDefinition);
-                return result
-                    .WithVariable(label, type)
-                    .ApplyLabel(setDefinitionTarget, label)
-                    .WithValue(symbolValue);
+                return result.ApplyLabel(setDefinitionTarget, label);
             }
             else
             {
