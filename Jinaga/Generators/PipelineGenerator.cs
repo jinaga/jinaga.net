@@ -54,31 +54,6 @@ namespace Jinaga.Generators
                 var conditional = new Conditional(start, conditionalSet.Condition.Exists, childPipeline);
                 return pipeline.AddConditional(conditional);
             }
-            else if (setDefinition is SetDefinitionLabeledTarget labeledTargetSet)
-            {
-                var variable = labeledTargetSet.Label.Name;
-                var parameter = context.GetFirstVariable();
-                var message = $"The variable \"{variable}\" should be joined to the parameter \"{parameter.Label.Name}\".";
-                var recommendation = RecommendationEngine.RecommendJoin(
-                    new CodeExpression(labeledTargetSet.Type, variable),
-                    new CodeExpression(parameter.Type, parameter.Label.Name)
-                );
-
-                throw new SpecificationException(recommendation == null ? message : $"{message} Consider \"where {recommendation}\".");
-            }
-            else if (setDefinition is SetDefinitionTarget targetSet)
-            {
-                var typeName = targetSet.Type.Name;
-                var variable = ToInitialLowerCase(typeName);
-                var parameter = context.GetFirstVariable();
-                var message = $"The set should be joined to the parameter \"{parameter.Label.Name}\".";
-                var recommendation = RecommendationEngine.RecommendJoin(
-                    new CodeExpression(targetSet.Type, variable),
-                    new CodeExpression(parameter.Type, parameter.Label.Name)
-                );
-
-                throw new SpecificationException(recommendation == null ? message : $"{message} Consider \"facts.OfType<{typeName}>({variable} => {recommendation})\".");
-            }
             else
             {
                 throw new NotImplementedException($"Cannot generate pipeline for {setDefinition}");
