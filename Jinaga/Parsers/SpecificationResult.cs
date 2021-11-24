@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Immutable;
+using System.Diagnostics.CodeAnalysis;
 using Jinaga.Definitions;
 using Jinaga.Pipelines;
 
@@ -82,6 +83,11 @@ namespace Jinaga.Parsers
                 Targets.AddRange(other.Targets),
                 labelByTarget.AddRange(other.labelByTarget)
             );
+        }
+
+        public bool TryGetLabelOf(SetDefinitionTarget target, [MaybeNullWhen(false)] out Label label)
+        {
+            return labelByTarget.TryGetValue(target, out label);
         }
     }
 }

@@ -87,17 +87,61 @@ namespace Jinaga.Generators
 
         public static Pipeline CreatePipeline(SpecificationContext context, SpecificationResult result)
         {
+            SetDefinitionTarget? priorTarget = null;
+            foreach (var target in result.Targets)
+            {
+                if (!result.SetDefinitions.Any(set => IsJoinTargeting(set, target)))
+                {
+                    if (result.TryGetLabelOf(target, out var label))
+                    {
+                        var variable = label.Name;
+                        var parameter = context.GetFirstVariable();
+                        var message = $"The variable \"{variable}\" should be joined to the parameter \"{parameter.Label.Name}\".";
+                        var recommendation = RecommendationEngine.RecommendJoin(
+                            new CodeExpression(target.Type, variable),
+                            new CodeExpression(parameter.Type, parameter.Label.Name)
+                        );
+
+                        throw new SpecificationException(recommendation == null ? message : $"{message} Consider \"where {recommendation}\".");
+                    }
+                    else
+                    {
+                        var typeName = target.Type.Name;
+                        var variable = ToInitialLowerCase(typeName);
+                        var parameter = context.GetFirstVariable();
+                        var message = $"The set should be joined to the parameter \"{parameter.Label.Name}\".";
+                        var recommendation = RecommendationEngine.RecommendJoin(
+                            new CodeExpression(target.Type, variable),
+                            new CodeExpression(parameter.Type, parameter.Label.Name)
+                        );
+
+                        throw new SpecificationException(recommendation == null ? message : $"{message} Consider \"facts.OfType<{typeName}>({variable} => {recommendation})\".");
+                    }
+                }
+                priorTarget = target;
+            }
             var pipeline = context.Labels
                 .Aggregate(Pipeline.Empty, (p, label) => p.AddStart(label));
-            SetDefinition? priorTarget = null;
             foreach (var setDefinition in result.SetDefinitions)
             {
-                (pipeline, priorTarget) = AppendToPipeline(pipeline, context, setDefinition, priorTarget);
+                pipeline = AppendToPipeline(pipeline, context, setDefinition);
             }
             return pipeline;
         }
 
-        private static (Pipeline pipeline, SetDefinition? priorTarget) AppendToPipeline(Pipeline pipeline, SpecificationContext context, SetDefinition setDefinition, SetDefinition? priorTarget)
+        private static bool IsJoinTargeting(SetDefinition set, SetDefinitionTarget target)
+        {
+            if (set is SetDefinitionJoin joinSet)
+            {
+                return joinSet.Tail.TargetSetDefinition == target;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        private static Pipeline AppendToPipeline(Pipeline pipeline, SpecificationContext context, SetDefinition setDefinition)
         {
             if (setDefinition is SetDefinitionPredecessorChain predecessorChainSet)
             {
@@ -106,8 +150,7 @@ namespace Jinaga.Generators
                 var start = targetSetDefinition.Label;
                 var target = new Label(predecessorChainSet.Tag, chain.TargetFactType);
                 var path = new Path(start, target);
-                pipeline = pipeline.AddPath(AddPredecessorSteps(path, chain));
-                return (pipeline, priorTarget);
+                return pipeline.AddPath(AddPredecessorSteps(path, chain));
             }
             else if (setDefinition is SetDefinitionJoin joinSet)
             {
@@ -117,8 +160,7 @@ namespace Jinaga.Generators
                 var source = sourceSetDefinition.Label;
                 var target = joinSet.Label;
                 var path = new Path(source, target);
-                pipeline = pipeline.AddPath(PrependSuccessorSteps(AddPredecessorSteps(path, head), tail));
-                return (pipeline, priorTarget);
+                return pipeline.AddPath(PrependSuccessorSteps(AddPredecessorSteps(path, head), tail));
             }
             else if (setDefinition is SetDefinitionConditional conditionalSet)
             {
@@ -130,8 +172,7 @@ namespace Jinaga.Generators
                     targetSetDefinition,
                     start);
                 var conditional = new Conditional(start, conditionalSet.Condition.Exists, childPipeline);
-                pipeline = pipeline.AddConditional(conditional);
-                return (pipeline, priorTarget);
+                return pipeline.AddConditional(conditional);
             }
             else
                 throw new NotImplementedException();
