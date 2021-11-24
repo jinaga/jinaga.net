@@ -69,25 +69,67 @@ namespace Jinaga.Generators
                 {
                     if (result.TryGetLabelOf(target, out var label))
                     {
+                        string targetDescription;
+                        Type targetType;
+                        string targetName;
+                        if (priorTarget == null)
+                        {
+                            var parameter = context.GetFirstVariable();
+                            targetDescription = $"parameter \"{parameter.Label.Name}\"";
+                            targetType = parameter.Type;
+                            targetName = parameter.Label.Name;
+                        }
+                        else if (result.TryGetLabelOf(priorTarget, out var priorLabel))
+                        {
+                            targetDescription = $"prior variable \"{priorLabel.Name}\"";
+                            targetType = priorTarget.Type;
+                            targetName = priorLabel.Name;
+                        }
+                        else
+                        {
+                            targetDescription = $"prior variable";
+                            targetType = priorTarget.Type;
+                            targetName = "x";
+                        }
                         var variable = label.Name;
-                        var parameter = context.GetFirstVariable();
-                        var message = $"The variable \"{variable}\" should be joined to the parameter \"{parameter.Label.Name}\".";
+                        var message = $"The variable \"{variable}\" should be joined to the {targetDescription}.";
                         var recommendation = RecommendationEngine.RecommendJoin(
                             new CodeExpression(target.Type, variable),
-                            new CodeExpression(parameter.Type, parameter.Label.Name)
+                            new CodeExpression(targetType, targetName)
                         );
 
                         throw new SpecificationException(recommendation == null ? message : $"{message} Consider \"where {recommendation}\".");
                     }
                     else
                     {
+                        string targetDescription;
+                        Type targetType;
+                        string targetName;
+                        if (priorTarget == null)
+                        {
+                            var parameter = context.GetFirstVariable();
+                            targetDescription = $"parameter \"{parameter.Label.Name}\"";
+                            targetType = parameter.Type;
+                            targetName = parameter.Label.Name;
+                        }
+                        else if (result.TryGetLabelOf(priorTarget, out var priorLabel))
+                        {
+                            targetDescription = $"prior variable \"{priorLabel.Name}\"";
+                            targetType = priorTarget.Type;
+                            targetName = priorLabel.Name;
+                        }
+                        else
+                        {
+                            targetDescription = $"prior variable";
+                            targetType = priorTarget.Type;
+                            targetName = "x";
+                        }
                         var typeName = target.Type.Name;
                         var variable = ToInitialLowerCase(typeName);
-                        var parameter = context.GetFirstVariable();
-                        var message = $"The set should be joined to the parameter \"{parameter.Label.Name}\".";
+                        var message = $"The set should be joined to the {targetDescription}.";
                         var recommendation = RecommendationEngine.RecommendJoin(
                             new CodeExpression(target.Type, variable),
-                            new CodeExpression(parameter.Type, parameter.Label.Name)
+                            new CodeExpression(targetType, targetName)
                         );
 
                         throw new SpecificationException(recommendation == null ? message : $"{message} Consider \"facts.OfType<{typeName}>({variable} => {recommendation})\".");
