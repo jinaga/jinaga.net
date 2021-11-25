@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Jinaga.Definitions;
 using Jinaga.Parsers;
 using Jinaga.Pipelines;
@@ -7,25 +8,122 @@ namespace Jinaga.Generators
 {
     public static class PipelineGenerator
     {
-        public static Pipeline CreatePipeline(SpecificationContext context, SetDefinition setDefinition, SetDefinition? seekSetDefinition = null, Label? replaceLabel = null)
+        public static Pipeline CreatePipeline(SpecificationContext context, SpecificationResult result)
         {
-            if (setDefinition == seekSetDefinition)
+            SetDefinitionTarget? priorTarget = null;
+            foreach (var target in result.Targets)
             {
-                return Pipeline.Empty
-                    .AddStart(replaceLabel!);
+                if (!result.SetDefinitions.Any(set => IsJoinTargeting(set, target)))
+                {
+                    if (result.TryGetLabelOf(target, out var label))
+                    {
+                        ThrowSpecificationErrorWithLabel(context, result, priorTarget, target, label);
+                    }
+                    else
+                    {
+                        ThrowSpecificationErrorWithoutLabel(context, result, priorTarget, target);
+                    }
+                }
+                priorTarget = target;
             }
-            else if (setDefinition is SetDefinitionInitial initialSet)
+            var pipeline = context.Labels
+                .Aggregate(Pipeline.Empty, (p, label) => p.AddStart(label));
+            foreach (var setDefinition in result.SetDefinitions)
             {
-                return Pipeline.Empty
-                    .AddStart(initialSet.Label);
+                pipeline = AppendToPipeline(pipeline, context, setDefinition, result);
             }
-            else if (setDefinition is SetDefinitionPredecessorChain predecessorChainSet)
+            return pipeline;
+        }
+
+        private static void ThrowSpecificationErrorWithLabel(SpecificationContext context, SpecificationResult result, SetDefinitionTarget? priorTarget, SetDefinitionTarget target, Label label)
+        {
+            string targetDescription;
+            Type targetType;
+            string targetName;
+            if (priorTarget == null)
+            {
+                var parameter = context.GetFirstVariable();
+                targetDescription = $"parameter \"{parameter.Label.Name}\"";
+                targetType = parameter.Type;
+                targetName = parameter.Label.Name;
+            }
+            else if (result.TryGetLabelOf(priorTarget, out var priorLabel))
+            {
+                targetDescription = $"prior variable \"{priorLabel.Name}\"";
+                targetType = priorTarget.Type;
+                targetName = priorLabel.Name;
+            }
+            else
+            {
+                targetDescription = $"prior variable";
+                targetType = priorTarget.Type;
+                targetName = "x";
+            }
+            var variable = label.Name;
+            var message = $"The variable \"{variable}\" should be joined to the {targetDescription}.";
+            var recommendation = RecommendationEngine.RecommendJoin(
+                new CodeExpression(target.Type, variable),
+                new CodeExpression(targetType, targetName)
+            );
+
+            throw new SpecificationException(recommendation == null ? message : $"{message} Consider \"where {recommendation}\".");
+        }
+
+        private static void ThrowSpecificationErrorWithoutLabel(SpecificationContext context, SpecificationResult result, SetDefinitionTarget? priorTarget, SetDefinitionTarget target)
+        {
+            string targetDescription;
+            Type targetType;
+            string targetName;
+            if (priorTarget == null)
+            {
+                var parameter = context.GetFirstVariable();
+                targetDescription = $"parameter \"{parameter.Label.Name}\"";
+                targetType = parameter.Type;
+                targetName = parameter.Label.Name;
+            }
+            else if (result.TryGetLabelOf(priorTarget, out var priorLabel))
+            {
+                targetDescription = $"prior variable \"{priorLabel.Name}\"";
+                targetType = priorTarget.Type;
+                targetName = priorLabel.Name;
+            }
+            else
+            {
+                targetDescription = $"prior variable";
+                targetType = priorTarget.Type;
+                targetName = "x";
+            }
+            var typeName = target.Type.Name;
+            var variable = ToInitialLowerCase(typeName);
+            var message = $"The set should be joined to the {targetDescription}.";
+            var recommendation = RecommendationEngine.RecommendJoin(
+                new CodeExpression(target.Type, variable),
+                new CodeExpression(targetType, targetName)
+            );
+
+            throw new SpecificationException(recommendation == null ? message : $"{message} Consider \"facts.OfType<{typeName}>({variable} => {recommendation})\".");
+        }
+
+        private static bool IsJoinTargeting(SetDefinition set, SetDefinitionTarget target)
+        {
+            if (set is SetDefinitionJoin joinSet)
+            {
+                return joinSet.Tail.TargetSetDefinition == target;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        private static Pipeline AppendToPipeline(Pipeline pipeline, SpecificationContext context, SetDefinition setDefinition, SpecificationResult result)
+        {
+            if (setDefinition is SetDefinitionPredecessorChain predecessorChainSet)
             {
                 var chain = predecessorChainSet.ToChain();
                 var targetSetDefinition = chain.TargetSetDefinition;
-                var pipeline = CreatePipeline(context, targetSetDefinition, seekSetDefinition, replaceLabel);
                 var start = targetSetDefinition.Label;
-                var target = new Label(predecessorChainSet.Tag, chain.TargetFactType);
+                var target = new Label(predecessorChainSet.Role, chain.TargetFactType);
                 var path = new Path(start, target);
                 return pipeline.AddPath(AddPredecessorSteps(path, chain));
             }
@@ -34,7 +132,6 @@ namespace Jinaga.Generators
                 var head = joinSet.Head;
                 var tail = joinSet.Tail;
                 var sourceSetDefinition = head.TargetSetDefinition;
-                var pipeline = CreatePipeline(context, sourceSetDefinition, seekSetDefinition, replaceLabel);
                 var source = sourceSetDefinition.Label;
                 var target = joinSet.Label;
                 var path = new Path(source, target);
@@ -43,45 +140,16 @@ namespace Jinaga.Generators
             else if (setDefinition is SetDefinitionConditional conditionalSet)
             {
                 var targetSetDefinition = conditionalSet.Source;
-                var pipeline = CreatePipeline(context, targetSetDefinition, seekSetDefinition, replaceLabel);
                 var start = targetSetDefinition.Label;
                 var childPipeline = CreatePipeline(
-                    SpecificationContext.Empty,
-                    conditionalSet.Condition.Set,
-                    targetSetDefinition,
-                    start);
+                    SpecificationContext.Empty
+                        .With(start, SpecificationParser.InstanceOfFact(targetSetDefinition.Type), targetSetDefinition.Type),
+                    conditionalSet.Condition.SpecificationResult);
                 var conditional = new Conditional(start, conditionalSet.Condition.Exists, childPipeline);
                 return pipeline.AddConditional(conditional);
             }
-            else if (setDefinition is SetDefinitionLabeledTarget labeledTargetSet)
-            {
-                var variable = labeledTargetSet.Label.Name;
-                var parameter = context.GetFirstLabel().Name;
-                var message = $"The variable \"{variable}\" should be joined to the parameter \"{parameter}\".";
-                var recommendation = RecommendationEngine.RecommendJoin(
-                    new CodeExpression(labeledTargetSet.Type, variable),
-                    new CodeExpression(context.GetFirstType(), parameter)
-                );
-
-                throw new SpecificationException(recommendation == null ? message : $"{message} Consider \"where {recommendation}\".");
-            }
-            else if (setDefinition is SetDefinitionTarget targetSet)
-            {
-                var typeName = targetSet.Type.Name;
-                var variable = ToInitialLowerCase(typeName);
-                var parameter = context.GetFirstLabel().Name;
-                var message = $"The set should be joined to the parameter \"{parameter}\".";
-                var recommendation = RecommendationEngine.RecommendJoin(
-                    new CodeExpression(targetSet.Type, variable),
-                    new CodeExpression(context.GetFirstType(), parameter)
-                );
-
-                throw new SpecificationException(recommendation == null ? message : $"{message} Consider \"facts.OfType<{typeName}>({variable} => {recommendation})\".");
-            }
             else
-            {
-                throw new NotImplementedException($"Cannot generate pipeline for {setDefinition}");
-            }
+                throw new NotImplementedException();
         }
 
         public static Path AddPredecessorSteps(Path path, Chain chain)

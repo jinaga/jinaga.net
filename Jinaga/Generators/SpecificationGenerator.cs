@@ -2,38 +2,18 @@ using System;
 using System.Linq;
 using Jinaga.Definitions;
 using Jinaga.Parsers;
+using Jinaga.Pipelines;
 using Jinaga.Projections;
 
 namespace Jinaga.Generators
 {
     public static class SpecificationGenerator
     {
-        public static Specification CreateSpecification(SpecificationContext context, SymbolValue value)
+        public static Specification CreateSpecification(SpecificationContext context, SpecificationResult result)
         {
-            if (value is SymbolValueSetDefinition setDefinitionValue)
-            {
-                var pipeline = PipelineGenerator.CreatePipeline(context, setDefinitionValue.SetDefinition);
-                var projection = new SimpleProjection(setDefinitionValue.SetDefinition.Tag);
-                return new Specification(pipeline, projection);
-            }
-            else if (value is SymbolValueComposite compositeValue)
-            {
-                var projectionDefinition = compositeValue.CreateProjectionDefinition();
-                var pipeline = projectionDefinition
-                    .AllSetDefinitions()
-                    .Select(s => PipelineGenerator.CreatePipeline(context, s))
-                    .Aggregate((a, b) => a.Compose(b));
-                var projection = projectionDefinition
-                    .AllTags()
-                    .Aggregate(new CompoundProjection(), (p, tag) => p.With(
-                        tag,
-                        CreateProjection(projectionDefinition.GetValue(tag))));
-                return new Specification(pipeline, projection);
-            }
-            else
-            {
-                throw new NotImplementedException();
-            }
+            var pipeline = PipelineGenerator.CreatePipeline(context, result);
+            var projection = CreateProjection(result.SymbolValue);
+            return new Specification(pipeline, projection);
         }
 
         private static Projection CreateProjection(SymbolValue value)

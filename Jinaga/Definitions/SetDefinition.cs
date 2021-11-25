@@ -55,24 +55,13 @@ namespace Jinaga.Definitions
         public override string FactType => factType;
     }
 
-    public class SetDefinitionLabeledTarget : SetDefinitionTarget
-    {
-        private readonly Label label;
-
-        public SetDefinitionLabeledTarget(Label label, Type type) : base(label.Type, type)
-        {
-            this.label = label;
-        }
-
-        public override string Tag => label.Name;
-    }
-
     public class SetDefinitionPredecessorChain : SetDefinition
     {
         private readonly ChainRole chainRole;
 
         public override string FactType => chainRole.TargetFactType;
         public override string Tag => chainRole.Role;
+        public string Role => chainRole.Role;
 
         public SetDefinitionPredecessorChain(ChainRole chainRole, Type type) : base(type)
         {

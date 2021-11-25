@@ -1,22 +1,27 @@
+using System;
+using Jinaga.Parsers;
+
 namespace Jinaga.Definitions
 {
     public class ConditionDefinition
     {
-        private SetDefinition set;
-        private bool exists;
-
-        public SetDefinition Set => set;
-        public bool Exists => exists;
-
-        public ConditionDefinition(SetDefinition set, bool exists)
+        private ConditionDefinition(SpecificationResult specificationResult, bool exists)
         {
-            this.set = set;
-            this.exists = exists;
+            SpecificationResult = specificationResult;
+            Exists = exists;
         }
+
+        public SpecificationResult SpecificationResult { get; }
+        public bool Exists { get; }
 
         public ConditionDefinition Invert()
         {
-            return new ConditionDefinition(set, exists: false);
+            return new ConditionDefinition(SpecificationResult, !Exists);
+        }
+
+        public static ConditionDefinition From(SpecificationResult result)
+        {
+            return new ConditionDefinition(result, true);
         }
     }
 }

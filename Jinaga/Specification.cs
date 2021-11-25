@@ -18,10 +18,10 @@ namespace Jinaga
             object proxy = SpecificationParser.InstanceOfFact(typeof(TFact));
             var label = new Label(specExpression.Parameters[0].Name, specExpression.Parameters[0].Type.FactTypeName());
             var context = SpecificationContext.Empty.With(label, proxy, specExpression.Parameters[0].Type);
-            var result = (JinagaQueryable<TProjection>)spec((TFact)proxy, new FactRepository());
+            var queryable = (JinagaQueryable<TProjection>)spec((TFact)proxy, new FactRepository());
 
-            var value = SpecificationParser.ParseSpecification(SymbolTable.Empty, context, result.Expression);
-            var specification = SpecificationGenerator.CreateSpecification(context, value);
+            var result = SpecificationParser.ParseSpecification(SymbolTable.Empty, context, queryable.Expression);
+            var specification = SpecificationGenerator.CreateSpecification(context, result);
             return new Specification<TFact, TProjection>(specification.Pipeline, specification.Projection);
         }
 
@@ -30,20 +30,16 @@ namespace Jinaga
             var parameter = spec.Parameters[0];
             var initialFactName = parameter.Name;
             var initialFactType = parameter.Type.FactTypeName();
+            object proxy = SpecificationParser.InstanceOfFact(typeof(TFact));
             var label = new Label(initialFactName, initialFactType);
+            var context = SpecificationContext.Empty.With(label, proxy, parameter.Type);
             var startingSet = new SetDefinitionInitial(label, parameter.Type);
             var symbolTable = SymbolTable.Empty.With(initialFactName, new SymbolValueSetDefinition(startingSet));
 
-            var symbolValue = ValueParser.ParseValue(symbolTable, SpecificationContext.Empty, spec.Body).symbolValue;
-            switch (symbolValue)
-            {
-                case SymbolValueSetDefinition setValue:
-                    var pipeline = PipelineGenerator.CreatePipeline(SpecificationContext.Empty, setValue.SetDefinition);
-                    var simpleProjection = new SimpleProjection(setValue.SetDefinition.Tag);
-                    return new Specification<TFact, TProjection>(pipeline, simpleProjection);
-                default:
-                    throw new NotImplementedException();
-            }
+            var symbolValue = ValueParser.ParseValue(symbolTable, context, spec.Body).symbolValue;
+            var result = SpecificationParser.ParseValue(symbolValue);
+            var specification = SpecificationGenerator.CreateSpecification(context, result);
+            return new Specification<TFact, TProjection>(specification.Pipeline, specification.Projection);
         }
     }
 
