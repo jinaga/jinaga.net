@@ -8,49 +8,6 @@ namespace Jinaga.Generators
 {
     public static class PipelineGenerator
     {
-        public static Pipeline CreatePipeline(SpecificationContext context, SetDefinition setDefinition, SetDefinition? seekSetDefinition = null, Label? replaceLabel = null)
-        {
-            if (setDefinition == seekSetDefinition)
-            {
-                return Pipeline.Empty
-                    .AddStart(replaceLabel!);
-            }
-            else if (setDefinition is SetDefinitionInitial initialSet)
-            {
-                return Pipeline.Empty
-                    .AddStart(initialSet.Label);
-            }
-            else if (setDefinition is SetDefinitionPredecessorChain predecessorChainSet)
-            {
-                var chain = predecessorChainSet.ToChain();
-                var targetSetDefinition = chain.TargetSetDefinition;
-                var pipeline = CreatePipeline(context, targetSetDefinition, seekSetDefinition, replaceLabel);
-                var start = targetSetDefinition.Label;
-                var target = new Label(predecessorChainSet.Tag, chain.TargetFactType);
-                var path = new Path(start, target);
-                return pipeline.AddPath(AddPredecessorSteps(path, chain));
-            }
-            else if (setDefinition is SetDefinitionJoin joinSet)
-            {
-                var head = joinSet.Head;
-                var tail = joinSet.Tail;
-                var sourceSetDefinition = head.TargetSetDefinition;
-                var pipeline = CreatePipeline(context, sourceSetDefinition, seekSetDefinition, replaceLabel);
-                var source = sourceSetDefinition.Label;
-                var target = joinSet.Label;
-                var path = new Path(source, target);
-                return pipeline.AddPath(PrependSuccessorSteps(AddPredecessorSteps(path, head), tail));
-            }
-            else if (setDefinition is SetDefinitionConditional conditionalSet)
-            {
-                throw new NotImplementedException();
-            }
-            else
-            {
-                throw new NotImplementedException($"Cannot generate pipeline for {setDefinition}");
-            }
-        }
-
         public static Pipeline CreatePipeline(SpecificationContext context, SpecificationResult result)
         {
             SetDefinitionTarget? priorTarget = null;
