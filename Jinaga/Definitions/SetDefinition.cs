@@ -61,6 +61,7 @@ namespace Jinaga.Definitions
 
         public override string FactType => chainRole.TargetFactType;
         public override string Tag => chainRole.Role;
+        public string Role => chainRole.Role;
 
         public SetDefinitionPredecessorChain(ChainRole chainRole, Type type) : base(type)
         {
