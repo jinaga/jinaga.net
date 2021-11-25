@@ -123,7 +123,7 @@ namespace Jinaga.Generators
                 var chain = predecessorChainSet.ToChain();
                 var targetSetDefinition = chain.TargetSetDefinition;
                 var start = targetSetDefinition.Label;
-                var target = new Label(predecessorChainSet.Tag, chain.TargetFactType);
+                var target = new Label(predecessorChainSet.Role, chain.TargetFactType);
                 var path = new Path(start, target);
                 return pipeline.AddPath(AddPredecessorSteps(path, chain));
             }
