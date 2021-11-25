@@ -89,5 +89,10 @@ namespace Jinaga.Parsers
         {
             return labelByTarget.TryGetValue(target, out label);
         }
+
+        public Label GetLabelOf(SetDefinitionTarget target)
+        {
+            return labelByTarget[target];
+        }
     }
 }
