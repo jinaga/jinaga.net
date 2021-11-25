@@ -41,7 +41,7 @@ namespace Jinaga.Test.Model
     [FactType("Corporate.Manager")]
     record Manager(Office office, int employeeNumber)
     {
-        public Condition IsTerminated => new Condition(facts => !(
+        public Condition IsTerminated => new Condition(facts => (
             facts.OfType<ManagerTerminated>(termination => termination.Manager == this)
         ).Any());
     }
