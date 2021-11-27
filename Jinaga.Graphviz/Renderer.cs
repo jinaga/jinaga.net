@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
@@ -14,7 +15,7 @@ namespace Jinaga.Graphviz
 {
     public static class Renderer
     {
-        public static HtmlString RenderFacts<T>(IEnumerable<T> facts)
+        public static HtmlString RenderFacts<T>(IEnumerable<T> projections)
         {
             string[] prefix = new[]
             {
@@ -28,7 +29,7 @@ namespace Jinaga.Graphviz
             };
             var collector = new Collector(SerializerCache.Empty);
             var references = new List<FactReference>();
-            foreach (var fact in facts)
+            foreach (var fact in projections.SelectMany(projection => GetFacts(projection, 5)))
             {
                 var reference = collector.Serialize(fact);
                 references.Add(reference);
@@ -37,6 +38,54 @@ namespace Jinaga.Graphviz
                 .SelectMany(reference => FactToDigraph(collector.Graph.GetFact(reference), references.Contains(reference)));
             string graph = string.Join("\n", prefix.Concat(body).Concat(suffix));
             return RenderGraph(graph);
+        }
+
+        private static IEnumerable<object> GetFacts(object projection, int depth)
+        {
+            if (depth < 0)
+            {
+                yield break;
+            }
+            if (projection == null)
+            {
+                yield break;
+            }
+            var type = projection.GetType();
+            if (type.IsFactType())
+            {
+                yield return projection;
+            }
+            else
+            {
+                if (type.IsAssignableTo(typeof(IEnumerable)) && type != typeof(string))
+                {
+                    var collection = (IEnumerable)projection;
+                    foreach (var item in collection)
+                    {
+                        yield return item;
+                    }
+                }
+                else
+                {
+                    foreach (var property in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+                    {
+                        if (!property.GetIndexParameters().Any())
+                        {
+                            foreach (var child in GetFacts(property.GetValue(projection), depth - 1))
+                            {
+                                yield return child;
+                            }
+                        }
+                    }
+                    foreach (var field in type.GetFields(BindingFlags.Public | BindingFlags.Instance))
+                    {
+                        foreach (var child in GetFacts(field.GetValue(projection), depth - 1))
+                        {
+                            yield return child;
+                        }
+                    }
+                }
+            }
         }
 
         private static IEnumerable<string> FactToDigraph(Fact fact, bool hilight)
