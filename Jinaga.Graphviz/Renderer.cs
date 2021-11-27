@@ -15,7 +15,7 @@ namespace Jinaga.Graphviz
 {
     public static class Renderer
     {
-        public static HtmlString RenderFacts<T>(IEnumerable<T> projections)
+        public static HtmlString RenderFacts(params object[] projections)
         {
             string[] prefix = new[]
             {
