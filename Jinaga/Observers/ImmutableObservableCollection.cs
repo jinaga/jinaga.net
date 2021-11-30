@@ -25,7 +25,7 @@ namespace Jinaga.Observers
             );
         }
     }
-    public class ImmutableObservableCollection<TProjection> : IObservableCollection<TProjection>
+    public class ImmutableObservableCollection<TProjection> : IObservableCollection<TProjection>, IEnumerable<TProjection>, IEnumerable
     {
         private readonly ImmutableList<TProjection> projections;
 

@@ -62,7 +62,10 @@ namespace Jinaga.Graphviz
                     var collection = (IEnumerable)projection;
                     foreach (var item in collection)
                     {
-                        yield return item;
+                        foreach (var child in GetFacts(item, depth - 1))
+                        {
+                            yield return child;
+                        }
                     }
                 }
                 else
