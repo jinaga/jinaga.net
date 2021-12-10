@@ -27,7 +27,7 @@ namespace Jinaga.Test.Facts
         [Fact]
         public void Deserialize_DateField()
         {
-            DateTime now = DateTime.Parse("7/4/2021 1:39:43.241Z");
+            DateTime now = DateTime.Parse("2021-07-04T01:39:43.241Z");
             var fact = Fact.Create(
                 "Skylane.Airline",
                 ImmutableList<Field>.Empty.Add(new Field("identifier", new FieldValueString("value"))),

@@ -32,8 +32,8 @@ namespace Jinaga.Test.Facts
 
         [Fact]
         public void SerializeDateTimeField()
-        {
-            DateTime now = DateTime.Parse("7/4/2021 1:39:43.241Z");
+        {            
+            DateTime now = DateTime.Parse("2021-07-04T01:39:43.241Z");
             var graph = Serialize(new AirlineDay(new Airline("value"), now));
 
             var airlineDay = graph.GetFact(graph.Last);

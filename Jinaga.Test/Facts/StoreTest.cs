@@ -12,7 +12,7 @@ namespace Jinaga.Test.Facts
         [Fact]
         public async Task StoreRoundTripToUTC()
         {
-            DateTime now = DateTime.Parse("7/4/2021 1:39:43.241Z");
+            DateTime now = DateTime.Parse("2021-07-04T01:39:43.241Z");
             var j = JinagaTest.Create();
             var airlineDay = await j.Fact(new AirlineDay(new Airline("value"), now));
             airlineDay.date.Kind.Should().Be(DateTimeKind.Utc);
@@ -22,7 +22,7 @@ namespace Jinaga.Test.Facts
         [Fact]
         public async Task StoreRoundTripFromUTC()
         {
-            DateTime now = DateTime.Parse("7/4/2021 1:39:43.241Z").ToUniversalTime();
+            DateTime now = DateTime.Parse("2021-07-04T01:39:43.241Z").ToUniversalTime();
             var j = JinagaTest.Create();
             var airlineDay = await j.Fact(new AirlineDay(new Airline("value"), now));
             airlineDay.date.Kind.Should().Be(DateTimeKind.Utc);
