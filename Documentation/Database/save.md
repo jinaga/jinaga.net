@@ -100,3 +100,27 @@ INSERT OR IGNORE Ancestor
   FROM Ancestor
   WHERE FactId = %2
 ```
+
+## Caching
+
+Select or Insert operations are safe to cache.
+A cache is a dictionary from alternate key to primary key.
+Entries already in the cache will never be invalidated.
+The primary keys will not change.
+
+The caches for the `FactType` and `Role` tables can be maintained for the duration of the application.
+Most operations against these caches will be hits.
+The number of elements in the cache will cease to grow early in the application lifecycle, after at least one instance of each fact type in the data model has been written.
+The benefits of maintaining this cache outweigh the cost of synchronizing it across threads, especially if structural sharing is employed for immutable lock-free reads.
+
+The cache for `Fact` will be most valueable for the duration of the `j.Save()` operation.
+This cache will necessarily be part of the topoligical sort algorithm.
+But beyond the scope of the fact graph, there is less value in maintaining this cache.
+Most save operations will result in new facts, and so the leaves of the traversal will result in cache misses.
+And the cache will continue to grow as the application runs.
+
+A more complicated cache could provide some benefit beyond the topological sort of a given graph.
+It would need to employ a strategy to age out entries with a low probability of cache hits in the future.
+If the aging strategy takes depth into account, it could recognize that there is more value in retaining top-level facts than leaf facts.
+Such an algorithm would be complex, exert pressure on garbage collection, and require thread synchronization.
+It might not provide enough value to justify those costs.
