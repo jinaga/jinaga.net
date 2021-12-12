@@ -29,14 +29,13 @@ They are the primary source for pipeline queries.
 
 ## Fact
 
-| Column       | Type         | Decription                                                   |
-| ------------ | ------------ | ------------------------------------------------------------ |
-| FactId       | int          | Primary key representing the fact locally.                   |
-| FactTypeId   | int          | ID of the fact's type.                                       |
-| Hash         | varchar(100) | The Base-64 encoded SHA-512 hash of the canonicallized fact. |
-| Fields       | JSONB        | A JSON object containing all of the fields of the fact.      |
-| Predecessors | JSONB        | A JSON object containing the predecessor hashes.             |
-| DateLearned  | DateTime     | The moment that the fact was inserted at the local node.     |
+| Column      | Type         | Decription                                                   |
+| ----------- | ------------ | ------------------------------------------------------------ |
+| FactId      | int          | Primary key representing the fact locally.                   |
+| FactTypeId  | int          | ID of the fact's type.                                       |
+| Hash        | varchar(100) | The Base-64 encoded SHA-512 hash of the canonicallized fact. |
+| Data        | JSONB        | A JSON object containing all fields and predecessor hashes.  |
+| DateLearned | DateTime     | The moment that the fact was inserted at the local node.     |
 
 The FactTypeId is a foreign key to the FactType table.
 The alternate key is composed of FactTypeId and Hash.
