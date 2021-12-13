@@ -1,9 +1,11 @@
 # Database Schema
 
-The Jinaga database is composed of 7 tables.
+The Jinaga database is composed of 8 tables.
 Two are simple lookups that give a primary key to domain-specified names.
 
-## FactType
+## Fact Store
+
+### FactType
 
 | Column     | Type        | Description                                     |
 | ---------- | ----------- | ----------------------------------------------- |
@@ -12,7 +14,7 @@ Two are simple lookups that give a primary key to domain-specified names.
 
 The name is an alternate key.
 
-## Role
+### Role
 
 | Column            | Type        | Description                                                 |
 | ----------------- | ----------- | ----------------------------------------------------------- |
@@ -27,7 +29,7 @@ DefiningTypeId, Name, and PredecessorTypeId combine to form the alternate key.
 The next two tables represent the graph of facts.
 They are the primary source for pipeline queries.
 
-## Fact
+### Fact
 
 | Column      | Type         | Decription                                                   |
 | ----------- | ------------ | ------------------------------------------------------------ |
@@ -40,7 +42,7 @@ They are the primary source for pipeline queries.
 The FactTypeId is a foreign key to the FactType table.
 The alternate key is composed of FactTypeId and Hash.
 
-## Edge
+### Edge
 
 | Column        | Type | Description                                  |
 | ------------- | ---- | -------------------------------------------- |
@@ -51,10 +53,7 @@ The alternate key is composed of FactTypeId and Hash.
 All of the columns are foreign keys.
 The tuple of all three are constrained to be unique.
 
-The last two tables make up the keystore.
-In future deployments, these will be separated from the rest.
-
-## Ancestor
+### Ancestor
 
 | Column         | Type | Description                                  |
 | -------------- | ---- | -------------------------------------------- |
@@ -66,11 +65,36 @@ It is a derivative of the Edge table for computing the transitive closure.
 Both FactId and AncestorFactId are foreign keys to the Fact table.
 The alternate key is the pair of them.
 
-## User
+### Signature
+
+| Column      | Type         | Description                                                   |
+| ----------- | ------------ | ------------------------------------------------------------- |
+| FactId      | int          | ID of the fact.                                               |
+| PublicKeyId | int          | ID of the public key used to sign the fact.                   |
+| Signature   | varchar(400) | The base-64 encoded HMACSHA signature of the fact.            |
+| DateLearned | DateTime     | The moment that the signature was inserted at the local node. |
+
+The PublicKeyId is a foreign key to the PublicKey table.
+The alternate key is the tuple FactId and PublicKeyId.
+
+### PublicKey
 
 | Column         | Type          | Description                           |
 | -------------- | ------------- | ------------------------------------- |
-| UserId         | int           | Primary key of the user.              |
+| PublicKeyId    | int           | Primary key of the public key.        |
+| PublicKey      | varchar(500)  | Base-64 encoded RSA-2048 publc key.   |
+
+The alternate key is `PublicKey`.
+
+## Keystore
+
+The last table makes up the keystore.
+In future deployments, it will be separated from the rest.
+
+### User
+
+| Column         | Type          | Description                           |
+| -------------- | ------------- | ------------------------------------- |
 | Provider       | varchar(100)  | Identifier of the identity provider.  |
 | UserIdentifier | varchar(50)   | Provider-specified user identifier.   |
 | PrivateKey     | varchar(1800) | Base-64 encoded RSA-2048 private key. |
@@ -78,18 +102,3 @@ The alternate key is the pair of them.
 
 The Provider and UserIdentifier form one alternate key.
 The PublicKey forms another.
-
-## Signature
-
-| Column      | Type         | Description                                                   |
-| ----------- | ------------ | ------------------------------------------------------------- |
-| FactTypeId  | int          | ID of the fact's type.                                        |
-| Hash        | varchar(100) | The Base-64 encoded SHA-512 hash of the canonicallized fact.  |
-| UserId      | int          | ID of the user who signed the fact.                           |
-| Signature   | varchar(400) | The base-64 encoded HMACSHA signature of the fact.            |
-| DateLearned | DateTime     | The moment that the signature was inserted at the local node. |
-
-The FactTypeId is a foreign key to the FactType table.
-When the keystore is separated from the fact store, both get a FactType table.
-The UserId is a foreign key to the User table.
-The alternate key is the tuple FactTypeId, Hash, and UserId.
