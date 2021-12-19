@@ -16,15 +16,15 @@ The name is an alternate key.
 
 ### Role
 
-| Column            | Type        | Description                                                 |
-| ----------------- | ----------- | ----------------------------------------------------------- |
-| RoleId            | int         | Primary key representing the role locally.                  |
-| DefiningTypeId    | int         | ID of the type that defines the role -- the successor type. |
-| Name              | varchar(20) | The name given to the role.                                 |
-| PredecessorTypeId | int         | ID of the referenced type -- the predecessor type.          |
+| Column                | Type        | Description                                                 |
+| --------------------- | ----------- | ----------------------------------------------------------- |
+| RoleId                | int         | Primary key representing the role locally.                  |
+| DefiningFactTypeId    | int         | ID of the type that defines the role -- the successor type. |
+| Name                  | varchar(20) | The name given to the role.                                 |
+| PredecessorFactTypeId | int         | ID of the referenced type -- the predecessor type.          |
 
-The DefiningTypeId and PredecessorTypeId are foreign keys to the FactType table.
-DefiningTypeId, Name, and PredecessorTypeId combine to form the alternate key.
+The DefiningFactTypeId and PredecessorFactTypeId are foreign keys to the FactType table.
+DefiningFactTypeId, Name, and PredecessorFactTypeId combine to form the alternate key.
 
 The next two tables represent the graph of facts.
 They are the primary source for pipeline queries.
@@ -44,11 +44,11 @@ The alternate key is composed of FactTypeId and Hash.
 
 ### Edge
 
-| Column        | Type | Description                                  |
-| ------------- | ---- | -------------------------------------------- |
-| RoleId        | int  | ID of the role, as defined by the successor. |
-| SuccessorId   | int  | ID of the successor fact.                    |
-| PredecessorId | int  | ID of the predecessor fact.                  |
+| Column            | Type | Description                                  |
+| ----------------- | ---- | -------------------------------------------- |
+| RoleId            | int  | ID of the role, as defined by the successor. |
+| SuccessorFactId   | int  | ID of the successor fact.                    |
+| PredecessorFactId | int  | ID of the predecessor fact.                  |
 
 All of the columns are foreign keys.
 The tuple of all three are constrained to be unique.
@@ -65,6 +65,15 @@ It is a derivative of the Edge table for computing the transitive closure.
 Both FactId and AncestorFactId are foreign keys to the Fact table.
 The alternate key is the pair of them.
 
+### PublicKey
+
+| Column      | Type         | Description                         |
+| ----------- | ------------ | ----------------------------------- |
+| PublicKeyId | int          | Primary key of the public key.      |
+| PublicKey   | varchar(500) | Base-64 encoded RSA-2048 publc key. |
+
+The alternate key is `PublicKey`.
+
 ### Signature
 
 | Column      | Type         | Description                                                   |
@@ -76,15 +85,6 @@ The alternate key is the pair of them.
 
 The PublicKeyId is a foreign key to the PublicKey table.
 The alternate key is the tuple FactId and PublicKeyId.
-
-### PublicKey
-
-| Column         | Type          | Description                           |
-| -------------- | ------------- | ------------------------------------- |
-| PublicKeyId    | int           | Primary key of the public key.        |
-| PublicKey      | varchar(500)  | Base-64 encoded RSA-2048 publc key.   |
-
-The alternate key is `PublicKey`.
 
 ## Keystore
 
