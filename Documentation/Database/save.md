@@ -1,6 +1,6 @@
 # Save a Fact
 
-When the application executes `j.Save(fact)`, several operations must take place.
+When the fact store executes `save(envelopes)`, several operations must take place.
 
 - Serialize to JSON and compute hash.
 - Select or Insert into `FactType` table. Gets a `FactTypeId`.
@@ -10,6 +10,7 @@ When the application executes `j.Save(fact)`, several operations must take place
   - Select or Insert into `Role` table. Gets a `RoleId`.
   - Insert into `Edge`.
   - Insert into `Ancestor`, selecting `AncestorFactId` where `FactId` is `PredecessorFactId`, union one row with `PredecessorFactId`.
+  - For each signature, Insert into `Signature`.
 
 All of these operations must take place within a transaction.
 
