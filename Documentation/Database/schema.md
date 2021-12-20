@@ -21,10 +21,9 @@ The name is an alternate key.
 | RoleId                | int         | Primary key representing the role locally.                  |
 | DefiningFactTypeId    | int         | ID of the type that defines the role -- the successor type. |
 | Name                  | varchar(20) | The name given to the role.                                 |
-| PredecessorFactTypeId | int         | ID of the referenced type -- the predecessor type.          |
 
-The DefiningFactTypeId and PredecessorFactTypeId are foreign keys to the FactType table.
-DefiningFactTypeId, Name, and PredecessorFactTypeId combine to form the alternate key.
+DefiningFactTypeId is a foreign key to the FactType table.
+DefiningFactTypeId and Name combine to form the alternate key.
 
 The next two tables represent the graph of facts.
 They are the primary source for pipeline queries.
