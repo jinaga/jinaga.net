@@ -5,13 +5,21 @@ using FluentAssertions;
 using Jinaga.Store.SQLite;
 using System.IO;
 using System.Collections.Generic;
-
+using Xunit.Abstractions;
 
 namespace Jinaga.Test
 {
     public class SQLiteStoreTest
     {
-       
+
+        private readonly ITestOutputHelper output;
+
+
+        public SQLiteStoreTest(ITestOutputHelper output)
+        {
+            this.output = output;
+        }
+
 
         private class FactType
         {
@@ -28,6 +36,7 @@ namespace Jinaga.Test
         [Fact]
         public async Task CanWriteAndReadBack()
         {
+            output.WriteLine("Started: {0}", DateTime.Now);
             string dbFolderName = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
             string dbFullName = Path.Combine(dbFolderName, "jinaga.db");
             File.Delete(dbFullName);
@@ -54,7 +63,10 @@ namespace Jinaga.Test
                     return await asyncConn.QueryAsync<FactType>(sql);
                 }
             );
-            
+
+            output.WriteLine("NbOfRecordsInserted: {0}", nbOfRecordsInserted);
+            output.WriteLine("RecordsRead: {0}", "\r\n\t" + string.Join("\r\n\t", recordsRead));
+
             nbOfRecordsInserted.Should().Be(3);
             recordsRead.Should().BeEquivalentTo(
                 new List<FactType> {
