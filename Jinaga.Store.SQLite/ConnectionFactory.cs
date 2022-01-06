@@ -19,23 +19,18 @@ namespace Jinaga.Store.SQLite
         }
 
 
-        public async Task<T> WithTransaction<T>(Func<SQLiteAsyncConnection, Task<T>> callback, bool enableBackoff = true)
+        public async Task<T> WithTransaction<T>(Func<SQLiteConnection, T> callback, bool enableBackoff = true)
         {
             return await WithConnection(async (asyncConn) =>
-            {
-                try
                 {
-                    await asyncConn.ExecuteAsync("BEGIN TRANSACTION");
-                    var callbackResult = await callback(asyncConn);
-                    await asyncConn.ExecuteAsync("COMMIT TRANSACTION");
-                    return callbackResult;
-                }
-                catch (Exception e)
-                {                   
-                    await asyncConn.ExecuteAsync("ROLLBACK TRANSACTION");
-                    throw (e);
-                }
-            },
+                    T result = default(T);
+                    void outerCallback(SQLiteConnection conn)
+                    {
+                        result = callback(conn);
+                    }
+                    await asyncConn.RunInTransactionAsync(outerCallback);
+                    return result;
+                },
                 enableBackoff
             );
         }
@@ -57,7 +52,10 @@ namespace Jinaga.Store.SQLite
                 }
                 finally
                 {
-                    await asyncConn.CloseAsync();
+                   await asyncConn.CloseAsync();
+                   // This "CloseAsync()" seems to close the wrong connection.
+                   // Is SQLite-net-pcl mixing-up connections ?
+                   // If we don't close the connection, then no error.
                 }
             };
 
