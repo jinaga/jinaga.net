@@ -19,9 +19,31 @@ namespace Jinaga.Store.SQLite
         }
 
 
-         public async Task<T> WithConnection<T>(Func<SQLiteAsyncConnection, Task<T>> callback, bool enableBackoff = true)
+        public async Task<T> WithTransaction<T>(Func<SQLiteAsyncConnection, Task<T>> callback, bool enableBackoff = true)
         {
-            Func<Task<T>> dbOp = async () => 
+            return await WithConnection(async (asyncConn) =>
+            {
+                try
+                {
+                    await asyncConn.ExecuteAsync("BEGIN TRANSACTION");
+                    var callbackResult = await callback(asyncConn);
+                    await asyncConn.ExecuteAsync("COMMIT TRANSACTION");
+                    return callbackResult;
+                }
+                catch (Exception e)
+                {                   
+                    await asyncConn.ExecuteAsync("ROLLBACK TRANSACTION");
+                    throw (e);
+                }
+            },
+                enableBackoff
+            );
+        }
+
+
+        public async Task<T> WithConnection<T>(Func<SQLiteAsyncConnection, Task<T>> callback, bool enableBackoff = true)
+        {
+            Func<Task<T>> dbOp = async () =>
             {
                 SQLiteAsyncConnection asyncConn = new SQLiteAsyncConnection(_connectionString);
                 try
@@ -44,7 +66,7 @@ namespace Jinaga.Store.SQLite
                 return await WithExponentialBackoff(dbOp);
             }
             else
-            {                
+            {
                 return await dbOp();
             }
         }
@@ -61,12 +83,12 @@ namespace Jinaga.Store.SQLite
                     return await callback();
                 }
                 catch (Exception e)
-                {                    
+                {
                     if (attempt >= pause.Length)
                     {
                         throw (e);
                     }
-                    else 
+                    else
                     {
                         await Task.Delay(pause[attempt]);
                     }
