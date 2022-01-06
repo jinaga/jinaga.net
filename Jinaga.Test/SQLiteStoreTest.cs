@@ -153,5 +153,25 @@ namespace Jinaga.Test
             recordsReadInTotal.Count.Should().Be(7);
         }
 
+
+        [Fact]
+        public async Task CanEnableWalMode()
+        {
+            string dbFolderName = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            string dbFullName = Path.Combine(dbFolderName, "jinaga.db");
+            File.Delete(dbFullName);
+            ConnectionFactory connectionFactory = new(dbFullName);
+            var mode = await connectionFactory.WithConnection(async (asyncConn) =>
+            {
+                string sql;
+                sql = "PRAGMA journal_mode=WAL";
+                return await asyncConn.ExecuteScalarAsync<string>(sql);
+            },
+                false
+            );
+            output.WriteLine("Mode: {0}", mode);
+            mode.Should().Be("wal");
+        }
+
     }
 }
