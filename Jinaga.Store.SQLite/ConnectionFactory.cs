@@ -19,7 +19,7 @@ namespace Jinaga.Store.SQLite
         }
 
 
-        public async Task<T> WithConnection<T>(Func<SQLiteAsyncConnection, Task<T>> callback)
+         public async Task<T> WithConnection<T>(Func<SQLiteAsyncConnection, Task<T>> callback, bool enableBackoff = true)
         {
             Func<Task<T>> dbOp = async () => 
             {
@@ -37,8 +37,43 @@ namespace Jinaga.Store.SQLite
                 {
                     await asyncConn.CloseAsync();
                 }
-            };          
-            return await dbOp();          
+            };
+
+            if (enableBackoff)
+            {
+                return await WithExponentialBackoff(dbOp);
+            }
+            else
+            {                
+                return await dbOp();
+            }
+        }
+
+
+        private async Task<T> WithExponentialBackoff<T>(Func<Task<T>> callback)
+        {
+            int attempt = 0;
+            int[] pause = { 0, 1000, 5000, 15000, 30000 };
+            while (attempt <= pause.Length)
+            {
+                try
+                {
+                    return await callback();
+                }
+                catch (Exception e)
+                {                    
+                    if (attempt >= pause.Length)
+                    {
+                        throw (e);
+                    }
+                    else 
+                    {
+                        await Task.Delay(pause[attempt]);
+                    }
+                    attempt++;
+                }
+            }
+            throw new Exception("Code should never reach here, but this line is required to avoid compiler error 'Not all code paths return a value'");
         }
 
 
@@ -138,7 +173,6 @@ namespace Jinaga.Store.SQLite
             await asyncConn.ExecuteAsync(table);
             await asyncConn.ExecuteAsync(ux_user);
             await asyncConn.ExecuteAsync(ux_user_public_key);
-
         }
 
     }
