@@ -1,7 +1,14 @@
 ﻿using FluentAssertions;
+using Jinaga.Facts;
+using Jinaga.Managers;
+using Jinaga.Services;
 using Jinaga.Store.SQLite;
+using Jinaga.Test.Model;
+using Jinaga.Test.Model.DWS;
+using Jinaga.UnitTest;
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -39,8 +46,182 @@ namespace Jinaga.Test
         }
 
 
+
         [Fact]
-        public async Task WriteAndReadBack()
+        public async Task StoreRoundTripToUTC()
+        {
+            output.WriteLine($"{MyStopWatch.Start()}: BEGIN OF TESTS at {DateTime.Now}");
+         
+            DateTime now = DateTime.Parse("2021-07-04T01:39:43.241Z");
+            var j = new Jinaga(new SQLiteStore());            
+            var airlineDay = await j.Fact(new AirlineDay(new Airline("Airline1"), now));
+            var flight = await j.Fact(new Flight(airlineDay, 555));
+            //airlineDay = await j.Fact(new AirlineDay(new Airline("Airline2"), now));
+            //airlineDay = await j.Fact(new AirlineDay(new Airline("Airline3"), DateTime.Today.AddDays(-1)));
+            airlineDay.date.Kind.Should().Be(DateTimeKind.Utc);
+            airlineDay.date.Hour.Should().Be(1);
+
+            output.WriteLine($"{MyStopWatch.Elapsed()}: END OF TESTS at {DateTime.Now}\n\r");
+        }
+
+
+        [Fact]
+        public async Task SavePredecessorMultiple()
+        {
+            output.WriteLine($"{MyStopWatch.Start()}: BEGIN OF TESTS at {DateTime.Now}");
+
+            DateTime now = DateTime.Parse("2021-07-04T01:39:43.241Z");
+            var j = new Jinaga(new SQLiteStore());
+            var airline = new Airline("Airline1");            
+            var user = await j.Fact(new User("fqjsdfqkfjqlm"));
+            var passenger = await j.Fact(new Passenger(airline, user));
+            var passengerName1 = await j.Fact(new PassengerName(passenger, "Michael", new PassengerName[0]));
+            var passengerName2 = await j.Fact(new PassengerName(passenger, "Caden", new PassengerName[0]));
+            var passengerName3 = await j.Fact(new PassengerName(passenger, "Jan", new PassengerName[] { passengerName1, passengerName2 }));
+            
+            //TODO: add test condition
+            output.WriteLine($"{MyStopWatch.Elapsed()}: END OF TESTS at {DateTime.Now}\n\r");
+
+        }
+
+
+        [Fact]
+        public async Task LoadNothingFromStore()
+        {
+            output.WriteLine($"{MyStopWatch.Start()}: BEGIN OF TESTS at {DateTime.Now}");
+            IStore sqliteStore = new SQLiteStore();
+            FactGraph factGraph = await sqliteStore.Load(ImmutableList<FactReference>.Empty, default);
+            factGraph.FactReferences.Should().BeEmpty();
+            output.WriteLine($"{MyStopWatch.Elapsed()}: END OF TESTS at {DateTime.Now}\n\r");
+        }
+
+
+        [Fact]
+        public async Task LoadFromStore()
+        {
+            output.WriteLine($"{MyStopWatch.Start()}: BEGIN OF TESTS at {DateTime.Now}");
+
+            //IStore Store = new MemoryStore();
+            IStore Store = new SQLiteStore();
+
+            DateTime now = DateTime.Parse("2021-07-04T01:39:43.241Z");
+            var j = new Jinaga(Store);            
+            var airline = new Airline("Airline1");           
+            var user = await j.Fact(new User("fqjsdfqkfjqlm"));
+            var passenger = await j.Fact(new Passenger(airline, user));
+            var passengerName1 = await j.Fact(new PassengerName(passenger, "Michael", new PassengerName[0]));
+            var passengerName2 = await j.Fact(new PassengerName(passenger, "Caden", new PassengerName[0]));
+            var passengerName3 = await j.Fact(new PassengerName(passenger, "Jan", new PassengerName []{passengerName1, passengerName2}));
+
+            var graph = new FactManager(Store).Serialize(passengerName3);            
+            var lastRef = graph.Last;
+
+            //var airlineFact = Fact.Create(
+            //    "Skylane.Airline",
+            //    ImmutableList<Field>.Empty.Add(new Field("identifier", new FieldValueString("Airline1"))),
+            //    ImmutableList<Predecessor>.Empty
+            //);
+
+            //var userFact = Fact.Create(
+            //     "Jinaga.User",
+            //     ImmutableList<Field>.Empty.Add(new Field("publicKey", new FieldValueString("fqjsdfqkfjqlm"))),
+            //     ImmutableList<Predecessor>.Empty
+            // );
+
+            //var passengerFact = Fact.Create(
+            //     "Skylane.Passenger",
+            //     ImmutableList<Field>.Empty,
+            //     ImmutableList<Predecessor>.Empty
+            //        .Add(new PredecessorSingle("airline", airlineFact.Reference))
+            //        .Add(new PredecessorSingle("user", userFact.Reference))
+            // );
+
+            //var passengerName1Fact = Fact.Create(
+            //    "Skylane.Passenger.Name",
+            //    ImmutableList<Field>.Empty.Add(new Field("value", new FieldValueString("Michael"))),
+            //    ImmutableList<Predecessor>.Empty
+            //        .Add(new PredecessorSingle("passenger", passengerFact.Reference))
+            //        .Add(new PredecessorMultiple("prior", ImmutableList<FactReference>.Empty))
+            //);
+
+            //var passengerName2Fact = Fact.Create(
+            //    "Skylane.Passenger.Name",
+            //    ImmutableList<Field>.Empty.Add(new Field("value", new FieldValueString("Caden"))),
+            //    ImmutableList<Predecessor>.Empty
+            //        .Add(new PredecessorSingle("passenger", passengerFact.Reference))
+            //        .Add(new PredecessorMultiple("prior", ImmutableList<FactReference>.Empty))
+            //);
+
+            //var passengerName3Fact = Fact.Create(
+            //    "Skylane.Passenger.Name",
+            //    ImmutableList<Field>.Empty.Add(new Field("value", new FieldValueString("Jan"))),
+            //    ImmutableList<Predecessor>.Empty
+            //        .Add(new PredecessorSingle("passenger", passengerFact.Reference))
+            //        .Add(new PredecessorMultiple("prior", ImmutableList<FactReference>.Empty
+            //            .Add(passengerName1Fact.Reference)
+            //            .Add(passengerName2Fact.Reference)
+            //        ))
+            //);
+                 
+            var factGraph = await Store.Load(ImmutableList<FactReference>.Empty.Add(lastRef), default);
+            factGraph.FactReferences.Count.Should().Be(6);
+
+            output.WriteLine($"{MyStopWatch.Elapsed()}: END OF TESTS at {DateTime.Now}\n\r");
+        }
+
+
+
+
+
+
+
+        [Fact]
+        public async Task LoadFromStoreDWS()
+        {
+            output.WriteLine($"{MyStopWatch.Start()}: BEGIN OF TESTS at {DateTime.Now}");
+
+            //IStore Store = new MemoryStore();
+            IStore Store = new SQLiteStore();
+
+            DateTime now = DateTime.Parse("2021-07-04T01:39:43.241Z");
+            var j = new Jinaga(Store);
+
+            var supplier = await j.Fact(new Supplier("abc-pubkey"));
+            var client = await j.Fact(new Client(supplier, now));
+            var yard = await j.Fact(new Yard(client, now));
+            var yardAddress1 = await j.Fact(new YardAddress(yard, "myYardName1", "myRemark","myStreet","myHousNb","myPostalCode","myCity","myCountry", new YardAddress[0]));
+            var yardAddress2 = await j.Fact(new YardAddress(yard, "myYardName2", "myRemark", "myStreet", "myHousNb", "myPostalCode", "myCity", "myCountry", new YardAddress[0]));
+            var yardAddress3 = await j.Fact(new YardAddress(yard, "myYardName3", "myRemark", "myStreet", "myHousNb", "myPostalCode", "myCity", "myCountry", new YardAddress[] { yardAddress1, yardAddress2 }));
+            var yardAddress4 = await j.Fact(new YardAddress(yard, "myYardName3", "myRemark", "myStreet2", "myHousNb", "myPostalCode", "myCity", "myCountry", new YardAddress[] { yardAddress3}));
+
+            var graph = new FactManager(Store).Serialize(yardAddress4);
+            var lastRef = graph.Last;      
+            
+            var factGraph = await Store.Load(ImmutableList<FactReference>.Empty.Add(lastRef), default);
+            factGraph.FactReferences.Count.Should().Be(7);
+
+            output.WriteLine($"{MyStopWatch.Elapsed()}: END OF TESTS at {DateTime.Now}\n\r");
+        }
+
+
+
+
+
+
+
+        [Fact]
+        public async Task StoreRoundTripFromUTC()
+        {
+            DateTime now = DateTime.Parse("2021-07-04T01:39:43.241Z").ToUniversalTime();
+            var j = new Jinaga(new SQLiteStore());
+            var airlineDay = await j.Fact(new AirlineDay(new Airline("value"), now));
+            airlineDay.date.Kind.Should().Be(DateTimeKind.Utc);
+            airlineDay.date.Hour.Should().Be(1);
+        }
+
+
+        [Fact]
+        public async Task WriteAndReadBack() 
         {
             output.WriteLine($"{MyStopWatch.Start()}: BEGIN OF TESTS at {DateTime.Now}");
             string dbFolderName = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
@@ -317,7 +498,7 @@ namespace Jinaga.Test
             await writeTxn2;
             
             output.WriteLine($"{MyStopWatch.Elapsed()}: readTxnAfter starting");
-            var readTxnAfter = connFactory.WithTxnAsync((conn, id) =>
+            var readTxnAfter = connFactory.WithTxnAsync((conn, id) =>           
             {
                 output.WriteLine("{0}: readTxnAfter started", DateTime.Now);
                 string sql;

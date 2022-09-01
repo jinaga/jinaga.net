@@ -98,7 +98,7 @@ namespace Jinaga.Store.SQLite
                     throw SQLiteException.New(r, $"Conn: {r}");               
                 }
                 
-                //Active tracing when injected logger requires it
+                //TODO: Activate tracing when injected logger requires it
                 //Sqlite3.sqlite3_trace(
                 //    _db,
                 //    (_, statement) => connLog += $"{MyStopWatch.Elapsed()}: {id:D2} -- { statement}\n\r",
@@ -331,7 +331,7 @@ namespace Jinaga.Store.SQLite
             //Fact
             table = @"CREATE TABLE IF NOT EXISTS main.fact (
                                 fact_id INTEGER NOT NULL PRIMARY KEY,
-                                fact_type_ID INTEGER NOT NULL,
+                                fact_type_id INTEGER NOT NULL,
                                 hash TEXT,
                                 data TEXT,
                                 date_learned TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP                         
