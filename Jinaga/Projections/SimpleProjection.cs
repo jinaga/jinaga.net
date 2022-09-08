@@ -2,7 +2,7 @@ using Jinaga.Pipelines;
 
 namespace Jinaga.Projections
 {
-    public class SimpleProjection : Projection
+    public class SimpleProjection : ProjectionOld
     {
         public string Tag { get; }
 
@@ -16,7 +16,7 @@ namespace Jinaga.Projections
             return Tag;
         }
 
-        public override Projection Apply(Label parameter, Label argument)
+        public override ProjectionOld Apply(Label parameter, Label argument)
         {
             if (Tag == parameter.Name)
             {

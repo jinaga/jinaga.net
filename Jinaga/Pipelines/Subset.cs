@@ -16,7 +16,7 @@ namespace Jinaga.Pipelines
             this.names = names;
         }
 
-        public static Subset FromPipeline(Pipeline pipeline)
+        public static Subset FromPipeline(PipelineOld pipeline)
         {
             var startNames = pipeline.Starts.Select(start => start.Name);
             var pathStartNames = pipeline.Paths.Select(path => path.Start.Name);

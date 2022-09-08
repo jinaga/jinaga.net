@@ -4,18 +4,18 @@ using Jinaga.Visualizers;
 
 namespace Jinaga.Projections
 {
-    public class CollectionProjection : Projection
+    public class CollectionProjection : ProjectionOld
     {
-        public Specification Specification { get; }
+        public SpecificationOld Specification { get; }
 
-        public CollectionProjection(Specification specification)
+        public CollectionProjection(SpecificationOld specification)
         {
             Specification = specification;
         }
 
-        public override Projection Apply(Label parameter, Label argument)
+        public override ProjectionOld Apply(Label parameter, Label argument)
         {
-            return new CollectionProjection(new Specification(
+            return new CollectionProjection(new SpecificationOld(
                 Specification.Pipeline.Apply(parameter, argument),
                 Specification.Projection.Apply(parameter, argument)
             ));

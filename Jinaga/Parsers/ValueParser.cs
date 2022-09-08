@@ -81,7 +81,7 @@ namespace Jinaga.Parsers
                     var argument = startSetDefinition.Label;
                     var pipeline = specification.Pipeline.Apply(parameterLabel, argument);
                     var projection = specification.Projection.Apply(parameterLabel, argument);
-                    var specificationObj = new Specification(pipeline, projection);
+                    var specificationObj = new SpecificationOld(pipeline, projection);
                     return (new SymbolValueCollection(startSetDefinition, specificationObj), "");
                 }
                 else
@@ -109,10 +109,10 @@ namespace Jinaga.Parsers
             }
         }
 
-        private static Specification ParseSpecification(Expression expression)
+        private static SpecificationOld ParseSpecification(Expression expression)
         {
             var lambdaExpression = Expression.Lambda<Func<object>>(expression);
-            return (Specification)lambdaExpression.Compile().Invoke();
+            return (SpecificationOld)lambdaExpression.Compile().Invoke();
         }
     }
 }

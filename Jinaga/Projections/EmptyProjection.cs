@@ -2,9 +2,9 @@ using Jinaga.Pipelines;
 
 namespace Jinaga.Projections
 {
-    public class EmptyProjection : Projection
+    public class EmptyProjection : ProjectionOld
     {
-        public override Projection Apply(Label parameter, Label argument)
+        public override ProjectionOld Apply(Label parameter, Label argument)
         {
             return this;
         }

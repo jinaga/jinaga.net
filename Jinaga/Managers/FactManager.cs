@@ -36,7 +36,7 @@ namespace Jinaga.Managers
             return added;
         }
 
-        public async Task<ImmutableList<Product>> Query(ImmutableList<FactReference> startReferences, Specification specification, CancellationToken cancellationToken)
+        public async Task<ImmutableList<Product>> Query(ImmutableList<FactReference> startReferences, SpecificationOld specification, CancellationToken cancellationToken)
         {
             return await store.Query(startReferences, specification, cancellationToken);
         }
@@ -50,7 +50,7 @@ namespace Jinaga.Managers
         }
 
         public async Task<ImmutableList<ProductAnchorProjection>> ComputeProjections(
-            Projection projection,
+            ProjectionOld projection,
             ImmutableList<Product> products,
             Type type,
             IWatchContext? watchContext,
@@ -105,7 +105,7 @@ namespace Jinaga.Managers
 
         public ImmutableList<ProductAnchorProjection> DeserializeProductsFromGraph(
             FactGraph graph,
-            Projection projection,
+            ProjectionOld projection,
             ImmutableList<Product> products,
             Type type,
             Product anchor,

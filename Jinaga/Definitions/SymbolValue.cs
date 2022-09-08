@@ -50,9 +50,9 @@ namespace Jinaga.Definitions
     public class SymbolValueCollection : SymbolValue
     {
         public SetDefinition StartSetDefinition { get; }
-        public Specification Specification { get; }
+        public SpecificationOld Specification { get; }
 
-        public SymbolValueCollection(SetDefinition startSetDefinition, Specification specification)
+        public SymbolValueCollection(SetDefinition startSetDefinition, SpecificationOld specification)
         {
             StartSetDefinition = startSetDefinition;
             Specification = specification;

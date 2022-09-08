@@ -7,9 +7,9 @@ namespace Jinaga.Pipelines
     {
         private readonly Label start;
         private readonly bool exists;
-        private readonly Pipeline childPipeline;
+        private readonly PipelineOld childPipeline;
 
-        public Conditional(Label start, bool exists, Pipeline childPipeline)
+        public Conditional(Label start, bool exists, PipelineOld childPipeline)
         {
             this.start = start;
             this.exists = exists;
@@ -18,7 +18,7 @@ namespace Jinaga.Pipelines
 
         public Label Start => start;
         public bool Exists => exists;
-        public Pipeline ChildPipeline => childPipeline;
+        public PipelineOld ChildPipeline => childPipeline;
 
         public Conditional Apply(Label parameter, Label argument)
         {

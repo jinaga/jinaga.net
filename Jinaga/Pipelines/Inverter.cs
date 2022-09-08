@@ -7,29 +7,29 @@ namespace Jinaga.Pipelines
 {
     class Inverter
     {
-        public static IEnumerable<Inverse> InvertSpecification(Specification specification)
+        public static IEnumerable<Inverse> InvertSpecification(SpecificationOld specification)
         {
             var inverses =
                 from start in specification.Pipeline.Starts
                 from path in specification.Pipeline.Paths
                 where path.Start == start
-                from inverse in InvertPaths(start, specification.Pipeline, path, specification.Projection, Pipeline.Empty, ImmutableList<CollectionIdentifier>.Empty)
+                from inverse in InvertPaths(start, specification.Pipeline, path, specification.Projection, PipelineOld.Empty, ImmutableList<CollectionIdentifier>.Empty)
                 select inverse;
             return inverses;
         }
 
-        public static IEnumerable<Inverse> InvertPipeline(Pipeline pipeline)
+        public static IEnumerable<Inverse> InvertPipeline(PipelineOld pipeline)
         {
             var inverses =
                 from start in pipeline.Starts
                 from path in pipeline.Paths
                 where path.Start == start
-                from inverse in InvertPaths(start, pipeline, path, new EmptyProjection(), Pipeline.Empty, ImmutableList<CollectionIdentifier>.Empty)
+                from inverse in InvertPaths(start, pipeline, path, new EmptyProjection(), PipelineOld.Empty, ImmutableList<CollectionIdentifier>.Empty)
                 select inverse;
             return inverses;
         }
 
-        public static IEnumerable<Inverse> InvertPaths(Label start, Pipeline pipeline, Path path, Projection projection, Pipeline backward, ImmutableList<CollectionIdentifier> collectionIdentifiers)
+        public static IEnumerable<Inverse> InvertPaths(Label start, PipelineOld pipeline, Path path, ProjectionOld projection, PipelineOld backward, ImmutableList<CollectionIdentifier> collectionIdentifiers)
         {
             var nextBackward = backward.PrependPath(ReversePath(path));
             var conditionalInverses =
@@ -72,7 +72,7 @@ namespace Jinaga.Pipelines
             return new CollectionIdentifier(collectionName, intermediateSubset);
         }
 
-        public static IEnumerable<Inverse> InvertConditionals(Conditional conditional, Pipeline backward, string affectedTag, ImmutableList<CollectionIdentifier> collectionIdentifiers)
+        public static IEnumerable<Inverse> InvertConditionals(Conditional conditional, PipelineOld backward, string affectedTag, ImmutableList<CollectionIdentifier> collectionIdentifiers)
         {
             return InvertPipeline(conditional.ChildPipeline)
                 .Select(childInverse => new Inverse(

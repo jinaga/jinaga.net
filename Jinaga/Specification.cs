@@ -43,9 +43,9 @@ namespace Jinaga
         }
     }
 
-    public class Specification<TFact, TProjection> : Specification
+    public class Specification<TFact, TProjection> : SpecificationOld
     {
-        public Specification(Pipeline pipeline, Projection projection) : base(pipeline, projection)
+        public Specification(PipelineOld pipeline, ProjectionOld projection) : base(pipeline, projection)
         {
         }
     }

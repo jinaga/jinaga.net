@@ -8,7 +8,7 @@ namespace Jinaga.Generators
 {
     public static class PipelineGenerator
     {
-        public static Pipeline CreatePipeline(SpecificationContext context, SpecificationResult result)
+        public static PipelineOld CreatePipeline(SpecificationContext context, SpecificationResult result)
         {
             SetDefinitionTarget? priorTarget = null;
             foreach (var target in result.Targets)
@@ -27,7 +27,7 @@ namespace Jinaga.Generators
                 priorTarget = target;
             }
             var pipeline = context.Labels
-                .Aggregate(Pipeline.Empty, (p, label) => p.AddStart(label));
+                .Aggregate(PipelineOld.Empty, (p, label) => p.AddStart(label));
             foreach (var setDefinition in result.SetDefinitions)
             {
                 pipeline = AppendToPipeline(pipeline, context, setDefinition, result);
@@ -116,7 +116,7 @@ namespace Jinaga.Generators
             }
         }
 
-        private static Pipeline AppendToPipeline(Pipeline pipeline, SpecificationContext context, SetDefinition setDefinition, SpecificationResult result)
+        private static PipelineOld AppendToPipeline(PipelineOld pipeline, SpecificationContext context, SetDefinition setDefinition, SpecificationResult result)
         {
             if (setDefinition is SetDefinitionPredecessorChain predecessorChainSet)
             {

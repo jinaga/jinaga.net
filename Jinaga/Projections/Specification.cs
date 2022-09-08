@@ -3,16 +3,16 @@ using Jinaga.Pipelines;
 
 namespace Jinaga.Projections
 {
-    public class Specification
+    public class SpecificationOld
     {
-        public Specification(Pipeline pipeline, Projection projection)
+        public SpecificationOld(PipelineOld pipeline, ProjectionOld projection)
         {
             Pipeline = pipeline;
             Projection = projection;
         }
 
-        public Pipeline Pipeline { get; }
-        public Projection Projection { get; }
+        public PipelineOld Pipeline { get; }
+        public ProjectionOld Projection { get; }
 
         public ImmutableList<Inverse> ComputeInverses()
         {

@@ -52,13 +52,13 @@ namespace Jinaga.UnitTest
             return Task.FromResult(newFacts);
         }
 
-        public Task<ImmutableList<Product>> Query(ImmutableList<FactReference> startReferences, Specification specification, CancellationToken cancellationToken)
+        public Task<ImmutableList<Product>> Query(ImmutableList<FactReference> startReferences, SpecificationOld specification, CancellationToken cancellationToken)
         {
             var products = ExecuteNestedPipeline(startReferences, specification.Pipeline, specification.Projection);
             return Task.FromResult(products);
         }
 
-        private ImmutableList<Product> ExecuteNestedPipeline(ImmutableList<FactReference> startReferences, Pipeline pipeline, Projection projection)
+        private ImmutableList<Product> ExecuteNestedPipeline(ImmutableList<FactReference> startReferences, PipelineOld pipeline, ProjectionOld projection)
         {
             var subset = Subset.FromPipeline(pipeline);
             var namedSpecifications = projection.GetNamedSpecifications();
@@ -118,7 +118,7 @@ namespace Jinaga.UnitTest
             }
         }
 
-        private ImmutableList<Product> ExecutePipeline(FactReference startReference, Pipeline pipeline)
+        private ImmutableList<Product> ExecutePipeline(FactReference startReference, PipelineOld pipeline)
         {
             var initialTag = pipeline.Starts.Single().Name;
             var startingProducts = new Product[]
@@ -131,7 +131,7 @@ namespace Jinaga.UnitTest
             );
         }
 
-        private ImmutableList<Product> ExecutePath(ImmutableList<Product> products, Path path, Pipeline pipeline)
+        private ImmutableList<Product> ExecutePath(ImmutableList<Product> products, Path path, PipelineOld pipeline)
         {
             var results = products
                 .SelectMany(product =>
@@ -203,7 +203,7 @@ namespace Jinaga.UnitTest
                 .ToImmutableList();
         }
 
-        private bool ConditionIsTrue(Element element, Pipeline pipeline, bool exists)
+        private bool ConditionIsTrue(Element element, PipelineOld pipeline, bool exists)
         {
             if (element is SimpleElement simple)
             {
@@ -215,7 +215,7 @@ namespace Jinaga.UnitTest
             }
         }
 
-        private bool ConditionIsTrue(FactReference factReference, Pipeline pipeline, bool wantAny)
+        private bool ConditionIsTrue(FactReference factReference, PipelineOld pipeline, bool wantAny)
         {
             var hasAny = ExecutePipeline(factReference, pipeline).Any();
             return wantAny && hasAny || !wantAny && !hasAny;

@@ -9,14 +9,14 @@ namespace Jinaga.Generators
 {
     public static class SpecificationGenerator
     {
-        public static Specification CreateSpecification(SpecificationContext context, SpecificationResult result)
+        public static SpecificationOld CreateSpecification(SpecificationContext context, SpecificationResult result)
         {
             var pipeline = PipelineGenerator.CreatePipeline(context, result);
             var projection = CreateProjection(result.SymbolValue);
-            return new Specification(pipeline, projection);
+            return new SpecificationOld(pipeline, projection);
         }
 
-        private static Projection CreateProjection(SymbolValue value)
+        private static ProjectionOld CreateProjection(SymbolValue value)
         {
             if (value is SymbolValueSetDefinition setDefinitionValue)
             {

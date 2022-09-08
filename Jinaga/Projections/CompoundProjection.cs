@@ -6,28 +6,28 @@ using Jinaga.Visualizers;
 
 namespace Jinaga.Projections
 {
-    public class CompoundProjection : Projection
+    public class CompoundProjection : ProjectionOld
     {
-        private ImmutableDictionary<string, Projection> projections =
-            ImmutableDictionary<string, Projection>.Empty;
+        private ImmutableDictionary<string, ProjectionOld> projections =
+            ImmutableDictionary<string, ProjectionOld>.Empty;
 
         public CompoundProjection()
         {
         }
 
-        public CompoundProjection(ImmutableDictionary<string, Projection> projections)
+        public CompoundProjection(ImmutableDictionary<string, ProjectionOld> projections)
         {
             this.projections = projections;
         }
 
         public IEnumerable<string> Names => projections.Keys;
 
-        public CompoundProjection With(string name, Projection projection)
+        public CompoundProjection With(string name, ProjectionOld projection)
         {
             return new CompoundProjection(projections.Add(name, projection));
         }
 
-        public override Projection Apply(Label parameter, Label argument)
+        public override ProjectionOld Apply(Label parameter, Label argument)
         {
             return new CompoundProjection(projections
                 .ToImmutableDictionary(
@@ -37,7 +37,7 @@ namespace Jinaga.Projections
             );
         }
 
-        public override ImmutableList<(string name, Specification specification)> GetNamedSpecifications()
+        public override ImmutableList<(string name, SpecificationOld specification)> GetNamedSpecifications()
         {
             var namedSpecifications =
                 from projection in projections
@@ -52,7 +52,7 @@ namespace Jinaga.Projections
             return namedSpecifications.Concat(nested).ToImmutableList();
         }
 
-        public Projection GetProjection(string name)
+        public ProjectionOld GetProjection(string name)
         {
             return projections[name];
         }

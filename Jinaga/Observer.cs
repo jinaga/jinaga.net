@@ -15,7 +15,7 @@ namespace Jinaga
 {
     public class Observer<TProjection> : IObserver
     {
-        private readonly Specification specification;
+        private readonly SpecificationOld specification;
         private readonly Product initialAnchor;
         private readonly FactManager factManager;
         private readonly IObservation observation;
@@ -29,7 +29,7 @@ namespace Jinaga
 
         public Task Initialized => initialize!;
 
-        internal Observer(Specification specification, Product initialAnchor, FactManager factManager, IObservation observation)
+        internal Observer(SpecificationOld specification, Product initialAnchor, FactManager factManager, IObservation observation)
         {
             this.specification = specification;
             this.initialAnchor = initialAnchor;
@@ -89,7 +89,7 @@ namespace Jinaga
                         ? inversePipeline.Execute(startReferences, graph)
                         : await factManager.Query(
                             startReferences,
-                            new Specification(inversePipeline, specification.Projection),
+                            new SpecificationOld(inversePipeline, specification.Projection),
                             cancellationToken);
                     foreach (var product in products)
                     {

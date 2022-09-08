@@ -7,16 +7,16 @@ using System.Linq;
 
 namespace Jinaga.Pipelines
 {
-    public class Pipeline
+    public class PipelineOld
     {
-        public static Pipeline Empty = new Pipeline(ImmutableList<Label>.Empty, ImmutableList<Path>.Empty, ImmutableList<Conditional>.Empty, true);
+        public static PipelineOld Empty = new PipelineOld(ImmutableList<Label>.Empty, ImmutableList<Path>.Empty, ImmutableList<Conditional>.Empty, true);
 
         private readonly ImmutableList<Label> starts;
         private readonly ImmutableList<Path> paths;
         private readonly ImmutableList<Conditional> conditionals;
         private readonly bool canRunOnGraph;
 
-        public Pipeline(ImmutableList<Label> starts, ImmutableList<Path> paths, ImmutableList<Conditional> conditionals, bool canRunOnGraph)
+        public PipelineOld(ImmutableList<Label> starts, ImmutableList<Path> paths, ImmutableList<Conditional> conditionals, bool canRunOnGraph)
         {
             this.starts = starts;
             this.paths = paths;
@@ -28,29 +28,29 @@ namespace Jinaga.Pipelines
         public ImmutableList<Path> Paths => paths;
         public ImmutableList<Conditional> Conditionals => conditionals;
 
-        public Pipeline AddStart(Label label)
+        public PipelineOld AddStart(Label label)
         {
-            return new Pipeline(starts.Add(label), paths, conditionals, canRunOnGraph);
+            return new PipelineOld(starts.Add(label), paths, conditionals, canRunOnGraph);
         }
 
-        public Pipeline AddPath(Path path)
+        public PipelineOld AddPath(Path path)
         {
-            return new Pipeline(starts, paths.Add(path), conditionals,
+            return new PipelineOld(starts, paths.Add(path), conditionals,
                 canRunOnGraph && !path.SuccessorSteps.Any());
         }
 
-        public Pipeline PrependPath(Path path)
+        public PipelineOld PrependPath(Path path)
         {
-            return new Pipeline(starts, paths.Insert(0, path), conditionals,
+            return new PipelineOld(starts, paths.Insert(0, path), conditionals,
                 canRunOnGraph && !path.SuccessorSteps.Any());
         }
 
-        public Pipeline AddConditional(Conditional conditional)
+        public PipelineOld AddConditional(Conditional conditional)
         {
-            return new Pipeline(starts, paths, conditionals.Add(conditional), false);
+            return new PipelineOld(starts, paths, conditionals.Add(conditional), false);
         }
 
-        public Pipeline Compose(Pipeline pipeline)
+        public PipelineOld Compose(PipelineOld pipeline)
         {
             var combinedStarts = starts
                 .Union(pipeline.Starts)
@@ -61,11 +61,11 @@ namespace Jinaga.Pipelines
             var combinedConditionals = conditionals
                 .Union(pipeline.conditionals)
                 .ToImmutableList();
-            return new Pipeline(combinedStarts, combinedPaths, combinedConditionals,
+            return new PipelineOld(combinedStarts, combinedPaths, combinedConditionals,
                 this.canRunOnGraph && pipeline.canRunOnGraph);
         }
 
-        public Pipeline Apply(Label parameter, Label argument)
+        public PipelineOld Apply(Label parameter, Label argument)
         {
             var starts = this.starts.Remove(parameter);
             var paths = this.paths
@@ -74,7 +74,7 @@ namespace Jinaga.Pipelines
             var conditionals = this.conditionals
                 .Select(conditional => conditional.Apply(parameter, argument))
                 .ToImmutableList();
-            return new Pipeline(starts, paths, conditionals, this.canRunOnGraph);
+            return new PipelineOld(starts, paths, conditionals, this.canRunOnGraph);
         }
 
         public bool CanRunOnGraph => canRunOnGraph;
@@ -158,7 +158,7 @@ namespace Jinaga.Pipelines
                 return false;
             }
 
-            var that = (Pipeline)obj;
+            var that = (PipelineOld)obj;
             return
                 that.starts.SetEquals(starts) &&
                 that.paths.SetEquals(paths) &&
