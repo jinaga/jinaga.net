@@ -45,7 +45,63 @@ namespace Jinaga.Generators
 
         public static ImmutableList<Match> CreateMatches(SpecificationContext context, SpecificationResult result)
         {
-            throw new NotImplementedException();
+            var matches = result.SetDefinitions
+                .Select(setDefinition => CreateMatch(context, setDefinition, result))
+                .ToImmutableList();
+            return matches;
+        }
+
+        private static Match CreateMatch(SpecificationContext context, SetDefinition setDefinition, SpecificationResult result)
+        {
+            if (setDefinition is SetDefinitionPredecessorChain predecessorChainSet)
+            {
+                throw new NotImplementedException();
+
+            }
+            else if (setDefinition is SetDefinitionJoin joinSet)
+            {
+                var head = joinSet.Head;
+                var tail = joinSet.Tail;
+                var sourceSetDefinition = head.TargetSetDefinition;
+                var source = sourceSetDefinition.Label;
+                var target = joinSet.Label;
+                ImmutableList<Role> rolesLeft = PrependSuccessorSteps(ImmutableList<Role>.Empty, tail);
+                ImmutableList<Role> rolesRight = AddPredecessorSteps(ImmutableList<Role>.Empty, head);
+                var condition = (MatchCondition)new PathCondition(rolesLeft, source.Name, rolesRight);
+                var conditions = ImmutableList.Create(condition);
+                var match = new Match(target, conditions);
+                return match;
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
+        }
+
+        private static ImmutableList<Role> PrependSuccessorSteps(ImmutableList<Role> roles, Chain chain)
+        {
+            if (chain is ChainRole chainRole)
+            {
+                return PrependSuccessorSteps(roles, chainRole.Prior)
+                    .Insert(0, new Role(chainRole.Role, chainRole.Prior.TargetFactType));
+            }
+            else
+            {
+                return roles;
+            }
+        }
+
+        private static ImmutableList<Role> AddPredecessorSteps(ImmutableList<Role> roles, Chain chain)
+        {
+            if (chain is ChainRole chainRole)
+            {
+                return AddPredecessorSteps(roles, chainRole.Prior)
+                    .Add(new Role(chainRole.Role, chain.TargetFactType));
+            }
+            else
+            {
+                return roles;
+            }
         }
     }
 }
