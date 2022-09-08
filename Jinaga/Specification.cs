@@ -7,9 +7,17 @@ using Jinaga.Definitions;
 using Jinaga.Generators;
 using Jinaga.Projections;
 using Jinaga.Pipelines;
+using System.Collections.Immutable;
 
 namespace Jinaga
 {
+    public static class Given<TFact>
+    {
+        public static Specification<TFact, TProjection> Match<TProjection>(Expression<Func<TFact, FactRepository, IQueryable<TProjection>>> specExpression)
+        {
+            throw new NotImplementedException();
+        }
+    }
     public static class GivenOld<TFact>
     {
         public static SpecificationOld<TFact, TProjection> Match<TProjection>(Expression<Func<TFact, FactRepository, IQueryable<TProjection>>> specExpression)
@@ -40,6 +48,19 @@ namespace Jinaga
             var result = SpecificationParser.ParseValue(symbolValue);
             var specification = SpecificationGenerator.CreateSpecification(context, result);
             return new SpecificationOld<TFact, TProjection>(specification.Pipeline, specification.Projection);
+        }
+    }
+
+    public class Specification<TFact, TProjection> : Specification
+    {
+        public Specification(ImmutableList<Label> given, ImmutableList<Match> matches)
+            : base(given, matches)
+        {
+        }
+
+        internal string ToDescriptiveString()
+        {
+            throw new NotImplementedException();
         }
     }
 
