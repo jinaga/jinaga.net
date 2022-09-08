@@ -3,6 +3,20 @@ using Jinaga.Pipelines;
 
 namespace Jinaga.Projections
 {
+    public class Specification
+    {
+        public Specification(
+            ImmutableList<Label> given,
+            ImmutableList<Match> matches
+        )
+        {
+            Given = given;
+            Matches = matches;
+        }
+
+        public ImmutableList<Label> Given { get; }
+        public ImmutableList<Match> Matches { get; }
+    }
     public class SpecificationOld
     {
         public SpecificationOld(PipelineOld pipeline, ProjectionOld projection)
