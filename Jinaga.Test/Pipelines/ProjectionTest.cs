@@ -11,7 +11,7 @@ namespace Jinaga.Test.Pipelines
         [Fact]
         public void PipelineProjection_Product()
         {
-            var specification = Given<Airline>.Match((airline, facts) =>
+            var specification = GivenOld<Airline>.Match((airline, facts) =>
                 from passenger in facts.OfType<Passenger>()
                 where passenger.airline == airline
                 from passengerName in facts.OfType<PassengerName>()
@@ -32,7 +32,7 @@ namespace Jinaga.Test.Pipelines
         [Fact]
         public void PipelineProjection_Observe()
         {
-            Specification<Passenger, PassengerName> namesOfPassenger = Given<Passenger>.Match((passenger, facts) =>
+            SpecificationOld<Passenger, PassengerName> namesOfPassenger = GivenOld<Passenger>.Match((passenger, facts) =>
                 from passengerName in facts.OfType<PassengerName>()
                 where passengerName.passenger == passenger
                 where !(
@@ -43,7 +43,7 @@ namespace Jinaga.Test.Pipelines
                 select passengerName
             );
 
-            var specification = Given<Airline>.Match((airline, facts) =>
+            var specification = GivenOld<Airline>.Match((airline, facts) =>
                 from passenger in facts.OfType<Passenger>()
                 where passenger.airline == airline
                 select new

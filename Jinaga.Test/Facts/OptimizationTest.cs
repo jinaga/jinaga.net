@@ -85,7 +85,7 @@ namespace Jinaga.Test.Facts
         [Fact]
         public void Optimize_PredecessorQueryCanRunOnGraph()
         {
-            var userWithName = Given<PassengerName>.Match(passengerName =>
+            var userWithName = GivenOld<PassengerName>.Match(passengerName =>
                 passengerName.passenger.user);
 
             var pipeline = userWithName.Pipeline;
@@ -114,7 +114,7 @@ namespace Jinaga.Test.Facts
         [Fact]
         public async Task Optimization_RunPipelineOnGraph()
         {
-            var userWithName = Given<PassengerName>.Match(passengerName =>
+            var userWithName = GivenOld<PassengerName>.Match(passengerName =>
                 passengerName.passenger.user);
 
             var pipeline = userWithName.Pipeline;

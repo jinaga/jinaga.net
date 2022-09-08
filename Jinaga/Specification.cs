@@ -10,9 +10,9 @@ using Jinaga.Pipelines;
 
 namespace Jinaga
 {
-    public static class Given<TFact>
+    public static class GivenOld<TFact>
     {
-        public static Specification<TFact, TProjection> Match<TProjection>(Expression<Func<TFact, FactRepository, IQueryable<TProjection>>> specExpression)
+        public static SpecificationOld<TFact, TProjection> Match<TProjection>(Expression<Func<TFact, FactRepository, IQueryable<TProjection>>> specExpression)
         {
             var spec = specExpression.Compile();
             object proxy = SpecificationParser.InstanceOfFact(typeof(TFact));
@@ -22,10 +22,10 @@ namespace Jinaga
 
             var result = SpecificationParser.ParseSpecification(SymbolTable.Empty, context, queryable.Expression);
             var specification = SpecificationGenerator.CreateSpecification(context, result);
-            return new Specification<TFact, TProjection>(specification.Pipeline, specification.Projection);
+            return new SpecificationOld<TFact, TProjection>(specification.Pipeline, specification.Projection);
         }
 
-        public static Specification<TFact, TProjection> Match<TProjection>(Expression<Func<TFact, TProjection>> spec)
+        public static SpecificationOld<TFact, TProjection> Match<TProjection>(Expression<Func<TFact, TProjection>> spec)
         {
             var parameter = spec.Parameters[0];
             var initialFactName = parameter.Name;
@@ -39,13 +39,13 @@ namespace Jinaga
             var symbolValue = ValueParser.ParseValue(symbolTable, context, spec.Body).symbolValue;
             var result = SpecificationParser.ParseValue(symbolValue);
             var specification = SpecificationGenerator.CreateSpecification(context, result);
-            return new Specification<TFact, TProjection>(specification.Pipeline, specification.Projection);
+            return new SpecificationOld<TFact, TProjection>(specification.Pipeline, specification.Projection);
         }
     }
 
-    public class Specification<TFact, TProjection> : SpecificationOld
+    public class SpecificationOld<TFact, TProjection> : SpecificationOld
     {
-        public Specification(PipelineOld pipeline, ProjectionOld projection) : base(pipeline, projection)
+        public SpecificationOld(PipelineOld pipeline, ProjectionOld projection) : base(pipeline, projection)
         {
         }
     }

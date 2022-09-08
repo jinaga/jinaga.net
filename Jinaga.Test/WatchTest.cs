@@ -174,7 +174,7 @@ namespace Jinaga.Test
             officeRepository.Items.Should().ContainSingle().Which.Should().BeEquivalentTo(newOffice);
         }
 
-        private static Specification<Company, Office> officesInCompany = Given<Company>.Match((company, facts) =>
+        private static SpecificationOld<Company, Office> officesInCompany = GivenOld<Company>.Match((company, facts) =>
             from office in facts.OfType<Office>()
             where office.company == company
             where !office.IsClosed

@@ -35,7 +35,7 @@ namespace Jinaga
 
         public async Task<ImmutableList<TProjection>> Query<TFact, TProjection>(
             TFact start,
-            Specification<TFact, TProjection> specification,
+            SpecificationOld<TFact, TProjection> specification,
             CancellationToken cancellationToken = default) where TFact : class
         {
             if (start == null)
@@ -73,7 +73,7 @@ namespace Jinaga
 
         public Observer<TProjection> Watch<TFact, TProjection>(
             TFact start,
-            Specification<TFact, TProjection> specification,
+            SpecificationOld<TFact, TProjection> specification,
             Action<TProjection> added)
         {
             return Watch<TFact, TProjection>(start, specification,
@@ -88,7 +88,7 @@ namespace Jinaga
 
         public Observer<TProjection> Watch<TFact, TProjection>(
             TFact start,
-            Specification<TFact, TProjection> specification,
+            SpecificationOld<TFact, TProjection> specification,
             Func<TProjection, Action> added)
         {
             return Watch<TFact, TProjection>(start, specification,
@@ -107,7 +107,7 @@ namespace Jinaga
 
         public Observer<TProjection> Watch<TFact, TProjection>(
             TFact start,
-            Specification<TFact, TProjection> specification,
+            SpecificationOld<TFact, TProjection> specification,
             Func<TProjection, Task> added)
         {
             return Watch<TFact, TProjection>(start, specification,
@@ -121,7 +121,7 @@ namespace Jinaga
 
         public Observer<TProjection> Watch<TFact, TProjection>(
             TFact start,
-            Specification<TFact, TProjection> specification,
+            SpecificationOld<TFact, TProjection> specification,
             Func<TProjection, Task<Func<Task>>> added)
         {
             if (start == null)

@@ -270,20 +270,20 @@ namespace Jinaga.Test
             public IObservableCollection<ManagerProjection> Managers { get; set; }
         }
 
-        private static Specification<Office, OfficeName> namesOfOffice = Given<Office>.Match((office, facts) =>
+        private static SpecificationOld<Office, OfficeName> namesOfOffice = GivenOld<Office>.Match((office, facts) =>
             from name in facts.OfType<OfficeName>()
             where name.office == office
             select name
         );
 
-        private static Specification<Office, Headcount> headcountsOfOffice = Given<Office>.Match((office, facts) =>
+        private static SpecificationOld<Office, Headcount> headcountsOfOffice = GivenOld<Office>.Match((office, facts) =>
             from headcount in facts.OfType<Headcount>()
             where headcount.office == office
             where headcount.IsCurrent
             select headcount
         );
 
-        private static Specification<Company, OfficeProjection> officesInCompany = Given<Company>.Match((company, facts) =>
+        private static SpecificationOld<Company, OfficeProjection> officesInCompany = GivenOld<Company>.Match((company, facts) =>
             from office in facts.OfType<Office>()
             where office.company == company
             where !office.IsClosed
@@ -296,14 +296,14 @@ namespace Jinaga.Test
             }
         );
 
-        private static Specification<Manager, ManagerName> managerNames = Given<Manager>.Match((manager, facts) =>
+        private static SpecificationOld<Manager, ManagerName> managerNames = GivenOld<Manager>.Match((manager, facts) =>
             from name in facts.OfType<ManagerName>()
             where name.manager == manager
             where name.IsCurrent
             select name
         );
 
-        private static Specification<Office, ManagerProjection> managersInOffice = Given<Office>.Match((office, facts) =>
+        private static SpecificationOld<Office, ManagerProjection> managersInOffice = GivenOld<Office>.Match((office, facts) =>
             from manager in facts.OfType<Manager>()
             where manager.office == office
             where !manager.IsTerminated
@@ -315,7 +315,7 @@ namespace Jinaga.Test
             }
         );
 
-        private static Specification<Company, ManagementProjection> managersInCompany = Given<Company>.Match((company, facts) =>
+        private static SpecificationOld<Company, ManagementProjection> managersInCompany = GivenOld<Company>.Match((company, facts) =>
             from office in facts.OfType<Office>()
             where office.company == company
             where !office.IsClosed

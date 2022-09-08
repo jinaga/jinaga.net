@@ -27,7 +27,7 @@ namespace Jinaga.Repository
 
         public IObservableCollection<TProjection> All<TFact, TProjection>(
             TFact start,
-            Specification<TFact, TProjection> specification)
+            SpecificationOld<TFact, TProjection> specification)
         {
             throw new NotImplementedException();
         }

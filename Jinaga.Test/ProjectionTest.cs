@@ -18,7 +18,7 @@ namespace Jinaga.Test
             j = JinagaTest.Create();
         }
 
-        private Specification<Passenger, PassengerName> namesOfPassenger = Given<Passenger>.Match((passenger, facts) =>
+        private SpecificationOld<Passenger, PassengerName> namesOfPassenger = GivenOld<Passenger>.Match((passenger, facts) =>
             from passengerName in facts.OfType<PassengerName>()
             where passengerName.passenger == passenger
             where !(
@@ -37,7 +37,7 @@ namespace Jinaga.Test
             var passenger = await j.Fact(new Passenger(airline, user));
             await j.Fact(new PassengerName(passenger, "Joe", new PassengerName[0]));
 
-            var passengers = await j.Query(airline, Given<Airline>.Match((airline, facts) =>
+            var passengers = await j.Query(airline, GivenOld<Airline>.Match((airline, facts) =>
                 from passenger in facts.OfType<Passenger>()
                 where passenger.airline == airline
                 select new
@@ -60,7 +60,7 @@ namespace Jinaga.Test
             var passenger = await j.Fact(new Passenger(airline, user));
             await j.Fact(new PassengerName(passenger, "Joe", new PassengerName[0]));
 
-            var passengers = await j.Query(airline, Given<Airline>.Match((airline, facts) =>
+            var passengers = await j.Query(airline, GivenOld<Airline>.Match((airline, facts) =>
                 from passenger in facts.OfType<Passenger>()
                 where passenger.airline == airline
                 select new PassengerProjection(

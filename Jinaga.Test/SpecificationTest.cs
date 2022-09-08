@@ -12,7 +12,7 @@ namespace Jinaga.Test
         [Fact]
         public void CanSpecifySuccessors()
         {
-            Specification<Airline, Flight> specification = Given<Airline>.Match((airline, facts) =>
+            SpecificationOld<Airline, Flight> specification = GivenOld<Airline>.Match((airline, facts) =>
                 from flight in facts.OfType<Flight>()
                 where flight.airlineDay.airline == airline
                 select flight
@@ -30,8 +30,8 @@ namespace Jinaga.Test
         [Fact]
         public void Specification_MissingJoin()
         {
-            Func<Specification<Airline, Flight>> constructor = () =>
-                Given<Airline>.Match((airline, facts) =>
+            Func<SpecificationOld<Airline, Flight>> constructor = () =>
+                GivenOld<Airline>.Match((airline, facts) =>
                     from flight in facts.OfType<Flight>()
                     select flight
                 );
@@ -44,8 +44,8 @@ namespace Jinaga.Test
         [Fact]
         public void Specification_MissingCollectionJoin()
         {
-            Func<Specification<Item, Order>> constructor = () =>
-                Given<Item>.Match((item, facts) =>
+            Func<SpecificationOld<Item, Order>> constructor = () =>
+                GivenOld<Item>.Match((item, facts) =>
                     from order in facts.OfType<Order>()
                     select order
                 );
@@ -59,8 +59,8 @@ namespace Jinaga.Test
         [Fact]
         public void Specification_MissingCollectionJoinWithExtension()
         {
-            Func<Specification<Item, Order>> constructor = () =>
-                Given<Item>.Match((item, facts) =>
+            Func<SpecificationOld<Item, Order>> constructor = () =>
+                GivenOld<Item>.Match((item, facts) =>
                     facts.OfType<Order>()
                 );
             constructor.Should().Throw<SpecificationException>()
@@ -73,8 +73,8 @@ namespace Jinaga.Test
         [Fact]
         public void Specification_MissingSuccessorCollectionJoin()
         {
-            Func<Specification<Order, Item>> constructor = () =>
-                Given<Order>.Match((order, facts) =>
+            Func<SpecificationOld<Order, Item>> constructor = () =>
+                GivenOld<Order>.Match((order, facts) =>
                     from item in facts.OfType<Item>()
                     select item
                 );
@@ -88,8 +88,8 @@ namespace Jinaga.Test
         [Fact]
         public void Specification_MissingSuccessorCollectionJoinWithExtension()
         {
-            Func<Specification<Order, Item>> constructor = () =>
-                Given<Order>.Match((order, facts) =>
+            Func<SpecificationOld<Order, Item>> constructor = () =>
+                GivenOld<Order>.Match((order, facts) =>
                     facts.OfType<Item>()
                 );
             constructor.Should().Throw<SpecificationException>()
@@ -102,8 +102,8 @@ namespace Jinaga.Test
         [Fact]
         public void Specification_MissingJoinWithExtensionMethod()
         {
-            Func<Specification<Airline, Flight>> constructor = () =>
-                Given<Airline>.Match((airline, facts) => facts.OfType<Flight>());
+            Func<SpecificationOld<Airline, Flight>> constructor = () =>
+                GivenOld<Airline>.Match((airline, facts) => facts.OfType<Flight>());
             constructor.Should().Throw<SpecificationException>()
                 .WithMessage(
                     "The set should be joined to the parameter \"airline\". " +
@@ -113,7 +113,7 @@ namespace Jinaga.Test
         [Fact]
         public void CanSpecifyShortSuccessors()
         {
-            Specification<Airline, Flight> specification = Given<Airline>.Match((airline, facts) =>
+            SpecificationOld<Airline, Flight> specification = GivenOld<Airline>.Match((airline, facts) =>
                 facts.OfType<Flight>(flight => flight.airlineDay.airline == airline)
             );
             var pipeline = specification.Pipeline;
@@ -129,7 +129,7 @@ namespace Jinaga.Test
         [Fact]
         public void CanSpecifyPredecessors()
         {
-            Specification<FlightCancellation, Flight> specification = Given<FlightCancellation>.Match((flightCancellation, facts) =>
+            SpecificationOld<FlightCancellation, Flight> specification = GivenOld<FlightCancellation>.Match((flightCancellation, facts) =>
                 from flight in facts.OfType<Flight>()
                 where flightCancellation.flight == flight
                 select flight
@@ -147,7 +147,7 @@ namespace Jinaga.Test
         [Fact]
         public void CanSpecifyPredecessorsShorthand()
         {
-            Specification<FlightCancellation, Flight> specification = Given<FlightCancellation>.Match(flightCancellation =>
+            SpecificationOld<FlightCancellation, Flight> specification = GivenOld<FlightCancellation>.Match(flightCancellation =>
                 flightCancellation.flight
             );
             var pipeline = specification.Pipeline;
@@ -163,7 +163,7 @@ namespace Jinaga.Test
         [Fact]
         public void CanSpecifyNegativeExistentialConditions()
         {
-            Specification<AirlineDay, Flight> activeFlights = Given<AirlineDay>.Match((airlineDay, facts) =>
+            SpecificationOld<AirlineDay, Flight> activeFlights = GivenOld<AirlineDay>.Match((airlineDay, facts) =>
                 from flight in facts.OfType<Flight>()
                 where flight.airlineDay == airlineDay
 
@@ -193,7 +193,7 @@ namespace Jinaga.Test
         [Fact]
         public void CanSpecifyNamedNegativeExistentialConditions()
         {
-            Specification<AirlineDay, Flight> activeFlights = Given<AirlineDay>.Match((airlineDay, facts) =>
+            SpecificationOld<AirlineDay, Flight> activeFlights = GivenOld<AirlineDay>.Match((airlineDay, facts) =>
                 from flight in facts.OfType<Flight>()
                 where flight.airlineDay == airlineDay
 
@@ -219,7 +219,7 @@ namespace Jinaga.Test
         [Fact]
         public void CanSpecifyNamedShortNegativeExistentialConditions()
         {
-            Specification<AirlineDay, Flight> activeFlights = Given<AirlineDay>.Match((airlineDay, facts) =>
+            SpecificationOld<AirlineDay, Flight> activeFlights = GivenOld<AirlineDay>.Match((airlineDay, facts) =>
                 from flight in facts.OfType<Flight>()
                 where flight.airlineDay == airlineDay
 
@@ -245,7 +245,7 @@ namespace Jinaga.Test
         [Fact]
         public void CanSpecifyPositiveExistentialCondition()
         {
-            Specification<Airline, Booking> bookingsToRefund = Given<Airline>.Match((airline, facts) =>
+            SpecificationOld<Airline, Booking> bookingsToRefund = GivenOld<Airline>.Match((airline, facts) =>
                 from flight in facts.OfType<Flight>()
                 where flight.airlineDay.airline == airline
 
@@ -290,7 +290,7 @@ namespace Jinaga.Test
         [Fact]
         public void Specification_MissingJoinToPriorPath()
         {
-            Func<Specification<Airline, Booking>> bookingsToRefund = () => Given<Airline>.Match((airline, facts) =>
+            Func<SpecificationOld<Airline, Booking>> bookingsToRefund = () => GivenOld<Airline>.Match((airline, facts) =>
                 from flight in facts.OfType<Flight>()
                 where flight.airlineDay.airline == airline
                 from booking in facts.OfType<Booking>()
@@ -306,7 +306,7 @@ namespace Jinaga.Test
         [Fact]
         public void CanSpecifyNamedPositiveExistentialCondition()
         {
-            Specification<Airline, Booking> bookingsToRefund = Given<Airline>.Match((airline, facts) =>
+            SpecificationOld<Airline, Booking> bookingsToRefund = GivenOld<Airline>.Match((airline, facts) =>
                 from flight in facts.OfType<Flight>()
                 where flight.airlineDay.airline == airline
 
@@ -347,7 +347,7 @@ namespace Jinaga.Test
         [Fact]
         public void CanSpecifyProjection()
         {
-            var bookingsToRefund = Given<Airline>.Match((airline, facts) =>
+            var bookingsToRefund = GivenOld<Airline>.Match((airline, facts) =>
                 from flight in facts.OfType<Flight>()
                 where flight.airlineDay.airline == airline
 
@@ -387,7 +387,7 @@ namespace Jinaga.Test
         [Fact]
         public void Specification_SelectPredecessor()
         {
-            var passengersForAirline = Given<Flight>.Match((flight, facts) =>
+            var passengersForAirline = GivenOld<Flight>.Match((flight, facts) =>
                 from booking in facts.OfType<Booking>()
                 where booking.flight == flight
                 select booking.passenger
@@ -405,7 +405,7 @@ namespace Jinaga.Test
         [Fact]
         public void Specification_JoinWithTwoConditionals()
         {
-            var specification = Given<Company>.Match((company, facts) =>
+            var specification = GivenOld<Company>.Match((company, facts) =>
                 from office in facts.OfType<Office>()
                 where office.company == company
                 where !office.IsClosed

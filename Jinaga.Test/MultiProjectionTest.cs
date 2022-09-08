@@ -17,9 +17,9 @@ namespace Jinaga.Test
     public class Specifications
     {
 
-        public static Specification<Client, ClientName> NamesOfClient()
+        public static SpecificationOld<Client, ClientName> NamesOfClient()
         {
-            return Given<Client>.Match((client, facts) =>
+            return GivenOld<Client>.Match((client, facts) =>
                 from clientName in facts.OfType<ClientName>()
                 where clientName.client == client
                 where clientName.IsCurrent
@@ -28,9 +28,9 @@ namespace Jinaga.Test
         }
 
 
-        public static Specification<Yard, YardAddress> AddressesOfYard()
+        public static SpecificationOld<Yard, YardAddress> AddressesOfYard()
         {
-            return Given<Yard>.Match((yard, facts) =>
+            return GivenOld<Yard>.Match((yard, facts) =>
                 from yardAddress in facts.OfType<YardAddress>()
                 where yardAddress.yard == yard
                 where yardAddress.IsCurrent
@@ -39,9 +39,9 @@ namespace Jinaga.Test
         }
 
 
-        public static Specification<Client, YardData> ClientYards()
+        public static SpecificationOld<Client, YardData> ClientYards()
         {
-            return Given<Client>.Match((client, facts) =>
+            return GivenOld<Client>.Match((client, facts) =>
                 from yard in facts.OfType<Yard>()
                 where yard.client == client
                 select new YardData
@@ -53,9 +53,9 @@ namespace Jinaga.Test
         }
 
 
-        public static Specification<Supplier, ClientData> ClientsWithTheirNamesAndTheirYardsWithAddressesForSupplier()
+        public static SpecificationOld<Supplier, ClientData> ClientsWithTheirNamesAndTheirYardsWithAddressesForSupplier()
         {
-            return Given<Supplier>.Match((supplier, facts) =>
+            return GivenOld<Supplier>.Match((supplier, facts) =>
                 from client in facts.OfType<Client>()
                 where client.supplier == supplier           
                 select new ClientData
@@ -89,7 +89,7 @@ namespace Jinaga.Test
 
     public class MultiProjectionTest
     {
-        private static Specification<Yard, YardAddress> addressesOfYard = Given<Yard>.Match((yard, facts) =>
+        private static SpecificationOld<Yard, YardAddress> addressesOfYard = GivenOld<Yard>.Match((yard, facts) =>
             from yardAddress in facts.OfType<YardAddress>()
             where yardAddress.yard == yard
             where !(
@@ -100,7 +100,7 @@ namespace Jinaga.Test
             select yardAddress
         );
 
-        private static Specification<Client, ClientName> namesOfClient = Given<Client>.Match((client, facts) =>
+        private static SpecificationOld<Client, ClientName> namesOfClient = GivenOld<Client>.Match((client, facts) =>
             from clientName in facts.OfType<ClientName>()
             where clientName.client == client
             where !(
@@ -120,7 +120,7 @@ namespace Jinaga.Test
                 namesOfClient
             };
 
-            var YardsAddressesWithClientsForSupplier = Given<Supplier>.Match((supplier, facts) =>
+            var YardsAddressesWithClientsForSupplier = GivenOld<Supplier>.Match((supplier, facts) =>
                 from yard in facts.OfType<Yard>()
                 where yard.client.supplier == supplier
                 select new

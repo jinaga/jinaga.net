@@ -23,7 +23,7 @@ namespace Jinaga.Test
             var flight = await j.Fact(new Flight(new AirlineDay(new Airline("IA"), DateTime.Today), 4272));
             var cancellation = await j.Fact(new FlightCancellation(flight, DateTime.UtcNow));
 
-            var specification = Given<FlightCancellation>.Match(
+            var specification = GivenOld<FlightCancellation>.Match(
                 flightCancellation => flightCancellation.flight
             );
             var flights = await j.Query(cancellation, specification);
@@ -37,7 +37,7 @@ namespace Jinaga.Test
             var airlineDay = await j.Fact(new AirlineDay(new Airline("IA"), DateTime.Today));
             var flight = await j.Fact(new Flight(airlineDay, 4247));
 
-            var specification = Given<AirlineDay>.Match((airlineDay, facts) =>
+            var specification = GivenOld<AirlineDay>.Match((airlineDay, facts) =>
                 from flight in facts.OfType<Flight>()
                 where flight.airlineDay == airlineDay
                 select flight
@@ -56,7 +56,7 @@ namespace Jinaga.Test
             var expectedPassengers = await Task.WhenAll(Enumerable.Range(0, 10).Select(_ =>
                 BookPassenger(flight)));
 
-            var passengersForAirline = Given<Airline>.Match((airline, facts) =>
+            var passengersForAirline = GivenOld<Airline>.Match((airline, facts) =>
                 from booking in facts.OfType<Booking>()
                 where booking.flight.airlineDay.airline == airline
                 select booking.passenger
@@ -84,7 +84,7 @@ namespace Jinaga.Test
             var cancelledFlight = await j.Fact(new Flight(airlineDay, 5555));
             await j.Fact(new FlightCancellation(cancelledFlight, DateTime.Now));
 
-            var specification = Given<AirlineDay>.Match((airlineDay, facts) =>
+            var specification = GivenOld<AirlineDay>.Match((airlineDay, facts) =>
                 from flight in facts.OfType<Flight>()
                 where flight.airlineDay == airlineDay
                 where !flight.IsCancelled
@@ -106,7 +106,7 @@ namespace Jinaga.Test
             var initialName = await j.Fact(new PassengerName(passenger, "Joe", new PassengerName[] { }));
             var updatedName = await j.Fact(new PassengerName(passenger, "Joseph", new PassengerName[] { initialName }));
 
-            var currentNames = await j.Query(passenger, Given<Passenger>.Match((passenger, facts) =>
+            var currentNames = await j.Query(passenger, GivenOld<Passenger>.Match((passenger, facts) =>
                 from name in facts.OfType<PassengerName>()
                 where name.passenger == passenger
                 where !(
@@ -131,7 +131,7 @@ namespace Jinaga.Test
             var booking = await j.Fact(new Booking(flight, joe, DateTime.UtcNow));
             var cancellation = await j.Fact(new FlightCancellation(flight, DateTime.Now));
 
-            var bookingCancellations = await j.Query(ia, Given<Airline>.Match((airline, facts) =>
+            var bookingCancellations = await j.Query(ia, GivenOld<Airline>.Match((airline, facts) =>
                 from flight in facts.OfType<Flight>()
                 where flight.airlineDay.airline == airline
                 from booking in facts.OfType<Booking>()

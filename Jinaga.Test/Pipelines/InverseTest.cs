@@ -10,7 +10,7 @@ namespace Jinaga.Test.Pipelines
         [Fact]
         public void Inverse_SuccessorStep()
         {
-            var specification = Given<Company>.Match((company, facts) =>
+            var specification = GivenOld<Company>.Match((company, facts) =>
                 from office in facts.OfType<Office>()
                 where office.company == company
                 select office
@@ -27,7 +27,7 @@ namespace Jinaga.Test.Pipelines
         [Fact]
         public void Inverse_NegativeExistentialCondition()
         {
-            var specification = Given<Company>.Match((company, facts) =>
+            var specification = GivenOld<Company>.Match((company, facts) =>
                 from office in facts.OfType<Office>()
                 where office.company == company
                 where !(
@@ -55,13 +55,13 @@ namespace Jinaga.Test.Pipelines
         [Fact]
         public void Inverse_OfNestedProjection()
         {
-            var namesOfOffice = Given<Office>.Match((office, facts) =>
+            var namesOfOffice = GivenOld<Office>.Match((office, facts) =>
                 from name in facts.OfType<OfficeName>()
                 where name.office == office
                 select name
             );
 
-            var specification = Given<Company>.Match((company, facts) =>
+            var specification = GivenOld<Company>.Match((company, facts) =>
                 from office in facts.OfType<Office>()
                 where office.company == company
                 select new
@@ -89,13 +89,13 @@ namespace Jinaga.Test.Pipelines
         [Fact]
         public void Inverse_GeneratesCollectionIdentifiers()
         {
-            var namesOfOffice = Given<Office>.Match((office, facts) =>
+            var namesOfOffice = GivenOld<Office>.Match((office, facts) =>
                 from name in facts.OfType<OfficeName>()
                 where name.office == office
                 select name
             );
 
-            var specification = Given<Company>.Match((company, facts) =>
+            var specification = GivenOld<Company>.Match((company, facts) =>
                 from office in facts.OfType<Office>()
                 where office.company == company
                 select new
