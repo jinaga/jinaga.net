@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Immutable;
 using System.Linq;
 using Jinaga.Definitions;
 using Jinaga.Parsers;
@@ -40,6 +41,11 @@ namespace Jinaga.Generators
             {
                 throw new NotImplementedException();
             }
+        }
+
+        public static ImmutableList<Match> CreateMatches(SpecificationContext context, SpecificationResult result)
+        {
+            throw new NotImplementedException();
         }
     }
 }

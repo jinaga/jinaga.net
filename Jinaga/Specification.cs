@@ -15,7 +15,26 @@ namespace Jinaga
     {
         public static Specification<TFact, TProjection> Match<TProjection>(Expression<Func<TFact, FactRepository, IQueryable<TProjection>>> specExpression)
         {
-            throw new NotImplementedException();
+            var spec = specExpression.Compile();
+            ImmutableList<object> proxies = ImmutableList<object>.Empty;
+            ImmutableList<Label> given = ImmutableList<Label>.Empty;
+            SpecificationContext context = SpecificationContext.Empty;
+
+            foreach (var parameter in specExpression.Parameters.Take(specExpression.Parameters.Count - 1))
+            {
+                object proxy = SpecificationParser.InstanceOfFact(parameter.Type);
+                var label = new Label(parameter.Name, parameter.Type.FactTypeName());
+                proxies = proxies.Add(proxy);
+                given = given.Add(label);
+                context = context.With(label, proxy, parameter.Type);
+            }
+
+            object factRepository = new FactRepository();
+            var queryable = (JinagaQueryable<TProjection>)spec.DynamicInvoke(proxies.Add(factRepository).ToArray());
+
+            var result = SpecificationParser.ParseSpecification(SymbolTable.Empty, context, queryable.Expression);
+            ImmutableList<Match> matches = SpecificationGenerator.CreateMatches(context, result);
+            return new Specification<TFact, TProjection>(given, matches);
         }
     }
     public static class GivenOld<TFact>
