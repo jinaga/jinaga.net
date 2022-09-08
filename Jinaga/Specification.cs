@@ -11,18 +11,18 @@ using System.Collections.Immutable;
 
 namespace Jinaga
 {
-    public static class Given<TFact>
+    static class SpecificationProcessor
     {
-        public static Specification<TFact, TProjection> Match<TProjection>(Expression<Func<TFact, FactRepository, IQueryable<TProjection>>> specExpression)
+        public static (ImmutableList<Label> given, ImmutableList<Match> matches) ProcessExpression<TProjection>(LambdaExpression specExpression)
         {
             var spec = specExpression.Compile();
-            ImmutableList<object> proxies = ImmutableList<object>.Empty;
-            ImmutableList<Label> given = ImmutableList<Label>.Empty;
-            SpecificationContext context = SpecificationContext.Empty;
+            var proxies = ImmutableList<object>.Empty;
+            var given = ImmutableList<Label>.Empty;
+            var context = SpecificationContext.Empty;
 
             foreach (var parameter in specExpression.Parameters.Take(specExpression.Parameters.Count - 1))
             {
-                object proxy = SpecificationParser.InstanceOfFact(parameter.Type);
+                var proxy = SpecificationParser.InstanceOfFact(parameter.Type);
                 var label = new Label(parameter.Name, parameter.Type.FactTypeName());
                 proxies = proxies.Add(proxy);
                 given = given.Add(label);
@@ -33,7 +33,24 @@ namespace Jinaga
             var queryable = (JinagaQueryable<TProjection>)spec.DynamicInvoke(proxies.Add(factRepository).ToArray());
 
             var result = SpecificationParser.ParseSpecification(SymbolTable.Empty, context, queryable.Expression);
-            ImmutableList<Match> matches = SpecificationGenerator.CreateMatches(context, result);
+            var matches = SpecificationGenerator.CreateMatches(context, result);
+
+            return (given, matches);
+        }
+    }
+    public static class Given<TFact1, TFact2>
+    {
+        public static Specification<TFact1, TFact2, TProjection> Match<TProjection>(Expression<Func<TFact1, TFact2, FactRepository, IQueryable<TProjection>>> specExpression)
+        {
+            (var given, var matches) = SpecificationProcessor.ProcessExpression<TProjection>((LambdaExpression)specExpression);
+            return new Specification<TFact1, TFact2, TProjection>(given, matches);
+        }
+    }
+    public static class Given<TFact>
+    {
+        public static Specification<TFact, TProjection> Match<TProjection>(Expression<Func<TFact, FactRepository, IQueryable<TProjection>>> specExpression)
+        {
+            (var given, var matches) = SpecificationProcessor.ProcessExpression<TProjection>((LambdaExpression)specExpression);
             return new Specification<TFact, TProjection>(given, matches);
         }
     }
@@ -71,6 +88,19 @@ namespace Jinaga
     }
 
     public class Specification<TFact, TProjection> : Specification
+    {
+        public Specification(ImmutableList<Label> given, ImmutableList<Match> matches)
+            : base(given, matches)
+        {
+        }
+
+        internal string ToDescriptiveString()
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    public class Specification<TFact1, TFact2, TProjection> : Specification
     {
         public Specification(ImmutableList<Label> given, ImmutableList<Match> matches)
             : base(given, matches)

@@ -97,11 +97,11 @@ namespace Jinaga
                         var identifyingProduct = inverse.FinalSubset.Of(product);
                         if (initialProduct.Equals(this.initialAnchor))
                         {
-                            if (inverse.Operation == Operation.Add)
+                            if (inverse.Operation == Pipelines.Operation.Add)
                             {
                                 productsAdded = productsAdded.Add((identifyingProduct, inverse));
                             }
-                            else if (inverse.Operation == Operation.Remove)
+                            else if (inverse.Operation == Pipelines.Operation.Remove)
                             {
                                 productsRemoved = productsRemoved.Add(identifyingProduct);
                             }
