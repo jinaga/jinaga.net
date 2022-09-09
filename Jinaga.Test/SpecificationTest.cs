@@ -127,35 +127,33 @@ namespace Jinaga.Test
         [Fact]
         public void CanSpecifyPredecessors()
         {
-            SpecificationOld<FlightCancellation, Flight> specification = GivenOld<FlightCancellation>.Match((flightCancellation, facts) =>
+            Specification<FlightCancellation, Flight> specification = Given<FlightCancellation>.Match((flightCancellation, facts) =>
                 from flight in facts.OfType<Flight>()
                 where flightCancellation.flight == flight
                 select flight
             );
-            var pipeline = specification.Pipeline;
-            string descriptiveString = pipeline.ToDescriptiveString();
-            descriptiveString.Should().Be(@"flightCancellation: Skylane.Flight.Cancellation {
-    flight: Skylane.Flight = flightCancellation P.flight Skylane.Flight
+            string descriptiveString = specification.ToDescriptiveString();
+            descriptiveString.Should().Be(@"(flightCancellation: Skylane.Flight.Cancellation) {
+    flight: Skylane.Flight [
+        flight = flightCancellation->flight: Skylane.Flight
+    ]
 }
-");
-            string oldDescriptiveString = pipeline.ToOldDescriptiveString();
-            oldDescriptiveString.Should().Be("P.flight F.type=\"Skylane.Flight\"");
+".Replace("\r", ""));
         }
 
         [Fact]
         public void CanSpecifyPredecessorsShorthand()
         {
-            SpecificationOld<FlightCancellation, Flight> specification = GivenOld<FlightCancellation>.Match(flightCancellation =>
+            Specification<FlightCancellation, Flight> specification = Given<FlightCancellation>.Match(flightCancellation =>
                 flightCancellation.flight
             );
-            var pipeline = specification.Pipeline;
-            string descriptiveString = pipeline.ToDescriptiveString();
-            descriptiveString.Should().Be(@"flightCancellation: Skylane.Flight.Cancellation {
-    flight: Skylane.Flight = flightCancellation P.flight Skylane.Flight
+            string descriptiveString = specification.ToDescriptiveString();
+            descriptiveString.Should().Be(@"(flightCancellation: Skylane.Flight.Cancellation) {
+    flight: Skylane.Flight [
+        flight = flightCancellation->flight: Skylane.Flight
+    ]
 }
-");
-            string oldDescriptiveString = pipeline.ToOldDescriptiveString();
-            oldDescriptiveString.Should().Be("P.flight F.type=\"Skylane.Flight\"");
+".Replace("\r", ""));
         }
 
         [Fact]

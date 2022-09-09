@@ -13,7 +13,7 @@ namespace Jinaga
 {
     static class SpecificationProcessor
     {
-        public static (ImmutableList<Label> given, ImmutableList<Match> matches) ProcessExpression<TProjection>(LambdaExpression specExpression)
+        public static (ImmutableList<Label> given, ImmutableList<Match> matches) Queryable<TProjection>(LambdaExpression specExpression)
         {
             var spec = specExpression.Compile();
             var proxies = ImmutableList<object>.Empty;
@@ -24,6 +24,7 @@ namespace Jinaga
             {
                 var proxy = SpecificationParser.InstanceOfFact(parameter.Type);
                 var label = new Label(parameter.Name, parameter.Type.FactTypeName());
+
                 proxies = proxies.Add(proxy);
                 given = given.Add(label);
                 context = context.With(label, proxy, parameter.Type);
@@ -37,23 +38,64 @@ namespace Jinaga
 
             return (given, matches);
         }
-    }
-    public static class Given<TFact1, TFact2>
-    {
-        public static Specification<TFact1, TFact2, TProjection> Match<TProjection>(Expression<Func<TFact1, TFact2, FactRepository, IQueryable<TProjection>>> specExpression)
+
+        public static (ImmutableList<Label> given, ImmutableList<Match> matches) Scalar<TProjection>(LambdaExpression specExpression)
         {
-            (var given, var matches) = SpecificationProcessor.ProcessExpression<TProjection>((LambdaExpression)specExpression);
-            return new Specification<TFact1, TFact2, TProjection>(given, matches);
+            var given = ImmutableList<Label>.Empty;
+            var proxies = ImmutableList<object>.Empty;
+            var context = SpecificationContext.Empty;
+            var symbolTable = SymbolTable.Empty;
+
+            foreach (var parameter in specExpression.Parameters)
+            {
+                var proxy = SpecificationParser.InstanceOfFact(parameter.Type);
+                var label = new Label(parameter.Name, parameter.Type.FactTypeName());
+                var startingSet = new SetDefinitionInitial(label, parameter.Type);
+
+                proxies = proxies.Add(proxy);
+                given = given.Add(label);
+                context = context.With(label, proxy, parameter.Type);
+                symbolTable = symbolTable.With(parameter.Name, new SymbolValueSetDefinition(startingSet));
+            }
+
+            var symbolValue = ValueParser.ParseValue(symbolTable, context, specExpression.Body).symbolValue;
+            var result = SpecificationParser.ParseValue(symbolValue);
+            var matches = SpecificationGenerator.CreateMatches(context, result);
+
+            return (given, matches);
         }
     }
+
     public static class Given<TFact>
     {
         public static Specification<TFact, TProjection> Match<TProjection>(Expression<Func<TFact, FactRepository, IQueryable<TProjection>>> specExpression)
         {
-            (var given, var matches) = SpecificationProcessor.ProcessExpression<TProjection>((LambdaExpression)specExpression);
+            (var given, var matches) = SpecificationProcessor.Queryable<TProjection>((LambdaExpression)specExpression);
+            return new Specification<TFact, TProjection>(given, matches);
+        }
+
+        public static Specification<TFact, TProjection> Match<TProjection>(Expression<Func<TFact, TProjection>> specExpression)
+        {
+            (var given, var matches) = SpecificationProcessor.Scalar<TProjection>((LambdaExpression)specExpression);
             return new Specification<TFact, TProjection>(given, matches);
         }
     }
+
+    public static class Given<TFact1, TFact2>
+    {
+        public static Specification<TFact1, TFact2, TProjection> Match<TProjection>(Expression<Func<TFact1, TFact2, FactRepository, IQueryable<TProjection>>> specExpression)
+        {
+            (var given, var matches) = SpecificationProcessor.Queryable<TProjection>((LambdaExpression)specExpression);
+            return new Specification<TFact1, TFact2, TProjection>(given, matches);
+        }
+
+        public static Specification<TFact1, TFact2, TProjection> Match<TProjection>(Expression<Func<TFact1, TFact2, TProjection>> specExpression)
+        {
+            (var given, var matches) = SpecificationProcessor.Scalar<TProjection>((LambdaExpression)specExpression);
+            return new Specification<TFact1, TFact2, TProjection>(given, matches);
+        }
+    }
+
     public static class GivenOld<TFact>
     {
         public static SpecificationOld<TFact, TProjection> Match<TProjection>(Expression<Func<TFact, FactRepository, IQueryable<TProjection>>> specExpression)

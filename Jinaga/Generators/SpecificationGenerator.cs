@@ -71,8 +71,16 @@ namespace Jinaga.Generators
         {
             if (setDefinition is SetDefinitionPredecessorChain predecessorChainSet)
             {
-                throw new NotImplementedException();
-
+                var chain = predecessorChainSet.ToChain();
+                var targetSetDefinition = chain.TargetSetDefinition;
+                var start = targetSetDefinition.Label;
+                var target = new Label(predecessorChainSet.Role, chain.TargetFactType);
+                ImmutableList<Role> rolesLeft = ImmutableList<Role>.Empty;
+                ImmutableList<Role> rolesRight = AddPredecessorSteps(ImmutableList<Role>.Empty, chain);
+                var condition = (MatchCondition)new PathCondition(rolesLeft, start.Name, rolesRight);
+                var conditions = ImmutableList.Create(condition);
+                var match = new Match(target, conditions);
+                return match;
             }
             else if (setDefinition is SetDefinitionJoin joinSet)
             {
