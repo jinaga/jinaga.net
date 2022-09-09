@@ -45,6 +45,22 @@ namespace Jinaga.Generators
 
         public static ImmutableList<Match> CreateMatches(SpecificationContext context, SpecificationResult result)
         {
+            SetDefinitionTarget? priorTarget = null;
+            foreach (var target in result.Targets)
+            {
+                if (!result.SetDefinitions.Any(set => IsJoinTargeting(set, target)))
+                {
+                    if (result.TryGetLabelOf(target, out var label))
+                    {
+                        ThrowSpecificationErrorWithLabel(context, result, priorTarget, target, label);
+                    }
+                    else
+                    {
+                        ThrowSpecificationErrorWithoutLabel(context, result, priorTarget, target);
+                    }
+                }
+                priorTarget = target;
+            }
             var matches = result.SetDefinitions
                 .Select(setDefinition => CreateMatch(context, setDefinition, result))
                 .ToImmutableList();
@@ -101,6 +117,99 @@ namespace Jinaga.Generators
             else
             {
                 return roles;
+            }
+        }
+
+        private static void ThrowSpecificationErrorWithLabel(SpecificationContext context, SpecificationResult result, SetDefinitionTarget? priorTarget, SetDefinitionTarget target, Label label)
+        {
+            string targetDescription;
+            Type targetType;
+            string targetName;
+            if (priorTarget == null)
+            {
+                var parameter = context.GetFirstVariable();
+                targetDescription = $"parameter \"{parameter.Label.Name}\"";
+                targetType = parameter.Type;
+                targetName = parameter.Label.Name;
+            }
+            else if (result.TryGetLabelOf(priorTarget, out var priorLabel))
+            {
+                targetDescription = $"prior variable \"{priorLabel.Name}\"";
+                targetType = priorTarget.Type;
+                targetName = priorLabel.Name;
+            }
+            else
+            {
+                targetDescription = $"prior variable";
+                targetType = priorTarget.Type;
+                targetName = "x";
+            }
+            var variable = label.Name;
+            var message = $"The variable \"{variable}\" should be joined to the {targetDescription}.";
+            var recommendation = RecommendationEngine.RecommendJoin(
+                new CodeExpression(target.Type, variable),
+                new CodeExpression(targetType, targetName)
+            );
+
+            throw new SpecificationException(recommendation == null ? message : $"{message} Consider \"where {recommendation}\".");
+        }
+
+        private static void ThrowSpecificationErrorWithoutLabel(SpecificationContext context, SpecificationResult result, SetDefinitionTarget? priorTarget, SetDefinitionTarget target)
+        {
+            string targetDescription;
+            Type targetType;
+            string targetName;
+            if (priorTarget == null)
+            {
+                var parameter = context.GetFirstVariable();
+                targetDescription = $"parameter \"{parameter.Label.Name}\"";
+                targetType = parameter.Type;
+                targetName = parameter.Label.Name;
+            }
+            else if (result.TryGetLabelOf(priorTarget, out var priorLabel))
+            {
+                targetDescription = $"prior variable \"{priorLabel.Name}\"";
+                targetType = priorTarget.Type;
+                targetName = priorLabel.Name;
+            }
+            else
+            {
+                targetDescription = $"prior variable";
+                targetType = priorTarget.Type;
+                targetName = "x";
+            }
+            var typeName = target.Type.Name;
+            var variable = ToInitialLowerCase(typeName);
+            var message = $"The set should be joined to the {targetDescription}.";
+            var recommendation = RecommendationEngine.RecommendJoin(
+                new CodeExpression(target.Type, variable),
+                new CodeExpression(targetType, targetName)
+            );
+
+            throw new SpecificationException(recommendation == null ? message : $"{message} Consider \"facts.OfType<{typeName}>({variable} => {recommendation})\".");
+        }
+
+        private static bool IsJoinTargeting(SetDefinition set, SetDefinitionTarget target)
+        {
+            if (set is SetDefinitionJoin joinSet)
+            {
+                return joinSet.Tail.TargetSetDefinition == target;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        private static string ToInitialLowerCase(string name)
+        {
+            if (name.Length > 0)
+            {
+                return $"{name.Substring(0, 1).ToLower()}{name.Substring(1)}";
+            }
+            else
+            {
+                return name;
             }
         }
     }

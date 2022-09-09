@@ -29,8 +29,8 @@ namespace Jinaga.Test
         [Fact]
         public void Specification_MissingJoin()
         {
-            Func<SpecificationOld<Airline, Flight>> constructor = () =>
-                GivenOld<Airline>.Match((airline, facts) =>
+            Func<Specification<Airline, Flight>> constructor = () =>
+                Given<Airline>.Match((airline, facts) =>
                     from flight in facts.OfType<Flight>()
                     select flight
                 );
