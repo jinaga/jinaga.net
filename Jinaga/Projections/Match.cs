@@ -1,3 +1,5 @@
+using System.Linq;
+using System;
 using System.Collections.Immutable;
 using Jinaga.Pipelines;
 
@@ -13,5 +15,12 @@ namespace Jinaga.Projections
 
         public Label Unknown { get; }
         public ImmutableList<MatchCondition> Conditions { get; }
+
+        public string ToDescriptiveString(int depth)
+        {
+            var indent = new string(' ', depth * 4);
+            var conditions = String.Join("", Conditions.Select(c => c.ToDescriptiveString(Unknown.Name, depth + 1)));
+            return $"{indent}{Unknown.Name}: {Unknown.Type} [\n{conditions}{indent}]\n";
+        }
     }
 }

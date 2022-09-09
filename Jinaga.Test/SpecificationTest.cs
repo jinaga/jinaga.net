@@ -23,7 +23,7 @@ namespace Jinaga.Test
         flight->airlineDay: Skylane.Airline.Day->airline: Skylane.Airline = airline
     ]
 }
-");
+".Replace("\r", ""));
         }
 
         [Fact]

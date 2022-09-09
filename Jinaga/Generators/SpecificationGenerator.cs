@@ -65,7 +65,7 @@ namespace Jinaga.Generators
                 var sourceSetDefinition = head.TargetSetDefinition;
                 var source = sourceSetDefinition.Label;
                 var target = joinSet.Label;
-                ImmutableList<Role> rolesLeft = PrependSuccessorSteps(ImmutableList<Role>.Empty, tail);
+                ImmutableList<Role> rolesLeft = AddSuccessorSteps(ImmutableList<Role>.Empty, tail);
                 ImmutableList<Role> rolesRight = AddPredecessorSteps(ImmutableList<Role>.Empty, head);
                 var condition = (MatchCondition)new PathCondition(rolesLeft, source.Name, rolesRight);
                 var conditions = ImmutableList.Create(condition);
@@ -78,12 +78,12 @@ namespace Jinaga.Generators
             }
         }
 
-        private static ImmutableList<Role> PrependSuccessorSteps(ImmutableList<Role> roles, Chain chain)
+        private static ImmutableList<Role> AddSuccessorSteps(ImmutableList<Role> roles, Chain chain)
         {
             if (chain is ChainRole chainRole)
             {
-                return PrependSuccessorSteps(roles, chainRole.Prior)
-                    .Insert(0, new Role(chainRole.Role, chainRole.Prior.TargetFactType));
+                return AddSuccessorSteps(roles, chainRole.Prior)
+                    .Add(new Role(chainRole.Role, chainRole.TargetFactType));
             }
             else
             {
