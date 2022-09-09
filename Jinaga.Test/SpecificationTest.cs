@@ -43,8 +43,8 @@ namespace Jinaga.Test
         [Fact]
         public void Specification_MissingCollectionJoin()
         {
-            Func<SpecificationOld<Item, Order>> constructor = () =>
-                GivenOld<Item>.Match((item, facts) =>
+            Func<Specification<Item, Order>> constructor = () =>
+                Given<Item>.Match((item, facts) =>
                     from order in facts.OfType<Order>()
                     select order
                 );
@@ -58,8 +58,8 @@ namespace Jinaga.Test
         [Fact]
         public void Specification_MissingCollectionJoinWithExtension()
         {
-            Func<SpecificationOld<Item, Order>> constructor = () =>
-                GivenOld<Item>.Match((item, facts) =>
+            Func<Specification<Item, Order>> constructor = () =>
+                Given<Item>.Match((item, facts) =>
                     facts.OfType<Order>()
                 );
             constructor.Should().Throw<SpecificationException>()
@@ -72,8 +72,8 @@ namespace Jinaga.Test
         [Fact]
         public void Specification_MissingSuccessorCollectionJoin()
         {
-            Func<SpecificationOld<Order, Item>> constructor = () =>
-                GivenOld<Order>.Match((order, facts) =>
+            Func<Specification<Order, Item>> constructor = () =>
+                Given<Order>.Match((order, facts) =>
                     from item in facts.OfType<Item>()
                     select item
                 );
@@ -87,8 +87,8 @@ namespace Jinaga.Test
         [Fact]
         public void Specification_MissingSuccessorCollectionJoinWithExtension()
         {
-            Func<SpecificationOld<Order, Item>> constructor = () =>
-                GivenOld<Order>.Match((order, facts) =>
+            Func<Specification<Order, Item>> constructor = () =>
+                Given<Order>.Match((order, facts) =>
                     facts.OfType<Item>()
                 );
             constructor.Should().Throw<SpecificationException>()
@@ -101,8 +101,8 @@ namespace Jinaga.Test
         [Fact]
         public void Specification_MissingJoinWithExtensionMethod()
         {
-            Func<SpecificationOld<Airline, Flight>> constructor = () =>
-                GivenOld<Airline>.Match((airline, facts) => facts.OfType<Flight>());
+            Func<Specification<Airline, Flight>> constructor = () =>
+                Given<Airline>.Match((airline, facts) => facts.OfType<Flight>());
             constructor.Should().Throw<SpecificationException>()
                 .WithMessage(
                     "The set should be joined to the parameter \"airline\". " +
