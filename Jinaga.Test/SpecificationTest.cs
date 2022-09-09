@@ -112,17 +112,16 @@ namespace Jinaga.Test
         [Fact]
         public void CanSpecifyShortSuccessors()
         {
-            SpecificationOld<Airline, Flight> specification = GivenOld<Airline>.Match((airline, facts) =>
+            Specification<Airline, Flight> specification = Given<Airline>.Match((airline, facts) =>
                 facts.OfType<Flight>(flight => flight.airlineDay.airline == airline)
             );
-            var pipeline = specification.Pipeline;
-            string descriptiveString = pipeline.ToDescriptiveString();
-            descriptiveString.Should().Be(@"airline: Skylane.Airline {
-    flight: Skylane.Flight = airline S.airline Skylane.Airline.Day S.airlineDay Skylane.Flight
+            string descriptiveString = specification.ToDescriptiveString();
+            descriptiveString.Should().Be(@"(airline: Skylane.Airline) {
+    flight: Skylane.Flight [
+        flight->airlineDay: Skylane.Airline.Day->airline: Skylane.Airline = airline
+    ]
 }
-");
-            string oldDescriptiveString = pipeline.ToOldDescriptiveString();
-            oldDescriptiveString.Should().Be("S.airline F.type=\"Skylane.Airline.Day\" S.airlineDay F.type=\"Skylane.Flight\"");
+".Replace("\r", ""));
         }
 
         [Fact]
