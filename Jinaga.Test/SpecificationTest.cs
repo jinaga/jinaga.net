@@ -408,7 +408,7 @@ namespace Jinaga.Test
         [Fact]
         public void Specification_JoinWithTwoConditionals()
         {
-            var specification = GivenOld<Company>.Match((company, facts) =>
+            var specification = Given<Company>.Match((company, facts) =>
                 from office in facts.OfType<Office>()
                 where office.company == company
                 where !office.IsClosed
@@ -424,23 +424,26 @@ namespace Jinaga.Test
                 }
             );
 
-            var pipeline = specification.Pipeline;
-            var descriptiveString = pipeline.ToDescriptiveString();
-            descriptiveString.Should().Be(@"company: Corporate.Company {
-    office: Corporate.Office = company S.company Corporate.Office
-    N(
-        office: Corporate.Office {
-            closure: Corporate.Office.Closure = office S.office Corporate.Office.Closure
+            var descriptiveString = specification.ToDescriptiveString();
+            descriptiveString.Should().Be(@"(company: Corporate.Company) {
+    office: Corporate.Office [
+        office->company: Corporate.Company = company
+        !E {
+            closure: Corporate.Office.Closure [
+                closure->office: Corporate.Office = office
+            ]
         }
-    )
-    headcount: Corporate.Headcount = office S.office Corporate.Headcount
-    N(
-        headcount: Corporate.Headcount {
-            next: Corporate.Headcount = headcount S.prior Corporate.Headcount
+    ]
+    headcount: Corporate.Headcount [
+        headcount->office: Corporate.Office = office
+        !E {
+            next: Corporate.Headcount [
+                next->prior: Corporate.Headcount = headcount
+            ]
         }
-    )
+    ]
 }
-");
+".Replace("\r", ""));
         }
     }
 }
