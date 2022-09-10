@@ -213,7 +213,7 @@ namespace Jinaga.Test
         [Fact]
         public void CanSpecifyNamedShortNegativeExistentialConditions()
         {
-            SpecificationOld<AirlineDay, Flight> activeFlights = GivenOld<AirlineDay>.Match((airlineDay, facts) =>
+            Specification<AirlineDay, Flight> activeFlights = Given<AirlineDay>.Match((airlineDay, facts) =>
                 from flight in facts.OfType<Flight>()
                 where flight.airlineDay == airlineDay
 
@@ -221,19 +221,18 @@ namespace Jinaga.Test
 
                 select flight
             );
-            var pipeline = activeFlights.Pipeline;
-            var descriptiveString = pipeline.ToDescriptiveString();
-            descriptiveString.Should().Be(@"airlineDay: Skylane.Airline.Day {
-    flight: Skylane.Flight = airlineDay S.airlineDay Skylane.Flight
-    N(
-        flight: Skylane.Flight {
-            cancellation: Skylane.Flight.Cancellation = flight S.flight Skylane.Flight.Cancellation
+            var descriptiveString = activeFlights.ToDescriptiveString();
+            descriptiveString.Should().Be(@"(airlineDay: Skylane.Airline.Day) {
+    flight: Skylane.Flight [
+        flight->airlineDay: Skylane.Airline.Day = airlineDay
+        !E {
+            cancellation: Skylane.Flight.Cancellation [
+                cancellation->flight: Skylane.Flight = flight
+            ]
         }
-    )
+    ]
 }
-");
-            var oldDescriptiveString = pipeline.ToOldDescriptiveString();
-            oldDescriptiveString.Should().Be("S.airlineDay F.type=\"Skylane.Flight\" N(S.flight F.type=\"Skylane.Flight.Cancellation\")");
+".Replace("\r", ""));
         }
 
         [Fact]
