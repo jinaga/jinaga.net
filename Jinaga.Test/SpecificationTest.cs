@@ -387,19 +387,22 @@ namespace Jinaga.Test
         [Fact]
         public void Specification_SelectPredecessor()
         {
-            var passengersForAirline = GivenOld<Flight>.Match((flight, facts) =>
+            var passengersForAirline = Given<Flight>.Match((flight, facts) =>
                 from booking in facts.OfType<Booking>()
                 where booking.flight == flight
                 select booking.passenger
             );
 
-            var pipeline = passengersForAirline.Pipeline;
-            var descriptiveString = pipeline.ToDescriptiveString();
-            descriptiveString.Should().Be(@"flight: Skylane.Flight {
-    booking: Skylane.Booking = flight S.flight Skylane.Booking
-    passenger: Skylane.Passenger = booking P.passenger Skylane.Passenger
+            var descriptiveString = passengersForAirline.ToDescriptiveString();
+            descriptiveString.Should().Be(@"(flight: Skylane.Flight) {
+    booking: Skylane.Booking [
+        booking->flight: Skylane.Flight = flight
+    ]
+    passenger: Skylane.Passenger [
+        passenger = booking->passenger: Skylane.Passenger
+    ]
 }
-");
+".Replace("\r", ""));
         }
 
         [Fact]
