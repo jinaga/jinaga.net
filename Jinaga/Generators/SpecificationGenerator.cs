@@ -96,6 +96,19 @@ namespace Jinaga.Generators
                 var match = new Match(target, conditions);
                 return match;
             }
+            else if (setDefinition is SetDefinitionConditional conditionalSet)
+            {
+                var targetSetDefinition = conditionalSet.Source;
+                var start = targetSetDefinition.Label;
+                var innerContext = SpecificationContext.Empty
+                    .With(start, SpecificationParser.InstanceOfFact(targetSetDefinition.Type), targetSetDefinition.Type);
+                var matches = CreateMatches(innerContext, conditionalSet.Condition.SpecificationResult);
+                var condition = new ExistentialCondition(conditionalSet.Condition.Exists, matches);
+                var conditions = ImmutableList.Create((MatchCondition)condition);
+                var target = conditionalSet.Label;
+                var match = new Match(target, conditions);
+                return match;
+            }
             else
             {
                 throw new NotImplementedException();

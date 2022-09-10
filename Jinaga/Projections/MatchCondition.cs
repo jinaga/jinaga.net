@@ -44,7 +44,10 @@ namespace Jinaga.Projections
 
         public override string ToDescriptiveString(string unknown, int depth)
         {
-            throw new NotImplementedException();
+            var indent = new string(' ', depth * 4);
+            var matches = String.Join("", Matches.Select(m => m.ToDescriptiveString(depth + 1)));
+            var op = Exists ? "" : "!";
+            return $"{indent}{op}E {{\n{matches}{indent}}}\n";
         }
     }
 }
