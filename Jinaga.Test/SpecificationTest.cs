@@ -284,7 +284,7 @@ namespace Jinaga.Test
         [Fact]
         public void Specification_MissingJoinToPriorPath()
         {
-            Func<SpecificationOld<Airline, Booking>> bookingsToRefund = () => GivenOld<Airline>.Match((airline, facts) =>
+            Func<Specification<Airline, Booking>> bookingsToRefund = () => Given<Airline>.Match((airline, facts) =>
                 from flight in facts.OfType<Flight>()
                 where flight.airlineDay.airline == airline
                 from booking in facts.OfType<Booking>()
