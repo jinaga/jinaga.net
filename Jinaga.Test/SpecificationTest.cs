@@ -300,7 +300,7 @@ namespace Jinaga.Test
         [Fact]
         public void CanSpecifyNamedPositiveExistentialCondition()
         {
-            SpecificationOld<Airline, Booking> bookingsToRefund = GivenOld<Airline>.Match((airline, facts) =>
+            Specification<Airline, Booking> bookingsToRefund = Given<Airline>.Match((airline, facts) =>
                 from flight in facts.OfType<Flight>()
                 where flight.airlineDay.airline == airline
 
@@ -317,25 +317,26 @@ namespace Jinaga.Test
 
                 select booking
             );
-            var pipeline = bookingsToRefund.Pipeline;
-            var descriptiveString = pipeline.ToDescriptiveString();
-            descriptiveString.Should().Be(@"airline: Skylane.Airline {
-    flight: Skylane.Flight = airline S.airline Skylane.Airline.Day S.airlineDay Skylane.Flight
-    E(
-        flight: Skylane.Flight {
-            cancellation: Skylane.Flight.Cancellation = flight S.flight Skylane.Flight.Cancellation
+            var descriptiveString = bookingsToRefund.ToDescriptiveString();
+            descriptiveString.Should().Be(@"(airline: Skylane.Airline) {
+    flight: Skylane.Flight [
+        flight->airlineDay: Skylane.Airline.Day->airline: Skylane.Airline = airline
+        E {
+            cancellation: Skylane.Flight.Cancellation [
+                cancellation->flight: Skylane.Flight = flight
+            ]
         }
-    )
-    booking: Skylane.Booking = flight S.flight Skylane.Booking
-    N(
-        booking: Skylane.Booking {
-            refund: Skylane.Refund = booking S.booking Skylane.Refund
+    ]
+    booking: Skylane.Booking [
+        booking->flight: Skylane.Flight = flight
+        !E {
+            refund: Skylane.Refund [
+                refund->booking: Skylane.Booking = booking
+            ]
         }
-    )
+    ]
 }
-");
-            var oldDescriptiveString = pipeline.ToOldDescriptiveString();
-            oldDescriptiveString.Should().Be("S.airline F.type=\"Skylane.Airline.Day\" S.airlineDay F.type=\"Skylane.Flight\" E(S.flight F.type=\"Skylane.Flight.Cancellation\") S.flight F.type=\"Skylane.Booking\" N(S.booking F.type=\"Skylane.Refund\")");
+".Replace("\r", ""));
         }
 
         [Fact]
