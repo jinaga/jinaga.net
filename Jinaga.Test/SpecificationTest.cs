@@ -176,9 +176,9 @@ namespace Jinaga.Test
     flight: Skylane.Flight [
         flight->airlineDay: Skylane.Airline.Day = airlineDay
         !E {
-            cancellation: Skylane.Flight.Cancellation {
+            cancellation: Skylane.Flight.Cancellation [
                 cancellation->flight: Skylane.Flight = flight
-            }
+            ]
         }
     ]
 }

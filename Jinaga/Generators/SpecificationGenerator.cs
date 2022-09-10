@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using Jinaga.Definitions;
@@ -62,25 +63,32 @@ namespace Jinaga.Generators
                 priorTarget = target;
             }
             var matches = result.SetDefinitions
-                .Select(setDefinition => CreateMatch(context, setDefinition, result))
+                .GroupBy(set => set.Label)
+                .Select(group => CreateMatch(context, group.Key, group))
                 .ToImmutableList();
             return matches;
         }
 
-        private static Match CreateMatch(SpecificationContext context, SetDefinition setDefinition, SpecificationResult result)
+        private static Match CreateMatch(SpecificationContext context, Label target, IEnumerable<SetDefinition> setDefinitions)
+        {
+            var conditions = setDefinitions
+                .Select(setDefinition => CreateCondition(context, setDefinition))
+                .ToImmutableList();
+            return new Match(target, conditions);
+        }
+
+        private static MatchCondition CreateCondition(SpecificationContext context, SetDefinition setDefinition)
         {
             if (setDefinition is SetDefinitionPredecessorChain predecessorChainSet)
             {
                 var chain = predecessorChainSet.ToChain();
                 var targetSetDefinition = chain.TargetSetDefinition;
                 var start = targetSetDefinition.Label;
-                var target = new Label(predecessorChainSet.Role, chain.TargetFactType);
+                var target = predecessorChainSet.Label;
                 ImmutableList<Role> rolesLeft = ImmutableList<Role>.Empty;
                 ImmutableList<Role> rolesRight = AddPredecessorSteps(ImmutableList<Role>.Empty, chain);
-                var condition = (MatchCondition)new PathCondition(rolesLeft, start.Name, rolesRight);
-                var conditions = ImmutableList.Create(condition);
-                var match = new Match(target, conditions);
-                return match;
+                var condition = new PathCondition(rolesLeft, start.Name, rolesRight);
+                return condition;
             }
             else if (setDefinition is SetDefinitionJoin joinSet)
             {
@@ -91,10 +99,8 @@ namespace Jinaga.Generators
                 var target = joinSet.Label;
                 ImmutableList<Role> rolesLeft = AddSuccessorSteps(ImmutableList<Role>.Empty, tail);
                 ImmutableList<Role> rolesRight = AddPredecessorSteps(ImmutableList<Role>.Empty, head);
-                var condition = (MatchCondition)new PathCondition(rolesLeft, source.Name, rolesRight);
-                var conditions = ImmutableList.Create(condition);
-                var match = new Match(target, conditions);
-                return match;
+                var condition = new PathCondition(rolesLeft, source.Name, rolesRight);
+                return condition;
             }
             else if (setDefinition is SetDefinitionConditional conditionalSet)
             {
@@ -104,10 +110,7 @@ namespace Jinaga.Generators
                     .With(start, SpecificationParser.InstanceOfFact(targetSetDefinition.Type), targetSetDefinition.Type);
                 var matches = CreateMatches(innerContext, conditionalSet.Condition.SpecificationResult);
                 var condition = new ExistentialCondition(conditionalSet.Condition.Exists, matches);
-                var conditions = ImmutableList.Create((MatchCondition)condition);
-                var target = conditionalSet.Label;
-                var match = new Match(target, conditions);
-                return match;
+                return condition;
             }
             else
             {
