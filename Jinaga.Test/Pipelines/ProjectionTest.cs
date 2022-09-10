@@ -11,7 +11,7 @@ namespace Jinaga.Test.Pipelines
         [Fact]
         public void PipelineProjection_Product()
         {
-            var specification = GivenOld<Airline>.Match((airline, facts) =>
+            var specification = Given<Airline>.Match((airline, facts) =>
                 from passenger in facts.OfType<Passenger>()
                 where passenger.airline == airline
                 from passengerName in facts.OfType<PassengerName>()
@@ -23,10 +23,15 @@ namespace Jinaga.Test.Pipelines
                 }
             );
 
-            specification.Projection.ToDescriptiveString().Should().Be(@"{
-    passenger = passenger
-    passengerName = passengerName
-}");
+            specification.ToDescriptiveString().Should().Be(@"(airline: Skylane.Airline) {
+    passenger: Skylane.Passenger [
+        passenger->airline: Skylane.Airline = airline
+    ]
+    passengerName: Skylane.Passenger.Name [
+        passengerName->passenger: Skylane.Passenger = passenger
+    ]
+}
+".Replace("\r", ""));
         }
 
         [Fact]
