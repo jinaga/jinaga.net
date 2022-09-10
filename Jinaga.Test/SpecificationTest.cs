@@ -342,7 +342,7 @@ namespace Jinaga.Test
         [Fact]
         public void CanSpecifyProjection()
         {
-            var bookingsToRefund = GivenOld<Airline>.Match((airline, facts) =>
+            var bookingsToRefund = Given<Airline>.Match((airline, facts) =>
                 from flight in facts.OfType<Flight>()
                 where flight.airlineDay.airline == airline
 
@@ -364,19 +364,24 @@ namespace Jinaga.Test
                     Cancellation = cancellation
                 }
             );
-            var pipeline = bookingsToRefund.Pipeline;
-            var descriptiveString = pipeline.ToDescriptiveString();
-            descriptiveString.Should().Be(@"airline: Skylane.Airline {
-    flight: Skylane.Flight = airline S.airline Skylane.Airline.Day S.airlineDay Skylane.Flight
-    cancellation: Skylane.Flight.Cancellation = flight S.flight Skylane.Flight.Cancellation
-    booking: Skylane.Booking = flight S.flight Skylane.Booking
-    N(
-        booking: Skylane.Booking {
-            refund: Skylane.Refund = booking S.booking Skylane.Refund
+            var descriptiveString = bookingsToRefund.ToDescriptiveString();
+            descriptiveString.Should().Be(@"(airline: Skylane.Airline) {
+    flight: Skylane.Flight [
+        flight->airlineDay: Skylane.Airline.Day->airline: Skylane.Airline = airline
+    ]
+    cancellation: Skylane.Flight.Cancellation [
+        cancellation->flight: Skylane.Flight = flight
+    ]
+    booking: Skylane.Booking [
+        booking->flight: Skylane.Flight = flight
+        !E {
+            refund: Skylane.Refund [
+                refund->booking: Skylane.Booking = booking
+            ]
         }
-    )
+    ]
 }
-");
+".Replace("\r", ""));
         }
 
         [Fact]
