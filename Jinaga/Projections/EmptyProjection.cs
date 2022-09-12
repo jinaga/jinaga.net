@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Jinaga.Pipelines;
 
 namespace Jinaga.Projections
@@ -5,6 +6,11 @@ namespace Jinaga.Projections
     public class EmptyProjection : ProjectionOld
     {
         public override ProjectionOld Apply(Label parameter, Label argument)
+        {
+            return this;
+        }
+
+        public override ProjectionOld Apply(ImmutableDictionary<string, string> replacements)
         {
             return this;
         }

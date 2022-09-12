@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Jinaga.Pipelines;
 
 namespace Jinaga.Projections
@@ -21,6 +22,18 @@ namespace Jinaga.Projections
             if (Tag == parameter.Name)
             {
                 return new SimpleProjection(argument.Name);
+            }
+            else
+            {
+                return this;
+            }
+        }
+
+        public override ProjectionOld Apply(ImmutableDictionary<string, string> replacements)
+        {
+            if (replacements.TryGetValue(Tag, out var replacement))
+            {
+                return new SimpleProjection(replacement);
             }
             else
             {

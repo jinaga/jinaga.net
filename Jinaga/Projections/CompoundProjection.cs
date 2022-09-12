@@ -37,6 +37,16 @@ namespace Jinaga.Projections
             );
         }
 
+        public override ProjectionOld Apply(ImmutableDictionary<string, string> replacements)
+        {
+            return new CompoundProjection(projections
+                .ToImmutableDictionary(
+                    pair => pair.Key,
+                    pair => pair.Value.Apply(replacements)
+                )
+            );
+        }
+
         public override ImmutableList<(string name, SpecificationOld specification)> GetNamedSpecifications()
         {
             var namedSpecifications =

@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System;
 using Jinaga.Pipelines;
 using Jinaga.Visualizers;
@@ -19,6 +20,11 @@ namespace Jinaga.Projections
                 Specification.Pipeline.Apply(parameter, argument),
                 Specification.Projection.Apply(parameter, argument)
             ));
+        }
+
+        public override ProjectionOld Apply(ImmutableDictionary<string, string> replacements)
+        {
+            throw new NotImplementedException();
         }
 
         public override string ToDescriptiveString(int depth = 0)

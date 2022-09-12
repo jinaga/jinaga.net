@@ -13,7 +13,7 @@ namespace Jinaga
 {
     static class SpecificationProcessor
     {
-        public static (ImmutableList<Label> given, ImmutableList<Match> matches) Queryable<TProjection>(LambdaExpression specExpression)
+        public static (ImmutableList<Label> given, ImmutableList<Match> matches, ProjectionOld projection) Queryable<TProjection>(LambdaExpression specExpression)
         {
             var spec = specExpression.Compile();
             var proxies = ImmutableList<object>.Empty;
@@ -35,11 +35,12 @@ namespace Jinaga
 
             var result = SpecificationParser.ParseSpecification(SymbolTable.Empty, context, queryable.Expression);
             var matches = SpecificationGenerator.CreateMatches(context, result);
+            var projection = SpecificationGenerator.CreateProjection(result.SymbolValue);
 
-            return (given, matches);
+            return (given, matches, projection);
         }
 
-        public static (ImmutableList<Label> given, ImmutableList<Match> matches) Scalar<TProjection>(LambdaExpression specExpression)
+        public static (ImmutableList<Label> given, ImmutableList<Match> matches, ProjectionOld projection) Scalar<TProjection>(LambdaExpression specExpression)
         {
             var given = ImmutableList<Label>.Empty;
             var proxies = ImmutableList<object>.Empty;
@@ -61,8 +62,9 @@ namespace Jinaga
             var symbolValue = ValueParser.ParseValue(symbolTable, context, specExpression.Body).symbolValue;
             var result = SpecificationParser.ParseValue(symbolValue);
             var matches = SpecificationGenerator.CreateMatches(context, result);
+            var projection = SpecificationGenerator.CreateProjection(result.SymbolValue);
 
-            return (given, matches);
+            return (given, matches, projection);
         }
     }
 
@@ -70,14 +72,14 @@ namespace Jinaga
     {
         public static Specification<TFact, TProjection> Match<TProjection>(Expression<Func<TFact, FactRepository, IQueryable<TProjection>>> specExpression)
         {
-            (var given, var matches) = SpecificationProcessor.Queryable<TProjection>((LambdaExpression)specExpression);
-            return new Specification<TFact, TProjection>(given, matches);
+            (var given, var matches, var projection) = SpecificationProcessor.Queryable<TProjection>((LambdaExpression)specExpression);
+            return new Specification<TFact, TProjection>(given, matches, projection);
         }
 
         public static Specification<TFact, TProjection> Match<TProjection>(Expression<Func<TFact, TProjection>> specExpression)
         {
-            (var given, var matches) = SpecificationProcessor.Scalar<TProjection>((LambdaExpression)specExpression);
-            return new Specification<TFact, TProjection>(given, matches);
+            (var given, var matches, var projection) = SpecificationProcessor.Scalar<TProjection>((LambdaExpression)specExpression);
+            return new Specification<TFact, TProjection>(given, matches, projection);
         }
     }
 
@@ -85,14 +87,14 @@ namespace Jinaga
     {
         public static Specification<TFact1, TFact2, TProjection> Match<TProjection>(Expression<Func<TFact1, TFact2, FactRepository, IQueryable<TProjection>>> specExpression)
         {
-            (var given, var matches) = SpecificationProcessor.Queryable<TProjection>((LambdaExpression)specExpression);
-            return new Specification<TFact1, TFact2, TProjection>(given, matches);
+            (var given, var matches, var projection) = SpecificationProcessor.Queryable<TProjection>((LambdaExpression)specExpression);
+            return new Specification<TFact1, TFact2, TProjection>(given, matches, projection);
         }
 
         public static Specification<TFact1, TFact2, TProjection> Match<TProjection>(Expression<Func<TFact1, TFact2, TProjection>> specExpression)
         {
-            (var given, var matches) = SpecificationProcessor.Scalar<TProjection>((LambdaExpression)specExpression);
-            return new Specification<TFact1, TFact2, TProjection>(given, matches);
+            (var given, var matches, var projection) = SpecificationProcessor.Scalar<TProjection>((LambdaExpression)specExpression);
+            return new Specification<TFact1, TFact2, TProjection>(given, matches, projection);
         }
     }
 
@@ -131,8 +133,8 @@ namespace Jinaga
 
     public class Specification<TFact, TProjection> : Specification
     {
-        public Specification(ImmutableList<Label> given, ImmutableList<Match> matches)
-            : base(given, matches)
+        public Specification(ImmutableList<Label> given, ImmutableList<Match> matches, ProjectionOld projection)
+            : base(given, matches, projection)
         {
         }
 
@@ -147,8 +149,8 @@ namespace Jinaga
 
     public class Specification<TFact1, TFact2, TProjection> : Specification
     {
-        public Specification(ImmutableList<Label> given, ImmutableList<Match> matches)
-            : base(given, matches)
+        public Specification(ImmutableList<Label> given, ImmutableList<Match> matches, ProjectionOld projection)
+            : base(given, matches, projection)
         {
         }
 

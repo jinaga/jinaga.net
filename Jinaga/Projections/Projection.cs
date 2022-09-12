@@ -13,5 +13,7 @@ namespace Jinaga.Projections
         {
             return ImmutableList<(string, SpecificationOld)>.Empty;
         }
+
+        public abstract ProjectionOld Apply(ImmutableDictionary<string, string> replacements);
     }
 }

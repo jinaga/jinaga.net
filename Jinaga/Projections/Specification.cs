@@ -9,22 +9,25 @@ namespace Jinaga.Projections
     {
         public Specification(
             ImmutableList<Label> given,
-            ImmutableList<Match> matches
-        )
+            ImmutableList<Match> matches,
+            ProjectionOld projection)
         {
             Given = given;
             Matches = matches;
+            Projection = projection;
         }
 
         public ImmutableList<Label> Given { get; }
         public ImmutableList<Match> Matches { get; }
+        public ProjectionOld Projection { get; }
 
         public Specification Apply(ImmutableList<Label> arguments)
         {
             var replacements = Given.Zip(arguments, (parameter, argument) => (parameter, argument))
                 .ToImmutableDictionary(pair => pair.parameter.Name, pair => pair.argument.Name);
             var newMatches = Matches.Select(match => match.Apply(replacements)).ToImmutableList();
-            return new Specification(ImmutableList<Label>.Empty, newMatches);
+            var newProjection = Projection.Apply(replacements);
+            return new Specification(ImmutableList<Label>.Empty, newMatches, newProjection);
         }
     }
     public class SpecificationOld
