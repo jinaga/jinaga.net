@@ -47,12 +47,12 @@ namespace Jinaga.Definitions
         }
     }
 
-    public class SymbolValueCollection : SymbolValue
+    public class SymbolValueCollectionOld : SymbolValue
     {
         public SetDefinition StartSetDefinition { get; }
         public SpecificationOld Specification { get; }
 
-        public SymbolValueCollection(SetDefinition startSetDefinition, SpecificationOld specification)
+        public SymbolValueCollectionOld(SetDefinition startSetDefinition, SpecificationOld specification)
         {
             StartSetDefinition = startSetDefinition;
             Specification = specification;

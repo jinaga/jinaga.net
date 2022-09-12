@@ -37,7 +37,7 @@ namespace Jinaga.Test.Pipelines
         [Fact]
         public void PipelineProjection_Observe()
         {
-            SpecificationOld<Passenger, PassengerName> namesOfPassenger = GivenOld<Passenger>.Match((passenger, facts) =>
+            Specification<Passenger, PassengerName> namesOfPassenger = Given<Passenger>.Match((passenger, facts) =>
                 from passengerName in facts.OfType<PassengerName>()
                 where passengerName.passenger == passenger
                 where !(
@@ -48,7 +48,7 @@ namespace Jinaga.Test.Pipelines
                 select passengerName
             );
 
-            var specification = GivenOld<Airline>.Match((airline, facts) =>
+            var specification = Given<Airline>.Match((airline, facts) =>
                 from passenger in facts.OfType<Passenger>()
                 where passenger.airline == airline
                 select new
@@ -58,24 +58,23 @@ namespace Jinaga.Test.Pipelines
                 }
             );
 
-            specification.Pipeline.ToDescriptiveString().Should().Be(@"airline: Skylane.Airline {
-    passenger: Skylane.Passenger = airline S.airline Skylane.Passenger
-}
-");
-            specification.Projection.ToDescriptiveString().Should().Be(@"{
-    names = [
-        {
-            passengerName: Skylane.Passenger.Name = passenger S.passenger Skylane.Passenger.Name
-            N(
-                passengerName: Skylane.Passenger.Name {
-                    next: Skylane.Passenger.Name = passengerName S.prior Skylane.Passenger.Name
-                }
-            )
-        }
-        passengerName
+            specification.ToDescriptiveString().Should().Be(@"(airline: Skylane.Airline) {
+    passenger: Skylane.Passenger [
+        passenger->airline: Skylane.Airline = airline
     ]
-    passenger = passenger
-}");
+} => {
+    names = {
+        name: Skylane.Passenger.Name [
+            name->passenger: Skylane.Passenger = passenger
+            !E {
+                next: Skylane.Passenger.Name [
+                    next->prior: Skylane.Passenger.Name = name
+                ]
+            }
+        ]
+    }
+}
+".Replace("\r", ""));
         }
     }
 }

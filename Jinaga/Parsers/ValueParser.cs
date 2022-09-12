@@ -1,4 +1,5 @@
 using Jinaga.Definitions;
+using Jinaga.Pipelines;
 using Jinaga.Projections;
 using Jinaga.Repository;
 using Jinaga.Visualizers;
@@ -68,21 +69,43 @@ namespace Jinaga.Parsers
                 var setDefinition = new SetDefinitionInitial(variable.Label, variable.Type);
                 return (new SymbolValueSetDefinition(setDefinition), variable.Label.Name);
             }
+            else if (expression is MethodCallExpression allCallExpressionOld &&
+                allCallExpressionOld.Method.DeclaringType == typeof(FactRepository) &&
+                allCallExpressionOld.Method.Name == nameof(FactRepository.All) &&
+                allCallExpressionOld.Arguments.Count == 2 &&
+                typeof(SpecificationOld).IsAssignableFrom(allCallExpressionOld.Arguments[1].Type))
+            {
+                var start = ParseValue(symbolTable, context, allCallExpressionOld.Arguments[0]).symbolValue;
+                if (start is SymbolValueSetDefinition startValue)
+                {
+                    var startSetDefinition = startValue.SetDefinition;
+                    var specification = ParseSpecificationOld(allCallExpressionOld.Arguments[1]);
+                    var parameterLabel = specification.Pipeline.Starts.First();
+                    var argument = startSetDefinition.Label;
+                    var pipeline = specification.Pipeline.Apply(parameterLabel, argument);
+                    var projection = specification.Projection.Apply(parameterLabel, argument);
+                    var specificationObj = new SpecificationOld(pipeline, projection);
+                    return (new SymbolValueCollectionOld(startSetDefinition, specificationObj), "");
+                }
+                else
+                {
+                    throw new NotImplementedException($"ParseValue: {ExpressionVisualizer.DumpExpression(expression)}");
+                }
+            }
             else if (expression is MethodCallExpression allCallExpression &&
                 allCallExpression.Method.DeclaringType == typeof(FactRepository) &&
-                allCallExpression.Method.Name == nameof(FactRepository.All))
+                allCallExpression.Method.Name == nameof(FactRepository.All) &&
+                allCallExpression.Arguments.Count == 2 &&
+                typeof(Specification).IsAssignableFrom(allCallExpression.Arguments[1].Type))
             {
                 var start = ParseValue(symbolTable, context, allCallExpression.Arguments[0]).symbolValue;
                 if (start is SymbolValueSetDefinition startValue)
                 {
                     var startSetDefinition = startValue.SetDefinition;
                     var specification = ParseSpecification(allCallExpression.Arguments[1]);
-                    var parameterLabel = specification.Pipeline.Starts.First();
-                    var argument = startSetDefinition.Label;
-                    var pipeline = specification.Pipeline.Apply(parameterLabel, argument);
-                    var projection = specification.Projection.Apply(parameterLabel, argument);
-                    var specificationObj = new SpecificationOld(pipeline, projection);
-                    return (new SymbolValueCollection(startSetDefinition, specificationObj), "");
+                    var arguments = ImmutableList<Pipelines.Label>.Empty.Add(startSetDefinition.Label);
+                    specification = specification.Apply(arguments);
+                    return (new SymbolValueCollection(startSetDefinition, specification), "");
                 }
                 else
                 {
@@ -109,7 +132,13 @@ namespace Jinaga.Parsers
             }
         }
 
-        private static SpecificationOld ParseSpecification(Expression expression)
+        private static Specification ParseSpecification(Expression expression)
+        {
+            var lambdaExpression = Expression.Lambda<Func<object>>(expression);
+            return (Specification)lambdaExpression.Compile().Invoke();
+        }
+
+        private static SpecificationOld ParseSpecificationOld(Expression expression)
         {
             var lambdaExpression = Expression.Lambda<Func<object>>(expression);
             return (SpecificationOld)lambdaExpression.Compile().Invoke();

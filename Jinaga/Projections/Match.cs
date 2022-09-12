@@ -22,5 +22,10 @@ namespace Jinaga.Projections
             var conditions = String.Join("", Conditions.Select(c => c.ToDescriptiveString(Unknown.Name, depth + 1)));
             return $"{indent}{Unknown.Name}: {Unknown.Type} [\n{conditions}{indent}]\n";
         }
+
+        public Match Apply(ImmutableDictionary<string, string> replacements)
+        {
+            return new Match(Unknown, Conditions.Select(c => c.Apply(replacements)).ToImmutableList());
+        }
     }
 }

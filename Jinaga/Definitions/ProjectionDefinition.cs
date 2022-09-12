@@ -58,7 +58,7 @@ namespace Jinaga.Definitions
                     .OrderBy(field => field.Key)
                     .SelectMany(field => AllSetDefinitions(field.Value));
             }
-            else if (value is SymbolValueCollection collectionValue)
+            else if (value is SymbolValueCollectionOld collectionValue)
             {
                 return new [] { collectionValue.StartSetDefinition };
             }

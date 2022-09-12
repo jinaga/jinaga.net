@@ -7,6 +7,7 @@ namespace Jinaga.Projections
     public abstract class MatchCondition
     {
         public abstract string ToDescriptiveString(string unknown, int v);
+        public abstract MatchCondition Apply(ImmutableDictionary<string, string> replacements);
     }
 
     public class PathCondition : MatchCondition
@@ -29,6 +30,18 @@ namespace Jinaga.Projections
             var rolesRight = String.Join("", RolesRight.Select(r => $"->{r.Name}: {r.TargetType}"));
             return $"{indent}{unknown}{rolesLeft} = {LabelRight}{rolesRight}\n";
         }
+
+        public override MatchCondition Apply(ImmutableDictionary<string, string> replacements)
+        {
+            if (replacements.TryGetValue(LabelRight, out var replacement))
+            {
+                return new PathCondition(RolesLeft, replacement, RolesRight);
+            }
+            else
+            {
+                return this;
+            }
+        }
     }
 
     public class ExistentialCondition : MatchCondition
@@ -48,6 +61,11 @@ namespace Jinaga.Projections
             var matches = String.Join("", Matches.Select(m => m.ToDescriptiveString(depth + 1)));
             var op = Exists ? "" : "!";
             return $"{indent}{op}E {{\n{matches}{indent}}}\n";
+        }
+
+        public override MatchCondition Apply(ImmutableDictionary<string, string> replacements)
+        {
+            return new ExistentialCondition(Exists, Matches.Select(m => m.Apply(replacements)).ToImmutableList());
         }
     }
 }
