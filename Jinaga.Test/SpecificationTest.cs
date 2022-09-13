@@ -22,7 +22,7 @@ namespace Jinaga.Test
     flight: Skylane.Flight [
         flight->airlineDay: Skylane.Airline.Day->airline: Skylane.Airline = airline
     ]
-}
+} => flight
 ".Replace("\r", ""));
         }
 
@@ -120,7 +120,7 @@ namespace Jinaga.Test
     flight: Skylane.Flight [
         flight->airlineDay: Skylane.Airline.Day->airline: Skylane.Airline = airline
     ]
-}
+} => flight
 ".Replace("\r", ""));
         }
 
@@ -137,7 +137,7 @@ namespace Jinaga.Test
     flight: Skylane.Flight [
         flight = flightCancellation->flight: Skylane.Flight
     ]
-}
+} => flight
 ".Replace("\r", ""));
         }
 
@@ -152,7 +152,7 @@ namespace Jinaga.Test
     flight: Skylane.Flight [
         flight = flightCancellation->flight: Skylane.Flight
     ]
-}
+} => flight
 ".Replace("\r", ""));
         }
 
@@ -181,7 +181,7 @@ namespace Jinaga.Test
             ]
         }
     ]
-}
+} => flight
 ".Replace("\r", ""));
         }
 
@@ -206,7 +206,7 @@ namespace Jinaga.Test
             ]
         }
     ]
-}
+} => flight
 ".Replace("\r", ""));
         }
 
@@ -231,7 +231,7 @@ namespace Jinaga.Test
             ]
         }
     ]
-}
+} => flight
 ".Replace("\r", ""));
         }
 
@@ -277,7 +277,7 @@ namespace Jinaga.Test
             ]
         }
     ]
-}
+} => booking
 ".Replace("\r", ""));
         }
 
@@ -335,7 +335,7 @@ namespace Jinaga.Test
             ]
         }
     ]
-}
+} => booking
 ".Replace("\r", ""));
         }
 
@@ -380,6 +380,9 @@ namespace Jinaga.Test
             ]
         }
     ]
+} => {
+    Booking = booking
+    Cancellation = cancellation
 }
 ".Replace("\r", ""));
         }
@@ -401,7 +404,7 @@ namespace Jinaga.Test
     passenger: Skylane.Passenger [
         passenger = booking->passenger: Skylane.Passenger
     ]
-}
+} => passenger
 ".Replace("\r", ""));
         }
 
@@ -442,6 +445,9 @@ namespace Jinaga.Test
             ]
         }
     ]
+} => {
+    headcount = headcount
+    office = office
 }
 ".Replace("\r", ""));
         }

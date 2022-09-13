@@ -30,6 +30,9 @@ namespace Jinaga.Test.Pipelines
     passengerName: Skylane.Passenger.Name [
         passengerName->passenger: Skylane.Passenger = passenger
     ]
+} => {
+    passenger = passenger
+    passengerName = passengerName
 }
 ".Replace("\r", ""));
         }
