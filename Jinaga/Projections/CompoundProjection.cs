@@ -6,28 +6,28 @@ using Jinaga.Visualizers;
 
 namespace Jinaga.Projections
 {
-    public class CompoundProjection : ProjectionOld
+    public class CompoundProjection : Projection
     {
-        private ImmutableDictionary<string, ProjectionOld> projections =
-            ImmutableDictionary<string, ProjectionOld>.Empty;
+        private ImmutableDictionary<string, Projection> projections =
+            ImmutableDictionary<string, Projection>.Empty;
 
         public CompoundProjection()
         {
         }
 
-        public CompoundProjection(ImmutableDictionary<string, ProjectionOld> projections)
+        public CompoundProjection(ImmutableDictionary<string, Projection> projections)
         {
             this.projections = projections;
         }
 
         public IEnumerable<string> Names => projections.Keys;
 
-        public CompoundProjection With(string name, ProjectionOld projection)
+        public CompoundProjection With(string name, Projection projection)
         {
             return new CompoundProjection(projections.Add(name, projection));
         }
 
-        public override ProjectionOld Apply(Label parameter, Label argument)
+        public override Projection Apply(Label parameter, Label argument)
         {
             return new CompoundProjection(projections
                 .ToImmutableDictionary(
@@ -37,7 +37,7 @@ namespace Jinaga.Projections
             );
         }
 
-        public override ProjectionOld Apply(ImmutableDictionary<string, string> replacements)
+        public override Projection Apply(ImmutableDictionary<string, string> replacements)
         {
             return new CompoundProjection(projections
                 .ToImmutableDictionary(
@@ -62,7 +62,7 @@ namespace Jinaga.Projections
             return namedSpecifications.Concat(nested).ToImmutableList();
         }
 
-        public ProjectionOld GetProjection(string name)
+        public Projection GetProjection(string name)
         {
             return projections[name];
         }

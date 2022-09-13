@@ -6,25 +6,25 @@ using System.Linq;
 
 namespace Jinaga.Projections
 {
-    public class CollectionProjection : ProjectionOld
+    public class CollectionProjection : Projection
     {
-        public CollectionProjection(ImmutableList<Match> matches, ProjectionOld projection)
+        public CollectionProjection(ImmutableList<Match> matches, Projection projection)
         {
             Matches = matches;
             Projection = projection;
         }
 
         public ImmutableList<Match> Matches { get; }
-        public ProjectionOld Projection { get; }
+        public Projection Projection { get; }
 
-        public override ProjectionOld Apply(ImmutableDictionary<string, string> replacements)
+        public override Projection Apply(ImmutableDictionary<string, string> replacements)
         {
             return new CollectionProjection(
                 Matches.Select(match => match.Apply(replacements)).ToImmutableList(),
                 Projection.Apply(replacements));
         }
 
-        public override ProjectionOld Apply(Label parameter, Label argument)
+        public override Projection Apply(Label parameter, Label argument)
         {
             throw new NotImplementedException();
         }
@@ -38,7 +38,7 @@ namespace Jinaga.Projections
             return $"{{\n{matchString}{indent}}}";
         }
     }
-    public class CollectionProjectionOld : ProjectionOld
+    public class CollectionProjectionOld : Projection
     {
         public SpecificationOld Specification { get; }
 
@@ -47,7 +47,7 @@ namespace Jinaga.Projections
             Specification = specification;
         }
 
-        public override ProjectionOld Apply(Label parameter, Label argument)
+        public override Projection Apply(Label parameter, Label argument)
         {
             return new CollectionProjectionOld(new SpecificationOld(
                 Specification.Pipeline.Apply(parameter, argument),
@@ -55,7 +55,7 @@ namespace Jinaga.Projections
             ));
         }
 
-        public override ProjectionOld Apply(ImmutableDictionary<string, string> replacements)
+        public override Projection Apply(ImmutableDictionary<string, string> replacements)
         {
             throw new NotImplementedException();
         }

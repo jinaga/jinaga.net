@@ -18,7 +18,7 @@ namespace Jinaga.Generators
             return new SpecificationOld(pipeline, projection);
         }
 
-        public static ProjectionOld CreateProjection(SymbolValue value)
+        public static Projection CreateProjection(SymbolValue value)
         {
             if (value is SymbolValueSetDefinition setDefinitionValue)
             {

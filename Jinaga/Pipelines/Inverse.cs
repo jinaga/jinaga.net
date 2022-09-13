@@ -9,7 +9,7 @@ namespace Jinaga.Pipelines
         public Subset InitialSubset { get; }
         public Operation Operation { get; }
         public Subset FinalSubset { get; }
-        public ProjectionOld Projection { get; }
+        public Projection Projection { get; }
         public ImmutableList<CollectionIdentifier> CollectionIdentifiers { get; }
 
         public Inverse(
@@ -17,7 +17,7 @@ namespace Jinaga.Pipelines
             Subset initialSubset,
             Operation operation,
             Subset finalSubset,
-            ProjectionOld projection,
+            Projection projection,
             ImmutableList<CollectionIdentifier> collectionIdentifiers)
         {
             this.InversePipeline = inversePipeline;

@@ -10,7 +10,7 @@ namespace Jinaga.Projections
         public Specification(
             ImmutableList<Label> given,
             ImmutableList<Match> matches,
-            ProjectionOld projection)
+            Projection projection)
         {
             Given = given;
             Matches = matches;
@@ -19,7 +19,7 @@ namespace Jinaga.Projections
 
         public ImmutableList<Label> Given { get; }
         public ImmutableList<Match> Matches { get; }
-        public ProjectionOld Projection { get; }
+        public Projection Projection { get; }
 
         public Specification Apply(ImmutableList<Label> arguments)
         {
@@ -32,14 +32,14 @@ namespace Jinaga.Projections
     }
     public class SpecificationOld
     {
-        public SpecificationOld(PipelineOld pipeline, ProjectionOld projection)
+        public SpecificationOld(PipelineOld pipeline, Projection projection)
         {
             Pipeline = pipeline;
             Projection = projection;
         }
 
         public PipelineOld Pipeline { get; }
-        public ProjectionOld Projection { get; }
+        public Projection Projection { get; }
 
         public ImmutableList<Inverse> ComputeInverses()
         {

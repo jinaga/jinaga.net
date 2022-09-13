@@ -58,7 +58,7 @@ namespace Jinaga.UnitTest
             return Task.FromResult(products);
         }
 
-        private ImmutableList<Product> ExecuteNestedPipeline(ImmutableList<FactReference> startReferences, PipelineOld pipeline, ProjectionOld projection)
+        private ImmutableList<Product> ExecuteNestedPipeline(ImmutableList<FactReference> startReferences, PipelineOld pipeline, Projection projection)
         {
             var subset = Subset.FromPipeline(pipeline);
             var namedSpecifications = projection.GetNamedSpecifications();

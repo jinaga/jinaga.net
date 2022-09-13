@@ -10,7 +10,7 @@ namespace Jinaga.Managers
 {
     class Projector
     {
-        public static IEnumerable<FactReference> GetFactReferences(ProjectionOld projection, Product product, string name)
+        public static IEnumerable<FactReference> GetFactReferences(Projection projection, Product product, string name)
         {
             if (projection is SimpleProjection simple)
             {
@@ -42,7 +42,7 @@ namespace Jinaga.Managers
             }
         }
 
-        public static ImmutableList<FactReference> GetFactReferences(ProjectionOld projection, ImmutableList<Product> products)
+        public static ImmutableList<FactReference> GetFactReferences(Projection projection, ImmutableList<Product> products)
         {
             if (projection is SimpleProjection simple)
             {
@@ -69,7 +69,7 @@ namespace Jinaga.Managers
             }
         }
 
-        public static ImmutableList<FactReference> GetFactReferences(ProjectionOld projection, ImmutableList<Product> products, Type type)
+        public static ImmutableList<FactReference> GetFactReferences(Projection projection, ImmutableList<Product> products, Type type)
         {
             if (projection is SimpleProjection simple)
             {

@@ -29,7 +29,7 @@ namespace Jinaga.Pipelines
             return inverses;
         }
 
-        public static IEnumerable<Inverse> InvertPaths(Label start, PipelineOld pipeline, Path path, ProjectionOld projection, PipelineOld backward, ImmutableList<CollectionIdentifier> collectionIdentifiers)
+        public static IEnumerable<Inverse> InvertPaths(Label start, PipelineOld pipeline, Path path, Projection projection, PipelineOld backward, ImmutableList<CollectionIdentifier> collectionIdentifiers)
         {
             var nextBackward = backward.PrependPath(ReversePath(path));
             var conditionalInverses =

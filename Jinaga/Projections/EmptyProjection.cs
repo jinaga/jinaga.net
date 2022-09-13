@@ -3,14 +3,14 @@ using Jinaga.Pipelines;
 
 namespace Jinaga.Projections
 {
-    public class EmptyProjection : ProjectionOld
+    public class EmptyProjection : Projection
     {
-        public override ProjectionOld Apply(Label parameter, Label argument)
+        public override Projection Apply(Label parameter, Label argument)
         {
             return this;
         }
 
-        public override ProjectionOld Apply(ImmutableDictionary<string, string> replacements)
+        public override Projection Apply(ImmutableDictionary<string, string> replacements)
         {
             return this;
         }

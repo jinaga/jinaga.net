@@ -15,7 +15,7 @@ namespace Jinaga.Managers
     {
         public static ImmutableList<ProductAnchorProjection> Deserialize(
             Emitter emitter,
-            ProjectionOld projection,
+            Projection projection,
             Type type,
             ImmutableList<Product> products,
             Product anchor,
@@ -131,7 +131,7 @@ namespace Jinaga.Managers
 
         private static IEnumerable<ProductAnchorProjection> DeserializeChildParameters(
             Emitter emitter,
-            ProjectionOld projection,
+            Projection projection,
             Type propertyType,
             string parameterName,
             ImmutableList<Product> products,
@@ -149,7 +149,7 @@ namespace Jinaga.Managers
             }
         }
 
-        private static object DeserializeParameter(Emitter emitter, ProjectionOld projection, Type parameterType, string parameterName, Product product)
+        private static object DeserializeParameter(Emitter emitter, Projection projection, Type parameterType, string parameterName, Product product)
         {
             if (parameterType.IsFactType())
             {

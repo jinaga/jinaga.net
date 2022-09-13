@@ -3,7 +3,7 @@ using Jinaga.Pipelines;
 
 namespace Jinaga.Projections
 {
-    public class SimpleProjection : ProjectionOld
+    public class SimpleProjection : Projection
     {
         public string Tag { get; }
 
@@ -17,7 +17,7 @@ namespace Jinaga.Projections
             return Tag;
         }
 
-        public override ProjectionOld Apply(Label parameter, Label argument)
+        public override Projection Apply(Label parameter, Label argument)
         {
             if (Tag == parameter.Name)
             {
@@ -29,7 +29,7 @@ namespace Jinaga.Projections
             }
         }
 
-        public override ProjectionOld Apply(ImmutableDictionary<string, string> replacements)
+        public override Projection Apply(ImmutableDictionary<string, string> replacements)
         {
             if (replacements.TryGetValue(Tag, out var replacement))
             {

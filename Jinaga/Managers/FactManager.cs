@@ -50,7 +50,7 @@ namespace Jinaga.Managers
         }
 
         public async Task<ImmutableList<ProductAnchorProjection>> ComputeProjections(
-            ProjectionOld projection,
+            Projection projection,
             ImmutableList<Product> products,
             Type type,
             IWatchContext? watchContext,
@@ -105,7 +105,7 @@ namespace Jinaga.Managers
 
         public ImmutableList<ProductAnchorProjection> DeserializeProductsFromGraph(
             FactGraph graph,
-            ProjectionOld projection,
+            Projection projection,
             ImmutableList<Product> products,
             Type type,
             Product anchor,

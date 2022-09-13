@@ -13,7 +13,7 @@ namespace Jinaga
 {
     static class SpecificationProcessor
     {
-        public static (ImmutableList<Label> given, ImmutableList<Match> matches, ProjectionOld projection) Queryable<TProjection>(LambdaExpression specExpression)
+        public static (ImmutableList<Label> given, ImmutableList<Match> matches, Projection projection) Queryable<TProjection>(LambdaExpression specExpression)
         {
             var spec = specExpression.Compile();
             var proxies = ImmutableList<object>.Empty;
@@ -40,7 +40,7 @@ namespace Jinaga
             return (given, matches, projection);
         }
 
-        public static (ImmutableList<Label> given, ImmutableList<Match> matches, ProjectionOld projection) Scalar<TProjection>(LambdaExpression specExpression)
+        public static (ImmutableList<Label> given, ImmutableList<Match> matches, Projection projection) Scalar<TProjection>(LambdaExpression specExpression)
         {
             var given = ImmutableList<Label>.Empty;
             var proxies = ImmutableList<object>.Empty;
@@ -133,7 +133,7 @@ namespace Jinaga
 
     public class Specification<TFact, TProjection> : Specification
     {
-        public Specification(ImmutableList<Label> given, ImmutableList<Match> matches, ProjectionOld projection)
+        public Specification(ImmutableList<Label> given, ImmutableList<Match> matches, Projection projection)
             : base(given, matches, projection)
         {
         }
@@ -150,7 +150,7 @@ namespace Jinaga
 
     public class Specification<TFact1, TFact2, TProjection> : Specification
     {
-        public Specification(ImmutableList<Label> given, ImmutableList<Match> matches, ProjectionOld projection)
+        public Specification(ImmutableList<Label> given, ImmutableList<Match> matches, Projection projection)
             : base(given, matches, projection)
         {
         }
@@ -163,7 +163,7 @@ namespace Jinaga
 
     public class SpecificationOld<TFact, TProjection> : SpecificationOld
     {
-        public SpecificationOld(PipelineOld pipeline, ProjectionOld projection) : base(pipeline, projection)
+        public SpecificationOld(PipelineOld pipeline, Projection projection) : base(pipeline, projection)
         {
         }
     }
