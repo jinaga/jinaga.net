@@ -72,8 +72,8 @@ namespace Jinaga.Projections
             string indent = Strings.Indent(depth);
             var fieldString = string.Join("", projections
                 .OrderBy(pair => pair.Key)
-                .Select(pair => $"    {indent}{pair.Key} = {pair.Value.ToDescriptiveString(depth + 1)}\r\n"));
-            return $"{{\r\n{fieldString}{indent}}}";
+                .Select(pair => $"    {indent}{pair.Key} = {pair.Value.ToDescriptiveString(depth + 1)}\n"));
+            return $"{{\n{fieldString}{indent}}}";
         }
     }
 }

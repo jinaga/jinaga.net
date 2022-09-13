@@ -31,11 +31,11 @@ namespace Jinaga.Projections
 
         public override string ToDescriptiveString(int depth = 0)
         {
-            var indent = new string(' ', depth * 2);
+            var indent = Strings.Indent(depth);
             var matchStrings = Matches.Select(match => match.ToDescriptiveString(depth + 1));
             var matchString = string.Join("", matchStrings);
             var projectionString = Projection.ToDescriptiveString(depth + 1);
-            return $"{{\n{matchString}{indent}}}\n";
+            return $"{{\n{matchString}{indent}}}";
         }
     }
     public class CollectionProjectionOld : ProjectionOld
