@@ -64,15 +64,16 @@ namespace Jinaga.Test.Pipelines
     ]
 } => {
     names = {
-        name: Skylane.Passenger.Name [
-            name->passenger: Skylane.Passenger = passenger
+        passengerName: Skylane.Passenger.Name [
+            passengerName->passenger: Skylane.Passenger = passenger
             !E {
                 next: Skylane.Passenger.Name [
-                    next->prior: Skylane.Passenger.Name = name
+                    next->prior: Skylane.Passenger.Name = passengerName
                 ]
             }
         ]
     }
+    passenger = passenger
 }
 ".Replace("\r", ""));
         }
