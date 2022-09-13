@@ -24,12 +24,24 @@ namespace Jinaga.Managers
                         product,
                         name));
             }
-            else if (projection is CollectionProjectionOld collection)
+            else if (projection is CollectionProjectionOld collectionOld)
             {
                 var element = product.GetElement(name);
                 if (element is CollectionElement collectionElement)
                 {
-                    return GetFactReferences(collection.Specification.Projection, collectionElement.Products);
+                    return GetFactReferences(collectionOld.Specification.Projection, collectionElement.Products);
+                }
+                else
+                {
+                    throw new NotImplementedException();
+                }
+            }
+            else if (projection is CollectionProjection collection)
+            {
+                var element = product.GetElement(name);
+                if (element is CollectionElement collectionElement)
+                {
+                    return GetFactReferences(collection.Projection, collectionElement.Products);
                 }
                 else
                 {

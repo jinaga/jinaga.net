@@ -1,6 +1,8 @@
+using System;
 using System.Collections.Immutable;
 using System.Linq;
 using Jinaga.Products;
+using Jinaga.Projections;
 using Jinaga.Visualizers;
 
 namespace Jinaga.Pipelines
@@ -40,6 +42,13 @@ namespace Jinaga.Pipelines
         public override string ToString()
         {
             return names.Join(", ");
+        }
+
+        public static Subset FromSpecification(Specification specification)
+        {
+            var givenNames = specification.Given.Select(label => label.Name);
+            var unknownNames = specification.Matches.Select(match => match.Unknown.Name);
+            return new Subset(givenNames.Concat(unknownNames).ToImmutableList());
         }
     }
 }

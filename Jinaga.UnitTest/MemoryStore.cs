@@ -58,6 +58,18 @@ namespace Jinaga.UnitTest
             return Task.FromResult(products);
         }
 
+        public Task<ImmutableList<Product>> Query(ImmutableList<FactReference> startReferences, Specification specification, CancellationToken cancellationToken)
+        {
+            var products = ExecuteNestedSpecification(startReferences, specification);
+            return Task.FromResult(products);
+        }
+
+        private ImmutableList<Product> ExecuteNestedSpecification(ImmutableList<FactReference> startReferences, Specification specification)
+        {
+            Subset subset = Subset.FromSpecification(specification);
+            throw new NotImplementedException();
+        }
+
         private ImmutableList<Product> ExecuteNestedPipeline(ImmutableList<FactReference> startReferences, PipelineOld pipeline, Projection projection)
         {
             var subset = Subset.FromPipeline(pipeline);

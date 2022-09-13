@@ -138,6 +138,8 @@ namespace Jinaga
         {
         }
 
+        public bool CanRunOnGraph => false;
+
         public string ToDescriptiveString(int depth = 0)
         {
             var indent = new string(' ', depth * 4);

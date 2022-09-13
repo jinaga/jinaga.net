@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Immutable;
 using System.Linq;
+using Jinaga.Facts;
 using Jinaga.Pipelines;
+using Jinaga.Products;
 
 namespace Jinaga.Projections
 {
@@ -28,6 +30,11 @@ namespace Jinaga.Projections
             var newMatches = Matches.Select(match => match.Apply(replacements)).ToImmutableList();
             var newProjection = Projection.Apply(replacements);
             return new Specification(ImmutableList<Label>.Empty, newMatches, newProjection);
+        }
+
+        public ImmutableList<Product> Execute(FactReference startReference, FactGraph graph)
+        {
+            throw new NotImplementedException();
         }
     }
     public class SpecificationOld

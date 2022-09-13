@@ -71,6 +71,43 @@ namespace Jinaga
             }
         }
 
+        public async Task<ImmutableList<TProjection>> Query<TFact, TProjection>(
+            TFact start,
+            Specification<TFact, TProjection> specification,
+            CancellationToken cancellationToken = default) where TFact : class
+        {
+            if (start == null)
+            {
+                throw new ArgumentNullException(nameof(start));
+            }
+
+            var graph = factManager.Serialize(start);
+            var startReference = graph.Last;
+            if (specification.CanRunOnGraph)
+            {
+                var products = specification.Execute(startReference, graph);
+                return specification.Projection switch
+                {
+                    SimpleProjection simple => products
+                        .Select(product => factManager.Deserialize<TProjection>(
+                            graph, product.GetElement(simple.Tag)
+                        ))
+                        .ToImmutableList(),
+                    _ => throw new NotImplementedException()
+                };
+            }
+            else
+            {
+                var startReferences = ImmutableList<FactReference>.Empty.Add(startReference);
+                var products = await factManager.Query(startReferences, specification, cancellationToken);
+                var productProjections = await factManager.ComputeProjections(specification.Projection, products, typeof(TProjection), null, Product.Empty, string.Empty, cancellationToken);
+                var projections = productProjections
+                    .Select(pair => (TProjection)pair.Projection)
+                    .ToImmutableList();
+                return projections;
+            }
+        }
+
         public Observer<TProjection> Watch<TFact, TProjection>(
             TFact start,
             SpecificationOld<TFact, TProjection> specification,
