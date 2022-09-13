@@ -3,15 +3,15 @@ using Jinaga.Projections;
 
 namespace Jinaga.Parsers
 {
-    internal class SymbolValueCollection : SymbolValue
+    public class SymbolValueCollection : SymbolValue
     {
-        private SetDefinition startSetDefinition;
-        private Specification specification;
+        public SetDefinition StartSetDefinition { get; }
+        public Specification Specification { get; }
 
         public SymbolValueCollection(SetDefinition startSetDefinition, Specification specification)
         {
-            this.startSetDefinition = startSetDefinition;
-            this.specification = specification;
+            StartSetDefinition = startSetDefinition;
+            Specification = specification;
         }
     }
 }

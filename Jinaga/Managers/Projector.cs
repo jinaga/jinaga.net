@@ -24,7 +24,7 @@ namespace Jinaga.Managers
                         product,
                         name));
             }
-            else if (projection is CollectionProjection collection)
+            else if (projection is CollectionProjectionOld collection)
             {
                 var element = product.GetElement(name);
                 if (element is CollectionElement collectionElement)

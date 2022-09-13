@@ -25,7 +25,7 @@ namespace Jinaga.Managers
                 return DeserializeSimpleProjection(emitter, simpleProjection, type, products, anchor, collectionName);
             else if (projection is CompoundProjection compoundProjection)
                 return DeserializeCompoundProjection(emitter, compoundProjection, type, products, anchor, collectionName);
-            else if (projection is CollectionProjection collectionProjection)
+            else if (projection is CollectionProjectionOld collectionProjection)
                 return DeserializeCollectionProjection(emitter, collectionProjection, type, products, anchor, collectionName);
             else
                 throw new NotImplementedException();
@@ -93,8 +93,8 @@ namespace Jinaga.Managers
                         property.PropertyType.IsGenericType &&
                         property.PropertyType.GetGenericTypeDefinition() == typeof(IObservableCollection<>)
                     let projection = compoundProjection.GetProjection(property.Name)
-                    where projection is CollectionProjection
-                    let collectionProjection = (CollectionProjection)projection
+                    where projection is CollectionProjectionOld
+                    let collectionProjection = (CollectionProjectionOld)projection
                     where product.Names.Contains(property.Name)
                     let element = product.GetElement(property.Name)
                     where element is CollectionElement
@@ -124,7 +124,7 @@ namespace Jinaga.Managers
             return new ProductAnchorProjection(product, anchor, result, collectionName);
         }
 
-        private static ImmutableList<ProductAnchorProjection> DeserializeCollectionProjection(Emitter emitter, CollectionProjection collectionProjection, Type type, ImmutableList<Product> products, Product anchor, string collectionName)
+        private static ImmutableList<ProductAnchorProjection> DeserializeCollectionProjection(Emitter emitter, CollectionProjectionOld collectionProjection, Type type, ImmutableList<Product> products, Product anchor, string collectionName)
         {
             throw new NotImplementedException();
         }
@@ -171,7 +171,7 @@ namespace Jinaga.Managers
                     }
                     else
                     {
-                        var collectionProjection = (CollectionProjection)projection;
+                        var collectionProjection = (CollectionProjectionOld)projection;
                         var collectionElement = (CollectionElement)product.GetElement(parameterName);
                         var elements = Deserialize(
                                 emitter,

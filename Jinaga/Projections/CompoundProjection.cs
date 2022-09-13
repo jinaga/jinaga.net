@@ -52,8 +52,8 @@ namespace Jinaga.Projections
             var namedSpecifications =
                 from projection in projections
                 let name = projection.Key
-                where projection.Value is CollectionProjection
-                let collection = (CollectionProjection)projection.Value
+                where projection.Value is CollectionProjectionOld
+                let collection = (CollectionProjectionOld)projection.Value
                 select (name, collection.Specification);
             var nested =
                 from projection in projections

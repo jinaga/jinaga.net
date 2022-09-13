@@ -34,9 +34,15 @@ namespace Jinaga.Generators
                         CreateProjection(projectionDefinition.GetValue(tag))));
                 return projection;
             }
-            else if (value is SymbolValueCollectionOld collectionValue)
+            else if (value is SymbolValueCollectionOld collectionValueOld)
             {
-                return new CollectionProjection(collectionValue.Specification);
+                return new CollectionProjectionOld(collectionValueOld.Specification);
+            }
+            else if (value is SymbolValueCollection collectionValue)
+            {
+                return new CollectionProjection(
+                    collectionValue.Specification.Matches,
+                    collectionValue.Specification.Projection);
             }
             else
             {

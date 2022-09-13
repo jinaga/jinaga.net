@@ -143,7 +143,8 @@ namespace Jinaga
             var indent = new string(' ', depth * 4);
             var given = string.Join(", ", this.Given.Select(g => $"{g.Name}: {g.Type}"));
             var matches = string.Join("", this.Matches.Select(m => m.ToDescriptiveString(depth + 1)));
-            return $"{indent}({given}) {{\n{matches}{indent}}}\n";
+            var projection = this.Projection == null ? "\n" : " => " + this.Projection.ToDescriptiveString(depth);
+            return $"{indent}({given}) {{\n{matches}{indent}}}{projection}";
         }
     }
 
