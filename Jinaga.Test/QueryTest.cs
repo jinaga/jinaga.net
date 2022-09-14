@@ -56,7 +56,7 @@ namespace Jinaga.Test
             var expectedPassengers = await Task.WhenAll(Enumerable.Range(0, 10).Select(_ =>
                 BookPassenger(flight)));
 
-            var passengersForAirline = GivenOld<Airline>.Match((airline, facts) =>
+            var passengersForAirline = Given<Airline>.Match((airline, facts) =>
                 from booking in facts.OfType<Booking>()
                 where booking.flight.airlineDay.airline == airline
                 select booking.passenger

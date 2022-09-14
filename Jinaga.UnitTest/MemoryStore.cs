@@ -73,14 +73,28 @@ namespace Jinaga.UnitTest
                 .Aggregate(Product.Empty, (product, name) =>
                     product.With(name, new SimpleElement(start[name]))
                 );
-            var match = specification.Matches.Single();
+            var tuples = specification.Matches.Aggregate(
+                ImmutableList.Create(start),
+                (set, match) => set
+                    .SelectMany(references => ExecuteMatch(references, match))
+                    .ToImmutableList());
+            var products = tuples.Select(tuple =>
+                tuple.Aggregate(givenProduct, (product, pair) =>
+                    product.With(pair.Key, new SimpleElement(pair.Value))
+                )
+            ).ToImmutableList();
+            return products;
+        }
+
+        private ImmutableList<ImmutableDictionary<string, FactReference>> ExecuteMatch(ImmutableDictionary<string, FactReference> references, Match match)
+        {
             var condition = match.Conditions.Single();
             if (condition is PathCondition pathCondition)
             {
-                var result = ExecutePathCondition(start, match.Unknown, pathCondition);
-                var products = result.Select(reference =>
-                    givenProduct.With(match.Unknown.Name, new SimpleElement(reference)));
-                return products.ToImmutableList();
+                var result = ExecutePathCondition(references, match.Unknown, pathCondition);
+                var resultReferences = result.Select(reference =>
+                    references.Add(match.Unknown.Name, reference));
+                return resultReferences.ToImmutableList();
             }
             else
             {
