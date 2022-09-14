@@ -60,14 +60,57 @@ namespace Jinaga.UnitTest
 
         public Task<ImmutableList<Product>> Query(ImmutableList<FactReference> startReferences, Specification specification, CancellationToken cancellationToken)
         {
-            var products = ExecuteNestedSpecification(startReferences, specification);
+            var start = specification.Given.Zip(startReferences, (given, reference) =>
+                (name: given.Name, reference)
+            ).ToImmutableDictionary(pair => pair.name, pair => pair.reference);
+            var products = ExecuteNestedSpecification(start, specification);
             return Task.FromResult(products);
         }
 
-        private ImmutableList<Product> ExecuteNestedSpecification(ImmutableList<FactReference> startReferences, Specification specification)
+        private ImmutableList<Product> ExecuteNestedSpecification(ImmutableDictionary<string, FactReference> start, Specification specification)
         {
-            Subset subset = Subset.FromSpecification(specification);
-            throw new NotImplementedException();
+            var givenProduct = start.Keys
+                .Aggregate(Product.Empty, (product, name) =>
+                    product.With(name, new SimpleElement(start[name]))
+                );
+            var match = specification.Matches.Single();
+            var condition = match.Conditions.Single();
+            if (condition is PathCondition pathCondition)
+            {
+                var result = ExecutePathCondition(start, match.Unknown, pathCondition);
+                var products = result.Select(reference =>
+                    givenProduct.With(match.Unknown.Name, new SimpleElement(reference)));
+                return products.ToImmutableList();
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
+        }
+
+        private ImmutableList<FactReference> ExecutePathCondition(ImmutableDictionary<string, FactReference> start, Label unknown, PathCondition pathCondition)
+        {
+            var startingFactReference = start[pathCondition.LabelRight];
+            var set = new FactReference[] { startingFactReference }.ToImmutableList();
+            foreach (var role in pathCondition.RolesRight)
+            {
+                set = ExecutePredecessorStep(set, role.Name, role.TargetType);
+            }
+            foreach (var role in EnumerateRoles(pathCondition.RolesLeft, unknown.Type).Reverse())
+            {
+                set = ExecuteSuccessorStep(set, role.name, role.declaringType);
+            }
+            return set;
+        }
+
+        private IEnumerable<(string name, string declaringType)> EnumerateRoles(IEnumerable<Role> roles, string startingType)
+        {
+            var type = startingType;
+            foreach (var role in roles)
+            {
+                yield return (role.Name, type);
+                type = role.TargetType;
+            }
         }
 
         private ImmutableList<Product> ExecuteNestedPipeline(ImmutableList<FactReference> startReferences, PipelineOld pipeline, Projection projection)
