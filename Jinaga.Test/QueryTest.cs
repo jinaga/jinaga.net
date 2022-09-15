@@ -84,7 +84,7 @@ namespace Jinaga.Test
             var cancelledFlight = await j.Fact(new Flight(airlineDay, 5555));
             await j.Fact(new FlightCancellation(cancelledFlight, DateTime.Now));
 
-            var specification = GivenOld<AirlineDay>.Match((airlineDay, facts) =>
+            var specification = Given<AirlineDay>.Match((airlineDay, facts) =>
                 from flight in facts.OfType<Flight>()
                 where flight.airlineDay == airlineDay
                 where !flight.IsCancelled

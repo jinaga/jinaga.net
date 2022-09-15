@@ -73,11 +73,7 @@ namespace Jinaga.UnitTest
                 .Aggregate(Product.Empty, (product, name) =>
                     product.With(name, new SimpleElement(start[name]))
                 );
-            var tuples = specification.Matches.Aggregate(
-                ImmutableList.Create(start),
-                (set, match) => set
-                    .SelectMany(references => ExecuteMatch(references, match))
-                    .ToImmutableList());
+            ImmutableList<ImmutableDictionary<string, FactReference>> tuples = ExecuteMatches(start, specification.Matches);
             var products = tuples.Select(tuple =>
                 tuple.Aggregate(givenProduct, (product, pair) =>
                     product.With(pair.Key, new SimpleElement(pair.Value))
@@ -86,24 +82,44 @@ namespace Jinaga.UnitTest
             return products;
         }
 
+        private ImmutableList<ImmutableDictionary<string, FactReference>> ExecuteMatches(ImmutableDictionary<string, FactReference> start, ImmutableList<Match> matches)
+        {
+            return matches.Aggregate(
+                ImmutableList.Create(start),
+                (set, match) => set
+                    .SelectMany(references => ExecuteMatch(references, match))
+                    .ToImmutableList());
+        }
+
         private ImmutableList<ImmutableDictionary<string, FactReference>> ExecuteMatch(ImmutableDictionary<string, FactReference> references, Match match)
         {
-            var condition = match.Conditions.Single();
-            if (condition is PathCondition pathCondition)
+            ImmutableList<ImmutableDictionary<string, FactReference>> resultReferences;
+            var firstCondition = match.Conditions.First();
+            if (firstCondition is PathCondition pathCondition)
             {
                 var result = ExecutePathCondition(references, match.Unknown, pathCondition);
-                var resultReferences = result.Select(reference =>
-                    references.Add(match.Unknown.Name, reference));
-                return resultReferences.ToImmutableList();
+                resultReferences = result.Select(reference =>
+                    references.Add(match.Unknown.Name, reference)).ToImmutableList();
             }
             else
             {
-                throw new NotImplementedException();
+                throw new ArgumentException("The first condition must be a path condition.");
             }
+
+            foreach (var condition in match.Conditions.Skip(1))
+            {
+                resultReferences = FilterByCondition(references, resultReferences, condition);
+            }
+            return resultReferences;
         }
 
         private ImmutableList<FactReference> ExecutePathCondition(ImmutableDictionary<string, FactReference> start, Label unknown, PathCondition pathCondition)
         {
+            if (!start.ContainsKey(pathCondition.LabelRight))
+            {
+                var keys = string.Join(", ", start.Keys);
+                throw new ArgumentException($"The label {pathCondition.LabelRight} is not in the start set: {keys}.");
+            }
             var startingFactReference = start[pathCondition.LabelRight];
             var set = new FactReference[] { startingFactReference }.ToImmutableList();
             foreach (var role in pathCondition.RolesRight)
@@ -115,6 +131,27 @@ namespace Jinaga.UnitTest
                 set = ExecuteSuccessorStep(set, role.name, role.declaringType);
             }
             return set;
+        }
+
+        private ImmutableList<ImmutableDictionary<string, FactReference>> FilterByCondition(ImmutableDictionary<string, FactReference> references, ImmutableList<ImmutableDictionary<string, FactReference>> resultReferences, MatchCondition condition)
+        {
+            if (condition is PathCondition pathCondition)
+            {
+                throw new NotImplementedException();
+            }
+            else if (condition is ExistentialCondition existentialCondition)
+            {
+                var matchingResultReferences = resultReferences
+                    .Where(resultReference =>
+                        ExecuteMatches(resultReference, existentialCondition.Matches).Any() ^
+                        !existentialCondition.Exists)
+                    .ToImmutableList();
+                return matchingResultReferences;
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
         }
 
         private IEnumerable<(string name, string declaringType)> EnumerateRoles(IEnumerable<Role> roles, string startingType)
