@@ -69,16 +69,8 @@ namespace Jinaga.UnitTest
 
         private ImmutableList<Product> ExecuteNestedSpecification(ImmutableDictionary<string, FactReference> start, Specification specification)
         {
-            var givenProduct = start.Keys
-                .Aggregate(Product.Empty, (product, name) =>
-                    product.With(name, new SimpleElement(start[name]))
-                );
             ImmutableList<ImmutableDictionary<string, FactReference>> tuples = ExecuteMatches(start, specification.Matches);
-            var products = tuples.Select(tuple =>
-                tuple.Aggregate(givenProduct, (product, pair) =>
-                    product.With(pair.Key, new SimpleElement(pair.Value))
-                )
-            ).ToImmutableList();
+            var products = tuples.Select(tuple => ProjectProduct(specification.Projection, tuple)).ToImmutableList();
             return products;
         }
 
@@ -181,6 +173,61 @@ namespace Jinaga.UnitTest
             var mergedProducts = collections
                 .Aggregate(products, (source, collection) => MergeProducts(subset, collection.name, collection.childProducts, source));
             return mergedProducts;
+        }
+
+        private Product ProjectProduct(Projection projection, ImmutableDictionary<string, FactReference> tuple)
+        {
+            if (projection is EmptyProjection)
+            {
+                throw new NotImplementedException();
+            }
+            else if (projection is SimpleProjection simpleProjection)
+            {
+                return Product.Empty.With(simpleProjection.Tag, new SimpleElement(tuple[simpleProjection.Tag]));
+            }
+            else if (projection is CompoundProjection compoundProjection)
+            {
+                var product = compoundProjection.Names.Aggregate(
+                    Product.Empty,
+                    (product, name) => product.With(name, ProjectElement(compoundProjection.GetProjection(name), tuple)));
+                return product;
+            }
+            else if (projection is CollectionProjection)
+            {
+                throw new NotImplementedException();
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
+        }
+
+        private Element ProjectElement(Projection projection, ImmutableDictionary<string, FactReference> tuple)
+        {
+            if (projection is SimpleProjection simpleProjection)
+            {
+                return new SimpleElement(tuple[simpleProjection.Tag]);
+            }
+            else if (projection is EmptyProjection emptyProjection)
+            {
+                throw new NotImplementedException();
+            }
+            else if (projection is CompoundProjection compoundProjection)
+            {
+                throw new NotImplementedException();
+            }
+            else if (projection is CollectionProjection collectionProjection)
+            {
+                var childTuples = ExecuteMatches(tuple, collectionProjection.Matches);
+                var childProducts = childTuples.Select(childTuple =>
+                    ProjectProduct(collectionProjection.Projection, childTuple)
+                ).ToImmutableList();
+                return new CollectionElement(childProducts);
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
         }
 
         private ImmutableList<Product> MergeProducts(Subset subset, string name, ImmutableList<Product> childProducts, ImmutableList<Product> products)
