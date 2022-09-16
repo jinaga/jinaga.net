@@ -131,7 +131,7 @@ namespace Jinaga.Test
             var booking = await j.Fact(new Booking(flight, joe, DateTime.UtcNow));
             var cancellation = await j.Fact(new FlightCancellation(flight, DateTime.Now));
 
-            var bookingCancellations = await j.Query(ia, GivenOld<Airline>.Match((airline, facts) =>
+            var bookingCancellations = await j.Query(ia, Given<Airline>.Match((airline, facts) =>
                 from flight in facts.OfType<Flight>()
                 where flight.airlineDay.airline == airline
                 from booking in facts.OfType<Booking>()
