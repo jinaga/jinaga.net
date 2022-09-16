@@ -40,5 +40,7 @@ namespace Jinaga.Projections
                 return this;
             }
         }
+
+        public override bool CanRunOnGraph => true;
     }
 }

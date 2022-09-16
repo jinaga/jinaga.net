@@ -138,7 +138,7 @@ namespace Jinaga
         {
         }
 
-        public bool CanRunOnGraph => false;
+        public bool CanRunOnGraph => Matches.All(m => m.CanRunOnGraph) && Projection.CanRunOnGraph;
 
         public string ToDescriptiveString(int depth = 0)
         {

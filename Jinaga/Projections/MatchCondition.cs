@@ -6,6 +6,8 @@ namespace Jinaga.Projections
 {
     public abstract class MatchCondition
     {
+        public abstract bool CanRunOnGraph { get; }
+
         public abstract string ToDescriptiveString(string unknown, int v);
         public abstract MatchCondition Apply(ImmutableDictionary<string, string> replacements);
     }
@@ -22,6 +24,8 @@ namespace Jinaga.Projections
         public ImmutableList<Role> RolesLeft { get; }
         public string LabelRight { get; }
         public ImmutableList<Role> RolesRight { get; }
+
+        public override bool CanRunOnGraph => RolesLeft.Count == 0;
 
         public override string ToDescriptiveString(string unknown, int depth)
         {
@@ -54,6 +58,8 @@ namespace Jinaga.Projections
 
         public bool Exists { get; }
         public ImmutableList<Match> Matches { get; }
+
+        public override bool CanRunOnGraph => Matches.All(m => m.CanRunOnGraph);
 
         public override string ToDescriptiveString(string unknown, int depth)
         {

@@ -85,11 +85,10 @@ namespace Jinaga.Test.Facts
         [Fact]
         public void Optimize_PredecessorQueryCanRunOnGraph()
         {
-            var userWithName = GivenOld<PassengerName>.Match(passengerName =>
+            var userWithName = Given<PassengerName>.Match(passengerName =>
                 passengerName.passenger.user);
 
-            var pipeline = userWithName.Pipeline;
-            pipeline.CanRunOnGraph.Should().BeTrue();
+            userWithName.CanRunOnGraph.Should().BeTrue();
 
             var passenger = new Passenger(new Airline("IA"), new User("--- PUBLIC KEY ---"));
             var passengerName = new PassengerName(passenger, "George", new PassengerName[0]);
@@ -98,7 +97,7 @@ namespace Jinaga.Test.Facts
             var reference = collector.Serialize(passengerName);
             var graph = collector.Graph;
 
-            var references = pipeline
+            var references = userWithName
                 .Execute(reference, graph)
                 .Select(p => p.GetElement("user"))
                 .OfType<SimpleElement>()

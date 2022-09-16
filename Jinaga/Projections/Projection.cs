@@ -15,5 +15,7 @@ namespace Jinaga.Projections
         }
 
         public abstract Projection Apply(ImmutableDictionary<string, string> replacements);
+        
+        public abstract bool CanRunOnGraph { get; }
     }
 }

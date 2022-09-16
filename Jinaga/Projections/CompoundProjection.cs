@@ -67,6 +67,8 @@ namespace Jinaga.Projections
             return projections[name];
         }
 
+        public override bool CanRunOnGraph => projections.Values.All(p => p.CanRunOnGraph);
+
         public override string  ToDescriptiveString(int depth = 0)
         {
             string indent = Strings.Indent(depth);

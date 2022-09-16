@@ -15,6 +15,8 @@ namespace Jinaga.Projections
             return this;
         }
 
+        public override bool CanRunOnGraph => true;
+
         public override string ToDescriptiveString(int depth = 0)
         {
             return string.Empty;
