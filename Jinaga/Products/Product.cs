@@ -23,13 +23,21 @@ namespace Jinaga.Products
 
         public FactReference GetFactReference(string name)
         {
-            if (elements[name] is SimpleElement simple)
+            if (elements.TryGetValue(name, out var element))
             {
-                return simple.FactReference;
+                if (element is SimpleElement simple)
+                {
+                    return simple.FactReference;
+                }
+                else
+                {
+                    throw new InvalidOperationException($"The element {name} is not a simple fact reference");
+                }
             }
             else
             {
-                throw new InvalidOperationException($"The element {name} is not a simple fact reference");
+                var names = string.Join(", ", elements.Keys);
+                throw new InvalidOperationException($"The element {name} is not in the product: {names}");
             }
         }
 
