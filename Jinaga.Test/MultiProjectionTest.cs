@@ -17,9 +17,9 @@ namespace Jinaga.Test
     public class Specifications
     {
 
-        public static SpecificationOld<Client, ClientName> NamesOfClient()
+        public static Specification<Client, ClientName> NamesOfClient()
         {
-            return GivenOld<Client>.Match((client, facts) =>
+            return Given<Client>.Match((client, facts) =>
                 from clientName in facts.OfType<ClientName>()
                 where clientName.client == client
                 where clientName.IsCurrent
@@ -28,9 +28,9 @@ namespace Jinaga.Test
         }
 
 
-        public static SpecificationOld<Yard, YardAddress> AddressesOfYard()
+        public static Specification<Yard, YardAddress> AddressesOfYard()
         {
-            return GivenOld<Yard>.Match((yard, facts) =>
+            return Given<Yard>.Match((yard, facts) =>
                 from yardAddress in facts.OfType<YardAddress>()
                 where yardAddress.yard == yard
                 where yardAddress.IsCurrent
@@ -39,9 +39,9 @@ namespace Jinaga.Test
         }
 
 
-        public static SpecificationOld<Client, YardData> ClientYards()
+        public static Specification<Client, YardData> ClientYards()
         {
-            return GivenOld<Client>.Match((client, facts) =>
+            return Given<Client>.Match((client, facts) =>
                 from yard in facts.OfType<Yard>()
                 where yard.client == client
                 select new YardData
@@ -53,9 +53,9 @@ namespace Jinaga.Test
         }
 
 
-        public static SpecificationOld<Supplier, ClientData> ClientsWithTheirNamesAndTheirYardsWithAddressesForSupplier()
+        public static Specification<Supplier, ClientData> ClientsWithTheirNamesAndTheirYardsWithAddressesForSupplier()
         {
-            return GivenOld<Supplier>.Match((supplier, facts) =>
+            return Given<Supplier>.Match((supplier, facts) =>
                 from client in facts.OfType<Client>()
                 where client.supplier == supplier           
                 select new ClientData
@@ -89,7 +89,7 @@ namespace Jinaga.Test
 
     public class MultiProjectionTest
     {
-        private static SpecificationOld<Yard, YardAddress> addressesOfYard = GivenOld<Yard>.Match((yard, facts) =>
+        private static Specification<Yard, YardAddress> addressesOfYard = Given<Yard>.Match((yard, facts) =>
             from yardAddress in facts.OfType<YardAddress>()
             where yardAddress.yard == yard
             where !(
@@ -100,7 +100,7 @@ namespace Jinaga.Test
             select yardAddress
         );
 
-        private static SpecificationOld<Client, ClientName> namesOfClient = GivenOld<Client>.Match((client, facts) =>
+        private static Specification<Client, ClientName> namesOfClient = Given<Client>.Match((client, facts) =>
             from clientName in facts.OfType<ClientName>()
             where clientName.client == client
             where !(
@@ -120,7 +120,7 @@ namespace Jinaga.Test
                 namesOfClient
             };
 
-            var YardsAddressesWithClientsForSupplier = GivenOld<Supplier>.Match((supplier, facts) =>
+            var YardsAddressesWithClientsForSupplier = Given<Supplier>.Match((supplier, facts) =>
                 from yard in facts.OfType<Yard>()
                 where yard.client.supplier == supplier
                 select new
@@ -132,12 +132,39 @@ namespace Jinaga.Test
                 }
             );
 
-            var actual = YardsAddressesWithClientsForSupplier.Pipeline.ToDescriptiveString();
-            actual.Should().Be(@"supplier: DWS.Supplier {
-    yard: DWS.Yard = supplier S.supplier DWS.Client S.client DWS.Yard
-    client: DWS.Client = yard P.client DWS.Client
+            var actual = YardsAddressesWithClientsForSupplier.ToDescriptiveString();
+            actual.Should().Be(@"(supplier: DWS.Supplier) {
+    yard: DWS.Yard [
+        yard->client: DWS.Client->supplier: DWS.Supplier = supplier
+    ]
+    client: DWS.Client [
+        client = yard->client: DWS.Client
+    ]
+} => {
+    client = client
+    clientNames = {
+        clientName: DWS.Client.Name [
+            clientName->client: DWS.Client = client
+            !E {
+                next: DWS.Client.Name [
+                    next->prior: DWS.Client.Name = clientName
+                ]
+            }
+        ]
+    }
+    yard = yard
+    yardAddresses = {
+        yardAddress: DWS.Yard.Address [
+            yardAddress->yard: DWS.Yard = yard
+            !E {
+                next: DWS.Yard.Address [
+                    next->prior: DWS.Yard.Address = yardAddress
+                ]
+            }
+        ]
+    }
 }
-");
+".Replace("\r", ""));
         }
 
         [Fact]

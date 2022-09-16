@@ -29,17 +29,6 @@ namespace Jinaga.Test
             select passengerName
         );
 
-        private SpecificationOld<Passenger, PassengerName> namesOfPassengerOld = GivenOld<Passenger>.Match((passenger, facts) =>
-            from passengerName in facts.OfType<PassengerName>()
-            where passengerName.passenger == passenger
-            where !(
-                from next in facts.OfType<PassengerName>()
-                where next.prior.Contains(passengerName)
-                select next
-            ).Any()
-            select passengerName
-        );
-
         [Fact]
         public async Task Projection_Query()
         {

@@ -106,7 +106,7 @@ namespace Jinaga.Test
             var initialName = await j.Fact(new PassengerName(passenger, "Joe", new PassengerName[] { }));
             var updatedName = await j.Fact(new PassengerName(passenger, "Joseph", new PassengerName[] { initialName }));
 
-            var currentNames = await j.Query(passenger, GivenOld<Passenger>.Match((passenger, facts) =>
+            var currentNames = await j.Query(passenger, Given<Passenger>.Match((passenger, facts) =>
                 from name in facts.OfType<PassengerName>()
                 where name.passenger == passenger
                 where !(

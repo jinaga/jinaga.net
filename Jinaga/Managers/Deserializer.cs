@@ -171,11 +171,11 @@ namespace Jinaga.Managers
                     }
                     else
                     {
-                        var collectionProjection = (CollectionProjectionOld)projection;
+                        var collectionProjection = (CollectionProjection)projection;
                         var collectionElement = (CollectionElement)product.GetElement(parameterName);
                         var elements = Deserialize(
                                 emitter,
-                                collectionProjection.Specification.Projection,
+                                collectionProjection.Projection,
                                 elementType,
                                 collectionElement.Products,
                                 product.GetAnchor(),
