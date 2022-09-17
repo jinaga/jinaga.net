@@ -98,7 +98,7 @@ namespace Jinaga.Test.Facts
             var graph = collector.Graph;
 
             var references = userWithName
-                .Execute(reference, graph)
+                .Execute(ImmutableList.Create(reference), graph)
                 .Select(p => p.GetElement("user"))
                 .OfType<SimpleElement>()
                 .Select(e => e.FactReference)

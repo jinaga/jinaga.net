@@ -15,7 +15,7 @@ namespace Jinaga.Projections
 
         public Label Unknown { get; }
         public ImmutableList<MatchCondition> Conditions { get; }
-        public bool CanRunOnGraph => Conditions.All(c => c.CanRunOnGraph);
+        public bool CanRunOnGraph => Conditions.Count == 1 && Conditions.Single().CanRunOnGraph;
 
         public string ToDescriptiveString(int depth)
         {

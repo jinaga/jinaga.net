@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 
@@ -36,5 +38,14 @@ namespace Jinaga.Facts
         public FactReference Last => topologicalOrder.Last();
 
         public Fact GetFact(FactReference reference) => factsByReference[reference];
+
+        public IEnumerable<FactReference> Predecessors(FactReference reference, string role, string targetType)
+        {
+            var fact = factsByReference[reference];
+            return fact.Predecessors
+                .Where(p => p.Role == role)
+                .SelectMany(p => p.AllReferences)
+                .Where(r => r.Type == targetType);
+        }
     }
 }

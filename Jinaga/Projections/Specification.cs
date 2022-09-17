@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using Jinaga.Facts;
@@ -32,9 +33,83 @@ namespace Jinaga.Projections
             return new Specification(ImmutableList<Label>.Empty, newMatches, newProjection);
         }
 
-        public ImmutableList<Product> Execute(FactReference startReference, FactGraph graph)
+        public ImmutableList<Product> Execute(ImmutableList<FactReference> startReferences, FactGraph graph)
         {
-            throw new NotImplementedException();
+            var start = Given.Zip(startReferences, (given, reference) =>
+                (name: given.Name, reference)
+            ).ToImmutableDictionary(pair => pair.name, pair => pair.reference);
+            ImmutableList<ImmutableDictionary<string, FactReference>> tuples = ExecuteMatches(start, Matches, graph);
+            ImmutableList<Product> products = tuples.Select(tuple => CreateProduct(tuple, Projection)).ToImmutableList();
+            return products;
+        }
+
+        private static ImmutableList<ImmutableDictionary<string, FactReference>> ExecuteMatches(ImmutableDictionary<string, FactReference> start, ImmutableList<Match> matches, FactGraph graph)
+        {
+            return matches.Aggregate(
+                ImmutableList.Create(start),
+                (set, match) => set
+                    .SelectMany(references => ExecuteMatch(references, match, graph))
+                    .ToImmutableList());
+        }
+
+        private static Product CreateProduct(ImmutableDictionary<string, FactReference> tuple, Projection projection)
+        {
+            var product = tuple.Keys.Aggregate(
+                Product.Empty,
+                (product, name) => product.With(name, new SimpleElement(tuple[name]))
+            );
+            product = ExecuteProjection(tuple, product, projection);
+            return product;
+        }
+
+        private static Product ExecuteProjection(ImmutableDictionary<string, FactReference> tuple, Product product, Projection projection)
+        {
+            if (projection is SimpleProjection simpleProjection)
+            {
+                return Product.Empty.With(simpleProjection.Tag, new SimpleElement(tuple[simpleProjection.Tag]));
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
+        }
+
+        private static ImmutableList<ImmutableDictionary<string, FactReference>> ExecuteMatch(ImmutableDictionary<string, FactReference> references, Match match, FactGraph graph)
+        {
+            var condition = match.Conditions.Single();
+            if (condition is PathCondition pathCondition)
+            {
+                var result = ExecutePathCondition(references, match.Unknown, pathCondition, graph);
+                var resultReferences = result.Select(reference =>
+                    references.Add(match.Unknown.Name, reference)).ToImmutableList();
+                return resultReferences;
+            }
+            else
+            {
+                throw new ArgumentException("The first condition must be a path condition.");
+            }
+        }
+
+        private static ImmutableList<FactReference> ExecutePathCondition(ImmutableDictionary<string, FactReference> start, Label unknown, PathCondition pathCondition, FactGraph graph)
+        {
+            if (!start.ContainsKey(pathCondition.LabelRight))
+            {
+                var keys = string.Join(", ", start.Keys);
+                throw new ArgumentException($"The label {pathCondition.LabelRight} is not in the start set: {keys}.");
+            }
+            var startingFactReference = start[pathCondition.LabelRight];
+            var set = ImmutableList.Create(startingFactReference);
+            foreach (var role in pathCondition.RolesRight)
+            {
+                set = ExecutePredecessorStep(set, role.Name, role.TargetType, graph);
+            }
+            return set;
+        }
+
+        private static ImmutableList<FactReference> ExecutePredecessorStep(ImmutableList<FactReference> set, string role, string targetType, FactGraph graph)
+        {
+            return set.SelectMany(reference => graph.Predecessors(reference, role, targetType))
+                .ToImmutableList();
         }
     }
     public class SpecificationOld

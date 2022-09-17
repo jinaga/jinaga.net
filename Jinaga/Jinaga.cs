@@ -83,9 +83,10 @@ namespace Jinaga
 
             var graph = factManager.Serialize(start);
             var startReference = graph.Last;
+            var startReferences = ImmutableList.Create(startReference);
             if (specification.CanRunOnGraph)
             {
-                var products = specification.Execute(startReference, graph);
+                var products = specification.Execute(startReferences, graph);
                 return specification.Projection switch
                 {
                     SimpleProjection simple => products
@@ -98,7 +99,6 @@ namespace Jinaga
             }
             else
             {
-                var startReferences = ImmutableList<FactReference>.Empty.Add(startReference);
                 var products = await factManager.Query(startReferences, specification, cancellationToken);
                 var productProjections = await factManager.ComputeProjections(specification.Projection, products, typeof(TProjection), null, Product.Empty, string.Empty, cancellationToken);
                 var projections = productProjections
