@@ -20,10 +20,14 @@ namespace Jinaga.Test.Pipelines
 
             var inverses = specification.ComputeInverses();
             inverses.Should().ContainSingle().Which.InverseSpecification.ToDescriptiveString()
-                .Should().Be(@"office: Corporate.Office {
-    company: Corporate.Company = office P.company Corporate.Company
+                .Should().Be(@"(office: Corporate.Office) {
+    company: Corporate.Company [
+        company = office->company: Corporate.Company
+    ]
+} => {
+    company = company
 }
-");
+".Replace("\r", ""));
         }
 
         [Fact]

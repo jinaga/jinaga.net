@@ -45,7 +45,7 @@ namespace Jinaga.Projections
 
         public ImmutableList<Inverse> ComputeInverses()
         {
-            throw new NotImplementedException();
+            return Inverter.InvertSpecification(this).ToImmutableList();
         }
 
         public string ToDescriptiveString(int depth = 0)
@@ -139,7 +139,7 @@ namespace Jinaga.Projections
 
         public ImmutableList<InverseOld> ComputeInverses()
         {
-            return Inverter.InvertSpecification(this).ToImmutableList();
+            return InverterOld.InvertSpecification(this).ToImmutableList();
         }
     }
 }

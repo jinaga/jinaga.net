@@ -2,10 +2,51 @@ using System.Linq;
 using System.Collections.Generic;
 using Jinaga.Projections;
 using System.Collections.Immutable;
+using System;
 
 namespace Jinaga.Pipelines
 {
     class Inverter
+    {
+        public static IEnumerable<Inverse> InvertSpecification(Specification specification)
+        {
+            var match = specification.Matches.Single();
+            var unknown = match.Unknown;
+            var condition = match.Conditions.Single();
+            if (condition is PathCondition pathCondition)
+            {
+                var inverseCondition = InvertPathCondition(pathCondition, unknown.Name);
+                var given = specification.Given.Single(g => g.Name == pathCondition.LabelRight);
+                var inverseMatch = new Match(
+                    given,
+                    ImmutableList.Create<MatchCondition>(inverseCondition)
+                );
+                var inverseProjection = new CompoundProjection()
+                    .With(given.Name, new SimpleProjection(given.Name));
+                var inverseSpecification = new Specification(
+                    ImmutableList.Create(unknown),
+                    ImmutableList.Create(inverseMatch),
+                    inverseProjection
+                );
+                yield return new Inverse(inverseSpecification);
+            }
+            else
+            {
+                throw new ArgumentException("The first condition must be a path condition");
+            }
+        }
+
+        private static PathCondition InvertPathCondition(PathCondition pathCondition, string unknown)
+        {
+            return new PathCondition(
+                pathCondition.RolesRight,
+                unknown,
+                pathCondition.RolesLeft
+            );
+        }
+    }
+
+    class InverterOld
     {
         public static IEnumerable<InverseOld> InvertSpecification(SpecificationOld specification)
         {
