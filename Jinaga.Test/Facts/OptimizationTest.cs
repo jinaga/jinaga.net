@@ -113,10 +113,9 @@ namespace Jinaga.Test.Facts
         [Fact]
         public async Task Optimization_RunPipelineOnGraph()
         {
-            var userWithName = GivenOld<PassengerName>.Match(passengerName =>
+            var userWithName = Given<PassengerName>.Match(passengerName =>
                 passengerName.passenger.user);
 
-            var pipeline = userWithName.Pipeline;
             var passenger = new Passenger(new Airline("IA"), new User("--- PUBLIC KEY ---"));
             var passengerName = new PassengerName(passenger, "George", new PassengerName[0]);
 
