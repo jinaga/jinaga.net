@@ -71,13 +71,13 @@ namespace Jinaga.Test.Pipelines
         [Fact]
         public void Inverse_OfNestedProjection()
         {
-            var namesOfOffice = GivenOld<Office>.Match((office, facts) =>
+            var namesOfOffice = Given<Office>.Match((office, facts) =>
                 from name in facts.OfType<OfficeName>()
                 where name.office == office
                 select name
             );
 
-            var specification = GivenOld<Company>.Match((company, facts) =>
+            var specification = Given<Company>.Match((company, facts) =>
                 from office in facts.OfType<Office>()
                 where office.company == company
                 select new
@@ -89,16 +89,26 @@ namespace Jinaga.Test.Pipelines
 
             var inverses = specification.ComputeInverses();
 
-            inverses.Select(i => i.InversePipeline.ToDescriptiveString()).Should().BeEquivalentTo(new [] {
-@"office: Corporate.Office {
-    company: Corporate.Company = office P.company Corporate.Company
+            inverses.Select(i => i.InverseSpecification.ToDescriptiveString()).Should().BeEquivalentTo(new [] {
+@"(office: Corporate.Office) {
+    company: Corporate.Company [
+        company = office->company: Corporate.Company
+    ]
+} => {
+    company = company
 }
-",
-@"name: Corporate.Office.Name {
-    office: Corporate.Office = name P.office Corporate.Office
-    company: Corporate.Company = office P.company Corporate.Company
+".Replace("\r", ""),
+@"(name: Corporate.Office.Name) {
+    office: Corporate.Office [
+        office = name->office: Corporate.Office
+    ]
+    company: Corporate.Company [
+        company = office->company: Corporate.Company
+    ]
+} => {
+    company = company
 }
-"
+".Replace("\r", "")
             });
         }
 
