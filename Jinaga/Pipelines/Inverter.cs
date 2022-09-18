@@ -8,84 +8,87 @@ namespace Jinaga.Pipelines
 {
     class Inverter
     {
-        public static IEnumerable<Inverse> InvertSpecification(Specification specification)
+        public static ImmutableList<Inverse> InvertSpecification(Specification specification)
         {
-            var labelByName = specification.Given.ToImmutableDictionary(g => g.Name);
-            var inverses = InvertMatches(labelByName, specification.Matches);
-            foreach (var inverse in inverses)
-            {
-                yield return inverse;
-            }
+            var given = specification.Given.ToImmutableDictionary(g => g.Name);
+            var tail = ImmutableList<Match>.Empty;
+            var projection = new CompoundProjection();
+            var inverses = InvertMatches(given, given, tail, projection, specification.Matches);
+            return inverses;
         }
 
-        private static IEnumerable<Inverse> InvertMatches(ImmutableDictionary<string, Label> labelByName, ImmutableList<Match> matches)
+        private static ImmutableList<Inverse> InvertMatches(ImmutableDictionary<string, Label> given, ImmutableDictionary<string, Label> labelByName, ImmutableList<Match> tail, CompoundProjection projection, ImmutableList<Match> matches)
         {
+            var inverses = ImmutableList<Inverse>.Empty;
             foreach (var match in matches)
             {
-                var inverses = InvertMatch(labelByName, match);
-                foreach (var inverse in inverses)
-                {
-                    yield return inverse;
-                }
+                var matchInverses = InvertMatch(given, labelByName, tail, projection, match);
+                inverses = inverses.AddRange(matchInverses);
+                tail = matchInverses.Last().InverseSpecification.Matches;
             }
+            return inverses;
         }
 
-        public static IEnumerable<Inverse> InvertMatch(ImmutableDictionary<string, Label> labelByName, Match match)
+        public static ImmutableList<Inverse> InvertMatch(ImmutableDictionary<string, Label> given, ImmutableDictionary<string, Label> labelByName, ImmutableList<Match> tail, CompoundProjection projection, Match match)
         {
+            var inverses = ImmutableList<Inverse>.Empty;
             var unknown = match.Unknown;
             foreach (var condition in match.Conditions)
             {
                 if (condition is PathCondition pathCondition)
                 {
-                    var inverse = InvertPathCondition(labelByName, unknown, pathCondition);
-                    yield return inverse;
+                    var inverse = InvertPathCondition(given, labelByName, tail, projection, unknown, pathCondition);
+                    inverses = inverses.Add(inverse);
+                    tail = inverse.InverseSpecification.Matches;
+                    projection = (CompoundProjection)inverse.InverseSpecification.Projection;
                 }
                 else if (condition is ExistentialCondition existentialCondition)
                 {
                     var childLabelByName = labelByName.Add(unknown.Name, unknown);
-                    IEnumerable<Inverse> inverses = InvertExistentialCondition(childLabelByName, existentialCondition);
-                    foreach (var inverse in inverses)
-                    {
-                        yield return inverse;
-                    }
+                    var conditionalInverses = InvertExistentialCondition(given, childLabelByName, tail, projection, existentialCondition);
+                    inverses = inverses.AddRange(conditionalInverses);
+                    var inverse = conditionalInverses.Last();
+                    tail = inverse.InverseSpecification.Matches;
+                    projection = (CompoundProjection)inverse.InverseSpecification.Projection;
                 }
                 else
                 {
                     throw new NotImplementedException();
                 }
             }
+            return inverses;
         }
 
-        private static Inverse InvertPathCondition(ImmutableDictionary<string, Label> labelByName, Label unknown, PathCondition pathCondition)
+        private static Inverse InvertPathCondition(ImmutableDictionary<string, Label> given, ImmutableDictionary<string, Label> labelByName, ImmutableList<Match> tail, CompoundProjection projection, Label unknown, PathCondition pathCondition)
         {
             var inverseCondition = new PathCondition(
                 pathCondition.RolesRight,
                 unknown.Name,
                 pathCondition.RolesLeft
             );
-            var given = labelByName[pathCondition.LabelRight];
+            var input = labelByName[pathCondition.LabelRight];
             var inverseMatch = new Match(
-                given,
+                input,
                 ImmutableList.Create<MatchCondition>(inverseCondition)
             );
-            var inverseProjection = new CompoundProjection()
-                .With(given.Name, new SimpleProjection(given.Name));
+            if (given.ContainsKey(input.Name) && !projection.Names.Contains(input.Name))
+            {
+                projection = projection
+                    .With(input.Name, new SimpleProjection(input.Name));
+            }
             var inverseSpecification = new Specification(
                 ImmutableList.Create(unknown),
-                ImmutableList.Create(inverseMatch),
-                inverseProjection
+                ImmutableList.Create(inverseMatch).AddRange(tail),
+                projection
             );
             var inverse = new Inverse(inverseSpecification);
             return inverse;
         }
 
-        private static IEnumerable<Inverse> InvertExistentialCondition(ImmutableDictionary<string, Label> labelByName, ExistentialCondition existentialCondition)
+        private static ImmutableList<Inverse> InvertExistentialCondition(ImmutableDictionary<string, Label> given, ImmutableDictionary<string, Label> labelByName, ImmutableList<Match> tail, CompoundProjection projection, ExistentialCondition existentialCondition)
         {
-            var inverses = InvertMatches(labelByName, existentialCondition.Matches);
-            foreach (var inverse in inverses)
-            {
-                yield return inverse;
-            }
+            var inverses = InvertMatches(given, labelByName, tail, projection, existentialCondition.Matches);
+            return inverses;
         }
     }
 
