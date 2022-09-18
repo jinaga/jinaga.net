@@ -139,15 +139,6 @@ namespace Jinaga
         }
 
         public bool CanRunOnGraph => Matches.All(m => m.CanRunOnGraph) && Projection.CanRunOnGraph;
-
-        public string ToDescriptiveString(int depth = 0)
-        {
-            var indent = new string(' ', depth * 4);
-            var given = string.Join(", ", this.Given.Select(g => $"{g.Name}: {g.Type}"));
-            var matches = string.Join("", this.Matches.Select(m => m.ToDescriptiveString(depth + 1)));
-            var projection = this.Projection == null ? "" : " => " + this.Projection.ToDescriptiveString(depth);
-            return $"{indent}({given}) {{\n{matches}{indent}}}{projection}\n";
-        }
     }
 
     public class Specification<TFact1, TFact2, TProjection> : Specification
@@ -155,11 +146,6 @@ namespace Jinaga
         public Specification(ImmutableList<Label> given, ImmutableList<Match> matches, Projection projection)
             : base(given, matches, projection)
         {
-        }
-
-        internal string ToDescriptiveString()
-        {
-            throw new NotImplementedException();
         }
     }
 

@@ -7,7 +7,7 @@ namespace Jinaga.Pipelines
 {
     class Inverter
     {
-        public static IEnumerable<Inverse> InvertSpecification(SpecificationOld specification)
+        public static IEnumerable<InverseOld> InvertSpecification(SpecificationOld specification)
         {
             var inverses =
                 from start in specification.Pipeline.Starts
@@ -18,7 +18,7 @@ namespace Jinaga.Pipelines
             return inverses;
         }
 
-        public static IEnumerable<Inverse> InvertPipeline(PipelineOld pipeline)
+        public static IEnumerable<InverseOld> InvertPipeline(PipelineOld pipeline)
         {
             var inverses =
                 from start in pipeline.Starts
@@ -29,7 +29,7 @@ namespace Jinaga.Pipelines
             return inverses;
         }
 
-        public static IEnumerable<Inverse> InvertPaths(Label start, PipelineOld pipeline, Path path, Projection projection, PipelineOld backward, ImmutableList<CollectionIdentifier> collectionIdentifiers)
+        public static IEnumerable<InverseOld> InvertPaths(Label start, PipelineOld pipeline, Path path, Projection projection, PipelineOld backward, ImmutableList<CollectionIdentifier> collectionIdentifiers)
         {
             var nextBackward = backward.PrependPath(ReversePath(path));
             var conditionalInverses =
@@ -52,7 +52,7 @@ namespace Jinaga.Pipelines
                     collectionIdentifiers.Add(collectionIdentifier))
                 select nestedInverse;
             var inversePipeline = nextBackward.AddStart(path.Target);
-            var newInverse = new Inverse(
+            var newInverse = new InverseOld(
                 inversePipeline,
                 Subset.Empty.Add(start.Name),
                 Operation.Add,
@@ -72,10 +72,10 @@ namespace Jinaga.Pipelines
             return new CollectionIdentifier(collectionName, intermediateSubset);
         }
 
-        public static IEnumerable<Inverse> InvertConditionals(Conditional conditional, PipelineOld backward, string affectedTag, ImmutableList<CollectionIdentifier> collectionIdentifiers)
+        public static IEnumerable<InverseOld> InvertConditionals(Conditional conditional, PipelineOld backward, string affectedTag, ImmutableList<CollectionIdentifier> collectionIdentifiers)
         {
             return InvertPipeline(conditional.ChildPipeline)
-                .Select(childInverse => new Inverse(
+                .Select(childInverse => new InverseOld(
                     childInverse.InversePipeline.Compose(backward),
                     Subset.Empty.Add(affectedTag),
                     conditional.Exists ? Operation.Add : Operation.Remove,

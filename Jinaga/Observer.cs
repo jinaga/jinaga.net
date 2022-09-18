@@ -19,7 +19,7 @@ namespace Jinaga
         private readonly Product initialAnchor;
         private readonly FactManager factManager;
         private readonly IObservation observation;
-        private readonly ImmutableList<Inverse> inverses;
+        private readonly ImmutableList<InverseOld> inverses;
 
         private Task? initialize;
         private CancellationTokenSource cancelInitialize = new CancellationTokenSource();
@@ -74,7 +74,7 @@ namespace Jinaga
             }
             await initialize;
 
-            var productsAdded = ImmutableList<(Product product, Inverse inverse)>.Empty;
+            var productsAdded = ImmutableList<(Product product, InverseOld inverse)>.Empty;
             var productsRemoved = ImmutableList<Product>.Empty;
             var startReferences = added.Select(a => a.Reference).ToImmutableList();
             foreach (var inverse in inverses)
@@ -137,7 +137,7 @@ namespace Jinaga
             }
         }
 
-        private ImmutableList<ProductAnchorProjection> DeserializeAllProducts(FactGraph graph, ImmutableList<(Product product, Inverse inverse)> productsAdded)
+        private ImmutableList<ProductAnchorProjection> DeserializeAllProducts(FactGraph graph, ImmutableList<(Product product, InverseOld inverse)> productsAdded)
         {
             var productAnchorProjections =
                 from pair in productsAdded

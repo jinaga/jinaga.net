@@ -1,5 +1,7 @@
+using System.Collections.Immutable;
 using System.Linq;
 using FluentAssertions;
+using Jinaga.Pipelines;
 using Jinaga.Test.Model;
 using Xunit;
 
@@ -10,14 +12,14 @@ namespace Jinaga.Test.Pipelines
         [Fact]
         public void Inverse_SuccessorStep()
         {
-            var specification = GivenOld<Company>.Match((company, facts) =>
+            var specification = Given<Company>.Match((company, facts) =>
                 from office in facts.OfType<Office>()
                 where office.company == company
                 select office
             );
 
             var inverses = specification.ComputeInverses();
-            inverses.Should().ContainSingle().Which.InversePipeline.ToDescriptiveString()
+            inverses.Should().ContainSingle().Which.InverseSpecification.ToDescriptiveString()
                 .Should().Be(@"office: Corporate.Office {
     company: Corporate.Company = office P.company Corporate.Company
 }

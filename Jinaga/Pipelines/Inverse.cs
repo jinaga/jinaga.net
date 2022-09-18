@@ -5,6 +5,15 @@ namespace Jinaga.Pipelines
 {
     public class Inverse
     {
+        public Specification InverseSpecification { get; }
+
+        public Inverse(Specification inverseSpecification)
+        {
+            InverseSpecification = inverseSpecification;
+        }
+    }
+    public class InverseOld
+    {
         public PipelineOld InversePipeline { get; }
         public Subset InitialSubset { get; }
         public Operation Operation { get; }
@@ -12,7 +21,7 @@ namespace Jinaga.Pipelines
         public Projection Projection { get; }
         public ImmutableList<CollectionIdentifier> CollectionIdentifiers { get; }
 
-        public Inverse(
+        public InverseOld(
             PipelineOld inversePipeline,
             Subset initialSubset,
             Operation operation,

@@ -43,6 +43,20 @@ namespace Jinaga.Projections
             return products;
         }
 
+        public ImmutableList<Inverse> ComputeInverses()
+        {
+            throw new NotImplementedException();
+        }
+
+        public string ToDescriptiveString(int depth = 0)
+        {
+            var indent = new string(' ', depth * 4);
+            var given = string.Join(", ", this.Given.Select(g => $"{g.Name}: {g.Type}"));
+            var matches = string.Join("", this.Matches.Select(m => m.ToDescriptiveString(depth + 1)));
+            var projection = this.Projection == null ? "" : " => " + this.Projection.ToDescriptiveString(depth);
+            return $"{indent}({given}) {{\n{matches}{indent}}}{projection}\n";
+        }
+
         private static ImmutableList<ImmutableDictionary<string, FactReference>> ExecuteMatches(ImmutableDictionary<string, FactReference> start, ImmutableList<Match> matches, FactGraph graph)
         {
             return matches.Aggregate(
@@ -123,7 +137,7 @@ namespace Jinaga.Projections
         public PipelineOld Pipeline { get; }
         public Projection Projection { get; }
 
-        public ImmutableList<Inverse> ComputeInverses()
+        public ImmutableList<InverseOld> ComputeInverses()
         {
             return Inverter.InvertSpecification(this).ToImmutableList();
         }
