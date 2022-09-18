@@ -33,7 +33,7 @@ namespace Jinaga.Test.Pipelines
         [Fact]
         public void Inverse_NegativeExistentialCondition()
         {
-            var specification = GivenOld<Company>.Match((company, facts) =>
+            var specification = Given<Company>.Match((company, facts) =>
                 from office in facts.OfType<Office>()
                 where office.company == company
                 where !(
@@ -45,16 +45,26 @@ namespace Jinaga.Test.Pipelines
             );
 
             var inverses = specification.ComputeInverses();
-            inverses.Select(i => i.InversePipeline.ToDescriptiveString()).Should().BeEquivalentTo(new [] {
-@"office: Corporate.Office {
-    company: Corporate.Company = office P.company Corporate.Company
+            inverses.Select(i => i.InverseSpecification.ToDescriptiveString()).Should().BeEquivalentTo(new [] {
+@"(office: Corporate.Office) {
+    company: Corporate.Company [
+        company = office->company: Corporate.Company
+    ]
+} => {
+    company = company
 }
-",
-@"officeClosure: Corporate.Office.Closure {
-    office: Corporate.Office = officeClosure P.office Corporate.Office
-    company: Corporate.Company = office P.company Corporate.Company
+".Replace("\r", ""),
+@"(officeClosure: Corporate.Office.Closure) {
+    office: Corporate.Office [
+        office = officeClosure->office: Corporate.Office
+    ]
+    company: Corporate.Company [
+        company = office->company: Corporate.Company
+    ]
+} => {
+    company = company
 }
-"
+".Replace("\r", "")
             });
         }
 
