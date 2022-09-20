@@ -60,7 +60,7 @@ namespace Jinaga.Test
             var company = await j.Fact(new Company("Contoso"));
             var newOffice = await j.Fact(new Office(company, new City("Dallas")));
 
-            var officeObserver = await WhenWatchOffices(company);
+            var officeObserver = await WhenWatchOfficesOld(company);
 
             await j.Fact(new OfficeClosure(newOffice, DateTime.UtcNow));
 
@@ -75,7 +75,7 @@ namespace Jinaga.Test
             var company = await j.Fact(new Company("Contoso"));
             var newOffice = await j.Fact(new Office(company, new City("Dallas")));
 
-            var officeObserver = await WhenWatchOffices(company);
+            var officeObserver = await WhenWatchOfficesOld(company);
 
             var newOfficeName = await j.Fact(new OfficeName(newOffice, "Headquarters", new OfficeName[0]));
 
@@ -99,7 +99,7 @@ namespace Jinaga.Test
             var newOffice = await j.Fact(new Office(company, new City("Dallas")));
             var newOfficeName = await j.Fact(new OfficeName(newOffice, "Headquarters", new OfficeName[0]));
 
-            var officeObserver = await WhenWatchOffices(company);
+            var officeObserver = await WhenWatchOfficesOld(company);
 
             officeRepository.Offices.Should().BeEquivalentTo(new OfficeRow[]
             {
@@ -119,7 +119,7 @@ namespace Jinaga.Test
         {
             var company = await j.Fact(new Company("Contoso"));
 
-            var officeObserver = await WhenWatchOffices(company);
+            var officeObserver = await WhenWatchOfficesOld(company);
 
             var newOffice = await j.Fact(new Office(company, new City("Dallas")));
             var newOfficeName = await j.Fact(new OfficeName(newOffice, "Headquarters", new OfficeName[0]));
@@ -145,7 +145,7 @@ namespace Jinaga.Test
             var manager42 = await j.Fact(new Manager(newOffice, 42));
             var michael = await j.Fact(new ManagerName(manager42, "Michael", new ManagerName[0]));
 
-            var managerObserver = await WhenWatchManagement(company);
+            var managerObserver = await WhenWatchManagementOld(company);
 
             officeRepository.Managers.Should().BeEquivalentTo(new ManagerRow[]
             {
@@ -167,7 +167,7 @@ namespace Jinaga.Test
             var manager42 = await j.Fact(new Manager(newOffice, 42));
             var michael = await j.Fact(new ManagerName(manager42, "Michael", new ManagerName[0]));
 
-            var managerObserver = await WhenWatchManagement(company);
+            var managerObserver = await WhenWatchManagementOld(company);
 
             await j.Fact(new ManagerTerminated(manager42, DateTime.UtcNow));
 
@@ -180,7 +180,7 @@ namespace Jinaga.Test
             var company = await j.Fact(new Company("Contoso"));
             var newOffice = await j.Fact(new Office(company, new City("Dallas")));
 
-            var managerObserver = await WhenWatchManagement(company);
+            var managerObserver = await WhenWatchManagementOld(company);
 
             var manager42 = await j.Fact(new Manager(newOffice, 42));
             var michael = await j.Fact(new ManagerName(manager42, "Michael", new ManagerName[0]));
@@ -197,7 +197,7 @@ namespace Jinaga.Test
             });
         }
 
-        private async Task<ObserverOld<OfficeProjection>> WhenWatchOffices(Company company)
+        private async Task<Observer<OfficeProjection>> WhenWatchOffices(Company company)
         {
             var officeObserver = j.Watch(company, officesInCompany,
                 async projection =>
@@ -221,9 +221,63 @@ namespace Jinaga.Test
             return officeObserver;
         }
 
-        private async Task<ObserverOld<ManagementProjection>> WhenWatchManagement(Company company)
+        private async Task<Observer<ManagementProjection>> WhenWatchManagement(Company company)
         {
             var managementObserver = j.Watch(company, managersInCompany,
+                async projection =>
+                {
+                    int officeId = await officeRepository.InsertOffice(projection.Office.city.name);
+                    projection.Managers.OnAdded(async managerProjection =>
+                    {
+                        int managerId = await officeRepository.InsertManager(officeId, managerProjection.Manager.employeeNumber);
+                        managerProjection.Names.OnAdded(async name =>
+                        {
+                            await officeRepository.UpdateManagerName(managerId, name.value);
+                        });
+
+                        return async () =>
+                        {
+                            await officeRepository.DeleteManager(managerId);
+                        };
+                    });
+
+                    return async () =>
+                    {
+                        await officeRepository.DeleteOffice(officeId);
+                    };
+                }
+            );
+            await managementObserver.Initialized;
+            return managementObserver;
+        }
+
+        private async Task<ObserverOld<OfficeProjection>> WhenWatchOfficesOld(Company company)
+        {
+            var officeObserver = j.Watch(company, officesInCompanyOld,
+                async projection =>
+                {
+                    int officeId = await officeRepository.InsertOffice(projection.Office.city.name);
+                    projection.Names.OnAdded(async name =>
+                    {
+                        await officeRepository.UpdateOfficeName(officeId, name.value);
+                    });
+                    projection.Headcounts.OnAdded(async headcount =>
+                    {
+                        await officeRepository.UpdateOfficeHeadcount(officeId, headcount.value);
+                    });
+
+                    return async () =>
+                    {
+                        await officeRepository.DeleteOffice(officeId);
+                    };
+                });
+            await officeObserver.Initialized;
+            return officeObserver;
+        }
+
+        private async Task<ObserverOld<ManagementProjection>> WhenWatchManagementOld(Company company)
+        {
+            var managementObserver = j.Watch(company, managersInCompanyOld,
                 async projection =>
                 {
                     int officeId = await officeRepository.InsertOffice(projection.Office.city.name);
@@ -270,20 +324,20 @@ namespace Jinaga.Test
             public IObservableCollection<ManagerProjection> Managers { get; set; }
         }
 
-        private static SpecificationOld<Office, OfficeName> namesOfOffice = GivenOld<Office>.Match((office, facts) =>
+        private static Specification<Office, OfficeName> namesOfOffice = Given<Office>.Match((office, facts) =>
             from name in facts.OfType<OfficeName>()
             where name.office == office
             select name
         );
 
-        private static SpecificationOld<Office, Headcount> headcountsOfOffice = GivenOld<Office>.Match((office, facts) =>
+        private static Specification<Office, Headcount> headcountsOfOffice = Given<Office>.Match((office, facts) =>
             from headcount in facts.OfType<Headcount>()
             where headcount.office == office
             where headcount.IsCurrent
             select headcount
         );
 
-        private static SpecificationOld<Company, OfficeProjection> officesInCompany = GivenOld<Company>.Match((company, facts) =>
+        private static Specification<Company, OfficeProjection> officesInCompany = Given<Company>.Match((company, facts) =>
             from office in facts.OfType<Office>()
             where office.company == company
             where !office.IsClosed
@@ -296,14 +350,14 @@ namespace Jinaga.Test
             }
         );
 
-        private static SpecificationOld<Manager, ManagerName> managerNames = GivenOld<Manager>.Match((manager, facts) =>
+        private static Specification<Manager, ManagerName> managerNames = Given<Manager>.Match((manager, facts) =>
             from name in facts.OfType<ManagerName>()
             where name.manager == manager
             where name.IsCurrent
             select name
         );
 
-        private static SpecificationOld<Office, ManagerProjection> managersInOffice = GivenOld<Office>.Match((office, facts) =>
+        private static Specification<Office, ManagerProjection> managersInOffice = Given<Office>.Match((office, facts) =>
             from manager in facts.OfType<Manager>()
             where manager.office == office
             where !manager.IsTerminated
@@ -315,7 +369,7 @@ namespace Jinaga.Test
             }
         );
 
-        private static SpecificationOld<Company, ManagementProjection> managersInCompany = GivenOld<Company>.Match((company, facts) =>
+        private static Specification<Company, ManagementProjection> managersInCompany = Given<Company>.Match((company, facts) =>
             from office in facts.OfType<Office>()
             where office.company == company
             where !office.IsClosed
@@ -324,6 +378,63 @@ namespace Jinaga.Test
             {
                 Office = office,
                 Managers = facts.All(office, managersInOffice)
+            }
+        );
+
+        private static SpecificationOld<Office, OfficeName> namesOfOfficeOld = GivenOld<Office>.Match((office, facts) =>
+            from name in facts.OfType<OfficeName>()
+            where name.office == office
+            select name
+        );
+
+        private static SpecificationOld<Office, Headcount> headcountsOfOfficeOld = GivenOld<Office>.Match((office, facts) =>
+            from headcount in facts.OfType<Headcount>()
+            where headcount.office == office
+            where headcount.IsCurrent
+            select headcount
+        );
+
+        private static SpecificationOld<Company, OfficeProjection> officesInCompanyOld = GivenOld<Company>.Match((company, facts) =>
+            from office in facts.OfType<Office>()
+            where office.company == company
+            where !office.IsClosed
+
+            select new OfficeProjection
+            {
+                Office = office,
+                Names = facts.All(office, namesOfOfficeOld),
+                Headcounts = facts.All(office, headcountsOfOfficeOld)
+            }
+        );
+
+        private static SpecificationOld<Manager, ManagerName> managerNamesOld = GivenOld<Manager>.Match((manager, facts) =>
+            from name in facts.OfType<ManagerName>()
+            where name.manager == manager
+            where name.IsCurrent
+            select name
+        );
+
+        private static SpecificationOld<Office, ManagerProjection> managersInOfficeOld = GivenOld<Office>.Match((office, facts) =>
+            from manager in facts.OfType<Manager>()
+            where manager.office == office
+            where !manager.IsTerminated
+
+            select new ManagerProjection
+            {
+                Manager = manager,
+                Names = facts.All(manager, managerNamesOld)
+            }
+        );
+
+        private static SpecificationOld<Company, ManagementProjection> managersInCompanyOld = GivenOld<Company>.Match((company, facts) =>
+            from office in facts.OfType<Office>()
+            where office.company == company
+            where !office.IsClosed
+
+            select new ManagementProjection
+            {
+                Office = office,
+                Managers = facts.All(office, managersInOfficeOld)
             }
         );
     }
