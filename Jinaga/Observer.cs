@@ -86,9 +86,9 @@ namespace Jinaga
                 if (matchingReferences.Any())
                 {
                     var products = inversePipeline.CanRunOnGraph
-                        ? inversePipeline.Execute(startReferences, graph)
+                        ? inversePipeline.Execute(matchingReferences, graph)
                         : await factManager.Query(
-                            startReferences,
+                            matchingReferences,
                             new Specification(inversePipeline.Given, inversePipeline.Matches, specification.Projection),
                             cancellationToken);
                     foreach (var product in products)
