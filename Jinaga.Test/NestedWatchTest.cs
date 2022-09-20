@@ -60,7 +60,8 @@ namespace Jinaga.Test
             var company = await j.Fact(new Company("Contoso"));
             var newOffice = await j.Fact(new Office(company, new City("Dallas")));
 
-            var officeObserver = await WhenWatchOfficesOld(company);
+            var officeObserverOld = await WhenWatchOfficesOld(company);
+            var officeObserver = await WhenWatchOffices(company);
 
             await j.Fact(new OfficeClosure(newOffice, DateTime.UtcNow));
 

@@ -24,6 +24,11 @@ namespace Jinaga.Projections
             return $"{indent}{Unknown.Name}: {Unknown.Type} [\n{conditions}{indent}]\n";
         }
 
+        public override string ToString()
+        {
+            return ToDescriptiveString(0);
+        }
+
         public Match Apply(ImmutableDictionary<string, string> replacements)
         {
             return new Match(Unknown, Conditions.Select(c => c.Apply(replacements)).ToImmutableList());

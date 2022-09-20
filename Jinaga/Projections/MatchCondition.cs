@@ -10,6 +10,11 @@ namespace Jinaga.Projections
 
         public abstract string ToDescriptiveString(string unknown, int v);
         public abstract MatchCondition Apply(ImmutableDictionary<string, string> replacements);
+
+        public override string ToString()
+        {
+            return ToDescriptiveString("unknown", 0);
+        }
     }
 
     public class PathCondition : MatchCondition

@@ -59,6 +59,11 @@ namespace Jinaga.Projections
             return $"{indent}({given}) {{\n{matches}{indent}}}{projection}\n";
         }
 
+        public override string ToString()
+        {
+            return ToDescriptiveString();
+        }
+
         private static ImmutableList<ImmutableDictionary<string, FactReference>> ExecuteMatches(ImmutableDictionary<string, FactReference> start, ImmutableList<Match> matches, FactGraph graph)
         {
             return matches.Aggregate(
