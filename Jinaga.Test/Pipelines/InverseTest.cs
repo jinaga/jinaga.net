@@ -115,13 +115,13 @@ namespace Jinaga.Test.Pipelines
         [Fact]
         public void Inverse_GeneratesCollectionIdentifiers()
         {
-            var namesOfOffice = GivenOld<Office>.Match((office, facts) =>
+            var namesOfOffice = Given<Office>.Match((office, facts) =>
                 from name in facts.OfType<OfficeName>()
                 where name.office == office
                 select name
             );
 
-            var specification = GivenOld<Company>.Match((company, facts) =>
+            var specification = Given<Company>.Match((company, facts) =>
                 from office in facts.OfType<Office>()
                 where office.company == company
                 select new
@@ -138,7 +138,7 @@ namespace Jinaga.Test.Pipelines
             inverses[0].CollectionIdentifiers.Should().BeEmpty();
 
             inverses[1].InitialSubset.ToString().Should().Be("company");
-            inverses[1].FinalSubset.ToString().Should().Be("name, office, company");
+            inverses[1].FinalSubset.ToString().Should().Be("office, company, name");
             var collectionIdentifier = inverses[1].CollectionIdentifiers.Should().ContainSingle().Subject;
             collectionIdentifier.CollectionName.Should().Be("Names");
             // collectionIdentifier.Subset.ToString().Should().Be("name");

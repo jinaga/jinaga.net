@@ -28,7 +28,14 @@ namespace Jinaga.Pipelines
 
         public Subset Add(string name)
         {
-            return new Subset(names.Add(name));
+            if (names.Contains(name))
+            {
+                return this;
+            }
+            else
+            {
+                return new Subset(names.Add(name));
+            }
         }
 
         public Product Of(Product product)

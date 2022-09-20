@@ -110,7 +110,7 @@ namespace Jinaga
 
         public Observer<TProjection> Watch<TFact, TProjection>(
             TFact start,
-            SpecificationOld<TFact, TProjection> specification,
+            Specification<TFact, TProjection> specification,
             Action<TProjection> added)
         {
             return Watch<TFact, TProjection>(start, specification,
@@ -125,7 +125,7 @@ namespace Jinaga
 
         public Observer<TProjection> Watch<TFact, TProjection>(
             TFact start,
-            SpecificationOld<TFact, TProjection> specification,
+            Specification<TFact, TProjection> specification,
             Func<TProjection, Action> added)
         {
             return Watch<TFact, TProjection>(start, specification,
@@ -144,7 +144,7 @@ namespace Jinaga
 
         public Observer<TProjection> Watch<TFact, TProjection>(
             TFact start,
-            SpecificationOld<TFact, TProjection> specification,
+            Specification<TFact, TProjection> specification,
             Func<TProjection, Task> added)
         {
             return Watch<TFact, TProjection>(start, specification,
@@ -157,6 +157,59 @@ namespace Jinaga
         }
 
         public Observer<TProjection> Watch<TFact, TProjection>(
+            TFact start,
+            Specification<TFact, TProjection> specification,
+            Func<TProjection, Task<Func<Task>>> added)
+        {
+            if (start == null)
+            {
+                throw new ArgumentNullException(nameof(start));
+            }
+
+            var graph = factManager.Serialize(start);
+            var startReference = graph.Last;
+            var projection = specification.Projection;
+            var observation = new FunctionObservation<TProjection>(added);
+            var observer = new Observer<TProjection>(specification, Product.Empty.With(specification.Given.First().Name, new SimpleElement(startReference)), factManager, observation);
+            factManager.AddObserver(observer);
+            observer.Start();
+            return observer;
+        }
+
+        public ObserverOld<TProjection> Watch<TFact, TProjection>(
+            TFact start,
+            SpecificationOld<TFact, TProjection> specification,
+            Func<TProjection, Action> added)
+        {
+            return Watch<TFact, TProjection>(start, specification,
+                projection =>
+                {
+                    var removed = added(projection);
+                    Func<Task> result = () =>
+                    {
+                        removed();
+                        return Task.CompletedTask;
+                    };
+                    return Task.FromResult(result);
+                }
+            );
+        }
+
+        public ObserverOld<TProjection> Watch<TFact, TProjection>(
+            TFact start,
+            SpecificationOld<TFact, TProjection> specification,
+            Func<TProjection, Task> added)
+        {
+            return Watch<TFact, TProjection>(start, specification,
+                async projection =>
+                {
+                    await added(projection);
+                    return () => Task.CompletedTask;
+                }
+            );
+        }
+
+        public ObserverOld<TProjection> Watch<TFact, TProjection>(
             TFact start,
             SpecificationOld<TFact, TProjection> specification,
             Func<TProjection, Task<Func<Task>>> added)
@@ -171,7 +224,7 @@ namespace Jinaga
             var pipeline = specification.Pipeline;
             var projection = specification.Projection;
             var observation = new FunctionObservation<TProjection>(added);
-            var observer = new Observer<TProjection>(specification, Product.Empty.With(specification.Pipeline.Starts.First().Name, new SimpleElement(startReference)), factManager, observation);
+            var observer = new ObserverOld<TProjection>(specification, Product.Empty.With(specification.Pipeline.Starts.First().Name, new SimpleElement(startReference)), factManager, observation);
             factManager.AddObserver(observer);
             observer.Start();
             return observer;

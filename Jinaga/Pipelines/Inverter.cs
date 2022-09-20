@@ -13,51 +13,57 @@ namespace Jinaga.Pipelines
             var given = specification.Given.ToImmutableDictionary(g => g.Name);
             var tail = ImmutableList<Match>.Empty;
             var inverseProjection = new CompoundProjection();
-            var inverses = InvertMatches(given, given, tail, inverseProjection, specification.Matches, specification.Projection);
+            var initialSubset = Subset.Empty;
+            var finalSubset = Subset.Empty;
+            var collectionIdentifiers = ImmutableList<CollectionIdentifier>.Empty;
+            var inverses = InvertMatches(given, given, tail, inverseProjection, initialSubset, finalSubset, collectionIdentifiers, specification.Matches, specification.Projection);
             return inverses;
         }
 
-        private static ImmutableList<Inverse> InvertMatches(ImmutableDictionary<string, Label> given, ImmutableDictionary<string, Label> labelByName, ImmutableList<Match> tail, CompoundProjection inverseProjection, ImmutableList<Match> matches, Projection projection)
+        private static ImmutableList<Inverse> InvertMatches(ImmutableDictionary<string, Label> given, ImmutableDictionary<string, Label> labelByName, ImmutableList<Match> tail, CompoundProjection inverseProjection, Subset initialSubset, Subset finalSubset, ImmutableList<CollectionIdentifier> collectionIdentifiers, ImmutableList<Match> matches, Projection projection)
         {
             var inverses = ImmutableList<Inverse>.Empty;
             foreach (var match in matches)
             {
-                var matchInverses = InvertMatch(given, labelByName, tail, inverseProjection, match);
+                var matchInverses = InvertMatch(given, labelByName, tail, inverseProjection, projection, initialSubset, finalSubset, collectionIdentifiers, match);
                 inverses = inverses.AddRange(matchInverses);
                 labelByName = labelByName.SetItem(match.Unknown.Name, match.Unknown);
                 var inverse = matchInverses.Last();
                 tail = inverse.InverseSpecification.Matches;
                 inverseProjection = (CompoundProjection)inverse.InverseSpecification.Projection;
+                initialSubset = inverse.InitialSubset;
+                finalSubset = inverse.FinalSubset;
             }
-            foreach (var collection in CollectionsOf(projection))
+            foreach (var (name, collection) in CollectionsOf(projection, ""))
             {
-                var collectionInverses = InvertMatches(given, labelByName, tail, inverseProjection, collection.Matches, collection.Projection);
+                collectionIdentifiers = collectionIdentifiers.Add(new CollectionIdentifier(name, finalSubset));
+                var collectionInverses = InvertMatches(given, labelByName, tail, inverseProjection, initialSubset, finalSubset, collectionIdentifiers, collection.Matches, collection.Projection);
                 inverses = inverses.AddRange(collectionInverses);
             }
             return inverses;
         }
 
-        public static ImmutableList<Inverse> InvertMatch(ImmutableDictionary<string, Label> given, ImmutableDictionary<string, Label> labelByName, ImmutableList<Match> tail, CompoundProjection inverseProjection, Match match)
+        public static ImmutableList<Inverse> InvertMatch(ImmutableDictionary<string, Label> given, ImmutableDictionary<string, Label> labelByName, ImmutableList<Match> tail, CompoundProjection inverseProjection, Projection projection, Subset initialSubset, Subset finalSubset, ImmutableList<CollectionIdentifier> collectionIdentifiers, Match match)
         {
             var inverses = ImmutableList<Inverse>.Empty;
             var unknown = match.Unknown;
+            finalSubset = finalSubset.Add(unknown.Name);
             foreach (var condition in match.Conditions)
             {
                 if (condition is PathCondition pathCondition)
                 {
-                    var inverse = InvertPathCondition(given, labelByName, tail, inverseProjection, unknown, pathCondition);
+                    var inverse = InvertPathCondition(given, labelByName, tail, inverseProjection, projection, initialSubset, finalSubset, collectionIdentifiers, unknown, pathCondition);
                     inverses = inverses.Add(inverse);
                     tail = inverse.InverseSpecification.Matches;
                     inverseProjection = (CompoundProjection)inverse.InverseSpecification.Projection;
+                    initialSubset = inverse.InitialSubset;
+                    finalSubset = inverse.FinalSubset;
                 }
                 else if (condition is ExistentialCondition existentialCondition)
                 {
                     var childLabelByName = labelByName.Add(unknown.Name, unknown);
-                    var conditionalInverses = InvertExistentialCondition(given, childLabelByName, tail, inverseProjection, existentialCondition);
+                    var conditionalInverses = InvertExistentialCondition(given, childLabelByName, tail, inverseProjection, initialSubset, finalSubset, collectionIdentifiers, existentialCondition);
                     inverses = inverses.AddRange(conditionalInverses);
-                    var inverse = conditionalInverses.Last();
-                    tail = inverse.InverseSpecification.Matches;
-                    inverseProjection = (CompoundProjection)inverse.InverseSpecification.Projection;
                 }
                 else
                 {
@@ -67,7 +73,7 @@ namespace Jinaga.Pipelines
             return inverses;
         }
 
-        private static Inverse InvertPathCondition(ImmutableDictionary<string, Label> given, ImmutableDictionary<string, Label> labelByName, ImmutableList<Match> tail, CompoundProjection inverseProjection, Label unknown, PathCondition pathCondition)
+        private static Inverse InvertPathCondition(ImmutableDictionary<string, Label> given, ImmutableDictionary<string, Label> labelByName, ImmutableList<Match> tail, CompoundProjection inverseProjection, Projection projection, Subset initialSubset, Subset finalSubset, ImmutableList<CollectionIdentifier> collectionIdentifiers, Label unknown, PathCondition pathCondition)
         {
             var inverseCondition = new PathCondition(
                 pathCondition.RolesRight,
@@ -83,36 +89,41 @@ namespace Jinaga.Pipelines
             {
                 inverseProjection = inverseProjection
                     .With(input.Name, new SimpleProjection(input.Name));
+                initialSubset = initialSubset.Add(input.Name);
+                finalSubset = finalSubset.Add(input.Name);
             }
+
             var inverseSpecification = new Specification(
                 ImmutableList.Create(unknown),
                 ImmutableList.Create(inverseMatch).AddRange(tail),
                 inverseProjection
             );
-            var inverse = new Inverse(inverseSpecification);
+            Operation operation = Operation.Add;
+
+            var inverse = new Inverse(inverseSpecification, initialSubset, operation, finalSubset, projection, collectionIdentifiers);
             return inverse;
         }
 
-        private static ImmutableList<Inverse> InvertExistentialCondition(ImmutableDictionary<string, Label> given, ImmutableDictionary<string, Label> labelByName, ImmutableList<Match> tail, CompoundProjection inverseProjection, ExistentialCondition existentialCondition)
+        private static ImmutableList<Inverse> InvertExistentialCondition(ImmutableDictionary<string, Label> given, ImmutableDictionary<string, Label> labelByName, ImmutableList<Match> tail, CompoundProjection inverseProjection, Subset initialSubset, Subset finalSubset, ImmutableList<CollectionIdentifier> collectionIdentifiers, ExistentialCondition existentialCondition)
         {
-            var inverses = InvertMatches(given, labelByName, tail, inverseProjection, existentialCondition.Matches, new EmptyProjection());
+            var inverses = InvertMatches(given, labelByName, tail, inverseProjection, initialSubset, finalSubset, collectionIdentifiers, existentialCondition.Matches, new EmptyProjection());
             return inverses;
         }
 
-        private static IEnumerable<CollectionProjection> CollectionsOf(Projection projection)
+        private static IEnumerable<(string, CollectionProjection)> CollectionsOf(Projection projection, string name)
         {
             if (projection is CollectionProjection collectionProjection)
             {
-                yield return collectionProjection;
+                yield return (name, collectionProjection);
             }
             else if (projection is CompoundProjection compoundProjection)
             {
-                foreach (var name in compoundProjection.Names)
+                foreach (var childName in compoundProjection.Names)
                 {
-                    var childProjection = compoundProjection.GetProjection(name);
-                    foreach (var collection in CollectionsOf(childProjection))
+                    var childProjection = compoundProjection.GetProjection(childName);
+                    foreach (var pair in CollectionsOf(childProjection, childName))
                     {
-                        yield return collection;
+                        yield return pair;
                     }
                 }
             }

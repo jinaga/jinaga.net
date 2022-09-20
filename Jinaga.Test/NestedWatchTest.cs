@@ -197,7 +197,7 @@ namespace Jinaga.Test
             });
         }
 
-        private async Task<Observer<OfficeProjection>> WhenWatchOffices(Company company)
+        private async Task<ObserverOld<OfficeProjection>> WhenWatchOffices(Company company)
         {
             var officeObserver = j.Watch(company, officesInCompany,
                 async projection =>
@@ -221,7 +221,7 @@ namespace Jinaga.Test
             return officeObserver;
         }
 
-        private async Task<Observer<ManagementProjection>> WhenWatchManagement(Company company)
+        private async Task<ObserverOld<ManagementProjection>> WhenWatchManagement(Company company)
         {
             var managementObserver = j.Watch(company, managersInCompany,
                 async projection =>

@@ -24,6 +24,8 @@ namespace Jinaga.Projections
         public ImmutableList<Match> Matches { get; }
         public Projection Projection { get; }
 
+        public bool CanRunOnGraph => Matches.All(m => m.CanRunOnGraph) && Projection.CanRunOnGraph;
+
         public Specification Apply(ImmutableList<Label> arguments)
         {
             var replacements = Given.Zip(arguments, (parameter, argument) => (parameter, argument))

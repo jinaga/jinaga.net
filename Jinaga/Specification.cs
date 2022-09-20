@@ -137,8 +137,6 @@ namespace Jinaga
             : base(given, matches, projection)
         {
         }
-
-        public bool CanRunOnGraph => Matches.All(m => m.CanRunOnGraph) && Projection.CanRunOnGraph;
     }
 
     public class Specification<TFact1, TFact2, TProjection> : Specification
