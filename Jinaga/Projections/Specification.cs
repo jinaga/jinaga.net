@@ -40,8 +40,8 @@ namespace Jinaga.Projections
             var start = Given.Zip(startReferences, (given, reference) =>
                 (name: given.Name, reference)
             ).ToImmutableDictionary(pair => pair.name, pair => pair.reference);
-            ImmutableList<ImmutableDictionary<string, FactReference>> tuples = ExecuteMatches(start, Matches, graph);
-            ImmutableList<Product> products = tuples.Select(tuple => CreateProduct(tuple, Projection)).ToImmutableList();
+            var tuples = ExecuteMatches(start, Matches, graph);
+            var products = tuples.Select(tuple => CreateProduct(tuple, Projection, graph)).ToImmutableList();
             return products;
         }
 
@@ -68,26 +68,38 @@ namespace Jinaga.Projections
                     .ToImmutableList());
         }
 
-        private static Product CreateProduct(ImmutableDictionary<string, FactReference> tuple, Projection projection)
+        private static Product CreateProduct(ImmutableDictionary<string, FactReference> tuple, Projection projection, FactGraph graph)
         {
             var product = tuple.Keys.Aggregate(
                 Product.Empty,
                 (product, name) => product.With(name, new SimpleElement(tuple[name]))
             );
-            product = ExecuteProjection(tuple, product, projection);
+            product = ExecuteProjection(tuple, product, projection, graph);
             return product;
         }
 
-        private static Product ExecuteProjection(ImmutableDictionary<string, FactReference> tuple, Product product, Projection projection)
+        private static Product ExecuteProjection(ImmutableDictionary<string, FactReference> tuple, Product product, Projection projection, FactGraph graph)
         {
-            if (projection is SimpleProjection simpleProjection)
+            if (projection is CompoundProjection compoundProjection)
             {
-                return Product.Empty.With(simpleProjection.Tag, new SimpleElement(tuple[simpleProjection.Tag]));
+                foreach (var name in compoundProjection.Names)
+                {
+                    var childProjection = compoundProjection.GetProjection(name);
+                    if (childProjection is SimpleProjection simpleProjection)
+                    {
+                        var element = new SimpleElement(tuple[simpleProjection.Tag]);
+                        product = product.With(name, element);
+                    }
+                    else if (childProjection is CollectionProjection collectionProjection)
+                    {
+                        var tuples = ExecuteMatches(tuple, collectionProjection.Matches, graph);
+                        var products = tuples.Select(tuple => CreateProduct(tuple, collectionProjection.Projection, graph)).ToImmutableList();
+                        var element = new CollectionElement(products);
+                        product = product.With(name, element);
+                    }
+                }
             }
-            else
-            {
-                throw new NotImplementedException();
-            }
+            return product;
         }
 
         private static ImmutableList<ImmutableDictionary<string, FactReference>> ExecuteMatch(ImmutableDictionary<string, FactReference> references, Match match, FactGraph graph)

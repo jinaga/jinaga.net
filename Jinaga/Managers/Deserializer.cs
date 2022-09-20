@@ -28,7 +28,7 @@ namespace Jinaga.Managers
             else if (projection is CollectionProjectionOld collectionProjection)
                 return DeserializeCollectionProjection(emitter, collectionProjection, type, products, anchor, collectionName);
             else
-                throw new NotImplementedException();
+                throw new ArgumentException($"Unknown projection type {projection.GetType().Name}");
         }
 
         private static ImmutableList<ProductAnchorProjection> DeserializeSimpleProjection(
