@@ -24,9 +24,7 @@ namespace Jinaga.Test.Pipelines
     company: Corporate.Company [
         company = office->company: Corporate.Company
     ]
-} => {
-    company = company
-}
+} => office
 ".Replace("\r", ""));
         }
 
@@ -50,9 +48,7 @@ namespace Jinaga.Test.Pipelines
     company: Corporate.Company [
         company = office->company: Corporate.Company
     ]
-} => {
-    company = company
-}
+} => office
 ".Replace("\r", ""),
 @"(officeClosure: Corporate.Office.Closure) {
     office: Corporate.Office [
@@ -61,9 +57,7 @@ namespace Jinaga.Test.Pipelines
     company: Corporate.Company [
         company = office->company: Corporate.Company
     ]
-} => {
-    company = company
-}
+} => office
 ".Replace("\r", "")
             });
         }
@@ -95,7 +89,12 @@ namespace Jinaga.Test.Pipelines
         company = office->company: Corporate.Company
     ]
 } => {
-    company = company
+    Names = {
+        name: Corporate.Office.Name [
+            name->office: Corporate.Office = office
+        ]
+    }
+    Office = office
 }
 ".Replace("\r", ""),
 @"(name: Corporate.Office.Name) {
@@ -105,9 +104,7 @@ namespace Jinaga.Test.Pipelines
     company: Corporate.Company [
         company = office->company: Corporate.Company
     ]
-} => {
-    company = company
-}
+} => name
 ".Replace("\r", "")
             });
         }
