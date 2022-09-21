@@ -10,106 +10,108 @@ namespace Jinaga.Pipelines
     {
         public static ImmutableList<Inverse> InvertSpecification(Specification specification)
         {
-            var given = specification.Given.ToImmutableDictionary(g => g.Name);
-            var tail = ImmutableList<Match>.Empty;
-            var initialSubset = Subset.Empty;
-            var operation = Operation.Add;
-            var finalSubset = Subset.Empty;
-            var collectionIdentifiers = ImmutableList<CollectionIdentifier>.Empty;
-            var inverses = InvertMatches(given, given, tail, initialSubset, operation, finalSubset, collectionIdentifiers, specification.Matches, specification.Projection);
+            // Turn each given into a match.
+            var emptyMatches = specification.Given.Select(given =>
+                new Match(given, ImmutableList<MatchCondition>.Empty)
+            ).ToImmutableList();
+            var matches = emptyMatches.AddRange(specification.Matches).ToImmutableList();
+
+            // The initial subset corresponds to the given labels.
+            var initialSubset = specification.Given.Aggregate(
+                Subset.Empty,
+                (subset, given) => subset.Add(given.Name)
+            );
+
+            // The final subset includes all unknowns.
+            var finalSubset = matches.Aggregate(
+                initialSubset,
+                (subset, match) => subset.Add(match.Unknown.Name)
+            );
+
+            // Produce an inverse for each unknown in the original specification.
+            var inverses = ImmutableList<Inverse>.Empty;
+            foreach (var match in specification.Matches)
+            {
+                matches = ShakeTree(matches, match.Unknown.Name);
+                var inverseSpecification = new Specification(
+                    ImmutableList.Create(match.Unknown),
+                    matches.RemoveAt(0),
+                    specification.Projection
+                );
+                var inverse = new Inverse(
+                    inverseSpecification,
+                    initialSubset,
+                    Operation.Add,
+                    finalSubset,
+                    specification.Projection,
+                    ImmutableList<CollectionIdentifier>.Empty
+                );
+                inverses = inverses.Add(inverse);
+            }
             return inverses;
         }
 
-        private static ImmutableList<Inverse> InvertMatches(ImmutableDictionary<string, Label> given, ImmutableDictionary<string, Label> labelByName, ImmutableList<Match> tail, Subset initialSubset, Operation operation, Subset finalSubset, ImmutableList<CollectionIdentifier> collectionIdentifiers, ImmutableList<Match> matches, Projection projection)
+        public static ImmutableList<Match> ShakeTree(ImmutableList<Match> matches, string label)
         {
-            var inverses = ImmutableList<Inverse>.Empty;
-            foreach (var match in matches)
-            {
-                var matchInverses = InvertMatch(given, labelByName, tail, projection, initialSubset, operation, finalSubset, collectionIdentifiers, match);
-                inverses = inverses.AddRange(matchInverses);
-                labelByName = labelByName.SetItem(match.Unknown.Name, match.Unknown);
-                var inverse = matchInverses.Last();
-                tail = inverse.InverseSpecification.Matches;
-                initialSubset = inverse.InitialSubset;
-                finalSubset = inverse.FinalSubset;
-            }
-            foreach (var (name, collection) in CollectionsOf(projection, ""))
-            {
-                collectionIdentifiers = collectionIdentifiers.Add(new CollectionIdentifier(name, finalSubset));
-                var collectionInverses = InvertMatches(given, labelByName, tail, initialSubset, operation, finalSubset, collectionIdentifiers, collection.Matches, collection.Projection);
-                inverses = inverses.AddRange(collectionInverses);
-            }
-            return inverses;
-        }
+            // Find the match for the given label.
+            var match = FindMatch(matches, label);
 
-        public static ImmutableList<Inverse> InvertMatch(ImmutableDictionary<string, Label> given, ImmutableDictionary<string, Label> labelByName, ImmutableList<Match> tail, Projection projection, Subset initialSubset, Operation operation, Subset finalSubset, ImmutableList<CollectionIdentifier> collectionIdentifiers, Match match)
-        {
-            var inverses = ImmutableList<Inverse>.Empty;
-            var unknown = match.Unknown;
-            if (operation == Operation.Add)
-            {
-                finalSubset = finalSubset.Add(unknown.Name);
-            }
+            // Move the match to the beginning of the list.
+            matches = matches.Remove(match).Insert(0, match);
+
+            // Invert all path conditions in the match and move them to the tagged match.
             foreach (var condition in match.Conditions)
             {
                 if (condition is PathCondition pathCondition)
                 {
-                    var inverse = InvertPathCondition(given, labelByName, tail, projection, initialSubset, operation, finalSubset, collectionIdentifiers, unknown, pathCondition);
-                    inverses = inverses.Add(inverse);
-                    tail = inverse.InverseSpecification.Matches;
-                    initialSubset = inverse.InitialSubset;
-                    finalSubset = inverse.FinalSubset;
-                }
-                else if (condition is ExistentialCondition existentialCondition)
-                {
-                    var childLabelByName = labelByName.Add(unknown.Name, unknown);
-                    var conditionalInverses = InvertExistentialCondition(given, childLabelByName, tail, initialSubset, operation, finalSubset, collectionIdentifiers, projection, existentialCondition);
-                    inverses = inverses.AddRange(conditionalInverses);
-                }
-                else
-                {
-                    throw new NotImplementedException();
+                    matches = InvertAndMovePathCondition(matches, label, pathCondition);
                 }
             }
-            return inverses;
+
+            return matches;
         }
 
-        private static Inverse InvertPathCondition(ImmutableDictionary<string, Label> given, ImmutableDictionary<string, Label> labelByName, ImmutableList<Match> tail, Projection projection, Subset initialSubset, Operation operation, Subset finalSubset, ImmutableList<CollectionIdentifier> collectionIdentifiers, Label unknown, PathCondition pathCondition)
+        private static ImmutableList<Match> InvertAndMovePathCondition(ImmutableList<Match> matches, string label, PathCondition pathCondition)
         {
-            var inverseCondition = new PathCondition(
+            // Find the match for the given label.
+            var match = FindMatch(matches, label);
+
+            // Find the match for the target label.
+            var taggedMatch = FindMatch(matches, pathCondition.LabelRight);
+
+            // Invert the path condition.
+            var invertedPathCondition = new PathCondition(
                 pathCondition.RolesRight,
-                unknown.Name,
+                match.Unknown.Name,
                 pathCondition.RolesLeft
             );
-            var input = labelByName[pathCondition.LabelRight];
-            var inverseMatch = new Match(
-                input,
-                ImmutableList.Create<MatchCondition>(inverseCondition)
-            );
-            if (given.ContainsKey(input.Name))
-            {
-                initialSubset = initialSubset.Add(input.Name);
-                finalSubset = finalSubset.Add(input.Name);
-            }
 
-            var inverseSpecification = new Specification(
-                ImmutableList.Create(unknown),
-                ImmutableList.Create(inverseMatch).AddRange(tail),
-                projection
+            // Remove the path condition from the match.
+            var newMatch = new Match(
+                match.Unknown,
+                match.Conditions.Remove(pathCondition)
             );
+            matches = matches.Replace(match, newMatch);
 
-            var inverse = new Inverse(inverseSpecification, initialSubset, operation, finalSubset, projection, collectionIdentifiers);
-            return inverse;
+            // Add the inverted path condition to the tagged match.
+            var newTaggedMatch = new Match(
+                taggedMatch.Unknown,
+                taggedMatch.Conditions.Add(invertedPathCondition)
+            );
+            matches = matches.Replace(taggedMatch, newTaggedMatch);
+
+            return matches;
         }
 
-        private static ImmutableList<Inverse> InvertExistentialCondition(ImmutableDictionary<string, Label> given, ImmutableDictionary<string, Label> labelByName, ImmutableList<Match> tail, Subset initialSubset, Operation operation, Subset finalSubset, ImmutableList<CollectionIdentifier> collectionIdentifiers, Projection projection, ExistentialCondition existentialCondition)
+        private static Match FindMatch(ImmutableList<Match> matches, string label)
         {
-            if (!existentialCondition.Exists)
+            var match = matches.FirstOrDefault(m => m.Unknown.Name == label);
+            if (match == null)
             {
-                operation = operation == Operation.Add ? Operation.Remove : Operation.Add;
+                throw new ArgumentException($"Malformed specification. Unknown label {label}.");
             }
-            var inverses = InvertMatches(given, labelByName, tail, initialSubset, operation, finalSubset, collectionIdentifiers, existentialCondition.Matches, projection);
-            return inverses;
+
+            return match;
         }
 
         private static IEnumerable<(string, CollectionProjection)> CollectionsOf(Projection projection, string name)
