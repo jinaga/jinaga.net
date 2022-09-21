@@ -105,7 +105,7 @@ namespace Jinaga.Pipelines
                 var collectionLabels = collection.Matches.Select(match => match.Unknown);
                 var collectionMatches = matches.AddRange(collection.Matches);
                 var childCollectionIdentifiers = collectionIdentifiers.Add(new CollectionIdentifier(name, intermediateSubset));
-                inverses = inverses.AddRange(InvertMatches(collectionMatches, initialSubset, collectionSubset, collectionLabels, collectionIdentifiers, collection.Projection));
+                inverses = inverses.AddRange(InvertMatches(collectionMatches, initialSubset, collectionSubset, collectionLabels, childCollectionIdentifiers, collection.Projection));
                 inverses = inverses.AddRange(InvertProjection(collectionMatches, initialSubset, collectionSubset, collectionLabels, childCollectionIdentifiers, collection.Projection));
             }
 
