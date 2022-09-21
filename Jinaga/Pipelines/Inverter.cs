@@ -47,6 +47,33 @@ namespace Jinaga.Pipelines
                     ImmutableList<CollectionIdentifier>.Empty
                 );
                 inverses = inverses.Add(inverse);
+
+                // Produce inverses for each existential condition in the match.
+                foreach (var condition in match.Conditions)
+                {
+                    if (condition is ExistentialCondition existentialCondition)
+                    {
+                        var conditionMatches = matches.AddRange(existentialCondition.Matches);
+                        foreach (var existentialMatch in existentialCondition.Matches)
+                        {
+                            conditionMatches = ShakeTree(conditionMatches, existentialMatch.Unknown.Name);
+                            var conditionInverseSpecification = new Specification(
+                                ImmutableList.Create(existentialMatch.Unknown),
+                                RemoveCondition(conditionMatches.RemoveAt(0), condition),
+                                specification.Projection
+                            );
+                            var conditionInverse = new Inverse(
+                                conditionInverseSpecification,
+                                initialSubset,
+                                existentialCondition.Exists ? Operation.Add : Operation.Remove,
+                                finalSubset,
+                                specification.Projection,
+                                ImmutableList<CollectionIdentifier>.Empty
+                            );
+                            inverses = inverses.Add(conditionInverse);
+                        }
+                    }
+                }
             }
             return inverses;
         }
@@ -101,6 +128,15 @@ namespace Jinaga.Pipelines
             matches = matches.Replace(taggedMatch, newTaggedMatch);
 
             return matches;
+        }
+
+        private static ImmutableList<Match> RemoveCondition(ImmutableList<Match> matches, MatchCondition condition)
+        {
+            return matches.Select(match =>
+                match.Conditions.Contains(condition)
+                    ? new Match(match.Unknown, match.Conditions.Remove(condition))
+                    : match
+            ).ToImmutableList();
         }
 
         private static Match FindMatch(ImmutableList<Match> matches, string label)
