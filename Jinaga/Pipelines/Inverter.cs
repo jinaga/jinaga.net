@@ -129,6 +129,29 @@ namespace Jinaga.Pipelines
                 }
             }
 
+            // Move any other matches with no paths down.
+            for (int i = 1; i < matches.Count; i++)
+            {
+                var otherMatch = matches[i];
+                while (otherMatch.Conditions.All(condition => !(condition is PathCondition)))
+                {
+                    // Find the first match beyond this point that tags this one.
+                    int j = matches.FindIndex(i + 1, m =>
+                        m.Conditions.Any(c =>
+                            c is PathCondition pathCondition &&
+                            pathCondition.LabelRight == otherMatch.Unknown.Name));
+                    var taggedMatch = matches[j];
+                    var pathCondition = taggedMatch.Conditions.OfType<PathCondition>()
+                        .First(c => c.LabelRight == otherMatch.Unknown.Name);
+                    matches = InvertAndMovePathCondition(matches, taggedMatch.Unknown.Name, pathCondition);
+
+                    // Move the match down below the tagged match.
+                    otherMatch = matches[i];
+                    matches = matches.RemoveAt(i).Insert(j, otherMatch);
+                    otherMatch = matches[i];
+                }
+            }
+
             return matches;
         }
 
