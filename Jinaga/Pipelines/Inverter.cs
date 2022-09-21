@@ -28,53 +28,71 @@ namespace Jinaga.Pipelines
                 (subset, match) => subset.Add(match.Unknown.Name)
             );
 
+            var labels = specification.Matches.Select(match => match.Unknown);
+
+            var inverses = InvertMatches(matches, initialSubset, finalSubset, labels, specification.Projection);
+            return inverses;
+        }
+
+        private static ImmutableList<Inverse> InvertMatches(ImmutableList<Match> matches, Subset initialSubset, Subset finalSubset, IEnumerable<Label> labels, Projection projection)
+        {
             // Produce an inverse for each unknown in the original specification.
             var inverses = ImmutableList<Inverse>.Empty;
-            foreach (var match in specification.Matches)
+            foreach (var label in labels)
             {
-                matches = ShakeTree(matches, match.Unknown.Name);
+                matches = ShakeTree(matches, label.Name);
                 var inverseSpecification = new Specification(
-                    ImmutableList.Create(match.Unknown),
+                    ImmutableList.Create(label),
                     matches.RemoveAt(0),
-                    specification.Projection
+                    projection
                 );
                 var inverse = new Inverse(
                     inverseSpecification,
                     initialSubset,
                     Operation.Add,
                     finalSubset,
-                    specification.Projection,
+                    projection,
                     ImmutableList<CollectionIdentifier>.Empty
                 );
                 inverses = inverses.Add(inverse);
 
-                // Produce inverses for each existential condition in the match.
-                foreach (var condition in match.Conditions)
+                inverses = inverses.AddRange(InvertExistentialConditions(matches, initialSubset, finalSubset, projection, matches[0].Conditions));
+            }
+
+            return inverses;
+        }
+
+        private static ImmutableList<Inverse> InvertExistentialConditions(ImmutableList<Match> outerMatches, Subset initialSubset, Subset finalSubset, Projection projection, ImmutableList<MatchCondition> conditions)
+        {
+            ImmutableList<Inverse> inverses = ImmutableList<Inverse>.Empty;
+
+            // Produce inverses for each existential condition in the match.
+            foreach (var condition in conditions)
+            {
+                if (condition is ExistentialCondition existentialCondition)
                 {
-                    if (condition is ExistentialCondition existentialCondition)
+                    var matches = outerMatches.AddRange(existentialCondition.Matches);
+                    foreach (var match in existentialCondition.Matches)
                     {
-                        var conditionMatches = matches.AddRange(existentialCondition.Matches);
-                        foreach (var existentialMatch in existentialCondition.Matches)
-                        {
-                            conditionMatches = ShakeTree(conditionMatches, existentialMatch.Unknown.Name);
-                            var conditionInverseSpecification = new Specification(
-                                ImmutableList.Create(existentialMatch.Unknown),
-                                RemoveCondition(conditionMatches.RemoveAt(0), condition),
-                                specification.Projection
-                            );
-                            var conditionInverse = new Inverse(
-                                conditionInverseSpecification,
-                                initialSubset,
-                                existentialCondition.Exists ? Operation.Add : Operation.Remove,
-                                finalSubset,
-                                specification.Projection,
-                                ImmutableList<CollectionIdentifier>.Empty
-                            );
-                            inverses = inverses.Add(conditionInverse);
-                        }
+                        matches = ShakeTree(matches, match.Unknown.Name);
+                        var inverseSpecification = new Specification(
+                            ImmutableList.Create(match.Unknown),
+                            RemoveCondition(matches.RemoveAt(0), condition),
+                            projection
+                        );
+                        var inverse = new Inverse(
+                            inverseSpecification,
+                            initialSubset,
+                            existentialCondition.Exists ? Operation.Add : Operation.Remove,
+                            finalSubset,
+                            projection,
+                            ImmutableList<CollectionIdentifier>.Empty
+                        );
+                        inverses = inverses.Add(inverse);
                     }
                 }
             }
+
             return inverses;
         }
 
