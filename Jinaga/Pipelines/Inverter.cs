@@ -135,19 +135,22 @@ namespace Jinaga.Pipelines
                 var otherMatch = matches[i];
                 while (otherMatch.Conditions.All(condition => !(condition is PathCondition)))
                 {
-                    // Find the first match beyond this point that tags this one.
-                    int j = matches.FindIndex(i + 1, m =>
-                        m.Conditions.Any(c =>
-                            c is PathCondition pathCondition &&
-                            pathCondition.LabelRight == otherMatch.Unknown.Name));
-                    var taggedMatch = matches[j];
-                    var pathCondition = taggedMatch.Conditions.OfType<PathCondition>()
-                        .First(c => c.LabelRight == otherMatch.Unknown.Name);
-                    matches = InvertAndMovePathCondition(matches, taggedMatch.Unknown.Name, pathCondition);
-
-                    // Move the match down below the tagged match.
+                    // Find all matches beyond this point that tag this one.
+                    for (int j = i + 1; j < matches.Count; j++)
+                    {
+                        var taggedMatch = matches[j];
+                        // Move their path conditions to the other match.
+                        var taggedConditions = taggedMatch.Conditions.OfType<PathCondition>()
+                            .Where(c => c.LabelRight == otherMatch.Unknown.Name)
+                            .ToImmutableList();
+                        foreach (var pathCondition in taggedConditions)
+                        {
+                            matches = InvertAndMovePathCondition(matches, taggedMatch.Unknown.Name, pathCondition);
+                        }
+                    }
+                    // Move the other match to the bottom of the list.
                     otherMatch = matches[i];
-                    matches = matches.RemoveAt(i).Insert(j, otherMatch);
+                    matches = matches.Remove(otherMatch).Add(otherMatch);
                     otherMatch = matches[i];
                 }
             }

@@ -145,7 +145,7 @@ namespace Jinaga.Test
             var manager42 = await j.Fact(new Manager(newOffice, 42));
             var michael = await j.Fact(new ManagerName(manager42, "Michael", new ManagerName[0]));
 
-            var managerObserver = await WhenWatchManagementOld(company);
+            var managerObserver = await WhenWatchManagement(company);
 
             officeRepository.Managers.Should().BeEquivalentTo(new ManagerRow[]
             {
@@ -167,7 +167,7 @@ namespace Jinaga.Test
             var manager42 = await j.Fact(new Manager(newOffice, 42));
             var michael = await j.Fact(new ManagerName(manager42, "Michael", new ManagerName[0]));
 
-            var managerObserver = await WhenWatchManagementOld(company);
+            var managerObserver = await WhenWatchManagement(company);
 
             await j.Fact(new ManagerTerminated(manager42, DateTime.UtcNow));
 
@@ -180,7 +180,7 @@ namespace Jinaga.Test
             var company = await j.Fact(new Company("Contoso"));
             var newOffice = await j.Fact(new Office(company, new City("Dallas")));
 
-            var managerObserver = await WhenWatchManagementOld(company);
+            var managerObserver = await WhenWatchManagement(company);
 
             var manager42 = await j.Fact(new Manager(newOffice, 42));
             var michael = await j.Fact(new ManagerName(manager42, "Michael", new ManagerName[0]));
