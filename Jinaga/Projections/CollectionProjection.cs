@@ -40,36 +40,4 @@ namespace Jinaga.Projections
             return $"{{\n{matchString}{indent}}}";
         }
     }
-    public class CollectionProjectionOld : Projection
-    {
-        public SpecificationOld Specification { get; }
-
-        public CollectionProjectionOld(SpecificationOld specification)
-        {
-            Specification = specification;
-        }
-
-        public override Projection Apply(Label parameter, Label argument)
-        {
-            return new CollectionProjectionOld(new SpecificationOld(
-                Specification.Pipeline.Apply(parameter, argument),
-                Specification.Projection.Apply(parameter, argument)
-            ));
-        }
-
-        public override Projection Apply(ImmutableDictionary<string, string> replacements)
-        {
-            throw new NotImplementedException();
-        }
-
-        public override bool CanRunOnGraph => throw new NotImplementedException();
-
-        public override string ToDescriptiveString(int depth = 0)
-        {
-            string indent = Strings.Indent(depth);
-            string pipelineStr = Specification.Pipeline.ToDescriptiveString(depth + 1);
-            string projectionStr = Specification.Projection.ToDescriptiveString(depth + 1);
-            return $"[\r\n{pipelineStr}    {indent}{projectionStr}\r\n{indent}]";
-        }
-    }
 }

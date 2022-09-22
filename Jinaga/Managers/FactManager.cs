@@ -36,11 +36,6 @@ namespace Jinaga.Managers
             return added;
         }
 
-        public async Task<ImmutableList<Product>> Query(ImmutableList<FactReference> startReferences, SpecificationOld specification, CancellationToken cancellationToken)
-        {
-            return await store.Query(startReferences, specification, cancellationToken);
-        }
-
         public async Task<ImmutableList<Product>> Query(ImmutableList<FactReference> startReferences, Specification specification, CancellationToken cancellationToken)
         {
             return await store.Query(startReferences, specification, cancellationToken);

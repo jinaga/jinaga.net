@@ -27,13 +27,6 @@ namespace Jinaga.Repository
 
         public IObservableCollection<TProjection> All<TFact, TProjection>(
             TFact start,
-            SpecificationOld<TFact, TProjection> specification)
-        {
-            throw new NotImplementedException();
-        }
-
-        public IObservableCollection<TProjection> All<TFact, TProjection>(
-            TFact start,
             Specification<TFact, TProjection> specification)
         {
             throw new NotImplementedException();

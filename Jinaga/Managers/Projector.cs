@@ -24,18 +24,6 @@ namespace Jinaga.Managers
                         product,
                         name));
             }
-            else if (projection is CollectionProjectionOld collectionOld)
-            {
-                var element = product.GetElement(name);
-                if (element is CollectionElement collectionElement)
-                {
-                    return GetFactReferences(collectionOld.Specification.Projection, collectionElement.Products);
-                }
-                else
-                {
-                    throw new NotImplementedException();
-                }
-            }
             else if (projection is CollectionProjection collection)
             {
                 var element = product.GetElement(name);

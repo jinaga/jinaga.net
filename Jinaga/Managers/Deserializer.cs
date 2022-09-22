@@ -25,8 +25,6 @@ namespace Jinaga.Managers
                 return DeserializeSimpleProjection(emitter, simpleProjection, type, products, anchor, collectionName);
             else if (projection is CompoundProjection compoundProjection)
                 return DeserializeCompoundProjection(emitter, compoundProjection, type, products, anchor, collectionName);
-            else if (projection is CollectionProjectionOld collectionProjectionOld)
-                return DeserializeCollectionProjection(emitter, collectionProjectionOld, type, products, anchor, collectionName);
             else if (projection is CollectionProjection collectionProjection)
                 return DeserializeCollectionProjection(emitter, collectionProjection, type, products, anchor, collectionName);
             else
@@ -127,11 +125,6 @@ namespace Jinaga.Managers
         }
 
         private static ImmutableList<ProductAnchorProjection> DeserializeCollectionProjection(Emitter emitter, CollectionProjection collectionProjection, Type type, ImmutableList<Product> products, Product anchor, string collectionName)
-        {
-            throw new NotImplementedException();
-        }
-
-        private static ImmutableList<ProductAnchorProjection> DeserializeCollectionProjection(Emitter emitter, CollectionProjectionOld collectionProjection, Type type, ImmutableList<Product> products, Product anchor, string collectionName)
         {
             throw new NotImplementedException();
         }

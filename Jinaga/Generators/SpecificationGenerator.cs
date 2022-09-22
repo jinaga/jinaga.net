@@ -11,13 +11,6 @@ namespace Jinaga.Generators
 {
     public static class SpecificationGenerator
     {
-        public static SpecificationOld CreateSpecification(SpecificationContext context, SpecificationResult result)
-        {
-            var pipeline = PipelineGenerator.CreatePipeline(context, result);
-            var projection = CreateProjection(result.SymbolValue);
-            return new SpecificationOld(pipeline, projection);
-        }
-
         public static Projection CreateProjection(SymbolValue value)
         {
             if (value is SymbolValueSetDefinition setDefinitionValue)
@@ -33,10 +26,6 @@ namespace Jinaga.Generators
                         tag,
                         CreateProjection(projectionDefinition.GetValue(tag))));
                 return projection;
-            }
-            else if (value is SymbolValueCollectionOld collectionValueOld)
-            {
-                return new CollectionProjectionOld(collectionValueOld.Specification);
             }
             else if (value is SymbolValueCollection collectionValue)
             {

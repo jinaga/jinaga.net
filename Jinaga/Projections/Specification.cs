@@ -145,20 +145,4 @@ namespace Jinaga.Projections
                 .ToImmutableList();
         }
     }
-    public class SpecificationOld
-    {
-        public SpecificationOld(PipelineOld pipeline, Projection projection)
-        {
-            Pipeline = pipeline;
-            Projection = projection;
-        }
-
-        public PipelineOld Pipeline { get; }
-        public Projection Projection { get; }
-
-        public ImmutableList<InverseOld> ComputeInverses()
-        {
-            return InverterOld.InvertSpecification(this).ToImmutableList();
-        }
-    }
 }

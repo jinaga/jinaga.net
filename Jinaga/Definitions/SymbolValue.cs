@@ -46,16 +46,4 @@ namespace Jinaga.Definitions
             SetDefinition = setDefinition;
         }
     }
-
-    public class SymbolValueCollectionOld : SymbolValue
-    {
-        public SetDefinition StartSetDefinition { get; }
-        public SpecificationOld Specification { get; }
-
-        public SymbolValueCollectionOld(SetDefinition startSetDefinition, SpecificationOld specification)
-        {
-            StartSetDefinition = startSetDefinition;
-            Specification = specification;
-        }
-    }
 }
