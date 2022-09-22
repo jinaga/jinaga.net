@@ -195,7 +195,7 @@ namespace Jinaga.UnitTest
                     if (childProjection is SimpleProjection simpleProjection)
                     {
                         var element = new SimpleElement(tuple[simpleProjection.Tag]);
-                        product = product.With(name, element);
+                        product = product.With(simpleProjection.Tag, element);
                     }
                     else if (childProjection is CollectionProjection collectionProjection)
                     {
