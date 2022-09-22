@@ -79,17 +79,17 @@ namespace Jinaga
             var startReferences = added.Select(a => a.Reference).ToImmutableList();
             foreach (var inverse in inverses)
             {
-                var inversePipeline = inverse.InverseSpecification;
+                var inverseSpecification = inverse.InverseSpecification;
                 var matchingReferences = startReferences
-                    .Where(r => inversePipeline.Given.Any(start => r.Type == start.Type))
+                    .Where(r => inverseSpecification.Given.Any(start => r.Type == start.Type))
                     .ToImmutableList();
                 if (matchingReferences.Any())
                 {
-                    var products = inversePipeline.CanRunOnGraph
-                        ? inversePipeline.Execute(matchingReferences, graph)
+                    var products = inverseSpecification.CanRunOnGraph
+                        ? inverseSpecification.Execute(matchingReferences, graph)
                         : await factManager.Query(
                             matchingReferences,
-                            new Specification(inversePipeline.Given, inversePipeline.Matches, specification.Projection),
+                            inverseSpecification,
                             cancellationToken);
                     foreach (var product in products)
                     {
@@ -143,7 +143,7 @@ namespace Jinaga
                 from pair in productsAdded
                 let product = pair.product
                 let inverse = pair.inverse
-                let projection = inverse.Projection
+                let projection = inverse.InverseSpecification.Projection
                 let type = ElementType(typeof(TProjection), inverse.CollectionIdentifiers)
                 let collectionName = inverse.CollectionIdentifiers.Select(id => id.CollectionName).LastOrDefault()
                 let subset = inverse.CollectionIdentifiers.Select(c => c.IntermediateSubset).LastOrDefault() ?? inverse.InitialSubset

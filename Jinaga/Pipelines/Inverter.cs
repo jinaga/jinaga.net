@@ -49,7 +49,6 @@ namespace Jinaga.Pipelines
                     initialSubset,
                     Operation.Add,
                     finalSubset,
-                    projection,
                     collectionIdentifiers
                 );
                 inverses = inverses.Add(inverse);
@@ -83,7 +82,6 @@ namespace Jinaga.Pipelines
                             initialSubset,
                             existentialCondition.Exists ? Operation.Add : Operation.Remove,
                             finalSubset,
-                            projection,
                             ImmutableList<CollectionIdentifier>.Empty
                         );
                         inverses = inverses.Add(inverse);
