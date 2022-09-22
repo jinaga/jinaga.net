@@ -60,7 +60,6 @@ namespace Jinaga.Test
             var company = await j.Fact(new Company("Contoso"));
             var newOffice = await j.Fact(new Office(company, new City("Dallas")));
 
-            var officeObserverOld = await WhenWatchOfficesOld(company);
             var officeObserver = await WhenWatchOffices(company);
 
             await j.Fact(new OfficeClosure(newOffice, DateTime.UtcNow));
@@ -76,7 +75,7 @@ namespace Jinaga.Test
             var company = await j.Fact(new Company("Contoso"));
             var newOffice = await j.Fact(new Office(company, new City("Dallas")));
 
-            var officeObserver = await WhenWatchOfficesOld(company);
+            var officeObserver = await WhenWatchOffices(company);
 
             var newOfficeName = await j.Fact(new OfficeName(newOffice, "Headquarters", new OfficeName[0]));
 
@@ -100,7 +99,7 @@ namespace Jinaga.Test
             var newOffice = await j.Fact(new Office(company, new City("Dallas")));
             var newOfficeName = await j.Fact(new OfficeName(newOffice, "Headquarters", new OfficeName[0]));
 
-            var officeObserver = await WhenWatchOfficesOld(company);
+            var officeObserver = await WhenWatchOffices(company);
 
             officeRepository.Offices.Should().BeEquivalentTo(new OfficeRow[]
             {
@@ -120,7 +119,7 @@ namespace Jinaga.Test
         {
             var company = await j.Fact(new Company("Contoso"));
 
-            var officeObserver = await WhenWatchOfficesOld(company);
+            var officeObserver = await WhenWatchOffices(company);
 
             var newOffice = await j.Fact(new Office(company, new City("Dallas")));
             var newOfficeName = await j.Fact(new OfficeName(newOffice, "Headquarters", new OfficeName[0]));

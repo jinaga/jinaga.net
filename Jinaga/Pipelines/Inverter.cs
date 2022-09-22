@@ -180,7 +180,7 @@ namespace Jinaga.Pipelines
             // Add the inverted path condition to the tagged match.
             var newTaggedMatch = new Match(
                 taggedMatch.Unknown,
-                taggedMatch.Conditions.Add(invertedPathCondition)
+                taggedMatch.Conditions.Insert(0, invertedPathCondition)
             );
             matches = matches.Replace(taggedMatch, newTaggedMatch);
 
