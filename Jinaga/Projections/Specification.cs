@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using Jinaga.Facts;
@@ -47,7 +46,7 @@ namespace Jinaga.Projections
 
         public ImmutableList<Inverse> ComputeInverses()
         {
-            return Inverter.InvertSpecification(this).ToImmutableList();
+            return Inverter.InvertSpecification(this);
         }
 
         public string ToDescriptiveString(int depth = 0)

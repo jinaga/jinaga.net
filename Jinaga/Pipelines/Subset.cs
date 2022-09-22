@@ -1,8 +1,6 @@
-using System;
 using System.Collections.Immutable;
 using System.Linq;
 using Jinaga.Products;
-using Jinaga.Projections;
 using Jinaga.Visualizers;
 
 namespace Jinaga.Pipelines
