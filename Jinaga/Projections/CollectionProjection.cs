@@ -1,32 +1,43 @@
+using System.Collections.Immutable;
 using System;
 using Jinaga.Pipelines;
 using Jinaga.Visualizers;
+using System.Linq;
 
 namespace Jinaga.Projections
 {
     public class CollectionProjection : Projection
     {
-        public Specification Specification { get; }
-
-        public CollectionProjection(Specification specification)
+        public CollectionProjection(ImmutableList<Match> matches, Projection projection)
         {
-            Specification = specification;
+            Matches = matches;
+            Projection = projection;
+        }
+
+        public ImmutableList<Match> Matches { get; }
+        public Projection Projection { get; }
+
+        public override Projection Apply(ImmutableDictionary<string, string> replacements)
+        {
+            return new CollectionProjection(
+                Matches.Select(match => match.Apply(replacements)).ToImmutableList(),
+                Projection.Apply(replacements));
         }
 
         public override Projection Apply(Label parameter, Label argument)
         {
-            return new CollectionProjection(new Specification(
-                Specification.Pipeline.Apply(parameter, argument),
-                Specification.Projection.Apply(parameter, argument)
-            ));
+            throw new NotImplementedException();
         }
+
+        public override bool CanRunOnGraph => Matches.All(m => m.CanRunOnGraph) && Projection.CanRunOnGraph;
 
         public override string ToDescriptiveString(int depth = 0)
         {
-            string indent = Strings.Indent(depth);
-            string pipelineStr = Specification.Pipeline.ToDescriptiveString(depth + 1);
-            string projectionStr = Specification.Projection.ToDescriptiveString(depth + 1);
-            return $"[\r\n{pipelineStr}    {indent}{projectionStr}\r\n{indent}]";
+            var indent = Strings.Indent(depth);
+            var matchStrings = Matches.Select(match => match.ToDescriptiveString(depth + 1));
+            var matchString = string.Join("", matchStrings);
+            var projectionString = Projection.ToDescriptiveString(depth + 1);
+            return $"{{\n{matchString}{indent}}}";
         }
     }
 }

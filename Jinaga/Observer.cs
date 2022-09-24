@@ -27,9 +27,7 @@ namespace Jinaga
         private ImmutableDictionary<Product, Func<Task>> removalsByProduct =
             ImmutableDictionary<Product, Func<Task>>.Empty;
 
-        public Task Initialized => initialize!;
-
-        internal Observer(Specification specification, Product initialAnchor, FactManager factManager, IObservation observation)
+        internal Observer(Specification specification, Product initialAnchor, FactManager factManager, FunctionObservation<TProjection> observation)
         {
             this.specification = specification;
             this.initialAnchor = initialAnchor;
@@ -38,13 +36,15 @@ namespace Jinaga
             this.inverses = specification.ComputeInverses();
         }
 
+        public Task Initialized => initialize!;
+
         internal void Start()
         {
             var cancellationToken = cancelInitialize.Token;
             initialize = Task.Run(() => RunInitialQuery(cancellationToken), cancellationToken);
         }
 
-        public async Task Stop()
+        internal async Task Stop()
         {
             if (initialize != null)
             {
@@ -79,17 +79,17 @@ namespace Jinaga
             var startReferences = added.Select(a => a.Reference).ToImmutableList();
             foreach (var inverse in inverses)
             {
-                var inversePipeline = inverse.InversePipeline;
+                var inverseSpecification = inverse.InverseSpecification;
                 var matchingReferences = startReferences
-                    .Where(r => inversePipeline.Starts.Any(start => r.Type == start.Type))
+                    .Where(r => inverseSpecification.Given.Any(start => r.Type == start.Type))
                     .ToImmutableList();
                 if (matchingReferences.Any())
                 {
-                    var products = inversePipeline.CanRunOnGraph
-                        ? inversePipeline.Execute(startReferences, graph)
+                    var products = inverseSpecification.CanRunOnGraph
+                        ? inverseSpecification.Execute(matchingReferences, graph)
                         : await factManager.Query(
-                            startReferences,
-                            new Specification(inversePipeline, specification.Projection),
+                            matchingReferences,
+                            inverseSpecification,
                             cancellationToken);
                     foreach (var product in products)
                     {
@@ -97,11 +97,11 @@ namespace Jinaga
                         var identifyingProduct = inverse.FinalSubset.Of(product);
                         if (initialProduct.Equals(this.initialAnchor))
                         {
-                            if (inverse.Operation == Operation.Add)
+                            if (inverse.Operation == Pipelines.Operation.Add)
                             {
                                 productsAdded = productsAdded.Add((identifyingProduct, inverse));
                             }
-                            else if (inverse.Operation == Operation.Remove)
+                            else if (inverse.Operation == Pipelines.Operation.Remove)
                             {
                                 productsRemoved = productsRemoved.Add(identifyingProduct);
                             }
@@ -143,7 +143,7 @@ namespace Jinaga
                 from pair in productsAdded
                 let product = pair.product
                 let inverse = pair.inverse
-                let projection = inverse.Projection
+                let projection = inverse.InverseSpecification.Projection
                 let type = ElementType(typeof(TProjection), inverse.CollectionIdentifiers)
                 let collectionName = inverse.CollectionIdentifiers.Select(id => id.CollectionName).LastOrDefault()
                 let subset = inverse.CollectionIdentifiers.Select(c => c.IntermediateSubset).LastOrDefault() ?? inverse.InitialSubset

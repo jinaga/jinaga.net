@@ -54,40 +54,133 @@ namespace Jinaga.UnitTest
 
         public Task<ImmutableList<Product>> Query(ImmutableList<FactReference> startReferences, Specification specification, CancellationToken cancellationToken)
         {
-            var products = ExecuteNestedPipeline(startReferences, specification.Pipeline, specification.Projection);
+            var start = specification.Given.Zip(startReferences, (given, reference) =>
+                (name: given.Name, reference)
+            ).ToImmutableDictionary(pair => pair.name, pair => pair.reference);
+            var products = ExecuteMatchesAndProjection(start, specification.Matches, specification.Projection);
             return Task.FromResult(products);
         }
 
-        private ImmutableList<Product> ExecuteNestedPipeline(ImmutableList<FactReference> startReferences, Pipeline pipeline, Projection projection)
+        private ImmutableList<Product> ExecuteMatchesAndProjection(ImmutableDictionary<string, FactReference> start, ImmutableList<Match> matches, Projection projection)
         {
-            var subset = Subset.FromPipeline(pipeline);
-            var namedSpecifications = projection.GetNamedSpecifications();
-            var products = (
-                from startReference in startReferences
-                from product in ExecutePipeline(startReference, pipeline)
-                select product).ToImmutableList();
-            var collections =
-                from namedSpecification in namedSpecifications
-                let name = namedSpecification.name
-                let childPipeline = pipeline.Compose(namedSpecification.specification.Pipeline)
-                let childProducts = ExecuteNestedPipeline(startReferences, childPipeline, namedSpecification.specification.Projection)
-                select (name, childProducts);
-            var mergedProducts = collections
-                .Aggregate(products, (source, collection) => MergeProducts(subset, collection.name, collection.childProducts, source));
-            return mergedProducts;
+            ImmutableList<ImmutableDictionary<string, FactReference>> tuples = ExecuteMatches(start, matches);
+            var products = tuples.Select(tuple => CreateProduct(tuple, projection)).ToImmutableList();
+            return products;
         }
 
-        private ImmutableList<Product> MergeProducts(Subset subset, string name, ImmutableList<Product> childProducts, ImmutableList<Product> products)
+        private ImmutableList<ImmutableDictionary<string, FactReference>> ExecuteMatches(ImmutableDictionary<string, FactReference> start, ImmutableList<Match> matches)
         {
-            var mergedProducts =
-                from product in products
-                let matchingChildProducts = (
-                    from childProduct in childProducts
-                    where subset.Of(childProduct).Equals(subset.Of(product))
-                    select childProduct
-                ).ToImmutableList()
-                select product.With(name, new CollectionElement(matchingChildProducts));
-            return mergedProducts.ToImmutableList();
+            return matches.Aggregate(
+                ImmutableList.Create(start),
+                (set, match) => set
+                    .SelectMany(references => ExecuteMatch(references, match))
+                    .ToImmutableList());
+        }
+
+        private ImmutableList<ImmutableDictionary<string, FactReference>> ExecuteMatch(ImmutableDictionary<string, FactReference> references, Match match)
+        {
+            ImmutableList<ImmutableDictionary<string, FactReference>> resultReferences;
+            var firstCondition = match.Conditions.First();
+            if (firstCondition is PathCondition pathCondition)
+            {
+                var result = ExecutePathCondition(references, match.Unknown, pathCondition);
+                resultReferences = result.Select(reference =>
+                    references.Add(match.Unknown.Name, reference)).ToImmutableList();
+            }
+            else
+            {
+                throw new ArgumentException("The first condition must be a path condition.");
+            }
+
+            foreach (var condition in match.Conditions.Skip(1))
+            {
+                resultReferences = FilterByCondition(references, resultReferences, condition);
+            }
+            return resultReferences;
+        }
+
+        private ImmutableList<FactReference> ExecutePathCondition(ImmutableDictionary<string, FactReference> start, Label unknown, PathCondition pathCondition)
+        {
+            if (!start.ContainsKey(pathCondition.LabelRight))
+            {
+                var keys = string.Join(", ", start.Keys);
+                throw new ArgumentException($"The label {pathCondition.LabelRight} is not in the start set: {keys}.");
+            }
+            var startingFactReference = start[pathCondition.LabelRight];
+            var set = new FactReference[] { startingFactReference }.ToImmutableList();
+            foreach (var role in pathCondition.RolesRight)
+            {
+                set = ExecutePredecessorStep(set, role.Name, role.TargetType);
+            }
+            foreach (var role in EnumerateRoles(pathCondition.RolesLeft, unknown.Type).Reverse())
+            {
+                set = ExecuteSuccessorStep(set, role.name, role.declaringType);
+            }
+            return set;
+        }
+
+        private ImmutableList<ImmutableDictionary<string, FactReference>> FilterByCondition(ImmutableDictionary<string, FactReference> references, ImmutableList<ImmutableDictionary<string, FactReference>> resultReferences, MatchCondition condition)
+        {
+            if (condition is PathCondition pathCondition)
+            {
+                throw new NotImplementedException();
+            }
+            else if (condition is ExistentialCondition existentialCondition)
+            {
+                var matchingResultReferences = resultReferences
+                    .Where(resultReference =>
+                        ExecuteMatches(resultReference, existentialCondition.Matches).Any() ^
+                        !existentialCondition.Exists)
+                    .ToImmutableList();
+                return matchingResultReferences;
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
+        }
+
+        private IEnumerable<(string name, string declaringType)> EnumerateRoles(IEnumerable<Role> roles, string startingType)
+        {
+            var type = startingType;
+            foreach (var role in roles)
+            {
+                yield return (role.Name, type);
+                type = role.TargetType;
+            }
+        }
+
+        private Product CreateProduct(ImmutableDictionary<string, FactReference> tuple, Projection projection)
+        {
+            var product = tuple.Keys.Aggregate(
+                Product.Empty,
+                (product, name) => product.With(name, new SimpleElement(tuple[name]))
+            );
+            product = ExecuteProjection(tuple, product, projection);
+            return product;
+        }
+
+        private Product ExecuteProjection(ImmutableDictionary<string, FactReference> tuple, Product product, Projection projection)
+        {
+            if (projection is CompoundProjection compoundProjection)
+            {
+                foreach (var name in compoundProjection.Names)
+                {
+                    var childProjection = compoundProjection.GetProjection(name);
+                    if (childProjection is SimpleProjection simpleProjection)
+                    {
+                        var element = new SimpleElement(tuple[simpleProjection.Tag]);
+                        product = product.With(simpleProjection.Tag, element);
+                    }
+                    else if (childProjection is CollectionProjection collectionProjection)
+                    {
+                        var products = ExecuteMatchesAndProjection(tuple, collectionProjection.Matches, collectionProjection.Projection);
+                        var element = new CollectionElement(products);
+                        product = product.With(name, element);
+                    }
+                }
+            }
+            return product;
         }
 
         public Task<FactGraph> Load(ImmutableList<FactReference> references, CancellationToken cancellationToken)
@@ -118,63 +211,6 @@ namespace Jinaga.UnitTest
             }
         }
 
-        private ImmutableList<Product> ExecutePipeline(FactReference startReference, Pipeline pipeline)
-        {
-            var initialTag = pipeline.Starts.Single().Name;
-            var startingProducts = new Product[]
-            {
-                Product.Empty.With(initialTag, new SimpleElement(startReference))
-            }.ToImmutableList();
-            return pipeline.Paths.Aggregate(
-                startingProducts,
-                (products, path) => ExecutePath(products, path, pipeline)
-            );
-        }
-
-        private ImmutableList<Product> ExecutePath(ImmutableList<Product> products, Path path, Pipeline pipeline)
-        {
-            var results = products
-                .SelectMany(product =>
-                    ExecuteSteps(product.GetElement(path.Start.Name), path)
-                        .Select(factReference => product.With(path.Target.Name, new SimpleElement(factReference))))
-                .ToImmutableList();
-            var conditionals = pipeline
-                .Conditionals
-                .Where(conditional => conditional.Start == path.Target);
-            return results
-                .Where(result => !conditionals.Any(conditional => !ConditionIsTrue(
-                    result.GetElement(conditional.Start.Name),
-                    conditional.ChildPipeline,
-                    conditional.Exists)))
-                .ToImmutableList();
-        }
-
-        private ImmutableList<FactReference> ExecuteSteps(Element element, Path path)
-        {
-            if (element is SimpleElement simple)
-            {
-                return ExecuteSteps(simple.FactReference, path);
-            }
-            else
-            {
-                throw new NotImplementedException();
-            }
-        }
-
-        private ImmutableList<FactReference> ExecuteSteps(FactReference startingFactReference, Path path)
-        {
-            var startingSet = new FactReference[] { startingFactReference }.ToImmutableList();
-            var afterPredecessors = path.PredecessorSteps
-                .Aggregate(startingSet, (set, predecessorStep) => ExecutePredecessorStep(
-                    set, predecessorStep.Role, predecessorStep.TargetType
-                ));
-            var afterSuccessors = path.SuccessorSteps
-                .Aggregate(afterPredecessors, (set, successorStep) => ExecuteSuccessorStep(
-                    set, successorStep.Role, successorStep.TargetType
-                ));
-            return afterSuccessors;
-        }
-
         private ImmutableList<FactReference> ExecutePredecessorStep(ImmutableList<FactReference> set, string role, string targetType)
         {
             return set
@@ -201,24 +237,6 @@ namespace Jinaga.UnitTest
                     .Select(edge => edge.Successor)
                 )
                 .ToImmutableList();
-        }
-
-        private bool ConditionIsTrue(Element element, Pipeline pipeline, bool exists)
-        {
-            if (element is SimpleElement simple)
-            {
-                return ConditionIsTrue(simple.FactReference, pipeline, exists);
-            }
-            else
-            {
-                throw new NotImplementedException();
-            }
-        }
-
-        private bool ConditionIsTrue(FactReference factReference, Pipeline pipeline, bool wantAny)
-        {
-            var hasAny = ExecutePipeline(factReference, pipeline).Any();
-            return wantAny && hasAny || !wantAny && !hasAny;
         }
     }
 }

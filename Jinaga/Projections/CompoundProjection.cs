@@ -37,19 +37,14 @@ namespace Jinaga.Projections
             );
         }
 
-        public override ImmutableList<(string name, Specification specification)> GetNamedSpecifications()
+        public override Projection Apply(ImmutableDictionary<string, string> replacements)
         {
-            var namedSpecifications =
-                from projection in projections
-                let name = projection.Key
-                where projection.Value is CollectionProjection
-                let collection = (CollectionProjection)projection.Value
-                select (name, collection.Specification);
-            var nested =
-                from projection in projections
-                from namedSpecification in projection.Value.GetNamedSpecifications()
-                select namedSpecification;
-            return namedSpecifications.Concat(nested).ToImmutableList();
+            return new CompoundProjection(projections
+                .ToImmutableDictionary(
+                    pair => pair.Key,
+                    pair => pair.Value.Apply(replacements)
+                )
+            );
         }
 
         public Projection GetProjection(string name)
@@ -57,13 +52,15 @@ namespace Jinaga.Projections
             return projections[name];
         }
 
+        public override bool CanRunOnGraph => projections.Values.All(p => p.CanRunOnGraph);
+
         public override string  ToDescriptiveString(int depth = 0)
         {
             string indent = Strings.Indent(depth);
             var fieldString = string.Join("", projections
                 .OrderBy(pair => pair.Key)
-                .Select(pair => $"    {indent}{pair.Key} = {pair.Value.ToDescriptiveString(depth + 1)}\r\n"));
-            return $"{{\r\n{fieldString}{indent}}}";
+                .Select(pair => $"    {indent}{pair.Key} = {pair.Value.ToDescriptiveString(depth + 1)}\n"));
+            return $"{{\n{fieldString}{indent}}}";
         }
     }
 }

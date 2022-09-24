@@ -23,10 +23,18 @@ namespace Jinaga.Test.Pipelines
                 }
             );
 
-            specification.Projection.ToDescriptiveString().Should().Be(@"{
+            specification.ToDescriptiveString().Should().Be(@"(airline: Skylane.Airline) {
+    passenger: Skylane.Passenger [
+        passenger->airline: Skylane.Airline = airline
+    ]
+    passengerName: Skylane.Passenger.Name [
+        passengerName->passenger: Skylane.Passenger = passenger
+    ]
+} => {
     passenger = passenger
     passengerName = passengerName
-}");
+}
+".Replace("\r", ""));
         }
 
         [Fact]
@@ -53,24 +61,24 @@ namespace Jinaga.Test.Pipelines
                 }
             );
 
-            specification.Pipeline.ToDescriptiveString().Should().Be(@"airline: Skylane.Airline {
-    passenger: Skylane.Passenger = airline S.airline Skylane.Passenger
-}
-");
-            specification.Projection.ToDescriptiveString().Should().Be(@"{
-    names = [
-        {
-            passengerName: Skylane.Passenger.Name = passenger S.passenger Skylane.Passenger.Name
-            N(
-                passengerName: Skylane.Passenger.Name {
-                    next: Skylane.Passenger.Name = passengerName S.prior Skylane.Passenger.Name
-                }
-            )
-        }
-        passengerName
+            specification.ToDescriptiveString().Should().Be(@"(airline: Skylane.Airline) {
+    passenger: Skylane.Passenger [
+        passenger->airline: Skylane.Airline = airline
     ]
+} => {
+    names = {
+        passengerName: Skylane.Passenger.Name [
+            passengerName->passenger: Skylane.Passenger = passenger
+            !E {
+                next: Skylane.Passenger.Name [
+                    next->prior: Skylane.Passenger.Name = passengerName
+                ]
+            }
+        ]
+    }
     passenger = passenger
-}");
+}
+".Replace("\r", ""));
         }
     }
 }

@@ -29,7 +29,7 @@ namespace Jinaga.Managers
                 var element = product.GetElement(name);
                 if (element is CollectionElement collectionElement)
                 {
-                    return GetFactReferences(collection.Specification.Projection, collectionElement.Products);
+                    return GetFactReferences(collection.Projection, collectionElement.Products);
                 }
                 else
                 {

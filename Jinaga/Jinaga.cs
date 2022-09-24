@@ -45,10 +45,10 @@ namespace Jinaga
 
             var graph = factManager.Serialize(start);
             var startReference = graph.Last;
-            var pipeline = specification.Pipeline;
-            if (pipeline.CanRunOnGraph)
+            var startReferences = ImmutableList.Create(startReference);
+            if (specification.CanRunOnGraph)
             {
-                var products = pipeline.Execute(startReference, graph);
+                var products = specification.Execute(startReferences, graph);
                 return specification.Projection switch
                 {
                     SimpleProjection simple => products
@@ -61,7 +61,6 @@ namespace Jinaga
             }
             else
             {
-                var startReferences = ImmutableList<FactReference>.Empty.Add(startReference);
                 var products = await factManager.Query(startReferences, specification, cancellationToken);
                 var productProjections = await factManager.ComputeProjections(specification.Projection, products, typeof(TProjection), null, Product.Empty, string.Empty, cancellationToken);
                 var projections = productProjections
@@ -131,10 +130,9 @@ namespace Jinaga
 
             var graph = factManager.Serialize(start);
             var startReference = graph.Last;
-            var pipeline = specification.Pipeline;
             var projection = specification.Projection;
             var observation = new FunctionObservation<TProjection>(added);
-            var observer = new Observer<TProjection>(specification, Product.Empty.With(specification.Pipeline.Starts.First().Name, new SimpleElement(startReference)), factManager, observation);
+            var observer = new Observer<TProjection>(specification, Product.Empty.With(specification.Given.First().Name, new SimpleElement(startReference)), factManager, observation);
             factManager.AddObserver(observer);
             observer.Start();
             return observer;

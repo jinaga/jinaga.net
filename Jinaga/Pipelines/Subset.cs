@@ -16,17 +16,16 @@ namespace Jinaga.Pipelines
             this.names = names;
         }
 
-        public static Subset FromPipeline(Pipeline pipeline)
-        {
-            var startNames = pipeline.Starts.Select(start => start.Name);
-            var pathStartNames = pipeline.Paths.Select(path => path.Start.Name);
-            var pathTargetNames = pipeline.Paths.Select(path => path.Target.Name);
-            return new Subset(startNames.Union(pathStartNames).Union(pathTargetNames).ToImmutableList());
-        }
-
         public Subset Add(string name)
         {
-            return new Subset(names.Add(name));
+            if (names.Contains(name))
+            {
+                return this;
+            }
+            else
+            {
+                return new Subset(names.Add(name));
+            }
         }
 
         public Product Of(Product product)

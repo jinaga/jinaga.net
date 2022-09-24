@@ -88,8 +88,7 @@ namespace Jinaga.Test.Facts
             var userWithName = Given<PassengerName>.Match(passengerName =>
                 passengerName.passenger.user);
 
-            var pipeline = userWithName.Pipeline;
-            pipeline.CanRunOnGraph.Should().BeTrue();
+            userWithName.CanRunOnGraph.Should().BeTrue();
 
             var passenger = new Passenger(new Airline("IA"), new User("--- PUBLIC KEY ---"));
             var passengerName = new PassengerName(passenger, "George", new PassengerName[0]);
@@ -98,8 +97,8 @@ namespace Jinaga.Test.Facts
             var reference = collector.Serialize(passengerName);
             var graph = collector.Graph;
 
-            var references = pipeline
-                .Execute(reference, graph)
+            var references = userWithName
+                .Execute(ImmutableList.Create(reference), graph)
                 .Select(p => p.GetElement("user"))
                 .OfType<SimpleElement>()
                 .Select(e => e.FactReference)
@@ -117,7 +116,6 @@ namespace Jinaga.Test.Facts
             var userWithName = Given<PassengerName>.Match(passengerName =>
                 passengerName.passenger.user);
 
-            var pipeline = userWithName.Pipeline;
             var passenger = new Passenger(new Airline("IA"), new User("--- PUBLIC KEY ---"));
             var passengerName = new PassengerName(passenger, "George", new PassengerName[0]);
 

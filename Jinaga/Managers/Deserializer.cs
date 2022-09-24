@@ -28,7 +28,7 @@ namespace Jinaga.Managers
             else if (projection is CollectionProjection collectionProjection)
                 return DeserializeCollectionProjection(emitter, collectionProjection, type, products, anchor, collectionName);
             else
-                throw new NotImplementedException();
+                throw new ArgumentException($"Unknown projection type {projection.GetType().Name}");
         }
 
         private static ImmutableList<ProductAnchorProjection> DeserializeSimpleProjection(
@@ -99,7 +99,7 @@ namespace Jinaga.Managers
                     let element = product.GetElement(property.Name)
                     where element is CollectionElement
                     let collectionElement = (CollectionElement)element
-                    from childProductProjection in DeserializeChildParameters(emitter, collectionProjection.Specification.Projection, property.PropertyType, property.Name, collectionElement.Products, parentAnchor)
+                    from childProductProjection in DeserializeChildParameters(emitter, collectionProjection.Projection, property.PropertyType, property.Name, collectionElement.Products, parentAnchor)
                     select childProductProjection;
                 return productProjections.Concat(childProductProjections).ToImmutableList();
             }
@@ -175,7 +175,7 @@ namespace Jinaga.Managers
                         var collectionElement = (CollectionElement)product.GetElement(parameterName);
                         var elements = Deserialize(
                                 emitter,
-                                collectionProjection.Specification.Projection,
+                                collectionProjection.Projection,
                                 elementType,
                                 collectionElement.Products,
                                 product.GetAnchor(),

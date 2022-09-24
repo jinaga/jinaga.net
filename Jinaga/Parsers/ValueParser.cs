@@ -1,4 +1,5 @@
 using Jinaga.Definitions;
+using Jinaga.Pipelines;
 using Jinaga.Projections;
 using Jinaga.Repository;
 using Jinaga.Visualizers;
@@ -70,19 +71,18 @@ namespace Jinaga.Parsers
             }
             else if (expression is MethodCallExpression allCallExpression &&
                 allCallExpression.Method.DeclaringType == typeof(FactRepository) &&
-                allCallExpression.Method.Name == nameof(FactRepository.All))
+                allCallExpression.Method.Name == nameof(FactRepository.All) &&
+                allCallExpression.Arguments.Count == 2 &&
+                typeof(Specification).IsAssignableFrom(allCallExpression.Arguments[1].Type))
             {
                 var start = ParseValue(symbolTable, context, allCallExpression.Arguments[0]).symbolValue;
                 if (start is SymbolValueSetDefinition startValue)
                 {
                     var startSetDefinition = startValue.SetDefinition;
                     var specification = ParseSpecification(allCallExpression.Arguments[1]);
-                    var parameterLabel = specification.Pipeline.Starts.First();
-                    var argument = startSetDefinition.Label;
-                    var pipeline = specification.Pipeline.Apply(parameterLabel, argument);
-                    var projection = specification.Projection.Apply(parameterLabel, argument);
-                    var specificationObj = new Specification(pipeline, projection);
-                    return (new SymbolValueCollection(startSetDefinition, specificationObj), "");
+                    var arguments = ImmutableList<Pipelines.Label>.Empty.Add(startSetDefinition.Label);
+                    specification = specification.Apply(arguments);
+                    return (new SymbolValueCollection(startSetDefinition, specification), "");
                 }
                 else
                 {

@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Jinaga.Pipelines;
 
 namespace Jinaga.Projections
@@ -8,6 +9,13 @@ namespace Jinaga.Projections
         {
             return this;
         }
+
+        public override Projection Apply(ImmutableDictionary<string, string> replacements)
+        {
+            return this;
+        }
+
+        public override bool CanRunOnGraph => true;
 
         public override string ToDescriptiveString(int depth = 0)
         {
