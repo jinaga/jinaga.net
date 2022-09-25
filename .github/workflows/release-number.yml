@@ -17,8 +17,10 @@ jobs:
         fetch-depth: "0"
     - name: Get release number from GitHub
       id: get_release_number
+      env:
+        RELEASE_NUMBER: ${{ github.event.release.tag_name }}
       run: |
-        echo ${{ github.event.release.tag_name }}
+        echo "Release: $RELEASE_NUMBER"
     - name: Setup .NET
       uses: actions/setup-dotnet@v1
       with:
