@@ -13,6 +13,10 @@
     </PackageReference>
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="..\README.md" Pack="true" PackagePath="\"/>
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFramework>net5.0</TargetFramework>
 
@@ -24,6 +28,7 @@
     <ProjectUrl>https://jinaga.net</ProjectUrl>
     <RepositoryUrl>https://github.com/jinaga/jinaga.net</RepositoryUrl>
     <PackageTags>Data;Synchronization;Offline;Occasionally connected</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
     <Description>
       Generates visualizations of Jinaga facts and types.
       For use wihtin .NET Interactive Notebooks.
