@@ -11,10 +11,9 @@ dotnet test
 
 ## Versioning
 
-This repository uses Nerdbank.GitVersioning to automatically generate package version numbers.
-The version number is based on the Git tag, and the number of commits since the tag.
-The version number is stored in the `version.json` file, and is used by the build process.
-Please see the [Nerdbank.GitVersioning documentation](https://github.com/dotnet/Nerdbank.GitVersioning) for more information.
+This repository uses [MinVer](https://github.com/adamralph/minver) for versioning.
+The version number is determined by the Git tag of the commit.
+If the commit is not tagged, the version number is determined by the latest tag and the number of commits since that tag.
 
 To explicitly control the version number, create a Git tag as described below.
 

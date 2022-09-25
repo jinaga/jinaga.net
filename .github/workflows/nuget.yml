@@ -23,8 +23,8 @@ jobs:
       run: dotnet restore
     - name: Pack
       run: |
-        dotnet pack ./Jinaga/ -c Release -p:PublicRelease=true -o ./packages
-        dotnet pack ./Jinaga.UnitTest/ -c Release -p:PublicRelease=true -o ./packages
-        dotnet pack ./Jinaga.Graphviz/ -c Release -p:PublicRelease=true -o ./packages
-    - name: Publish Nuget to GitHub registry
-      run: dotnet nuget push ./packages/*.nupkg -k ${{secrets.NUGET_API_KEY}} -s https://api.nuget.org/v3/index.json --skip-duplicate --no-symbols true
+        dotnet pack ./Jinaga/ -c Release -o ./packages
+        dotnet pack ./Jinaga.UnitTest/ -c Release -o ./packages
+        dotnet pack ./Jinaga.Graphviz/ -c Release -o ./packages
+    # - name: Publish Nuget to GitHub registry
+    #   run: dotnet nuget push ./packages/*.nupkg -k ${{secrets.NUGET_API_KEY}} -s https://api.nuget.org/v3/index.json --skip-duplicate --no-symbols true
