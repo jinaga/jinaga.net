@@ -1,0 +1,44 @@
+name: "Test release number"
+
+on:
+  push:
+    branches: [ build-number ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: "0"
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: 6.0.x
+    - name: Restore dependencies
+      run: dotnet restore
+    - name: Build
+      run: |
+        dotnet build Jinaga --no-restore
+        dotnet build Jinaga.UnitTest --no-restore
+        dotnet build Jinaga.Test --no-restore
+        dotnet build Jinaga.Graphviz --no-restore
+    - name: Test
+      run: dotnet test Jinaga.Test --no-build --verbosity normal
+    - name: Get release number from GitHub
+      id: get_release_number
+      run: |
+        echo {{ github.event.release.tag_name }}
+    - name: Get version
+      id: get_version
+      run: |
+        version=$(cat ./Jinaga/Properties/AssemblyInfo.cs | grep -oP '(?<=AssemblyInformationalVersion\(")[^"]+')
+        echo "::set-output name=version::$version"
+    - name: Test version
+      run: |
+        if [[ ${{ steps.get_version.outputs.version }} != *"-"* ]]; then
+          echo "Version is not a pre-release version"
+          exit 1
+        fi
