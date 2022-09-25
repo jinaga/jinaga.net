@@ -21,11 +21,11 @@ To explicitly control the version number, create a Git tag as described below.
 
 GitHub Actions build, test, and release the library to NuGet.
 The workflow `nuget.yml` is triggered on the creation of a release.
-Create a tag named `v{version.number}` and push the tag.
+Create a tag with the name matching the desired version number and push the tag.
 For example:
 
 ```bash
-git tag v0.2.25
+git tag 0.2.25
 git push --tags
 ```
 
@@ -33,5 +33,5 @@ Then on GitHub, create a release for that tag.
 Auto-generate the description of the release so that all of the intervening pull requests are listed.
 
 ```bash
-gh release create v0.2.25 --generate-notes
+gh release create 0.2.25 --generate-notes
 ```

@@ -26,5 +26,5 @@ jobs:
         dotnet pack ./Jinaga/ -c Release -o ./packages
         dotnet pack ./Jinaga.UnitTest/ -c Release -o ./packages
         dotnet pack ./Jinaga.Graphviz/ -c Release -o ./packages
-    # - name: Publish Nuget to GitHub registry
-    #   run: dotnet nuget push ./packages/*.nupkg -k ${{secrets.NUGET_API_KEY}} -s https://api.nuget.org/v3/index.json --skip-duplicate --no-symbols true
+    - name: Publish Nuget to GitHub registry
+      run: dotnet nuget push ./packages/*.nupkg -k ${{secrets.NUGET_API_KEY}} -s https://api.nuget.org/v3/index.json --skip-duplicate --no-symbols true
