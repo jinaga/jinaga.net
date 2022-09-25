@@ -15,6 +15,10 @@ jobs:
     - uses: actions/checkout@v2
       with:
         fetch-depth: "0"
+    - name: Get release number from GitHub
+      id: get_release_number
+      run: |
+        echo {{ github.event.release.tag_name }}
     - name: Setup .NET
       uses: actions/setup-dotnet@v1
       with:
@@ -27,12 +31,6 @@ jobs:
         dotnet build Jinaga.UnitTest --no-restore
         dotnet build Jinaga.Test --no-restore
         dotnet build Jinaga.Graphviz --no-restore
-    - name: Test
-      run: dotnet test Jinaga.Test --no-build --verbosity normal
-    - name: Get release number from GitHub
-      id: get_release_number
-      run: |
-        echo {{ github.event.release.tag_name }}
     - name: Get version
       id: get_version
       run: |
