@@ -22,12 +22,9 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore
     - name: Pack
-      env:
-        RELEASE_NUMBER: ${{ github.event.release.tag_name }}
       run: |
-        echo "Release: $RELEASE_NUMBER"
-        dotnet pack ./Jinaga/ -c Release -p:VersionPrefix=$RELEASE_NUMBER -p:PublicRelease=true -o ./packages
-        dotnet pack ./Jinaga.UnitTest/ -c Release -p:VersionPrefix=$RELEASE_NUMBER -p:PublicRelease=true -o ./packages
-        dotnet pack ./Jinaga.Graphviz/ -c Release -p:VersionPrefix=$RELEASE_NUMBER -p:PublicRelease=true -o ./packages
-    # - name: Publish Nuget to GitHub registry
-    #   run: dotnet nuget push ./packages/*.nupkg -k ${{secrets.NUGET_API_KEY}} -s https://api.nuget.org/v3/index.json --skip-duplicate --no-symbols true
+        dotnet pack ./Jinaga/ -c Release -p:PublicRelease=true -o ./packages
+        dotnet pack ./Jinaga.UnitTest/ -c Release -p:PublicRelease=true -o ./packages
+        dotnet pack ./Jinaga.Graphviz/ -c Release -p:PublicRelease=true -o ./packages
+    - name: Publish Nuget to GitHub registry
+      run: dotnet nuget push ./packages/*.nupkg -k ${{secrets.NUGET_API_KEY}} -s https://api.nuget.org/v3/index.json --skip-duplicate --no-symbols true
