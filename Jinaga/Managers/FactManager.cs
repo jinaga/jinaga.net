@@ -35,7 +35,11 @@ namespace Jinaga.Managers
             {
                 await observer.FactsAdded(added, graph, cancellationToken);
             }
-            await networkManager.Send(added, cancellationToken);
+
+            var facts = graph.FactReferences
+                .Select(r => graph.GetFact(r))
+                .ToImmutableList();
+            await networkManager.Save(facts, cancellationToken);
             return added;
         }
 

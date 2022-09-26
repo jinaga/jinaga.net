@@ -16,9 +16,11 @@ namespace Jinaga.Managers
             this.network = network;
         }
 
-        public Task Send(ImmutableList<Fact> facts, CancellationToken cancellationToken)
+        public async Task Save(ImmutableList<Fact> facts, CancellationToken cancellationToken)
         {
-            throw new NotImplementedException();
+            // TODO: Queue the facts for sending.
+            // Send the facts using the network provider.
+            await network.Save(facts, cancellationToken);
         }
     }
 }
