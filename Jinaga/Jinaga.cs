@@ -15,10 +15,12 @@ namespace Jinaga
     public class Jinaga
     {
         private readonly FactManager factManager;
+        private readonly NetworkManager networkManager;
 
-        public Jinaga(IStore store)
+        public Jinaga(IStore store, INetwork network)
         {
-            this.factManager = new FactManager(store);
+            this.networkManager = new NetworkManager(network);
+            this.factManager = new FactManager(store, networkManager);
         }
 
         public async Task<TFact> Fact<TFact>(TFact prototype) where TFact: class

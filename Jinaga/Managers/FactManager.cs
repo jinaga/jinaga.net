@@ -16,10 +16,12 @@ namespace Jinaga.Managers
     class FactManager
     {
         private readonly IStore store;
+        private readonly NetworkManager networkManager;
 
-        public FactManager(IStore store)
+        public FactManager(IStore store, NetworkManager networkManager)
         {
             this.store = store;
+            this.networkManager = networkManager;
         }
 
         private SerializerCache serializerCache = SerializerCache.Empty;
@@ -33,6 +35,7 @@ namespace Jinaga.Managers
             {
                 await observer.FactsAdded(added, graph, cancellationToken);
             }
+            await networkManager.Send(added, cancellationToken);
             return added;
         }
 

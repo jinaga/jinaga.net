@@ -10,7 +10,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Jinaga.UnitTest
+namespace Jinaga.Storage
 {
     public class MemoryStore : IStore
     {
