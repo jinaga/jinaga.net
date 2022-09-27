@@ -8,7 +8,7 @@ namespace Jinaga
     {
         public static Jinaga Create()
         {
-            Uri baseUrl = new Uri("http://localhost:8080/jinaga");
+            Uri baseUrl = new Uri("http://localhost:8080/jinaga/");
             return new Jinaga(new MemoryStore(), new HttpNetwork(baseUrl));
         }
     }

@@ -31,7 +31,12 @@ namespace Jinaga
             }
 
             var graph = factManager.Serialize(prototype);
-            await factManager.Save(graph, default(CancellationToken));
+            using (var source = new CancellationTokenSource())
+            {
+                var token = source.Token;
+                await factManager.Save(graph, token);
+            }
+
             return factManager.Deserialize<TFact>(graph, graph.Last);
         }
 

@@ -14,12 +14,12 @@ namespace Jinaga.Http
 
         public Task<LoginResponse> Login()
         {
-            return httpConnection.Get<LoginResponse>("/login");
+            return httpConnection.Get<LoginResponse>("login");
         }
         
         public Task Save(SaveRequest saveMessage)
         {
-            return httpConnection.Post("/save", saveMessage);
+            return httpConnection.Post("save", saveMessage);
         }
     }
 }

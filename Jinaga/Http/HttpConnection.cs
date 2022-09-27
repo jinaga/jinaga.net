@@ -1,21 +1,25 @@
 ﻿using System;
 using System.Net.Http;
-using System.Threading.Tasks;
-using System.Text.Json;
 using System.Net.Http.Headers;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Jinaga.Http
 {
     public class HttpConnection : IHttpConnection
     {
-        private Uri baseUrl;
-        private string token;
+        private HttpClient httpClient;
 
         public HttpConnection(Uri baseUrl, string token)
         {
-            this.baseUrl = baseUrl;
-            this.token = token;
+            this.httpClient = new HttpClient();
+            
+            httpClient.BaseAddress = baseUrl;
+            if (!string.IsNullOrEmpty(token))
+            {
+                httpClient.DefaultRequestHeaders.Authorization =
+                    new AuthenticationHeaderValue("Bearer", token);
+            }
         }
 
         public Task<TResponse> Get<TResponse>(string path)
@@ -55,10 +59,6 @@ namespace Jinaga.Http
 
         private T WithHttpClient<T>(Func<HttpClient, T> func)
         {
-            using var httpClient = new HttpClient();
-            httpClient.BaseAddress = baseUrl;
-            httpClient.DefaultRequestHeaders.Authorization =
-                new AuthenticationHeaderValue("Bearer", token);
             return func(httpClient);
         }
     }
