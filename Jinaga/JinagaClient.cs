@@ -1,5 +1,6 @@
 ﻿using Jinaga.Communication;
 using Jinaga.Storage;
+using System;
 
 namespace Jinaga
 {
@@ -7,7 +8,8 @@ namespace Jinaga
     {
         public static Jinaga Create()
         {
-            return new Jinaga(new MemoryStore(), new HttpNetwork());
+            Uri baseUrl = new Uri("http://localhost:8080/jinaga");
+            return new Jinaga(new MemoryStore(), new HttpNetwork(baseUrl));
         }
     }
 }
