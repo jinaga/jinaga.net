@@ -1,10 +1,8 @@
 ﻿using Jinaga.Facts;
+using Jinaga.Projections;
 using Jinaga.Services;
 using System;
-using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -15,6 +13,21 @@ namespace Jinaga.UnitTest
         public Task Save(ImmutableList<Fact> facts, CancellationToken cancellationToken)
         {
             return Task.CompletedTask;
+        }
+
+        public Task<ImmutableList<string>> Feeds(ImmutableList<FactReference> startReferences, Specification specification, CancellationToken cancellationToken)
+        {
+            return Task.FromResult(ImmutableList<string>.Empty);
+        }
+
+        public Task<ImmutableList<FactReference>> FetchFeed(string feed, ref string bookmark, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<FactGraph> Load(ImmutableList<FactReference> factReferences, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
         }
     }
 }

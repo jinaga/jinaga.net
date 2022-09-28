@@ -19,8 +19,14 @@ namespace Jinaga
 
         public Jinaga(IStore store, INetwork network)
         {
-            this.networkManager = new NetworkManager(network);
-            this.factManager = new FactManager(store, networkManager);
+            networkManager = new NetworkManager(network, store, async (graph, added, cancellationToken) =>
+            {
+                if (factManager != null)
+                {
+                    await factManager.NotifyObservers(graph, added, cancellationToken);
+                }
+            });
+            factManager = new FactManager(store, networkManager);
         }
 
         public async Task<TFact> Fact<TFact>(TFact prototype) where TFact: class

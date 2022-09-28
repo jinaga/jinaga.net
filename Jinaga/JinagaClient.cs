@@ -1,4 +1,4 @@
-﻿using Jinaga.Communication;
+﻿using Jinaga.Http;
 using Jinaga.Storage;
 using System;
 

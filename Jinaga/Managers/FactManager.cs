@@ -31,10 +31,7 @@ namespace Jinaga.Managers
         public async Task<ImmutableList<Fact>> Save(FactGraph graph, CancellationToken cancellationToken)
         {
             var added = await store.Save(graph, cancellationToken);
-            foreach (var observer in observers)
-            {
-                await observer.FactsAdded(added, graph, cancellationToken);
-            }
+            await NotifyObservers(graph, added, cancellationToken);
 
             var facts = graph.FactReferences
                 .Select(r => graph.GetFact(r))
@@ -45,6 +42,7 @@ namespace Jinaga.Managers
 
         public async Task<ImmutableList<Product>> Query(ImmutableList<FactReference> startReferences, Specification specification, CancellationToken cancellationToken)
         {
+            await networkManager.Query(startReferences, specification, cancellationToken);
             return await store.Query(startReferences, specification, cancellationToken);
         }
 
@@ -141,6 +139,14 @@ namespace Jinaga.Managers
             lock (this)
             {
                 observers = observers.Remove(observer);
+            }
+        }
+
+        public async Task NotifyObservers(FactGraph graph, ImmutableList<Fact> added, CancellationToken cancellationToken)
+        {
+            foreach (var observer in observers)
+            {
+                await observer.FactsAdded(added, graph, cancellationToken);
             }
         }
     }

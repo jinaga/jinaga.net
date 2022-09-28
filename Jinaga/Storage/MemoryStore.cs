@@ -238,5 +238,20 @@ namespace Jinaga.Storage
                 )
                 .ToImmutableList();
         }
+
+        public Task<string> LoadBookmark(string feed)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<ImmutableList<FactReference>> ListKnown(ImmutableList<FactReference> factReferences)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task SaveBookmark(string feed, string bookmark)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

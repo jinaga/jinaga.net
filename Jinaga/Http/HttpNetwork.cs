@@ -1,5 +1,5 @@
 ﻿using Jinaga.Facts;
-using Jinaga.Http;
+using Jinaga.Projections;
 using Jinaga.Records;
 using Jinaga.Services;
 using System;
@@ -8,7 +8,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Jinaga.Communication
+namespace Jinaga.Http
 {
     public class HttpNetwork : INetwork
     {
@@ -16,9 +16,9 @@ namespace Jinaga.Communication
 
         public HttpNetwork(Uri baseUrl)
         {
-            this.webClient = new WebClient(new HttpConnection(baseUrl, ""));
+            webClient = new WebClient(new HttpConnection(baseUrl, ""));
         }
-        
+
         public Task Save(ImmutableList<Fact> facts, CancellationToken cancellationToken)
         {
             var saveRequest = new SaveRequest
@@ -89,6 +89,21 @@ namespace Jinaga.Communication
                 Type = reference.Type,
                 Hash = reference.Hash
             };
+        }
+
+        public Task<ImmutableList<string>> Feeds(ImmutableList<Facts.FactReference> startReferences, Specification specification, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<ImmutableList<Facts.FactReference>> FetchFeed(string feed, ref string bookmark, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<FactGraph> Load(ImmutableList<Facts.FactReference> factReferences, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
         }
     }
 }
