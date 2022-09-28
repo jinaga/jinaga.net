@@ -21,5 +21,10 @@ namespace Jinaga.Http
         {
             return httpConnection.Post("save", saveMessage);
         }
+
+        public Task<FeedsResponse> Feeds(string request)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

@@ -1,4 +1,5 @@
 ﻿using Jinaga.Facts;
+using Jinaga.Pipelines;
 using Jinaga.Projections;
 using Jinaga.Records;
 using Jinaga.Services;
@@ -26,6 +27,25 @@ namespace Jinaga.Http
                 Facts = facts.Select(fact => CreateFactRecord(fact)).ToList()
             };
             return webClient.Save(saveRequest);
+        }
+
+        public async Task<ImmutableList<string>> Feeds(ImmutableList<Facts.FactReference> startReferences, Specification specification, CancellationToken cancellationToken)
+        {
+            string startString = GenerateStartString(specification.Given, startReferences);
+            string specificationString = GenerateSpecificationString(specification);
+            var response = await webClient.Feeds(startString + specificationString);
+            var feeds = response.Feeds.ToImmutableList();
+            return feeds;
+        }
+
+        public Task<ImmutableList<Facts.FactReference>> FetchFeed(string feed, ref string bookmark, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<FactGraph> Load(ImmutableList<Facts.FactReference> factReferences, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
         }
 
         private static FactRecord CreateFactRecord(Fact fact)
@@ -91,19 +111,49 @@ namespace Jinaga.Http
             };
         }
 
-        public Task<ImmutableList<string>> Feeds(ImmutableList<Facts.FactReference> startReferences, Specification specification, CancellationToken cancellationToken)
+        private string GenerateStartString(ImmutableList<Label> given, ImmutableList<Facts.FactReference> startReferences)
         {
-            throw new NotImplementedException();
+            var startStrings = given.Zip(startReferences, (label, reference) =>
+                $"{label.Name}=#{reference.Hash}\n");
+            return string.Join("", startStrings);
         }
 
-        public Task<ImmutableList<Facts.FactReference>> FetchFeed(string feed, ref string bookmark, CancellationToken cancellationToken)
+        private string GenerateSpecificationString(Specification specification)
         {
-            throw new NotImplementedException();
+            var specificationWithOnlyCollections = new Specification(
+                specification.Given,
+                specification.Matches,
+                ProjectionWithOnlyCollections(specification.Projection));
+            return specificationWithOnlyCollections.ToDescriptiveString();
         }
 
-        public Task<FactGraph> Load(ImmutableList<Facts.FactReference> factReferences, CancellationToken cancellationToken)
+        private Projection ProjectionWithOnlyCollections(Projection projection)
         {
-            throw new NotImplementedException();
+            return MaybeProjectionWithOnlyCollections(projection) ??
+                new CompoundProjection(ImmutableDictionary<string, Projection>.Empty);
+        }
+
+        private static Projection? MaybeProjectionWithOnlyCollections(Projection projection)
+        {
+            if (projection is CollectionProjection)
+            {
+                return projection;
+            }
+            else if (projection is CompoundProjection compoundProjection)
+            {
+                var namedProjections = compoundProjection.Names
+                    .Select(name => (name, projection: MaybeProjectionWithOnlyCollections(compoundProjection.GetProjection(name))))
+                    .Where(p => p.projection != null)
+                    .ToImmutableDictionary(
+                        p => p.name,
+                        p => p.projection!
+                    );
+                return new CompoundProjection(namedProjections);
+            }
+            else
+            {
+                return null;
+            }
         }
     }
 }
