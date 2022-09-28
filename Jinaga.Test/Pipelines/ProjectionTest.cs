@@ -75,7 +75,7 @@ namespace Jinaga.Test.Pipelines
                 ]
             }
         ]
-    }
+    } => passengerName
     passenger = passenger
 }
 ".Replace("\r", ""));

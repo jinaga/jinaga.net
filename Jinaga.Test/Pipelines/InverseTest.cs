@@ -93,7 +93,7 @@ namespace Jinaga.Test.Pipelines
         name: Corporate.Office.Name [
             name->office: Corporate.Office = office
         ]
-    }
+    } => name
     Office = office
 }
 ".Replace("\r", ""),
