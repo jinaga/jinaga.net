@@ -149,9 +149,12 @@ namespace Jinaga.Http
 
         private static Projection? MaybeProjectionWithOnlyCollections(Projection projection)
         {
-            if (projection is CollectionProjection)
+            if (projection is CollectionProjection collectionProjection)
             {
-                return projection;
+                return new CollectionProjection(
+                    collectionProjection.Matches,
+                    ProjectionWithOnlyCollections(collectionProjection.Projection)
+                );
             }
             else if (projection is CompoundProjection compoundProjection)
             {

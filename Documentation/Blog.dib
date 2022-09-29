@@ -27,10 +27,21 @@ var title = await j.Fact(new Title(post, "Introduction to Jinaga Replicator", ne
 
 #!csharp
 
+var postTitles = Given<Post>.Match((post, facts) =>
+    from title in facts.OfType<Title>()
+    where title.post == post
+    select title
+);
+
+
 var specification = Given<Site>.Match((site, facts) =>
     from post in facts.OfType<Post>()
     where post.site == site
-    select post
+    select new
+    {
+        post = post,
+        titles = facts.All(post, postTitles)
+    }
 );
 
 specification.ToString()
@@ -38,3 +49,5 @@ specification.ToString()
 #!csharp
 
 var posts = await j.Query(site, specification);
+
+posts
