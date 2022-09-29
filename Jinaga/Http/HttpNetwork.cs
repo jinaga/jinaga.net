@@ -38,9 +38,14 @@ namespace Jinaga.Http
             return feeds;
         }
 
-        public Task<ImmutableList<Facts.FactReference>> FetchFeed(string feed, ref string bookmark, CancellationToken cancellationToken)
+        public async Task<(ImmutableList<Facts.FactReference> references, string bookmark)> FetchFeed(string feed, string bookmark, CancellationToken cancellationToken)
         {
-            throw new NotImplementedException();
+            var response = await webClient.Feed(feed, bookmark, cancellationToken);
+            bookmark = response.bookmark;
+            var references = response.references
+                .Select(r => new Facts.FactReference(r.Type, r.Hash))
+                .ToImmutableList();
+            return (references, bookmark);
         }
 
         public Task<FactGraph> Load(ImmutableList<Facts.FactReference> factReferences, CancellationToken cancellationToken)

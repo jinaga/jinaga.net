@@ -17,6 +17,7 @@ namespace Jinaga.Storage
         private ImmutableDictionary<FactReference, Fact> factsByReference = ImmutableDictionary<FactReference, Fact>.Empty;
         private ImmutableList<Edge> edges = ImmutableList<Edge>.Empty;
         private ImmutableDictionary<FactReference, ImmutableList<FactReference>> ancestors = ImmutableDictionary<FactReference, ImmutableList<FactReference>>.Empty;
+        private ImmutableDictionary<string, string> bookmarks = ImmutableDictionary<string, string>.Empty;
 
         public Task<ImmutableList<Fact>> Save(FactGraph graph, CancellationToken cancellationToken)
         {
@@ -241,7 +242,14 @@ namespace Jinaga.Storage
 
         public Task<string> LoadBookmark(string feed)
         {
-            throw new NotImplementedException();
+            if (this.bookmarks.TryGetValue(feed, out var bookmark))
+            {
+                return Task.FromResult(bookmark);
+            }
+            else
+            {
+                return Task.FromResult("");
+            }
         }
 
         public Task<ImmutableList<FactReference>> ListKnown(ImmutableList<FactReference> factReferences)

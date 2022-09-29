@@ -20,7 +20,7 @@ namespace Jinaga.UnitTest
             return Task.FromResult(ImmutableList<string>.Empty);
         }
 
-        public Task<ImmutableList<FactReference>> FetchFeed(string feed, ref string bookmark, CancellationToken cancellationToken)
+        public Task<(ImmutableList<FactReference> references, string bookmark)> FetchFeed(string feed, string bookmark, CancellationToken cancellationToken)
         {
             throw new NotImplementedException();
         }

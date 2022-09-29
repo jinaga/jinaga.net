@@ -27,6 +27,7 @@ namespace Jinaga.Http
             return WithHttpClient(async httpClient =>
             {
                 using var httpResponse = await httpClient.GetAsync(path);
+                httpResponse.EnsureSuccessStatusCode();
                 string body = await httpResponse.Content.ReadAsStringAsync();
                 var response = MessageSerializer.Deserialize<TResponse>(body);
                 return response;

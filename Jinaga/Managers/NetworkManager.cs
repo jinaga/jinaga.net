@@ -30,17 +30,17 @@ namespace Jinaga.Managers
 
         public async Task Query(ImmutableList<FactReference> startReferences, Specification specification, CancellationToken cancellationToken)
         {
-            // TODO: Get the feeds from the source.
-            ImmutableList<string> feeds = await network.Feeds(startReferences, specification, cancellationToken);
+            // Get the feeds from the source.
+            var feeds = await network.Feeds(startReferences, specification, cancellationToken);
 
             // TODO: Fork to fetch from each feed.
             foreach (var feed in feeds)
             {
-                // TODO: Load the bookmark.
+                // Load the bookmark.
                 string bookmark = await store.LoadBookmark(feed);
 
-                // TODO: Fetch facts from the feed starting at the bookmark.
-                ImmutableList<FactReference> factReferences = await network.FetchFeed(feed, ref bookmark, cancellationToken);
+                // Fetch facts from the feed starting at the bookmark.
+                (var factReferences, var nextBookmark) = await network.FetchFeed(feed, bookmark, cancellationToken);
 
                 // If there are no facts, end.
                 if (factReferences.Count == 0)

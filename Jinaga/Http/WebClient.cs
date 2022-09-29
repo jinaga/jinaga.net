@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Jinaga.Http
@@ -25,6 +26,12 @@ namespace Jinaga.Http
         public Task<FeedsResponse> Feeds(string request)
         {
             return httpConnection.PostStringExpectingJson<FeedsResponse>("feeds", request);
+        }
+
+        public Task<FeedResponse> Feed(string feed, string bookmark, CancellationToken cancellationToken)
+        {
+            string queryString = bookmark == null ? "" : $"?b={bookmark}";
+            return httpConnection.Get<FeedResponse>($"feeds/{feed}{queryString}");
         }
     }
 }
