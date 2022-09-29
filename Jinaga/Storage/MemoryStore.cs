@@ -254,7 +254,10 @@ namespace Jinaga.Storage
 
         public Task<ImmutableList<FactReference>> ListKnown(ImmutableList<FactReference> factReferences)
         {
-            throw new NotImplementedException();
+            var known = factReferences
+                .Where(r => factsByReference.ContainsKey(r))
+                .ToImmutableList();
+            return Task.FromResult(known);
         }
 
         public Task SaveBookmark(string feed, string bookmark)

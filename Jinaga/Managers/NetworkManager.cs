@@ -49,8 +49,8 @@ namespace Jinaga.Managers
                 }
 
                 // TODO: Load the facts that I don't already have.
-                ImmutableList<FactReference> knownFactReferences = await store.ListKnown(factReferences);
-                FactGraph graph = await network.Load(factReferences, cancellationToken);
+                var knownFactReferences = await store.ListKnown(factReferences);
+                var graph = await network.Load(factReferences.RemoveRange(knownFactReferences), cancellationToken);
 
                 // TODO: Save the facts.
                 var added = await store.Save(graph, cancellationToken);
