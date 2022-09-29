@@ -33,7 +33,7 @@ namespace Jinaga.Http
             });
         }
 
-        public Task Post<TRequest>(string path, TRequest request)
+        public Task PostJson<TRequest>(string path, TRequest request)
         {
             return WithHttpClient(async httpClient =>
             {
@@ -43,7 +43,7 @@ namespace Jinaga.Http
             });
         }
 
-        public Task<TResponse> PostExpectJson<TRequest, TResponse>(string path, TRequest request)
+        public Task<TResponse> PostJsonExpectingJson<TRequest, TResponse>(string path, TRequest request)
         {
             return WithHttpClient(async httpClient =>
             {
@@ -51,6 +51,18 @@ namespace Jinaga.Http
                 using var content = new ByteArrayContent(Encoding.UTF8.GetBytes(json));
                 content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
                 using var httpResponse = await httpClient.PostAsync(path, content);
+                string body = await httpResponse.Content.ReadAsStringAsync();
+                var response = MessageSerializer.Deserialize<TResponse>(body);
+                return response;
+            });
+        }
+
+        public Task<TResponse> PostStringExpectingJson<TResponse>(string path, string request)
+        {
+            return WithHttpClient(async httpClient =>
+            {
+                using var httpResponse = await httpClient.PostAsync(path, new StringContent(request));
+                httpResponse.EnsureSuccessStatusCode();
                 string body = await httpResponse.Content.ReadAsStringAsync();
                 var response = MessageSerializer.Deserialize<TResponse>(body);
                 return response;

@@ -19,12 +19,12 @@ namespace Jinaga.Http
         
         public Task Save(SaveRequest saveMessage)
         {
-            return httpConnection.Post("save", saveMessage);
+            return httpConnection.PostJson("save", saveMessage);
         }
 
         public Task<FeedsResponse> Feeds(string request)
         {
-            throw new NotImplementedException();
+            return httpConnection.PostStringExpectingJson<FeedsResponse>("feeds", request);
         }
     }
 }

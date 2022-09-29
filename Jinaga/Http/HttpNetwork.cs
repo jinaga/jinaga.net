@@ -31,7 +31,7 @@ namespace Jinaga.Http
 
         public async Task<ImmutableList<string>> Feeds(ImmutableList<Facts.FactReference> startReferences, Specification specification, CancellationToken cancellationToken)
         {
-            string startString = GenerateStartString(specification.Given, startReferences);
+            string startString = GenerateDeclarationString(specification.Given, startReferences);
             string specificationString = GenerateSpecificationString(specification);
             var response = await webClient.Feeds(startString + specificationString);
             var feeds = response.Feeds.ToImmutableList();
@@ -111,10 +111,10 @@ namespace Jinaga.Http
             };
         }
 
-        private string GenerateStartString(ImmutableList<Label> given, ImmutableList<Facts.FactReference> startReferences)
+        private string GenerateDeclarationString(ImmutableList<Label> given, ImmutableList<Facts.FactReference> startReferences)
         {
             var startStrings = given.Zip(startReferences, (label, reference) =>
-                $"{label.Name}=#{reference.Hash}\n");
+                $"let {label.Name}:{reference.Type}=#{reference.Hash}\n");
             return string.Join("", startStrings);
         }
 
