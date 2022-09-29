@@ -1,5 +1,4 @@
-﻿using System;
-using System.Threading;
+﻿using System.Threading;
 using System.Threading.Tasks;
 
 namespace Jinaga.Http
@@ -32,6 +31,11 @@ namespace Jinaga.Http
         {
             string queryString = bookmark == null ? "" : $"?b={bookmark}";
             return httpConnection.Get<FeedResponse>($"feeds/{feed}{queryString}");
+        }
+
+        public Task<LoadResponse> Load(LoadRequest request, CancellationToken cancellationToken)
+        {
+            return httpConnection.PostJsonExpectingJson<LoadRequest, LoadResponse>("load", request);
         }
     }
 }

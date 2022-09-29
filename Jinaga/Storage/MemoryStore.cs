@@ -262,7 +262,8 @@ namespace Jinaga.Storage
 
         public Task SaveBookmark(string feed, string bookmark)
         {
-            throw new NotImplementedException();
+            bookmarks = bookmarks.SetItem(feed, bookmark);
+            return Task.CompletedTask;
         }
     }
 }

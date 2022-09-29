@@ -4,6 +4,7 @@ using Jinaga.Projections;
 using Jinaga.Records;
 using Jinaga.Services;
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
@@ -43,14 +44,22 @@ namespace Jinaga.Http
             var response = await webClient.Feed(feed, bookmark, cancellationToken);
             bookmark = response.bookmark;
             var references = response.references
-                .Select(r => new Facts.FactReference(r.Type, r.Hash))
+                .Select(r => ReadFactReference(r))
                 .ToImmutableList();
             return (references, bookmark);
         }
 
-        public Task<FactGraph> Load(ImmutableList<Facts.FactReference> factReferences, CancellationToken cancellationToken)
+        public async Task<FactGraph> Load(ImmutableList<Facts.FactReference> factReferences, CancellationToken cancellationToken)
         {
-            throw new NotImplementedException();
+            var request = new LoadRequest
+            {
+                References = factReferences.Select(r => CreateFactReference(r)).ToList()
+            };
+            LoadResponse response = await webClient.Load(request, cancellationToken);
+            var graph = response.Facts.Aggregate(
+                FactGraph.Empty,
+                (graph, fact) => graph.Add(ReadFact(fact)));
+            return graph;
         }
 
         private static FactRecord CreateFactRecord(Fact fact)
@@ -116,14 +125,14 @@ namespace Jinaga.Http
             };
         }
 
-        private string GenerateDeclarationString(ImmutableList<Label> given, ImmutableList<Facts.FactReference> startReferences)
+        private static string GenerateDeclarationString(ImmutableList<Label> given, ImmutableList<Facts.FactReference> startReferences)
         {
             var startStrings = given.Zip(startReferences, (label, reference) =>
                 $"let {label.Name}:{reference.Type}=#{reference.Hash}\n");
             return string.Join("", startStrings);
         }
 
-        private string GenerateSpecificationString(Specification specification)
+        private static string GenerateSpecificationString(Specification specification)
         {
             var specificationWithOnlyCollections = new Specification(
                 specification.Given,
@@ -132,7 +141,7 @@ namespace Jinaga.Http
             return specificationWithOnlyCollections.ToDescriptiveString();
         }
 
-        private Projection ProjectionWithOnlyCollections(Projection projection)
+        private static Projection ProjectionWithOnlyCollections(Projection projection)
         {
             return MaybeProjectionWithOnlyCollections(projection) ??
                 new CompoundProjection(ImmutableDictionary<string, Projection>.Empty);
@@ -159,6 +168,62 @@ namespace Jinaga.Http
             {
                 return null;
             }
+        }
+
+        private static Fact ReadFact(FactRecord fact)
+        {
+            return Fact.Create(
+                fact.Type,
+                fact.Fields.Select(field => ReadField(field)).ToImmutableList(),
+                fact.Predecessors.Select(predecessor => ReadPredecessor(predecessor)).ToImmutableList()
+            );
+        }
+
+        private static Field ReadField(KeyValuePair<string, Records.FieldValue> field)
+        {
+            return new Field(field.Key, ReadFieldValue(field.Value));
+        }
+
+        private static Facts.FieldValue ReadFieldValue(Records.FieldValue value)
+        {
+            if (value is Records.FieldValueString stringValue)
+            {
+                return new Facts.FieldValueString(stringValue.Value);
+            }
+            else if (value is Records.FieldValueNumber numberValue)
+            {
+                return new Facts.FieldValueNumber(numberValue.Value);
+            }
+            else if (value is Records.FieldValueBoolean booleanValue)
+            {
+                return new Facts.FieldValueBoolean(booleanValue.Value);
+            }
+            else
+            {
+                throw new ArgumentException($"Unknown value type {value.GetType().Name}");
+            }
+        }
+
+        private static Predecessor ReadPredecessor(KeyValuePair<string, PredecessorSet> pair)
+        {
+            if (pair.Value is PredecessorSetSingle single)
+            {
+                return new PredecessorSingle(pair.Key, ReadFactReference(single.Reference));
+            }
+            else if (pair.Value is PredecessorSetMultiple multiple)
+            {
+                return new PredecessorMultiple(pair.Key, multiple.References
+                    .Select(r => ReadFactReference(r)).ToImmutableList());
+            }
+            else
+            {
+                throw new ArgumentException($"Unknown predecessor set type {pair.Value.GetType().Name}");
+            }
+        }
+
+        private static Facts.FactReference ReadFactReference(Records.FactReference reference)
+        {
+            return new Facts.FactReference(reference.Type, reference.Hash);
         }
     }
 }

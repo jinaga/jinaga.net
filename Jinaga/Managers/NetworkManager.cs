@@ -48,17 +48,17 @@ namespace Jinaga.Managers
                     continue;
                 }
 
-                // TODO: Load the facts that I don't already have.
+                // Load the facts that I don't already have.
                 var knownFactReferences = await store.ListKnown(factReferences);
                 var graph = await network.Load(factReferences.RemoveRange(knownFactReferences), cancellationToken);
 
-                // TODO: Save the facts.
+                // Save the facts.
                 var added = await store.Save(graph, cancellationToken);
 
-                // TODO: Notify observers.
+                // Notify observers.
                 await notifyObservers(graph, added, cancellationToken);
 
-                // TODO: Update the bookmark.
+                // Update the bookmark.
                 await store.SaveBookmark(feed, bookmark);
             }
         }
