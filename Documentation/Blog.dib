@@ -22,7 +22,7 @@ public record Title(Post post, string value, Title[] prior) {}
 #!csharp
 
 var site = await j.Fact(new Site("michaelperry.net"));
-var post = await j.Fact(new Post(site, "2022-08-24T13:40:00Z"));
+var post = await j.Fact(new Post(site, "2022-09-30T13:40:00Z"));
 var title = await j.Fact(new Title(post, "Introduction to Jinaga Replicator", new Title[0]));
 
 #!csharp

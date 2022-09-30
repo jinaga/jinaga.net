@@ -70,7 +70,8 @@ To get started, create a Replicator of your very own using [Docker](https://www.
 
 ```
 docker pull jinaga/jinaga-replicator
-docker run --name my-replicator -p8080:8080 jinaga/jinaga-replicator
+docker create --name my-replicator -p8080:8080 jinaga/jinaga-replicator
+docker start my-replicator
 ```
 
 This creates and starts a new container called `my-replicator`.

@@ -27,7 +27,12 @@ namespace Jinaga.Facts
             {
                 return this;
             }
-            
+
+            if (!fact.GetAllPredecessorReferences().All(p => factsByReference.ContainsKey(p)))
+            {
+                throw new ArgumentException("The fact graph does not contain all of the predecessors of the fact.");
+            }
+
             return new FactGraph(
                 factsByReference.Add(fact.Reference, fact),
                 topologicalOrder.Add(fact.Reference)
