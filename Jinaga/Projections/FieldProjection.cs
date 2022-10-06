@@ -1,4 +1,5 @@
 ﻿using Jinaga.Pipelines;
+using System;
 using System.Collections.Immutable;
 
 namespace Jinaga.Projections
@@ -6,13 +7,15 @@ namespace Jinaga.Projections
     public class FieldProjection : Projection
     {
         public string Tag { get; }
+        public Type FactRuntimeType { get; }
         public string FieldName { get; }
 
         public override bool CanRunOnGraph => true;
 
-        public FieldProjection(string tag, string fieldName)
+        public FieldProjection(string tag, Type factRuntimeType, string fieldName)
         {
             Tag = tag;
+            FactRuntimeType = factRuntimeType;
             FieldName = fieldName;
         }
 
@@ -25,7 +28,7 @@ namespace Jinaga.Projections
         {
             if (Tag == parameter.Name)
             {
-                return new FieldProjection(argument.Name, FieldName);
+                return new FieldProjection(argument.Name, FactRuntimeType, FieldName);
             }
             else
             {
@@ -37,7 +40,7 @@ namespace Jinaga.Projections
         {
             if (replacements.TryGetValue(Tag, out var replacement))
             {
-                return new FieldProjection(replacement, FieldName);
+                return new FieldProjection(replacement, FactRuntimeType, FieldName);
             }
             else
             {

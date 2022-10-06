@@ -101,6 +101,12 @@ namespace Jinaga.Managers
                 ).Distinct().ToImmutableList();
                 return references;
             }
+            else if (projection is FieldProjection field)
+            {
+                return products
+                    .Select(product => product.GetFactReference(field.Tag))
+                    .ToImmutableList();
+            }
             else
             {
                 throw new NotImplementedException();

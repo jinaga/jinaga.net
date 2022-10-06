@@ -35,7 +35,7 @@ namespace Jinaga.Generators
             }
             else if (value is SymbolValueField field)
             {
-                return new FieldProjection(field.SetDefinition.Tag, field.FieldName);
+                return new FieldProjection(field.SetDefinition.Tag, field.FactRuntimeType, field.FieldName);
             }
             else
             {

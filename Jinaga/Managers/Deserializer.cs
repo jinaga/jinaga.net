@@ -27,6 +27,8 @@ namespace Jinaga.Managers
                 return DeserializeCompoundProjection(emitter, compoundProjection, type, products, anchor, collectionName);
             else if (projection is CollectionProjection collectionProjection)
                 return DeserializeCollectionProjection(emitter, collectionProjection, type, products, anchor, collectionName);
+            else if (projection is FieldProjection fieldProjection)
+                return DeserializeFieldProjection(emitter, fieldProjection, type, products, anchor, collectionName);
             else
                 throw new ArgumentException($"Unknown projection type {projection.GetType().Name}");
         }
@@ -127,6 +129,27 @@ namespace Jinaga.Managers
         private static ImmutableList<ProductAnchorProjection> DeserializeCollectionProjection(Emitter emitter, CollectionProjection collectionProjection, Type type, ImmutableList<Product> products, Product anchor, string collectionName)
         {
             throw new NotImplementedException();
+        }
+
+        private static ImmutableList<ProductAnchorProjection> DeserializeFieldProjection(Emitter emitter, FieldProjection fieldProjection, Type type, ImmutableList<Product> products, Product anchor, string collectionName)
+        {
+            var propertyInfo = fieldProjection.FactRuntimeType.GetProperty(fieldProjection.FieldName);
+            if (propertyInfo == null)
+            {
+                throw new ArgumentException($"Field {fieldProjection.FieldName} not found on type {fieldProjection.FactRuntimeType.Name}");
+            }
+            var productProjections = products
+                .Select(product => new ProductAnchorProjection(
+                    product,
+                    anchor,
+                    propertyInfo.GetValue(
+                        emitter.DeserializeToType(
+                            product.GetFactReference(fieldProjection.Tag),
+                            fieldProjection.FactRuntimeType)),
+                    collectionName
+                ))
+                .ToImmutableList();
+            return productProjections;
         }
 
         private static IEnumerable<ProductAnchorProjection> DeserializeChildParameters(

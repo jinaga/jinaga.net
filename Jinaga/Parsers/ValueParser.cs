@@ -52,7 +52,8 @@ namespace Jinaga.Parsers
                         }
                         else
                         {
-                            return (new SymbolValueField(setValue.SetDefinition, propertyInfo.Name), tag);
+                            var factRuntimeType = memberExpression.Expression.Type;
+                            return (new SymbolValueField(setValue.SetDefinition, factRuntimeType, propertyInfo.Name), tag);
                         }
                     default:
                         throw new NotImplementedException();
