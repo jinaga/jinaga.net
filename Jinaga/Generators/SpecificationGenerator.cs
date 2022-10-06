@@ -33,6 +33,10 @@ namespace Jinaga.Generators
                     collectionValue.Specification.Matches,
                     collectionValue.Specification.Projection);
             }
+            else if (value is SymbolValueField field)
+            {
+                return new FieldProjection(field.SetDefinition.Tag, field.FieldName);
+            }
             else
             {
                 throw new NotImplementedException();

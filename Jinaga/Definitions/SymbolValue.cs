@@ -46,4 +46,16 @@ namespace Jinaga.Definitions
             SetDefinition = setDefinition;
         }
     }
+
+    public class SymbolValueField : SymbolValue
+    {
+        public SetDefinition SetDefinition { get; }
+        public string FieldName { get; }
+
+        public SymbolValueField(SetDefinition setDefinition, string fieldName)
+        {
+            SetDefinition = setDefinition;
+            FieldName = fieldName;
+        }
+    }
 }
