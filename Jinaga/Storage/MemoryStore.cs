@@ -10,13 +10,14 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Jinaga.UnitTest
+namespace Jinaga.Storage
 {
     public class MemoryStore : IStore
     {
         private ImmutableDictionary<FactReference, Fact> factsByReference = ImmutableDictionary<FactReference, Fact>.Empty;
         private ImmutableList<Edge> edges = ImmutableList<Edge>.Empty;
         private ImmutableDictionary<FactReference, ImmutableList<FactReference>> ancestors = ImmutableDictionary<FactReference, ImmutableList<FactReference>>.Empty;
+        private ImmutableDictionary<string, string> bookmarks = ImmutableDictionary<string, string>.Empty;
 
         public Task<ImmutableList<Fact>> Save(FactGraph graph, CancellationToken cancellationToken)
         {
@@ -237,6 +238,32 @@ namespace Jinaga.UnitTest
                     .Select(edge => edge.Successor)
                 )
                 .ToImmutableList();
+        }
+
+        public Task<string> LoadBookmark(string feed)
+        {
+            if (this.bookmarks.TryGetValue(feed, out var bookmark))
+            {
+                return Task.FromResult(bookmark);
+            }
+            else
+            {
+                return Task.FromResult("");
+            }
+        }
+
+        public Task<ImmutableList<FactReference>> ListKnown(ImmutableList<FactReference> factReferences)
+        {
+            var known = factReferences
+                .Where(r => factsByReference.ContainsKey(r))
+                .ToImmutableList();
+            return Task.FromResult(known);
+        }
+
+        public Task SaveBookmark(string feed, string bookmark)
+        {
+            bookmarks = bookmarks.SetItem(feed, bookmark);
+            return Task.CompletedTask;
         }
     }
 }

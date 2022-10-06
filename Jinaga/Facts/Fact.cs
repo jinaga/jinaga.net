@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Security.Cryptography;
@@ -107,6 +108,16 @@ namespace Jinaga.Facts
                 PredecessorMultiple multiple => multiple.References,
                 _ => throw new InvalidOperationException("Unknown predecessor type")
             };
+        }
+
+        public IEnumerable<FactReference> GetAllPredecessorReferences()
+        {
+            return Predecessors.SelectMany(p => p switch
+            {
+                PredecessorSingle single => ImmutableList<FactReference>.Empty.Add(single.Reference),
+                PredecessorMultiple multiple => multiple.References,
+                _ => throw new InvalidOperationException("Unknown predecessor type")
+            });
         }
 
         private static string ComputeHash(ImmutableList<Field> fields, ImmutableList<Predecessor> predecessors)

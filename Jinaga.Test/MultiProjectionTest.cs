@@ -151,7 +151,7 @@ namespace Jinaga.Test
                 ]
             }
         ]
-    }
+    } => clientName
     yard = yard
     yardAddresses = {
         yardAddress: DWS.Yard.Address [
@@ -162,7 +162,7 @@ namespace Jinaga.Test
                 ]
             }
         ]
-    }
+    } => yardAddress
 }
 ".Replace("\r", ""));
         }

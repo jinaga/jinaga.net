@@ -37,7 +37,7 @@ namespace Jinaga.Projections
             var matchStrings = Matches.Select(match => match.ToDescriptiveString(depth + 1));
             var matchString = string.Join("", matchStrings);
             var projectionString = Projection.ToDescriptiveString(depth + 1);
-            return $"{{\n{matchString}{indent}}}";
+            return $"{{\n{matchString}{indent}}} => {projectionString}";
         }
     }
 }

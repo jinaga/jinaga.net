@@ -15,10 +15,18 @@ namespace Jinaga
     public class Jinaga
     {
         private readonly FactManager factManager;
+        private readonly NetworkManager networkManager;
 
-        public Jinaga(IStore store)
+        public Jinaga(IStore store, INetwork network)
         {
-            this.factManager = new FactManager(store);
+            networkManager = new NetworkManager(network, store, async (graph, added, cancellationToken) =>
+            {
+                if (factManager != null)
+                {
+                    await factManager.NotifyObservers(graph, added, cancellationToken);
+                }
+            });
+            factManager = new FactManager(store, networkManager);
         }
 
         public async Task<TFact> Fact<TFact>(TFact prototype) where TFact: class
@@ -29,7 +37,12 @@ namespace Jinaga
             }
 
             var graph = factManager.Serialize(prototype);
-            await factManager.Save(graph, default(CancellationToken));
+            using (var source = new CancellationTokenSource())
+            {
+                var token = source.Token;
+                await factManager.Save(graph, token);
+            }
+
             return factManager.Deserialize<TFact>(graph, graph.Last);
         }
 

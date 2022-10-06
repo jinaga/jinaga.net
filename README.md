@@ -11,10 +11,10 @@ In Jinaga.NET, facts are C# `record`s.:
 
 ```C#
 [FactType("Corporate.Company")]
-record Company(string identifier);
+record Company(string identifier) {}
 
 [FactType("Corporate.Employee")]
-record Employee(Company company, int employeeNumber);
+record Employee(Company company, int employeeNumber) {}
 ```
 
 When a user or service makes a decision, you will add a fact to the system.
@@ -60,6 +60,27 @@ var subscription = j.Subscribe(contoso, employeesOfCompany);
 The client will open a persistent connection with the server.
 The server will notify the client the moment a new employee is hired.
 Because the client already set up a watch, the new employee will appear on the UI.
+
+## Running a Replicator
+
+A Jinaga front end connects to a device called a Replicator.
+The Jinaga Replicator is a single machine in a network.
+It stores and shares facts.
+To get started, create a Replicator of your very own using [Docker](https://www.docker.com/products/docker-desktop/).
+
+```
+docker pull jinaga/jinaga-replicator
+docker create --name my-replicator -p8080:8080 jinaga/jinaga-replicator
+docker start my-replicator
+```
+
+This creates and starts a new container called `my-replicator`.
+The container is listening at port 8080 for commands.
+Configure Jinaga to use the replicator:
+
+```C#
+var j = JinagaClient.Create();  // Defaults to http://localhost:8080/jinaga
+```
 
 ## Roadmap
 
