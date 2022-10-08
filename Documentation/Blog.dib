@@ -30,6 +30,7 @@ var title = await j.Fact(new Title(post, "Introduction to Jinaga Replicator", ne
 var postTitles = Given<Post>.Match((post, facts) =>
     from title in facts.OfType<Title>()
     where title.post == post
+    where !facts.OfType<Title>(next => next.prior.Contains(title)).Any()
     select title.value
 );
 

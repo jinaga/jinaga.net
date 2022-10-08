@@ -1,4 +1,5 @@
-﻿using Jinaga.Observers;
+﻿using Jinaga.Facts;
+using Jinaga.Observers;
 using Jinaga.Parsers;
 using Jinaga.Products;
 using Jinaga.Projections;
@@ -212,6 +213,66 @@ namespace Jinaga.Managers
                 else
                 {
                     return WatchedObservableCollection.Create(elementType, product.GetAnchor(), parameterName, emitter.WatchContext);
+                }
+            }
+            else if (projection is FieldProjection fieldProjection)
+            {
+                var reference = product.GetFactReference(fieldProjection.Tag);
+                var fact = emitter.Graph.GetFact(reference);
+                var field = fact.Fields.FirstOrDefault(f => f.Name == fieldProjection.FieldName);
+                if (field == null)
+                {
+                    throw new ArgumentException($"Unknown field {fieldProjection.FieldName} in fact {reference.Type}");
+                }
+                var value = field.Value;
+                if (value is FieldValueString fieldValueString)
+                {
+                    if (parameterType == typeof(string))
+                    {
+                        return fieldValueString.StringValue;
+                    }
+                    else if (parameterType == typeof(DateTime))
+                    {
+                        return FieldValue.FromIso8601String(fieldValueString.StringValue);
+                    }
+                    else
+                    {
+                        throw new ArgumentException($"Cannot convert string to {parameterType.Name}, reading field {parameterName} of {reference.Type}.");
+                    }
+                }
+                else if (value is FieldValueNumber fieldValueNumber)
+                {
+                    if (parameterType == typeof(int))
+                    {
+                        return (int)fieldValueNumber.DoubleValue;
+                    }
+                    else if (parameterType == typeof(float))
+                    {
+                        return (float)fieldValueNumber.DoubleValue;
+                    }
+                    else if (parameterType == typeof(double))
+                    {
+                        return fieldValueNumber.DoubleValue;
+                    }
+                    else
+                    {
+                        throw new ArgumentException($"Cannot convert number to {parameterType.Name}, reading field {parameterName} of {reference.Type}.");
+                    }
+                }
+                else if (value is FieldValueBoolean fieldValueBoolean)
+                {
+                    if (parameterType == typeof(bool))
+                    {
+                        return fieldValueBoolean.BoolValue;
+                    }
+                    else
+                    {
+                        throw new ArgumentException($"Cannot convert boolean to {parameterType.Name}, reading field {parameterName} of {reference.Type}.");
+                    }
+                }
+                else
+                {
+                    throw new ArgumentException($"Unknown field type {value.GetType().Name}, reading field {parameterName} of {reference.Type}.");
                 }
             }
             else

@@ -149,5 +149,45 @@ namespace Jinaga.Test
             pair.booking.Should().BeEquivalentTo(booking);
             pair.cancellation.Should().BeEquivalentTo(cancellation);
         }
+
+        [Fact]
+        public async Task Query_NestedFieldProjection()
+        {
+            var site = await j.Fact(new Site("michaelperry.net"));
+            var post = await j.Fact(new Post(site, "2022-09-30T13:40:00Z"));
+            var title = await j.Fact(new Title(post, "Introduction to Jinaga Replicator", new Title[0]));
+
+            var postTitles = Given<Post>.Match((post, facts) =>
+                from title in facts.OfType<Title>()
+                where title.post == post
+                select title.value
+            );
+
+
+            var specification = Given<Site>.Match((site, facts) =>
+                from post in facts.OfType<Post>()
+                where post.site == site
+                select new
+                {
+                    postCreatedAt = post.createdAt,
+                    titles = facts.All(post, postTitles)
+                }
+            );
+
+            var posts = await j.Query(site, specification);
+
+            posts.Should().ContainSingle().Which
+                .titles.Should().ContainSingle().Which
+                    .Should().Be("Introduction to Jinaga Replicator");
+        }
     }
+
+    [FactType("Blog.Site")]
+    public record Site(string domain) { }
+
+    [FactType("Blog.Post")]
+    public record Post(Site site, string createdAt) { }
+
+    [FactType("Blog.Post.Title")]
+    public record Title(Post post, string value, Title[] prior) { }
 }
