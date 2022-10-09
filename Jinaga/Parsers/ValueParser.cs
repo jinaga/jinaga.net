@@ -109,6 +109,13 @@ namespace Jinaga.Parsers
                 var projection = SpecificationGenerator.CreateProjection(result.SymbolValue);
                 return (new SymbolValueCollection(matches, projection), "");
             }
+            else if (typeof(IQueryable).IsAssignableFrom(expression.Type))
+            {
+                var result = SpecificationParser.ParseSpecification(symbolTable, context, expression);
+                var matches = SpecificationGenerator.CreateMatches(context, result);
+                var projection = SpecificationGenerator.CreateProjection(result.SymbolValue);
+                return (new SymbolValueCollection(matches, projection), "");
+            }
             else
             {
                 throw new NotImplementedException($"ParseValue: {ExpressionVisualizer.DumpExpression(expression)}");
