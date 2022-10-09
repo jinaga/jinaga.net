@@ -46,4 +46,18 @@ namespace Jinaga.Definitions
             SetDefinition = setDefinition;
         }
     }
+
+    public class SymbolValueField : SymbolValue
+    {
+        public SetDefinition SetDefinition { get; }
+        public Type FactRuntimeType { get; }
+        public string FieldName { get; }
+
+        public SymbolValueField(SetDefinition setDefinition, Type factRuntimeType, string fieldName)
+        {
+            SetDefinition = setDefinition;
+            FactRuntimeType = factRuntimeType;
+            FieldName = fieldName;
+        }
+    }
 }

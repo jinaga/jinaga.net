@@ -62,15 +62,9 @@ namespace Jinaga
             if (specification.CanRunOnGraph)
             {
                 var products = specification.Execute(startReferences, graph);
-                return specification.Projection switch
-                {
-                    SimpleProjection simple => products
-                        .Select(product => factManager.Deserialize<TProjection>(
-                            graph, product.GetElement(simple.Tag)
-                        ))
-                        .ToImmutableList(),
-                    _ => throw new NotImplementedException()
-                };
+                var productAnchorProjections = factManager.DeserializeProductsFromGraph(
+                    graph, specification.Projection, products, typeof(TProjection), Product.Empty, "", null);
+                return productAnchorProjections.Select(pap => (TProjection)pap.Projection).ToImmutableList();
             }
             else
             {

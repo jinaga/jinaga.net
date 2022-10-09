@@ -9,7 +9,7 @@ namespace Jinaga.Serialization
 {
     class Emitter
     {
-        private readonly FactGraph graph;
+        public FactGraph Graph { get; }
 
         public DeserializerCache DeserializerCache { get; private set; }
 
@@ -20,7 +20,7 @@ namespace Jinaga.Serialization
 
         public Emitter(FactGraph graph, DeserializerCache deserializerCache, IWatchContext? watchContext = null)
         {
-            this.graph = graph;
+            this.Graph = graph;
             DeserializerCache = deserializerCache;
             WatchContext = watchContext;
         }
@@ -41,7 +41,7 @@ namespace Jinaga.Serialization
                 DeserializerCache = newCache;
                 try
                 {
-                    runtimeFact = deserializer(graph.GetFact(reference), this);
+                    runtimeFact = deserializer(Graph.GetFact(reference), this);
                     objectByReference = objectByReference.Add(reference, runtimeFact);
                 }
                 catch (TargetInvocationException tie)

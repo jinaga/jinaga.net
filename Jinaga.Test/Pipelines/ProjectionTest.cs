@@ -80,5 +80,34 @@ namespace Jinaga.Test.Pipelines
 }
 ".Replace("\r", ""));
         }
+
+        [Fact]
+        public void Projection_Field()
+        {
+            var namesOfPassenger = Given<Passenger>.Match((passenger, facts) =>
+                from passengerName in facts.OfType<PassengerName>()
+                where passengerName.passenger == passenger
+                where !(
+                    from next in facts.OfType<PassengerName>()
+                    where next.prior.Contains(passengerName)
+                    select next
+                ).Any()
+                select passengerName.value
+            );
+
+            var expected = @"(passenger: Skylane.Passenger) {
+    passengerName: Skylane.Passenger.Name [
+        passengerName->passenger: Skylane.Passenger = passenger
+        !E {
+            next: Skylane.Passenger.Name [
+                next->prior: Skylane.Passenger.Name = passengerName
+            ]
+        }
+    ]
+} => passengerName.value
+".Replace("\r", "");
+
+            namesOfPassenger.ToDescriptiveString().Should().Be(expected);
+        }
     }
 }

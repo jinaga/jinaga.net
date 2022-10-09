@@ -101,6 +101,15 @@ namespace Jinaga.Projections
                         var element = new CollectionElement(products);
                         product = product.With(name, element);
                     }
+                    else if (childProjection is FieldProjection fieldProjection)
+                    {
+                        var element = new SimpleElement(tuple[fieldProjection.Tag]);
+                        product = product.With(name, element);
+                    }
+                    else
+                    {
+                        throw new Exception($"Unsupported projection type {childProjection.GetType().Name}.");
+                    }
                 }
             }
             return product;

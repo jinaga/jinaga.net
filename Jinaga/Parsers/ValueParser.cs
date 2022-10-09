@@ -44,9 +44,17 @@ namespace Jinaga.Parsers
                         return (compositeValue.GetField(propertyInfo.Name), propertyInfo.Name);
                     case (SymbolValueSetDefinition setValue, string tag):
                         var role = propertyInfo.Name;
-                        var predecessorType = propertyInfo.PropertyType.FactTypeName();
-                        var setDefinition = setValue.SetDefinition.AppendChain(role, predecessorType, propertyInfo.PropertyType);
-                        return (new SymbolValueSetDefinition(setDefinition), tag);
+                        if (propertyInfo.PropertyType.IsFactType() || propertyInfo.PropertyType.IsArrayOfFactType())
+                        {
+                            var predecessorType = propertyInfo.PropertyType.FactTypeName();
+                            var setDefinition = setValue.SetDefinition.AppendChain(role, predecessorType, propertyInfo.PropertyType);
+                            return (new SymbolValueSetDefinition(setDefinition), tag);
+                        }
+                        else
+                        {
+                            var factRuntimeType = memberExpression.Expression.Type;
+                            return (new SymbolValueField(setValue.SetDefinition, factRuntimeType, propertyInfo.Name), tag);
+                        }
                     default:
                         throw new NotImplementedException();
                 }

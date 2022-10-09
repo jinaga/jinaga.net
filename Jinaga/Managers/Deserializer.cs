@@ -1,4 +1,5 @@
-﻿using Jinaga.Observers;
+﻿using Jinaga.Facts;
+using Jinaga.Observers;
 using Jinaga.Parsers;
 using Jinaga.Products;
 using Jinaga.Projections;
@@ -27,6 +28,8 @@ namespace Jinaga.Managers
                 return DeserializeCompoundProjection(emitter, compoundProjection, type, products, anchor, collectionName);
             else if (projection is CollectionProjection collectionProjection)
                 return DeserializeCollectionProjection(emitter, collectionProjection, type, products, anchor, collectionName);
+            else if (projection is FieldProjection fieldProjection)
+                return DeserializeFieldProjection(emitter, fieldProjection, type, products, anchor, collectionName);
             else
                 throw new ArgumentException($"Unknown projection type {projection.GetType().Name}");
         }
@@ -129,6 +132,27 @@ namespace Jinaga.Managers
             throw new NotImplementedException();
         }
 
+        private static ImmutableList<ProductAnchorProjection> DeserializeFieldProjection(Emitter emitter, FieldProjection fieldProjection, Type type, ImmutableList<Product> products, Product anchor, string collectionName)
+        {
+            var propertyInfo = fieldProjection.FactRuntimeType.GetProperty(fieldProjection.FieldName);
+            if (propertyInfo == null)
+            {
+                throw new ArgumentException($"Field {fieldProjection.FieldName} not found on type {fieldProjection.FactRuntimeType.Name}");
+            }
+            var productProjections = products
+                .Select(product => new ProductAnchorProjection(
+                    product,
+                    anchor,
+                    propertyInfo.GetValue(
+                        emitter.DeserializeToType(
+                            product.GetFactReference(fieldProjection.Tag),
+                            fieldProjection.FactRuntimeType)),
+                    collectionName
+                ))
+                .ToImmutableList();
+            return productProjections;
+        }
+
         private static IEnumerable<ProductAnchorProjection> DeserializeChildParameters(
             Emitter emitter,
             Projection projection,
@@ -189,6 +213,66 @@ namespace Jinaga.Managers
                 else
                 {
                     return WatchedObservableCollection.Create(elementType, product.GetAnchor(), parameterName, emitter.WatchContext);
+                }
+            }
+            else if (projection is FieldProjection fieldProjection)
+            {
+                var reference = product.GetFactReference(fieldProjection.Tag);
+                var fact = emitter.Graph.GetFact(reference);
+                var field = fact.Fields.FirstOrDefault(f => f.Name == fieldProjection.FieldName);
+                if (field == null)
+                {
+                    throw new ArgumentException($"Unknown field {fieldProjection.FieldName} in fact {reference.Type}");
+                }
+                var value = field.Value;
+                if (value is FieldValueString fieldValueString)
+                {
+                    if (parameterType == typeof(string))
+                    {
+                        return fieldValueString.StringValue;
+                    }
+                    else if (parameterType == typeof(DateTime))
+                    {
+                        return FieldValue.FromIso8601String(fieldValueString.StringValue);
+                    }
+                    else
+                    {
+                        throw new ArgumentException($"Cannot convert string to {parameterType.Name}, reading field {parameterName} of {reference.Type}.");
+                    }
+                }
+                else if (value is FieldValueNumber fieldValueNumber)
+                {
+                    if (parameterType == typeof(int))
+                    {
+                        return (int)fieldValueNumber.DoubleValue;
+                    }
+                    else if (parameterType == typeof(float))
+                    {
+                        return (float)fieldValueNumber.DoubleValue;
+                    }
+                    else if (parameterType == typeof(double))
+                    {
+                        return fieldValueNumber.DoubleValue;
+                    }
+                    else
+                    {
+                        throw new ArgumentException($"Cannot convert number to {parameterType.Name}, reading field {parameterName} of {reference.Type}.");
+                    }
+                }
+                else if (value is FieldValueBoolean fieldValueBoolean)
+                {
+                    if (parameterType == typeof(bool))
+                    {
+                        return fieldValueBoolean.BoolValue;
+                    }
+                    else
+                    {
+                        throw new ArgumentException($"Cannot convert boolean to {parameterType.Name}, reading field {parameterName} of {reference.Type}.");
+                    }
+                }
+                else
+                {
+                    throw new ArgumentException($"Unknown field type {value.GetType().Name}, reading field {parameterName} of {reference.Type}.");
                 }
             }
             else

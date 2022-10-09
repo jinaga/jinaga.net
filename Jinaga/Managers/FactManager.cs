@@ -79,24 +79,6 @@ namespace Jinaga.Managers
             }
         }
 
-        public TFact Deserialize<TFact>(FactGraph graph, Element element)
-        {
-            if (element is SimpleElement simple)
-            {
-                lock (this)
-                {
-                    var emitter = new Emitter(graph, deserializerCache);
-                    var fact = emitter.Deserialize<TFact>(simple.FactReference);
-                    deserializerCache = emitter.DeserializerCache;
-                    return fact;
-                }
-            }
-            else
-            {
-                throw new NotImplementedException();
-            }
-        }
-
         public TFact Deserialize<TFact>(FactGraph graph, FactReference reference)
         {
             lock (this)
