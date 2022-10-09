@@ -30,8 +30,8 @@ namespace Jinaga.Generators
             else if (value is SymbolValueCollection collectionValue)
             {
                 return new CollectionProjection(
-                    collectionValue.Specification.Matches,
-                    collectionValue.Specification.Projection);
+                    collectionValue.Matches,
+                    collectionValue.Projection);
             }
             else if (value is SymbolValueField field)
             {

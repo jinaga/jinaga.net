@@ -1,4 +1,5 @@
 using Jinaga.Definitions;
+using Jinaga.Generators;
 using Jinaga.Pipelines;
 using Jinaga.Projections;
 using Jinaga.Repository;
@@ -90,12 +91,23 @@ namespace Jinaga.Parsers
                     var specification = ParseSpecification(allCallExpression.Arguments[1]);
                     var arguments = ImmutableList<Pipelines.Label>.Empty.Add(startSetDefinition.Label);
                     specification = specification.Apply(arguments);
-                    return (new SymbolValueCollection(startSetDefinition, specification), "");
+                    return (new SymbolValueCollection(specification.Matches, specification.Projection), "");
                 }
                 else
                 {
                     throw new NotImplementedException($"ParseValue: {ExpressionVisualizer.DumpExpression(expression)}");
                 }
+            }
+            else if (expression is MethodCallExpression allIQueryableCallExpression &&
+                allIQueryableCallExpression.Method.DeclaringType == typeof(FactRepository) &&
+                allIQueryableCallExpression.Method.Name == nameof(FactRepository.All) &&
+                allIQueryableCallExpression.Arguments.Count == 1 &&
+                typeof(IQueryable).IsAssignableFrom(allIQueryableCallExpression.Arguments[0].Type))
+            {
+                var result = SpecificationParser.ParseSpecification(symbolTable, context, allIQueryableCallExpression.Arguments[0]);
+                var matches = SpecificationGenerator.CreateMatches(context, result);
+                var projection = SpecificationGenerator.CreateProjection(result.SymbolValue);
+                return (new SymbolValueCollection(matches, projection), "");
             }
             else
             {
