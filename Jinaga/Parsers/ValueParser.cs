@@ -1,6 +1,5 @@
 using Jinaga.Definitions;
 using Jinaga.Generators;
-using Jinaga.Pipelines;
 using Jinaga.Projections;
 using Jinaga.Repository;
 using Jinaga.Visualizers;
