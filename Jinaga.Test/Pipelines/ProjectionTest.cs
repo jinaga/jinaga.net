@@ -152,5 +152,47 @@ namespace Jinaga.Test.Pipelines
 ";
             passengers.ToDescriptiveString().Should().Be(expected.Replace("\r", ""));
         }
+
+        [Fact]
+        public void Projection_InlineIQueryableCollection()
+        {
+            var passengers = Given<Airline>.Match((airline, facts) =>
+                from passenger in facts.OfType<Passenger>()
+                where passenger.airline == airline
+                select new
+                {
+                    passenger,
+                    names =
+                        from passengerName in facts.OfType<PassengerName>()
+                        where passengerName.passenger == passenger
+                        where !(
+                            from next in facts.OfType<PassengerName>()
+                            where next.prior.Contains(passengerName)
+                            select next
+                        ).Any()
+                        select passengerName.value
+                }
+            );
+
+            var expected = @"(airline: Skylane.Airline) {
+    passenger: Skylane.Passenger [
+        passenger->airline: Skylane.Airline = airline
+    ]
+} => {
+    names = {
+        passengerName: Skylane.Passenger.Name [
+            passengerName->passenger: Skylane.Passenger = passenger
+            !E {
+                next: Skylane.Passenger.Name [
+                    next->prior: Skylane.Passenger.Name = passengerName
+                ]
+            }
+        ]
+    } => passengerName.value
+    passenger = passenger
+}
+";
+            passengers.ToDescriptiveString().Should().Be(expected.Replace("\r", ""));
+        }
     }
 }
