@@ -217,8 +217,9 @@ namespace Jinaga.Test
 
             var result = await j.Query(post, specification);
 
-            result.Should().ContainSingle().Which
-                .siteName.Should().Be("michaelperry.net");
+            var subject = result.Should().ContainSingle().Subject;
+            subject.siteName.Should().Be("michaelperry.net");
+            subject.postCreatedAt.Should().Be("2022-09-30T13:40:00Z");
         }
     }
 
