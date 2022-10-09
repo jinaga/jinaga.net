@@ -31,5 +31,10 @@ namespace Jinaga.Repository
         {
             throw new NotImplementedException();
         }
+
+        public IObservableCollection<TProjection> All<TProjection>(IQueryable<TProjection> queryable)
+        {
+            throw new NotImplementedException();
+        }
     }
 }
