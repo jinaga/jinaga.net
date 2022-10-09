@@ -180,6 +180,46 @@ namespace Jinaga.Test
                 .titles.Should().ContainSingle().Which
                     .Should().Be("Introduction to Jinaga Replicator");
         }
+
+        [Fact]
+        public async Task Query_FieldProjectionOnPredecessor()
+        {
+            var site = await j.Fact(new Site("michaelperry.net"));
+            var post = await j.Fact(new Post(site, "2022-09-30T13:40:00Z"));
+
+            var specification = Given<Post>.Match((post, facts) =>
+                from site in facts.OfType<Site>()
+                where site == post.site
+                select site.domain
+            );
+
+            var result = await j.Query(post, specification);
+
+            result.Should().ContainSingle().Which
+                .Should().Be("michaelperry.net");
+        }
+        
+        [Fact]
+        public async Task Query_CompositeProjectionOnPredecessor()
+        {
+            var site = await j.Fact(new Site("michaelperry.net"));
+            var post = await j.Fact(new Post(site, "2022-09-30T13:40:00Z"));
+
+            var specification = Given<Post>.Match((post, facts) =>
+                from site in facts.OfType<Site>()
+                where site == post.site
+                select new
+                {
+                    siteName = site.domain,
+                    postCreatedAt = post.createdAt
+                }
+            );
+
+            var result = await j.Query(post, specification);
+
+            result.Should().ContainSingle().Which
+                .siteName.Should().Be("michaelperry.net");
+        }
     }
 
     [FactType("Blog.Site")]
