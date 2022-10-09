@@ -1,6 +1,6 @@
 #!csharp
 
-#r "C:\Projects\jinaga.net\Jinaga\bin\Debug\netstandard2.1\Jinaga.dll"
+#r "C:\Users\micha\Projects\jinaga.net\Jinaga\bin\Debug\netstandard2.1\Jinaga.dll"
 
 #!csharp
 
@@ -41,7 +41,12 @@ var specification = Given<Site>.Match((site, facts) =>
     select new
     {
         postCreatedAt = post.createdAt,
-        titles = facts.All(post, postTitles)
+        titles = facts.Observable(post, postTitles),
+        newTitles = facts.Observable(
+            from title in facts.OfType<Title>()
+            where title.post == post
+            where !facts.OfType<Title>(next => next.prior.Contains(title)).Any()
+            select title.value)
     }
 );
 

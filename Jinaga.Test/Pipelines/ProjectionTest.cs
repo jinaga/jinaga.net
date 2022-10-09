@@ -57,7 +57,7 @@ namespace Jinaga.Test.Pipelines
                 select new
                 {
                     passenger,
-                    names = facts.All(passenger, namesOfPassenger)
+                    names = facts.Observable(passenger, namesOfPassenger)
                 }
             );
 
@@ -119,7 +119,7 @@ namespace Jinaga.Test.Pipelines
                 select new
                 {
                     passenger,
-                    names = facts.All(
+                    names = facts.Observable(
                         from passengerName in facts.OfType<PassengerName>()
                         where passengerName.passenger == passenger
                         where !(

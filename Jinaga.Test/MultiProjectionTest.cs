@@ -47,7 +47,7 @@ namespace Jinaga.Test
                 select new YardData
                 (
                     yard,
-                    facts.All(yard, AddressesOfYard())
+                    facts.Observable(yard, AddressesOfYard())
                 )
             );
         }
@@ -61,8 +61,8 @@ namespace Jinaga.Test
                 select new ClientData
                 (
                     client,
-                    facts.All(client, NamesOfClient()),
-                    facts.All(client, ClientYards())
+                    facts.Observable(client, NamesOfClient()),
+                    facts.Observable(client, ClientYards())
                 )
             );
         }
@@ -126,9 +126,9 @@ namespace Jinaga.Test
                 select new
                 {
                     yard,
-                    yardAddresses = facts.All(yard, specifications.addressesOfYard),
+                    yardAddresses = facts.Observable(yard, specifications.addressesOfYard),
                     yard.client,
-                    clientNames = facts.All(yard.client, specifications.namesOfClient)
+                    clientNames = facts.Observable(yard.client, specifications.namesOfClient)
                 }
             );
 

@@ -43,7 +43,7 @@ namespace Jinaga.Test
                 select new
                 {
                     passenger,
-                    names = facts.All(passenger, namesOfPassenger)
+                    names = facts.Observable(passenger, namesOfPassenger)
                 }
             ));
 
@@ -65,7 +65,7 @@ namespace Jinaga.Test
                 where passenger.airline == airline
                 select new PassengerProjection(
                     passenger,
-                    facts.All(passenger, namesOfPassenger)
+                    facts.Observable(passenger, namesOfPassenger)
                 )
             ));
 

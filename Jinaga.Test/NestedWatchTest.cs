@@ -291,8 +291,8 @@ namespace Jinaga.Test
             select new OfficeProjection
             {
                 Office = office,
-                Names = facts.All(office, namesOfOffice),
-                Headcounts = facts.All(office, headcountsOfOffice)
+                Names = facts.Observable(office, namesOfOffice),
+                Headcounts = facts.Observable(office, headcountsOfOffice)
             }
         );
 
@@ -311,7 +311,7 @@ namespace Jinaga.Test
             select new ManagerProjection
             {
                 Manager = manager,
-                Names = facts.All(manager, managerNames)
+                Names = facts.Observable(manager, managerNames)
             }
         );
 
@@ -323,7 +323,7 @@ namespace Jinaga.Test
             select new ManagementProjection
             {
                 Office = office,
-                Managers = facts.All(office, managersInOffice)
+                Managers = facts.Observable(office, managersInOffice)
             }
         );
     }

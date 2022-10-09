@@ -80,7 +80,7 @@ namespace Jinaga.Parsers
             }
             else if (expression is MethodCallExpression allCallExpression &&
                 allCallExpression.Method.DeclaringType == typeof(FactRepository) &&
-                allCallExpression.Method.Name == nameof(FactRepository.All) &&
+                allCallExpression.Method.Name == nameof(FactRepository.Observable) &&
                 allCallExpression.Arguments.Count == 2 &&
                 typeof(Specification).IsAssignableFrom(allCallExpression.Arguments[1].Type))
             {
@@ -100,7 +100,7 @@ namespace Jinaga.Parsers
             }
             else if (expression is MethodCallExpression allIQueryableCallExpression &&
                 allIQueryableCallExpression.Method.DeclaringType == typeof(FactRepository) &&
-                allIQueryableCallExpression.Method.Name == nameof(FactRepository.All) &&
+                allIQueryableCallExpression.Method.Name == nameof(FactRepository.Observable) &&
                 allIQueryableCallExpression.Arguments.Count == 1 &&
                 typeof(IQueryable).IsAssignableFrom(allIQueryableCallExpression.Arguments[0].Type))
             {

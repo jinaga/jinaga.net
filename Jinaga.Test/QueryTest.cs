@@ -170,7 +170,7 @@ namespace Jinaga.Test
                 select new
                 {
                     postCreatedAt = post.createdAt,
-                    titles = facts.All(post, postTitles)
+                    titles = facts.Observable(post, postTitles)
                 }
             );
 
@@ -235,7 +235,7 @@ namespace Jinaga.Test
                 select new
                 {
                     postCreatedAt = post.createdAt,
-                    titles = facts.All(
+                    titles = facts.Observable(
                         from title in facts.OfType<Title>()
                         where title.post == post
                         select title.value

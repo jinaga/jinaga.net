@@ -28,8 +28,8 @@ var simpleSpecification = Given<Airline>.Match((airline, facts) =>
     select cancellation
 );
 
-simpleSpecification.Pipeline.ToDescriptiveString()
+simpleSpecification.ToDescriptiveString()
 
 #!csharp
 
-compoundSpecification.Pipeline.ToDescriptiveString()
+compoundSpecification.ToDescriptiveString()

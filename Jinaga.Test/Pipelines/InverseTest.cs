@@ -77,7 +77,7 @@ namespace Jinaga.Test.Pipelines
                 select new
                 {
                     Office = office,
-                    Names = facts.All(office, namesOfOffice)
+                    Names = facts.Observable(office, namesOfOffice)
                 }
             );
 
@@ -124,7 +124,7 @@ namespace Jinaga.Test.Pipelines
                 select new
                 {
                     Office = office,
-                    Names = facts.All(office, namesOfOffice)
+                    Names = facts.Observable(office, namesOfOffice)
                 }
             );
 
