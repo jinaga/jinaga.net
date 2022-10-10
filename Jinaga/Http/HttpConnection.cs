@@ -13,7 +13,11 @@ namespace Jinaga.Http
         public HttpConnection(Uri baseUrl, string token)
         {
             this.httpClient = new HttpClient();
-            
+
+            if (!baseUrl.AbsoluteUri.EndsWith("/"))
+            {
+                baseUrl = new Uri(baseUrl.AbsoluteUri + "/");
+            }
             httpClient.BaseAddress = baseUrl;
             if (!string.IsNullOrEmpty(token))
             {
