@@ -77,17 +77,17 @@ namespace Jinaga.Parsers
                 var setDefinition = new SetDefinitionInitial(variable.Label, variable.Type);
                 return (new SymbolValueSetDefinition(setDefinition), variable.Label.Name);
             }
-            else if (expression is MethodCallExpression allCallExpression &&
-                allCallExpression.Method.DeclaringType == typeof(FactRepository) &&
-                allCallExpression.Method.Name == nameof(FactRepository.Observable) &&
-                allCallExpression.Arguments.Count == 2 &&
-                typeof(Specification).IsAssignableFrom(allCallExpression.Arguments[1].Type))
+            else if (expression is MethodCallExpression observableCallExpression &&
+                observableCallExpression.Method.DeclaringType == typeof(FactRepository) &&
+                observableCallExpression.Method.Name == nameof(FactRepository.Observable) &&
+                observableCallExpression.Arguments.Count == 2 &&
+                typeof(Specification).IsAssignableFrom(observableCallExpression.Arguments[1].Type))
             {
-                var start = ParseValue(symbolTable, context, allCallExpression.Arguments[0]).symbolValue;
+                var start = ParseValue(symbolTable, context, observableCallExpression.Arguments[0]).symbolValue;
                 if (start is SymbolValueSetDefinition startValue)
                 {
                     var startSetDefinition = startValue.SetDefinition;
-                    var specification = ParseSpecification(allCallExpression.Arguments[1]);
+                    var specification = ParseSpecification(observableCallExpression.Arguments[1]);
                     var arguments = ImmutableList<Pipelines.Label>.Empty.Add(startSetDefinition.Label);
                     specification = specification.Apply(arguments);
                     return (new SymbolValueCollection(specification.Matches, specification.Projection), "");
@@ -97,13 +97,13 @@ namespace Jinaga.Parsers
                     throw new NotImplementedException($"ParseValue: {ExpressionVisualizer.DumpExpression(expression)}");
                 }
             }
-            else if (expression is MethodCallExpression allIQueryableCallExpression &&
-                allIQueryableCallExpression.Method.DeclaringType == typeof(FactRepository) &&
-                allIQueryableCallExpression.Method.Name == nameof(FactRepository.Observable) &&
-                allIQueryableCallExpression.Arguments.Count == 1 &&
-                typeof(IQueryable).IsAssignableFrom(allIQueryableCallExpression.Arguments[0].Type))
+            else if (expression is MethodCallExpression observableIQueryableCallExpression &&
+                observableIQueryableCallExpression.Method.DeclaringType == typeof(FactRepository) &&
+                observableIQueryableCallExpression.Method.Name == nameof(FactRepository.Observable) &&
+                observableIQueryableCallExpression.Arguments.Count == 1 &&
+                typeof(IQueryable).IsAssignableFrom(observableIQueryableCallExpression.Arguments[0].Type))
             {
-                var result = SpecificationParser.ParseSpecification(symbolTable, context, allIQueryableCallExpression.Arguments[0]);
+                var result = SpecificationParser.ParseSpecification(symbolTable, context, observableIQueryableCallExpression.Arguments[0]);
                 var matches = SpecificationGenerator.CreateMatches(context, result);
                 var projection = SpecificationGenerator.CreateProjection(result.SymbolValue);
                 return (new SymbolValueCollection(matches, projection), "");
