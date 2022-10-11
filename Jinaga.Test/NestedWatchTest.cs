@@ -298,7 +298,7 @@ namespace Jinaga.Test
                 {
                     OfficeId = 1,
                     City = "Dallas",
-                    Name = null
+                    Name = ""
                 }
             });
 
@@ -478,7 +478,7 @@ namespace Jinaga.Test
                 {
                     OfficeId = 1,
                     City = "Dallas",
-                    Name = null
+                    Name = ""
                 }
             });
 

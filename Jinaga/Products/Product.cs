@@ -19,7 +19,19 @@ namespace Jinaga.Products
 
         public IEnumerable<string> Names => elements.Keys;
 
-        public Element GetElement(string name) => elements[name];
+        public bool Contains(string name) => elements.ContainsKey(name);
+
+        public Element GetElement(string name)
+        {
+            if (elements.TryGetValue(name, out var element))
+            {
+                return element;
+            }
+            else
+            {
+                throw new ArgumentException($"The product {this} does not contain an element named {name}.");
+            }
+        }
 
         public FactReference GetFactReference(string name)
         {
@@ -79,6 +91,12 @@ namespace Jinaga.Products
             var theseReferences = this.elements
                 .Select(pair => ComparablePair.From(pair.Key, pair.Value));
             return theseReferences.SetHash();
+        }
+
+        public override string ToString()
+        {
+            var names = string.Join(", ", elements.Keys);
+            return $"({names})";
         }
     }
 }

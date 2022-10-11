@@ -226,7 +226,7 @@ namespace Jinaga.Managers
                         .ToImmutableList();
                     return CreateQueryable(elementType, elements);
                 }
-                else
+                else if (product.Contains(parameterName))
                 {
                     var collectionProjection = (CollectionProjection)projection;
                     var collectionElement = (CollectionElement)product.GetElement(parameterName);
@@ -241,6 +241,10 @@ namespace Jinaga.Managers
                         .Select(p => p.Projection)
                         .ToImmutableList();
                     return CreateQueryable(elementType, elements);
+                }
+                else
+                {
+                    return CreateQueryable(elementType, ImmutableList<object>.Empty);
                 }
             }
             else if (projection is FieldProjection fieldProjection)

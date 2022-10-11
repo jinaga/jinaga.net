@@ -159,13 +159,15 @@ namespace Jinaga
         private static Type GetCollectionType(Type type, string collectionName)
         {
             var propertyType = type.GetProperty(collectionName).PropertyType;
-            if (propertyType.IsGenericType && propertyType.GetGenericTypeDefinition() == typeof(IObservableCollection<>))
+            if (propertyType.IsGenericType &&
+                (propertyType.GetGenericTypeDefinition() == typeof(IObservableCollection<>) ||
+                 propertyType.GetGenericTypeDefinition() == typeof(IQueryable<>)))
             {
                 return propertyType.GetGenericArguments()[0];
             }
             else
             {
-                throw new InvalidOperationException($"Collection {collectionName} is not an IObservableCollection");
+                throw new InvalidOperationException($"Collection {collectionName} is not an IObservableCollection or IQueryable");
             }
         }
     }
