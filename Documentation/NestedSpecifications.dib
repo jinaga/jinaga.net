@@ -35,12 +35,11 @@ var peopleInFamily = Given<Family>.Match((family, facts) =>
     select new
     {
         Person = person,
-        Names = facts.All(person, namesOfPerson)
+        Names = facts.Observable(person, namesOfPerson)
     }
 );
 
-peopleInFamily.Pipeline.ToDescriptiveString() +
-peopleInFamily.Projection.ToDescriptiveString()
+peopleInFamily.ToDescriptiveString()
 
 #!csharp
 

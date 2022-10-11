@@ -4,6 +4,7 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 
 namespace Jinaga.Facts
@@ -147,12 +148,17 @@ namespace Jinaga.Facts
             return result;
         }
 
+        private static JsonSerializerOptions RelaxedStringOptions = new JsonSerializerOptions
+        {
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+        };
+
         private static string SerializeFieldValue(FieldValue value)
         {
             switch (value)
             {
                 case FieldValueString str:
-                    return JsonSerializer.Serialize(str.StringValue);
+                    return JsonSerializer.Serialize(str.StringValue, RelaxedStringOptions);
                 case FieldValueNumber number:
                     return JsonSerializer.Serialize(number.DoubleValue);
                 default:

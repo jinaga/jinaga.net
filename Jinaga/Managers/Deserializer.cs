@@ -215,6 +215,38 @@ namespace Jinaga.Managers
                     return WatchedObservableCollection.Create(elementType, product.GetAnchor(), parameterName, emitter.WatchContext);
                 }
             }
+            else if (parameterType.IsGenericType &&
+                parameterType.GetGenericTypeDefinition() == typeof(IQueryable<>))
+            {
+                var elementType = parameterType.GetGenericArguments()[0];
+                if (elementType.IsFactType())
+                {
+                    var elements = Projector.GetFactReferences(projection, product, parameterName)
+                        .Select(reference => emitter.DeserializeToType(reference, elementType))
+                        .ToImmutableList();
+                    return CreateQueryable(elementType, elements);
+                }
+                else if (product.Contains(parameterName))
+                {
+                    var collectionProjection = (CollectionProjection)projection;
+                    var collectionElement = (CollectionElement)product.GetElement(parameterName);
+                    var elements = Deserialize(
+                            emitter,
+                            collectionProjection.Projection,
+                            elementType,
+                            collectionElement.Products,
+                            product.GetAnchor(),
+                            parameterName
+                        )
+                        .Select(p => p.Projection)
+                        .ToImmutableList();
+                    return CreateQueryable(elementType, elements);
+                }
+                else
+                {
+                    return CreateQueryable(elementType, ImmutableList<object>.Empty);
+                }
+            }
             else if (projection is FieldProjection fieldProjection)
             {
                 var reference = product.GetFactReference(fieldProjection.Tag);
@@ -279,6 +311,20 @@ namespace Jinaga.Managers
             {
                 throw new NotImplementedException();
             }
+        }
+
+        private static object CreateQueryable(Type elementType, ImmutableList<object> elements)
+        {
+            var test = elements.AsQueryable();
+            var method = typeof(Deserializer)
+                .GetMethod(nameof(CreateQueryableGeneric), BindingFlags.NonPublic | BindingFlags.Static)
+                .MakeGenericMethod(elementType);
+            return method.Invoke(null, new[] { elements });
+        }
+
+        private static IQueryable<T> CreateQueryableGeneric<T>(ImmutableList<object> elements)
+        {
+            return elements.OfType<T>().AsQueryable();
         }
     }
 }

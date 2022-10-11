@@ -1,17 +1,18 @@
 using Jinaga.Definitions;
 using Jinaga.Projections;
+using System.Collections.Immutable;
 
 namespace Jinaga.Parsers
 {
     public class SymbolValueCollection : SymbolValue
     {
-        public SetDefinition StartSetDefinition { get; }
-        public Specification Specification { get; }
+        public ImmutableList<Match> Matches { get; }
+        public Projection Projection { get; }
 
-        public SymbolValueCollection(SetDefinition startSetDefinition, Specification specification)
+        public SymbolValueCollection(ImmutableList<Match> matches, Projection projection)
         {
-            StartSetDefinition = startSetDefinition;
-            Specification = specification;
+            Matches = matches;
+            Projection = projection;
         }
     }
 }
