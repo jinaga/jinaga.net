@@ -161,6 +161,8 @@ namespace Jinaga.Facts
                     return JsonSerializer.Serialize(str.StringValue, RelaxedStringOptions);
                 case FieldValueNumber number:
                     return JsonSerializer.Serialize(number.DoubleValue);
+                case FieldValueBoolean boolean:
+                    return JsonSerializer.Serialize(boolean.BoolValue);
                 default:
                     throw new NotImplementedException();
             }
