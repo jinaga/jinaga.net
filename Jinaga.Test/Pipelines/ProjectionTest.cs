@@ -194,5 +194,25 @@ namespace Jinaga.Test.Pipelines
 ";
             passengers.ToDescriptiveString().Should().Be(expected.Replace("\r", ""));
         }
+
+        [Fact]
+        public void Projection_CanHaveMultipleStages()
+        {
+            var attendanceSpecification = Given<Airline>.Match((airline, facts) =>
+                from airlineDay in facts.OfType<AirlineDay>()
+                where airlineDay.airline == airline
+                from flight in facts.OfType<Flight>()
+                where flight.airlineDay == airlineDay
+                select new
+                {
+                    refunds =
+                        from booking in facts.OfType<Booking>()
+                        where booking.flight == flight
+                        from refund in facts.OfType<Refund>()
+                        where refund.booking == booking
+                        select refund
+                }
+            );
+        }
     }
 }
