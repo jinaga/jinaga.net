@@ -28,14 +28,7 @@ namespace Jinaga.Definitions
 
         public SymbolTable With(string name, SymbolValue value)
         {
-            if (symbols.ContainsKey(name))
-            {
-                throw new ArgumentException($"The symbol table {this} already contains a member named {name}.");
-            }
-            else
-            {
-                return new SymbolTable(symbols.Add(name, value));
-            }
+            return new SymbolTable(symbols.SetItem(name, value));
         }
 
         public override string ToString()
