@@ -39,27 +39,31 @@ namespace Jinaga.Managers
                 // Load the bookmark.
                 string bookmark = await store.LoadBookmark(feed);
 
-                // Fetch facts from the feed starting at the bookmark.
-                (var factReferences, var nextBookmark) = await network.FetchFeed(feed, bookmark, cancellationToken);
-
-                // If there are no facts, end.
-                if (factReferences.Count == 0)
+                while (true)
                 {
-                    continue;
+                    // Fetch facts from the feed starting at the bookmark.
+                    (var factReferences, var nextBookmark) = await network.FetchFeed(feed, bookmark, cancellationToken);
+                    
+                    // If there are no facts, end.
+                    if (factReferences.Count == 0)
+                    {
+                        break;
+                    }
+
+                    // Load the facts that I don't already have.
+                    var knownFactReferences = await store.ListKnown(factReferences);
+                    var graph = await network.Load(factReferences.RemoveRange(knownFactReferences), cancellationToken);
+
+                    // Save the facts.
+                    var added = await store.Save(graph, cancellationToken);
+
+                    // Notify observers.
+                    await notifyObservers(graph, added, cancellationToken);
+
+                    // Update the bookmark.
+                    bookmark = nextBookmark;
+                    await store.SaveBookmark(feed, bookmark);
                 }
-
-                // Load the facts that I don't already have.
-                var knownFactReferences = await store.ListKnown(factReferences);
-                var graph = await network.Load(factReferences.RemoveRange(knownFactReferences), cancellationToken);
-
-                // Save the facts.
-                var added = await store.Save(graph, cancellationToken);
-
-                // Notify observers.
-                await notifyObservers(graph, added, cancellationToken);
-
-                // Update the bookmark.
-                await store.SaveBookmark(feed, bookmark);
             }
         }
     }
