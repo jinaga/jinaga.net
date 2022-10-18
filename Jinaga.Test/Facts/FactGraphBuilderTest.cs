@@ -82,5 +82,21 @@ namespace Jinaga.Test.Facts
             Assert.Equal("Test.Root", factGraph.GetFact(factGraph.FactReferences[0]).Reference.Type);
             Assert.Equal("Test.Successor", factGraph.GetFact(factGraph.FactReferences[1]).Reference.Type);
         }
+
+        [Fact]
+        public void Buidler_Incomplete()
+        {
+            var builder = new FactGraphBuilder();
+            builder.Add(Fact.Create(
+                "Test.Successor",
+                ImmutableList.Create(
+                    new Field("identifier",
+                        new FieldValueString("testsuccessor"))),
+                ImmutableList.Create(
+                    (Predecessor)new PredecessorSingle("root",
+                        new FactReference("Test.Root", "52bexk3CJadZJk31WH3KhvQAGr6CNHLdGIL+0vW7auWFznhfcpE/FKAQgC7syq+4aP78XgWhhJUevNoYyC25BA==")))));
+            var graph = builder.Build();
+            graph.FactReferences.Should().BeEmpty();
+        }
     }
 }

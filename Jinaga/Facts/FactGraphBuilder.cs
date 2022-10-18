@@ -32,7 +32,8 @@ namespace Jinaga.Facts
                 }
                 if (retry.Count == reserve.Count)
                 {
-                    throw new System.Exception("The fact graph cannot be built because of a circular dependency.");
+                    // We did the best we can.
+                    break;
                 }
             }
             return factGraph;
