@@ -21,6 +21,9 @@ namespace Jinaga.Facts
             this.topologicalOrder = topologicalOrder;
         }
 
+        public bool CanAdd(Fact fact) =>
+            fact.GetAllPredecessorReferences().All(p => factsByReference.ContainsKey(p));
+
         public FactGraph Add(Fact fact)
         {
             if (factsByReference.ContainsKey(fact.Reference))
@@ -28,7 +31,7 @@ namespace Jinaga.Facts
                 return this;
             }
 
-            if (!fact.GetAllPredecessorReferences().All(p => factsByReference.ContainsKey(p)))
+            if (!CanAdd(fact))
             {
                 throw new ArgumentException("The fact graph does not contain all of the predecessors of the fact.");
             }

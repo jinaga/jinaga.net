@@ -195,11 +195,16 @@ namespace Jinaga.Storage
 
         public Task<FactGraph> Load(ImmutableList<FactReference> references, CancellationToken cancellationToken)
         {
-            var graph = references
+            var facts = references
                 .SelectMany(reference => ancestors[reference])
                 .Distinct()
-                .Select(reference => factsByReference[reference])
-                .Aggregate(FactGraph.Empty, (graph, fact) => graph.Add(fact));
+                .Select(reference => factsByReference[reference]);
+            var builder = new FactGraphBuilder();
+            foreach (var fact in facts)
+            {
+                builder.Add(fact);
+            }
+            var graph = builder.Build();
             return Task.FromResult(graph);
         }
 
