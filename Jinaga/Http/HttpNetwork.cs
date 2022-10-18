@@ -56,10 +56,13 @@ namespace Jinaga.Http
                 References = factReferences.Select(r => CreateFactReference(r)).ToList()
             };
             LoadResponse response = await webClient.Load(request, cancellationToken);
-            var graph = response.Facts.Aggregate(
-                FactGraph.Empty,
-                (graph, fact) => graph.Add(ReadFact(fact)));
-            return graph;
+            var builder = new FactGraphBuilder();
+            foreach (var factRecord in response.Facts)
+            {
+                var fact = ReadFact(factRecord);
+                builder.Add(fact);
+            }
+            return builder.Build();
         }
 
         private static FactRecord CreateFactRecord(Fact fact)
