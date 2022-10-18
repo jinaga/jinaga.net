@@ -451,5 +451,117 @@ namespace Jinaga.Test
 }
 ".Replace("\r", ""));
         }
+
+        [Fact]
+        public void Specification_NestedProjection()
+        {
+            var specification = Given<Company>.Match((company, facts) =>
+                from office in facts.OfType<Office>()
+                where office.company == company
+                where !office.IsClosed
+
+                select new
+                {
+                    office,
+                    headcount =
+                        from headcount in facts.OfType<Headcount>()
+                        where headcount.office == office
+                        where headcount.IsCurrent
+                        select headcount.value
+                }
+            );
+
+            var descriptiveString = specification.ToDescriptiveString();
+            descriptiveString.Should().Be(@"(company: Corporate.Company) {
+    office: Corporate.Office [
+        office->company: Corporate.Company = company
+        !E {
+            closure: Corporate.Office.Closure [
+                closure->office: Corporate.Office = office
+            ]
+        }
+    ]
+} => {
+    headcount = {
+        headcount: Corporate.Headcount [
+            headcount->office: Corporate.Office = office
+            !E {
+                next: Corporate.Headcount [
+                    next->prior: Corporate.Headcount = headcount
+                ]
+            }
+        ]
+    } => headcount.value
+    office = office
+}
+".Replace("\r", ""));
+        }
+
+        [Fact]
+        public void Specification_DeeplyNestedProjection()
+        {
+            var specification = Given<Company>.Match((company, facts) =>
+                from office in facts.OfType<Office>()
+                where office.company == company
+                where !office.IsClosed
+
+                select new
+                {
+                    office,
+                    managers =
+                        from manager in facts.OfType<Manager>()
+                        where manager.office == office
+                        where !(
+                            from terminated in facts.OfType<ManagerTerminated>()
+                            where terminated.Manager == manager
+                            select terminated
+                        ).Any()
+                        select new
+                        {
+                            name =
+                                from name in facts.OfType<ManagerName>()
+                                where name.manager == manager
+                                where name.IsCurrent
+                                select name.value
+                        }
+                }
+            );
+
+            var descriptiveString = specification.ToDescriptiveString();
+            descriptiveString.Should().Be(@"(company: Corporate.Company) {
+    office: Corporate.Office [
+        office->company: Corporate.Company = company
+        !E {
+            closure: Corporate.Office.Closure [
+                closure->office: Corporate.Office = office
+            ]
+        }
+    ]
+} => {
+    managers = {
+        manager: Corporate.Manager [
+            manager->office: Corporate.Office = office
+            !E {
+                terminated: Corporate.Manager.Terminated [
+                    terminated->Manager: Corporate.Manager = manager
+                ]
+            }
+        ]
+    } => {
+        name = {
+            name: Corporate.Manager.Name [
+                name->manager: Corporate.Manager = manager
+                !E {
+                    next: Corporate.Manager.Name [
+                        next->prior: Corporate.Manager.Name = name
+                    ]
+                }
+            ]
+        } => name.value
+    }
+    office = office
+}
+".Replace("\r", ""));
+        }
     }
 }
