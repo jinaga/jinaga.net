@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Collections.Immutable;
 
 namespace Jinaga.Facts
@@ -10,6 +11,7 @@ namespace Jinaga.Facts
         }
 
         public string Role { get; }
+        public abstract IEnumerable<FactReference> AllReferences { get; }
     }
 
     public class PredecessorSingle : Predecessor
@@ -21,6 +23,7 @@ namespace Jinaga.Facts
         }
 
         public FactReference Reference { get; }
+        public override IEnumerable<FactReference> AllReferences => ImmutableList.Create(Reference);
     }
 
     public class PredecessorMultiple : Predecessor
@@ -32,5 +35,6 @@ namespace Jinaga.Facts
         }
 
         public ImmutableList<FactReference> References { get;}
+        public override IEnumerable<FactReference> AllReferences => References;
     }
 }

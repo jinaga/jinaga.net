@@ -10,11 +10,13 @@ namespace Jinaga.Observers
 {
     public class FunctionObservation<TProjection> : IObservation
     {
+        private readonly Product initialAnchor;
         private readonly Func<TProjection, Task<Func<Task>>> added;
         private ImmutableList<AddedHandler> addedHandlers = ImmutableList<AddedHandler>.Empty;
 
-        public FunctionObservation(Func<TProjection, Task<Func<Task>>> added)
+        public FunctionObservation(Product initialAnchor, Func<TProjection, Task<Func<Task>>> added)
         {
+            this.initialAnchor = initialAnchor;
             this.added = added;
         }
 
@@ -51,7 +53,7 @@ namespace Jinaga.Observers
                     }
                 }
             }
-            else
+            else if (initialAnchor.Equals(anchor))
             {
                 var removal = await added((TProjection)projection);
                 removals = removals.Add(new KeyValuePair<Product, Func<Task>>(product.GetAnchor(), removal));

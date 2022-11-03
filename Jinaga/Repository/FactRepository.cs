@@ -25,9 +25,14 @@ namespace Jinaga.Repository
             return this.OfType<TFact>().Where(predicate);
         }
 
-        public IObservableCollection<TProjection> All<TFact, TProjection>(
+        public IObservableCollection<TProjection> Observable<TFact, TProjection>(
             TFact start,
             Specification<TFact, TProjection> specification)
+        {
+            throw new NotImplementedException();
+        }
+
+        public IObservableCollection<TProjection> Observable<TProjection>(IQueryable<TProjection> queryable)
         {
             throw new NotImplementedException();
         }

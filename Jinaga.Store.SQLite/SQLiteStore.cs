@@ -244,8 +244,14 @@ namespace Jinaga.Store.SQLite
                     true   //exponentional backoff
                 );
 
-                FactGraph factGraph = factsFromDb.Deserialise().Aggregate(FactGraph.Empty, (graph, fact) => graph.Add(fact));
-                return Task.FromResult(factGraph);
+                FactGraphBuilder fb = new FactGraphBuilder() ;
+            
+                foreach (Fact fact in factsFromDb.Deserialise()) 
+                {
+                    fb.Add(fact);
+                }
+
+                return Task.FromResult(fb.Build());
             }
         }
 
@@ -255,6 +261,20 @@ namespace Jinaga.Store.SQLite
             throw new NotImplementedException();
         }
 
+        public Task<string> LoadBookmark(string feed)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<ImmutableList<FactReference>> ListKnown(ImmutableList<FactReference> factReferences)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task SaveBookmark(string feed, string bookmark)
+        {
+            throw new NotImplementedException();
+        }
 
         public class FactFromDb
         {

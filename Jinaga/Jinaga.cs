@@ -15,10 +15,18 @@ namespace Jinaga
     public class Jinaga
     {
         private readonly FactManager factManager;
+        private readonly NetworkManager networkManager;
 
-        public Jinaga(IStore store)
+        public Jinaga(IStore store, INetwork network)
         {
-            this.factManager = new FactManager(store);
+            networkManager = new NetworkManager(network, store, async (graph, added, cancellationToken) =>
+            {
+                if (factManager != null)
+                {
+                    await factManager.NotifyObservers(graph, added, cancellationToken);
+                }
+            });
+            factManager = new FactManager(store, networkManager);
         }
 
         public async Task<TFact> Fact<TFact>(TFact prototype) where TFact: class
@@ -29,7 +37,12 @@ namespace Jinaga
             }
 
             var graph = factManager.Serialize(prototype);
-            await factManager.Save(graph, default(CancellationToken));
+            using (var source = new CancellationTokenSource())
+            {
+                var token = source.Token;
+                await factManager.Save(graph, token);
+            }
+
             return factManager.Deserialize<TFact>(graph, graph.Last);
         }
 
@@ -45,23 +58,16 @@ namespace Jinaga
 
             var graph = factManager.Serialize(start);
             var startReference = graph.Last;
-            var pipeline = specification.Pipeline;
-            if (pipeline.CanRunOnGraph)
+            var startReferences = ImmutableList.Create(startReference);
+            if (specification.CanRunOnGraph)
             {
-                var products = pipeline.Execute(startReference, graph);
-                return specification.Projection switch
-                {
-                    SimpleProjection simple => products
-                        .Select(product => factManager.Deserialize<TProjection>(
-                            graph, product.GetElement(simple.Tag)
-                        ))
-                        .ToImmutableList(),
-                    _ => throw new NotImplementedException()
-                };
+                var products = specification.Execute(startReferences, graph);
+                var productAnchorProjections = factManager.DeserializeProductsFromGraph(
+                    graph, specification.Projection, products, typeof(TProjection), Product.Empty, "", null);
+                return productAnchorProjections.Select(pap => (TProjection)pap.Projection).ToImmutableList();
             }
             else
             {
-                var startReferences = ImmutableList<FactReference>.Empty.Add(startReference);
                 var products = await factManager.Query(startReferences, specification, cancellationToken);
                 var productProjections = await factManager.ComputeProjections(specification.Projection, products, typeof(TProjection), null, Product.Empty, string.Empty, cancellationToken);
                 var projections = productProjections
@@ -131,10 +137,10 @@ namespace Jinaga
 
             var graph = factManager.Serialize(start);
             var startReference = graph.Last;
-            var pipeline = specification.Pipeline;
             var projection = specification.Projection;
-            var observation = new FunctionObservation<TProjection>(added);
-            var observer = new Observer<TProjection>(specification, Product.Empty.With(specification.Pipeline.Starts.First().Name, new SimpleElement(startReference)), factManager, observation);
+            var initialAnchor = Product.Empty.With(specification.Given.First().Name, new SimpleElement(startReference));
+            var observation = new FunctionObservation<TProjection>(initialAnchor, added);
+            var observer = new Observer<TProjection>(specification, initialAnchor, factManager, observation);
             factManager.AddObserver(observer);
             observer.Start();
             return observer;

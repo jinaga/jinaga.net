@@ -1,0 +1,72 @@
+#!csharp
+
+#r "nuget:Jinaga.Graphviz"
+
+using Jinaga;
+using Jinaga.Graphviz;
+
+#!csharp
+
+[FactType("Jinaga.User")]
+record User(string publicKey) {}
+
+[FactType("Enrollment.School")]
+record School(string identifier) {}
+
+[FactType("Enrollment.Student")]
+record Student(School school, User user, DateTime enrolledDate) {}
+
+[FactType("Enrollment.Student.Name")]
+record StudentName(Student student, StudentName[] prior, string value) {}
+
+[FactType("Enrollment.Course")]
+record Course(School school, string identifier) {}
+
+[FactType("Enrollment.Course.Name")]
+record CourseName(Course course, CourseName[] prior, string value) {}
+
+[FactType("Enrollment.Semester")]
+record Semester(School school, string season, int year) {}
+
+[FactType("Enrollment.Offering")]
+record Offering(Course course, Semester semster, DateTime offeredDate) {}
+
+[FactType("Enrollment.Cancellation")]
+record Cancellation(Offering offering, DateTime cancelledDate) {}
+
+[FactType("Enrollment.Registration")]
+record Registration(Student student, Offering offering, DateTime registeredDate) {}
+
+[FactType("Enrollment.Drop")]
+record Drop(Registration registration) {}
+
+#!csharp
+
+Renderer.RenderTypes(typeof(User), typeof(School), typeof(Student), typeof(StudentName), typeof(Course), typeof(CourseName), typeof(Semester), typeof(Offering), typeof(Cancellation), typeof(Registration), typeof(Drop))
+
+#!csharp
+
+var namesOfCourse = Given<Course>.Match((course, facts) =>
+    from name in facts.OfType<CourseName>()
+    where name.course == course
+    where !(facts.OfType<CourseName>().Where(n => n.prior.Contains(name)).Any())
+    select name
+);
+
+var coursesForStudent = Given<Student>.Match((student, facts) =>
+    from registration in facts.OfType<Registration>()
+    where registration.student == student
+    where !(facts.OfType<Drop>().Where(d => d.registration == registration).Any())
+    from offering in facts.OfType<Offering>()
+    where registration.offering == offering
+    where !(facts.OfType<Cancellation>().Where(c => c.offering == offering).Any())
+    from course in facts.OfType<Course>()
+    where offering.course == course
+    select new {
+        registration,
+        course,
+        courseName = facts.All(course, namesOfCourse)
+    }
+);
+
+$"{coursesForStudent.Pipeline.ToDescriptiveString()}{coursesForStudent.Projection.ToDescriptiveString()}"

@@ -1,4 +1,5 @@
 using Jinaga.Definitions;
+using Jinaga.Generators;
 using Jinaga.Projections;
 using Jinaga.Repository;
 using Jinaga.Visualizers;
@@ -43,9 +44,17 @@ namespace Jinaga.Parsers
                         return (compositeValue.GetField(propertyInfo.Name), propertyInfo.Name);
                     case (SymbolValueSetDefinition setValue, string tag):
                         var role = propertyInfo.Name;
-                        var predecessorType = propertyInfo.PropertyType.FactTypeName();
-                        var setDefinition = setValue.SetDefinition.AppendChain(role, predecessorType, propertyInfo.PropertyType);
-                        return (new SymbolValueSetDefinition(setDefinition), tag);
+                        if (propertyInfo.PropertyType.IsFactType() || propertyInfo.PropertyType.IsArrayOfFactType())
+                        {
+                            var predecessorType = propertyInfo.PropertyType.FactTypeName();
+                            var setDefinition = setValue.SetDefinition.AppendChain(role, predecessorType, propertyInfo.PropertyType);
+                            return (new SymbolValueSetDefinition(setDefinition), tag);
+                        }
+                        else
+                        {
+                            var factRuntimeType = memberExpression.Expression.Type;
+                            return (new SymbolValueField(setValue.SetDefinition, factRuntimeType, propertyInfo.Name), tag);
+                        }
                     default:
                         throw new NotImplementedException();
                 }
@@ -68,26 +77,43 @@ namespace Jinaga.Parsers
                 var setDefinition = new SetDefinitionInitial(variable.Label, variable.Type);
                 return (new SymbolValueSetDefinition(setDefinition), variable.Label.Name);
             }
-            else if (expression is MethodCallExpression allCallExpression &&
-                allCallExpression.Method.DeclaringType == typeof(FactRepository) &&
-                allCallExpression.Method.Name == nameof(FactRepository.All))
+            else if (expression is MethodCallExpression observableCallExpression &&
+                observableCallExpression.Method.DeclaringType == typeof(FactRepository) &&
+                observableCallExpression.Method.Name == nameof(FactRepository.Observable) &&
+                observableCallExpression.Arguments.Count == 2 &&
+                typeof(Specification).IsAssignableFrom(observableCallExpression.Arguments[1].Type))
             {
-                var start = ParseValue(symbolTable, context, allCallExpression.Arguments[0]).symbolValue;
+                var start = ParseValue(symbolTable, context, observableCallExpression.Arguments[0]).symbolValue;
                 if (start is SymbolValueSetDefinition startValue)
                 {
                     var startSetDefinition = startValue.SetDefinition;
-                    var specification = ParseSpecification(allCallExpression.Arguments[1]);
-                    var parameterLabel = specification.Pipeline.Starts.First();
-                    var argument = startSetDefinition.Label;
-                    var pipeline = specification.Pipeline.Apply(parameterLabel, argument);
-                    var projection = specification.Projection.Apply(parameterLabel, argument);
-                    var specificationObj = new Specification(pipeline, projection);
-                    return (new SymbolValueCollection(startSetDefinition, specificationObj), "");
+                    var specification = ParseSpecification(observableCallExpression.Arguments[1]);
+                    var arguments = ImmutableList<Pipelines.Label>.Empty.Add(startSetDefinition.Label);
+                    specification = specification.Apply(arguments);
+                    return (new SymbolValueCollection(specification.Matches, specification.Projection), "");
                 }
                 else
                 {
                     throw new NotImplementedException($"ParseValue: {ExpressionVisualizer.DumpExpression(expression)}");
                 }
+            }
+            else if (expression is MethodCallExpression observableIQueryableCallExpression &&
+                observableIQueryableCallExpression.Method.DeclaringType == typeof(FactRepository) &&
+                observableIQueryableCallExpression.Method.Name == nameof(FactRepository.Observable) &&
+                observableIQueryableCallExpression.Arguments.Count == 1 &&
+                typeof(IQueryable).IsAssignableFrom(observableIQueryableCallExpression.Arguments[0].Type))
+            {
+                var result = SpecificationParser.ParseSpecification(symbolTable, context, observableIQueryableCallExpression.Arguments[0]);
+                var matches = SpecificationGenerator.CreateMatches(context, result);
+                var projection = SpecificationGenerator.CreateProjection(result.SymbolValue);
+                return (new SymbolValueCollection(matches, projection), "");
+            }
+            else if (typeof(IQueryable).IsAssignableFrom(expression.Type))
+            {
+                var result = SpecificationParser.ParseSpecification(symbolTable, context, expression);
+                var matches = SpecificationGenerator.CreateMatches(context, result);
+                var projection = SpecificationGenerator.CreateProjection(result.SymbolValue);
+                return (new SymbolValueCollection(matches, projection), "");
             }
             else
             {

@@ -1,6 +1,6 @@
 using Jinaga.Facts;
 
-namespace Jinaga.UnitTest
+namespace Jinaga.Storage
 {
     class Edge
     {

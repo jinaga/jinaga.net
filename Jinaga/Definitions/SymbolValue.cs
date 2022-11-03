@@ -47,15 +47,17 @@ namespace Jinaga.Definitions
         }
     }
 
-    public class SymbolValueCollection : SymbolValue
+    public class SymbolValueField : SymbolValue
     {
-        public SetDefinition StartSetDefinition { get; }
-        public Specification Specification { get; }
+        public SetDefinition SetDefinition { get; }
+        public Type FactRuntimeType { get; }
+        public string FieldName { get; }
 
-        public SymbolValueCollection(SetDefinition startSetDefinition, Specification specification)
+        public SymbolValueField(SetDefinition setDefinition, Type factRuntimeType, string fieldName)
         {
-            StartSetDefinition = startSetDefinition;
-            Specification = specification;
+            SetDefinition = setDefinition;
+            FactRuntimeType = factRuntimeType;
+            FieldName = fieldName;
         }
     }
 }

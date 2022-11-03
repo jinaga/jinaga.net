@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Jinaga.Pipelines;
 
 namespace Jinaga.Projections
@@ -27,5 +28,19 @@ namespace Jinaga.Projections
                 return this;
             }
         }
+
+        public override Projection Apply(ImmutableDictionary<string, string> replacements)
+        {
+            if (replacements.TryGetValue(Tag, out var replacement))
+            {
+                return new SimpleProjection(replacement);
+            }
+            else
+            {
+                return this;
+            }
+        }
+
+        public override bool CanRunOnGraph => true;
     }
 }

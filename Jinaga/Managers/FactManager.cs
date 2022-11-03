@@ -16,10 +16,12 @@ namespace Jinaga.Managers
     class FactManager
     {
         private readonly IStore store;
+        private readonly NetworkManager networkManager;
 
-        public FactManager(IStore store)
+        public FactManager(IStore store, NetworkManager networkManager)
         {
             this.store = store;
+            this.networkManager = networkManager;
         }
 
         private SerializerCache serializerCache = SerializerCache.Empty;
@@ -29,15 +31,18 @@ namespace Jinaga.Managers
         public async Task<ImmutableList<Fact>> Save(FactGraph graph, CancellationToken cancellationToken)
         {
             var added = await store.Save(graph, cancellationToken);
-            foreach (var observer in observers)
-            {
-                await observer.FactsAdded(added, graph, cancellationToken);
-            }
+            await NotifyObservers(graph, added, cancellationToken);
+
+            var facts = graph.FactReferences
+                .Select(r => graph.GetFact(r))
+                .ToImmutableList();
+            await networkManager.Save(facts, cancellationToken);
             return added;
         }
 
         public async Task<ImmutableList<Product>> Query(ImmutableList<FactReference> startReferences, Specification specification, CancellationToken cancellationToken)
         {
+            await networkManager.Query(startReferences, specification, cancellationToken);
             return await store.Query(startReferences, specification, cancellationToken);
         }
 
@@ -71,24 +76,6 @@ namespace Jinaga.Managers
                 collector.Serialize(prototype);
                 serializerCache = collector.SerializerCache;
                 return collector.Graph;
-            }
-        }
-
-        public TFact Deserialize<TFact>(FactGraph graph, Element element)
-        {
-            if (element is SimpleElement simple)
-            {
-                lock (this)
-                {
-                    var emitter = new Emitter(graph, deserializerCache);
-                    var fact = emitter.Deserialize<TFact>(simple.FactReference);
-                    deserializerCache = emitter.DeserializerCache;
-                    return fact;
-                }
-            }
-            else
-            {
-                throw new NotImplementedException();
             }
         }
 
@@ -134,6 +121,14 @@ namespace Jinaga.Managers
             lock (this)
             {
                 observers = observers.Remove(observer);
+            }
+        }
+
+        public async Task NotifyObservers(FactGraph graph, ImmutableList<Fact> added, CancellationToken cancellationToken)
+        {
+            foreach (var observer in observers)
+            {
+                await observer.FactsAdded(added, graph, cancellationToken);
             }
         }
     }

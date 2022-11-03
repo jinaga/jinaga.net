@@ -1,4 +1,5 @@
-﻿using Jinaga.Observers;
+﻿using Jinaga.Facts;
+using Jinaga.Observers;
 using Jinaga.Parsers;
 using Jinaga.Products;
 using Jinaga.Projections;
@@ -27,8 +28,10 @@ namespace Jinaga.Managers
                 return DeserializeCompoundProjection(emitter, compoundProjection, type, products, anchor, collectionName);
             else if (projection is CollectionProjection collectionProjection)
                 return DeserializeCollectionProjection(emitter, collectionProjection, type, products, anchor, collectionName);
+            else if (projection is FieldProjection fieldProjection)
+                return DeserializeFieldProjection(emitter, fieldProjection, type, products, anchor, collectionName);
             else
-                throw new NotImplementedException();
+                throw new ArgumentException($"Unknown projection type {projection.GetType().Name}");
         }
 
         private static ImmutableList<ProductAnchorProjection> DeserializeSimpleProjection(
@@ -99,7 +102,7 @@ namespace Jinaga.Managers
                     let element = product.GetElement(property.Name)
                     where element is CollectionElement
                     let collectionElement = (CollectionElement)element
-                    from childProductProjection in DeserializeChildParameters(emitter, collectionProjection.Specification.Projection, property.PropertyType, property.Name, collectionElement.Products, parentAnchor)
+                    from childProductProjection in DeserializeChildParameters(emitter, collectionProjection.Projection, property.PropertyType, property.Name, collectionElement.Products, parentAnchor)
                     select childProductProjection;
                 return productProjections.Concat(childProductProjections).ToImmutableList();
             }
@@ -127,6 +130,27 @@ namespace Jinaga.Managers
         private static ImmutableList<ProductAnchorProjection> DeserializeCollectionProjection(Emitter emitter, CollectionProjection collectionProjection, Type type, ImmutableList<Product> products, Product anchor, string collectionName)
         {
             throw new NotImplementedException();
+        }
+
+        private static ImmutableList<ProductAnchorProjection> DeserializeFieldProjection(Emitter emitter, FieldProjection fieldProjection, Type type, ImmutableList<Product> products, Product anchor, string collectionName)
+        {
+            var propertyInfo = fieldProjection.FactRuntimeType.GetProperty(fieldProjection.FieldName);
+            if (propertyInfo == null)
+            {
+                throw new ArgumentException($"Field {fieldProjection.FieldName} not found on type {fieldProjection.FactRuntimeType.Name}");
+            }
+            var productProjections = products
+                .Select(product => new ProductAnchorProjection(
+                    product,
+                    anchor,
+                    propertyInfo.GetValue(
+                        emitter.DeserializeToType(
+                            product.GetFactReference(fieldProjection.Tag),
+                            fieldProjection.FactRuntimeType)),
+                    collectionName
+                ))
+                .ToImmutableList();
+            return productProjections;
         }
 
         private static IEnumerable<ProductAnchorProjection> DeserializeChildParameters(
@@ -175,7 +199,7 @@ namespace Jinaga.Managers
                         var collectionElement = (CollectionElement)product.GetElement(parameterName);
                         var elements = Deserialize(
                                 emitter,
-                                collectionProjection.Specification.Projection,
+                                collectionProjection.Projection,
                                 elementType,
                                 collectionElement.Products,
                                 product.GetAnchor(),
@@ -191,10 +215,116 @@ namespace Jinaga.Managers
                     return WatchedObservableCollection.Create(elementType, product.GetAnchor(), parameterName, emitter.WatchContext);
                 }
             }
+            else if (parameterType.IsGenericType &&
+                parameterType.GetGenericTypeDefinition() == typeof(IQueryable<>))
+            {
+                var elementType = parameterType.GetGenericArguments()[0];
+                if (elementType.IsFactType())
+                {
+                    var elements = Projector.GetFactReferences(projection, product, parameterName)
+                        .Select(reference => emitter.DeserializeToType(reference, elementType))
+                        .ToImmutableList();
+                    return CreateQueryable(elementType, elements);
+                }
+                else if (product.Contains(parameterName))
+                {
+                    var collectionProjection = (CollectionProjection)projection;
+                    var collectionElement = (CollectionElement)product.GetElement(parameterName);
+                    var elements = Deserialize(
+                            emitter,
+                            collectionProjection.Projection,
+                            elementType,
+                            collectionElement.Products,
+                            product.GetAnchor(),
+                            parameterName
+                        )
+                        .Select(p => p.Projection)
+                        .ToImmutableList();
+                    return CreateQueryable(elementType, elements);
+                }
+                else
+                {
+                    return CreateQueryable(elementType, ImmutableList<object>.Empty);
+                }
+            }
+            else if (projection is FieldProjection fieldProjection)
+            {
+                var reference = product.GetFactReference(fieldProjection.Tag);
+                var fact = emitter.Graph.GetFact(reference);
+                var field = fact.Fields.FirstOrDefault(f => f.Name == fieldProjection.FieldName);
+                if (field == null)
+                {
+                    throw new ArgumentException($"Unknown field {fieldProjection.FieldName} in fact {reference.Type}");
+                }
+                var value = field.Value;
+                if (value is FieldValueString fieldValueString)
+                {
+                    if (parameterType == typeof(string))
+                    {
+                        return fieldValueString.StringValue;
+                    }
+                    else if (parameterType == typeof(DateTime))
+                    {
+                        return FieldValue.FromIso8601String(fieldValueString.StringValue);
+                    }
+                    else
+                    {
+                        throw new ArgumentException($"Cannot convert string to {parameterType.Name}, reading field {parameterName} of {reference.Type}.");
+                    }
+                }
+                else if (value is FieldValueNumber fieldValueNumber)
+                {
+                    if (parameterType == typeof(int))
+                    {
+                        return (int)fieldValueNumber.DoubleValue;
+                    }
+                    else if (parameterType == typeof(float))
+                    {
+                        return (float)fieldValueNumber.DoubleValue;
+                    }
+                    else if (parameterType == typeof(double))
+                    {
+                        return fieldValueNumber.DoubleValue;
+                    }
+                    else
+                    {
+                        throw new ArgumentException($"Cannot convert number to {parameterType.Name}, reading field {parameterName} of {reference.Type}.");
+                    }
+                }
+                else if (value is FieldValueBoolean fieldValueBoolean)
+                {
+                    if (parameterType == typeof(bool))
+                    {
+                        return fieldValueBoolean.BoolValue;
+                    }
+                    else
+                    {
+                        throw new ArgumentException($"Cannot convert boolean to {parameterType.Name}, reading field {parameterName} of {reference.Type}.");
+                    }
+                }
+                else
+                {
+                    throw new ArgumentException($"Unknown field type {value.GetType().Name}, reading field {parameterName} of {reference.Type}.");
+                }
+            }
             else
             {
                 throw new NotImplementedException();
             }
+        }
+
+        private static object CreateQueryable(Type elementType, ImmutableList<object> elements)
+        {
+            var test = elements.AsQueryable();
+            var method = typeof(Deserializer)
+                .GetMethod(nameof(CreateQueryableGeneric), BindingFlags.NonPublic | BindingFlags.Static)
+                .MakeGenericMethod(elementType);
+            return method.Invoke(null, new[] { elements });
+        }
+
+        private static IQueryable<T> CreateQueryableGeneric<T>(ImmutableList<object> elements)
+        {
+            return elements.OfType<T>().AsQueryable();
         }
     }
 }

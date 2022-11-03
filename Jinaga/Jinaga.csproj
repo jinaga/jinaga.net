@@ -13,6 +13,7 @@
     <ProjectUrl>https://jinaga.net</ProjectUrl>
     <RepositoryUrl>https://github.com/jinaga/jinaga.net</RepositoryUrl>
     <PackageTags>Data;Synchronization;Offline;Occasionally connected</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
     <Description>
       Jinaga is a data synchronization library that supports offline access to data.
       It is designed to be used in a variety of scenarios, including:
@@ -25,6 +26,10 @@
     </Description>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+
   <ItemGroup>
     <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
     <_Parameter1>Jinaga.Test</_Parameter1>
@@ -32,6 +37,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Include="..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MinVer" Version="4.2.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="System.Collections.Immutable" Version="5.0.0" />
     <PackageReference Include="System.Text.Json" Version="5.0.2" />
   </ItemGroup>

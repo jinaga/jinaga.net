@@ -34,6 +34,42 @@ namespace Jinaga.Test
         }
 
         [Fact]
+        public async Task NestedWatch_NoResultsInlineObservable()
+        {
+            var company = await j.Fact(new Company("Contoso"));
+
+            var officeObserver = await WhenWatchOfficesInlineObservable(company);
+
+            await officeObserver.Stop();
+
+            officeRepository.Offices.Should().BeEmpty();
+        }
+
+        [Fact]
+        public async Task NestedWatch_NoResultsInlineObservableWithFields()
+        {
+            var company = await j.Fact(new Company("Contoso"));
+
+            var officeObserver = await WhenWatchOfficesInlineObservableWithFields(company);
+
+            await officeObserver.Stop();
+
+            officeRepository.Offices.Should().BeEmpty();
+        }
+
+        [Fact]
+        public async Task NestedWatch_NoResultsInlineQueryable()
+        {
+            var company = await j.Fact(new Company("Contoso"));
+
+            var officeObserver = await WhenWatchOfficesInlineQueryable(company);
+
+            await officeObserver.Stop();
+
+            officeRepository.Offices.Should().BeEmpty();
+        }
+
+        [Fact]
         public async Task NestedWatch_OfficeAlreadyExists()
         {
             var company = await j.Fact(new Company("Contoso"));
@@ -55,12 +91,120 @@ namespace Jinaga.Test
         }
 
         [Fact]
+        public async Task NestedWatch_OfficeAlreadyExistsInlineObservable()
+        {
+            var company = await j.Fact(new Company("Contoso"));
+            var newOffice = await j.Fact(new Office(company, new City("Dallas")));
+
+            var officeObserver = await WhenWatchOfficesInlineObservable(company);
+
+            officeRepository.Offices.Should().BeEquivalentTo(new OfficeRow[]
+            {
+                new OfficeRow
+                {
+                    OfficeId = 1,
+                    City = "Dallas",
+                    Name = ""
+                }
+            });
+
+            await officeObserver.Stop();
+        }
+
+        [Fact]
+        public async Task NestedWatch_OfficeAlreadyExistsInlineObservableWithFields()
+        {
+            var company = await j.Fact(new Company("Contoso"));
+            var newOffice = await j.Fact(new Office(company, new City("Dallas")));
+
+            var officeObserver = await WhenWatchOfficesInlineObservableWithFields(company);
+
+            officeRepository.Offices.Should().BeEquivalentTo(new OfficeRow[]
+            {
+                new OfficeRow
+                {
+                    OfficeId = 1,
+                    City = "Dallas",
+                    Name = ""
+                }
+            });
+
+            await officeObserver.Stop();
+        }
+
+        [Fact]
+        public async Task NestedWatch_OfficeAlreadyExistsInlineQueryable()
+        {
+            var company = await j.Fact(new Company("Contoso"));
+            var newOffice = await j.Fact(new Office(company, new City("Dallas")));
+
+            var officeObserver = await WhenWatchOfficesInlineQueryable(company);
+
+            officeRepository.Offices.Should().BeEquivalentTo(new OfficeRow[]
+            {
+                new OfficeRow
+                {
+                    OfficeId = 1,
+                    City = "Dallas",
+                    Name = ""
+                }
+            });
+
+            await officeObserver.Stop();
+        }
+
+        [Fact]
         public async Task NestedWatch_OfficeCloses()
         {
             var company = await j.Fact(new Company("Contoso"));
             var newOffice = await j.Fact(new Office(company, new City("Dallas")));
 
             var officeObserver = await WhenWatchOffices(company);
+
+            await j.Fact(new OfficeClosure(newOffice, DateTime.UtcNow));
+
+            officeRepository.Offices.Should().BeEmpty();
+
+            await officeObserver.Stop();
+        }
+
+        [Fact]
+        public async Task NestedWatch_OfficeClosesInlineObservable()
+        {
+            var company = await j.Fact(new Company("Contoso"));
+            var newOffice = await j.Fact(new Office(company, new City("Dallas")));
+
+            var officeObserver = await WhenWatchOfficesInlineObservable(company);
+
+            await j.Fact(new OfficeClosure(newOffice, DateTime.UtcNow));
+
+            officeRepository.Offices.Should().BeEmpty();
+
+            await officeObserver.Stop();
+        }
+
+        [Fact]
+        public async Task NestedWatch_OfficeClosesInlineObservableWithFields()
+        {
+            var company = await j.Fact(new Company("Contoso"));
+            var newOffice = await j.Fact(new Office(company, new City("Dallas")));
+
+            var officeObserver = await WhenWatchOfficesInlineObservableWithFields(company);
+
+            await j.Fact(new OfficeClosure(newOffice, DateTime.UtcNow));
+
+            officeRepository.Offices.Should().BeEmpty();
+
+            await officeObserver.Stop();
+        }
+
+        [Fact]
+        public async Task NestedWatch_OfficeClosesInlineQueryable()
+        {
+            var company = await j.Fact(new Company("Contoso"));
+            var newOffice = await j.Fact(new Office(company, new City("Dallas")));
+
+            var officeObserver = await WhenWatchOfficesInlineQueryable(company);
 
             await j.Fact(new OfficeClosure(newOffice, DateTime.UtcNow));
 
@@ -93,6 +237,75 @@ namespace Jinaga.Test
         }
 
         [Fact]
+        public async Task NestedWatch_OfficeNameAddedInlineObservable()
+        {
+            var company = await j.Fact(new Company("Contoso"));
+            var newOffice = await j.Fact(new Office(company, new City("Dallas")));
+
+            var officeObserver = await WhenWatchOfficesInlineObservable(company);
+
+            var newOfficeName = await j.Fact(new OfficeName(newOffice, "Headquarters", new OfficeName[0]));
+
+            officeRepository.Offices.Should().BeEquivalentTo(new OfficeRow[]
+            {
+                new OfficeRow
+                {
+                    OfficeId = 1,
+                    City = "Dallas",
+                    Name = "Headquarters"
+                }
+            });
+
+            await officeObserver.Stop();
+        }
+
+        [Fact]
+        public async Task NestedWatch_OfficeNameAddedInlineObservableWithFields()
+        {
+            var company = await j.Fact(new Company("Contoso"));
+            var newOffice = await j.Fact(new Office(company, new City("Dallas")));
+
+            var officeObserver = await WhenWatchOfficesInlineObservableWithFields(company);
+
+            var newOfficeName = await j.Fact(new OfficeName(newOffice, "Headquarters", new OfficeName[0]));
+
+            officeRepository.Offices.Should().BeEquivalentTo(new OfficeRow[]
+            {
+                new OfficeRow
+                {
+                    OfficeId = 1,
+                    City = "Dallas",
+                    Name = "Headquarters"
+                }
+            });
+
+            await officeObserver.Stop();
+        }
+
+        [Fact]
+        public async Task NestedWatch_OfficeNameAddedInlineQueryable()
+        {
+            var company = await j.Fact(new Company("Contoso"));
+            var newOffice = await j.Fact(new Office(company, new City("Dallas")));
+
+            var officeObserver = await WhenWatchOfficesInlineQueryable(company);
+
+            var newOfficeName = await j.Fact(new OfficeName(newOffice, "Headquarters", new OfficeName[0]));
+
+            officeRepository.Offices.Should().BeEquivalentTo(new OfficeRow[]
+            {
+                new OfficeRow
+                {
+                    OfficeId = 1,
+                    City = "Dallas",
+                    Name = ""
+                }
+            });
+
+            await officeObserver.Stop();
+        }
+
+        [Fact]
         public async Task NestedWatch_OfficeNameAlreadySet()
         {
             var company = await j.Fact(new Company("Contoso"));
@@ -100,6 +313,72 @@ namespace Jinaga.Test
             var newOfficeName = await j.Fact(new OfficeName(newOffice, "Headquarters", new OfficeName[0]));
 
             var officeObserver = await WhenWatchOffices(company);
+
+            officeRepository.Offices.Should().BeEquivalentTo(new OfficeRow[]
+            {
+                new OfficeRow
+                {
+                    OfficeId = 1,
+                    City = "Dallas",
+                    Name = "Headquarters"
+                }
+            });
+
+            await officeObserver.Stop();
+        }
+
+        [Fact]
+        public async Task NestedWatch_OfficeNameAlreadySetInlineObservable()
+        {
+            var company = await j.Fact(new Company("Contoso"));
+            var newOffice = await j.Fact(new Office(company, new City("Dallas")));
+            var newOfficeName = await j.Fact(new OfficeName(newOffice, "Headquarters", new OfficeName[0]));
+
+            var officeObserver = await WhenWatchOfficesInlineObservable(company);
+
+            officeRepository.Offices.Should().BeEquivalentTo(new OfficeRow[]
+            {
+                new OfficeRow
+                {
+                    OfficeId = 1,
+                    City = "Dallas",
+                    Name = "Headquarters"
+                }
+            });
+
+            await officeObserver.Stop();
+        }
+
+        [Fact]
+        public async Task NestedWatch_OfficeNameAlreadySetInlineObservableWithFields()
+        {
+            var company = await j.Fact(new Company("Contoso"));
+            var newOffice = await j.Fact(new Office(company, new City("Dallas")));
+            var newOfficeName = await j.Fact(new OfficeName(newOffice, "Headquarters", new OfficeName[0]));
+
+            var officeObserver = await WhenWatchOfficesInlineObservableWithFields(company);
+
+            officeRepository.Offices.Should().BeEquivalentTo(new OfficeRow[]
+            {
+                new OfficeRow
+                {
+                    OfficeId = 1,
+                    City = "Dallas",
+                    Name = "Headquarters"
+                }
+            });
+
+            await officeObserver.Stop();
+        }
+
+        [Fact]
+        public async Task NestedWatch_OfficeNameAlreadySetInlineQueryable()
+        {
+            var company = await j.Fact(new Company("Contoso"));
+            var newOffice = await j.Fact(new Office(company, new City("Dallas")));
+            var newOfficeName = await j.Fact(new OfficeName(newOffice, "Headquarters", new OfficeName[0]));
+
+            var officeObserver = await WhenWatchOfficesInlineQueryable(company);
 
             officeRepository.Offices.Should().BeEquivalentTo(new OfficeRow[]
             {
@@ -131,6 +410,75 @@ namespace Jinaga.Test
                     OfficeId = 1,
                     City = "Dallas",
                     Name = "Headquarters"
+                }
+            });
+
+            await officeObserver.Stop();
+        }
+
+        [Fact]
+        public async Task NestedWatch_OfficeAndNameAddedInlineObservable()
+        {
+            var company = await j.Fact(new Company("Contoso"));
+
+            var officeObserver = await WhenWatchOfficesInlineObservable(company);
+
+            var newOffice = await j.Fact(new Office(company, new City("Dallas")));
+            var newOfficeName = await j.Fact(new OfficeName(newOffice, "Headquarters", new OfficeName[0]));
+
+            officeRepository.Offices.Should().BeEquivalentTo(new OfficeRow[]
+            {
+                new OfficeRow
+                {
+                    OfficeId = 1,
+                    City = "Dallas",
+                    Name = "Headquarters"
+                }
+            });
+
+            await officeObserver.Stop();
+        }
+
+        [Fact]
+        public async Task NestedWatch_OfficeAndNameAddedInlineObservableWithFields()
+        {
+            var company = await j.Fact(new Company("Contoso"));
+
+            var officeObserver = await WhenWatchOfficesInlineObservableWithFields(company);
+
+            var newOffice = await j.Fact(new Office(company, new City("Dallas")));
+            var newOfficeName = await j.Fact(new OfficeName(newOffice, "Headquarters", new OfficeName[0]));
+
+            officeRepository.Offices.Should().BeEquivalentTo(new OfficeRow[]
+            {
+                new OfficeRow
+                {
+                    OfficeId = 1,
+                    City = "Dallas",
+                    Name = "Headquarters"
+                }
+            });
+
+            await officeObserver.Stop();
+        }
+
+        [Fact]
+        public async Task NestedWatch_OfficeAndNameAddedInlineQueryable()
+        {
+            var company = await j.Fact(new Company("Contoso"));
+
+            var officeObserver = await WhenWatchOfficesInlineQueryable(company);
+
+            var newOffice = await j.Fact(new Office(company, new City("Dallas")));
+            var newOfficeName = await j.Fact(new OfficeName(newOffice, "Headquarters", new OfficeName[0]));
+
+            officeRepository.Offices.Should().BeEquivalentTo(new OfficeRow[]
+            {
+                new OfficeRow
+                {
+                    OfficeId = 1,
+                    City = "Dallas",
+                    Name = ""
                 }
             });
 
@@ -221,6 +569,78 @@ namespace Jinaga.Test
             return officeObserver;
         }
 
+        private async Task<Observer<OfficeProjection>> WhenWatchOfficesInlineObservable(Company company)
+        {
+            var officeObserver = j.Watch(company, officesInCompanyInlineObservable,
+                async projection =>
+                {
+                    int officeId = await officeRepository.InsertOffice(projection.Office.city.name);
+                    projection.Names.OnAdded(async name =>
+                    {
+                        await officeRepository.UpdateOfficeName(officeId, name.value);
+                    });
+                    projection.Headcounts.OnAdded(async headcount =>
+                    {
+                        await officeRepository.UpdateOfficeHeadcount(officeId, headcount.value);
+                    });
+
+                    return async () =>
+                    {
+                        await officeRepository.DeleteOffice(officeId);
+                    };
+                });
+            await officeObserver.Initialized;
+            return officeObserver;
+        }
+
+        private async Task<Observer<OfficeProjectionWithFields>> WhenWatchOfficesInlineObservableWithFields(Company company)
+        {
+            var officeObserver = j.Watch(company, officesInCompanyInlineObservableWithFields,
+                async projection =>
+                {
+                    int officeId = await officeRepository.InsertOffice(projection.Office.city.name);
+                    projection.Names.OnAdded(async name =>
+                    {
+                        await officeRepository.UpdateOfficeName(officeId, name);
+                    });
+                    projection.Headcounts.OnAdded(async headcount =>
+                    {
+                        await officeRepository.UpdateOfficeHeadcount(officeId, headcount);
+                    });
+
+                    return async () =>
+                    {
+                        await officeRepository.DeleteOffice(officeId);
+                    };
+                });
+            await officeObserver.Initialized;
+            return officeObserver;
+        }
+
+        private async Task<Observer<OfficeProjectionWithQueryable>> WhenWatchOfficesInlineQueryable(Company company)
+        {
+            var officeObserver = j.Watch(company, officesInCompanyInlineQueryableWithFields,
+                async projection =>
+                {
+                    int officeId = await officeRepository.InsertOffice(projection.Office.city.name);
+                    if (projection.Names.Any())
+                    {
+                        await officeRepository.UpdateOfficeName(officeId, projection.Names.Last());
+                    }
+                    if (projection.Headcounts.Any())
+                    {
+                        await officeRepository.UpdateOfficeHeadcount(officeId, projection.Headcounts.Last());
+                    }
+
+                    return async () =>
+                    {
+                        await officeRepository.DeleteOffice(officeId);
+                    };
+                });
+            await officeObserver.Initialized;
+            return officeObserver;
+        }
+
         private async Task<Observer<ManagementProjection>> WhenWatchManagement(Company company)
         {
             var managementObserver = j.Watch(company, managersInCompany,
@@ -258,6 +678,20 @@ namespace Jinaga.Test
             public IObservableCollection<Headcount> Headcounts { get; set; }
         }
 
+        class OfficeProjectionWithFields
+        {
+            public Office Office { get; set; }
+            public IObservableCollection<string> Names { get; set; }
+            public IObservableCollection<int> Headcounts { get; set; }
+        }
+
+        class OfficeProjectionWithQueryable
+        {
+            public Office Office { get; set; }
+            public IQueryable<string> Names { get; set; }
+            public IQueryable<int> Headcounts { get; set; }
+        }
+
         class ManagerProjection
         {
             public Manager Manager { get; set; }
@@ -291,8 +725,72 @@ namespace Jinaga.Test
             select new OfficeProjection
             {
                 Office = office,
-                Names = facts.All(office, namesOfOffice),
-                Headcounts = facts.All(office, headcountsOfOffice)
+                Names = facts.Observable(office, namesOfOffice),
+                Headcounts = facts.Observable(office, headcountsOfOffice)
+            }
+        );
+
+        private static Specification<Company, OfficeProjection> officesInCompanyInlineObservable = Given<Company>.Match((company, facts) =>
+            from office in facts.OfType<Office>()
+            where office.company == company
+            where !office.IsClosed
+
+            select new OfficeProjection
+            {
+                Office = office,
+                Names = facts.Observable(
+                    from name in facts.OfType<OfficeName>()
+                    where name.office == office
+                    select name
+                ),
+                Headcounts = facts.Observable(
+                    from headcount in facts.OfType<Headcount>()
+                    where headcount.office == office
+                    where headcount.IsCurrent
+                    select headcount
+                )
+            }
+        );
+
+        private static Specification<Company, OfficeProjectionWithFields> officesInCompanyInlineObservableWithFields = Given<Company>.Match((company, facts) =>
+            from office in facts.OfType<Office>()
+            where office.company == company
+            where !office.IsClosed
+
+            select new OfficeProjectionWithFields
+            {
+                Office = office,
+                Names = facts.Observable(
+                    from name in facts.OfType<OfficeName>()
+                    where name.office == office
+                    select name.value
+                ),
+                Headcounts = facts.Observable(
+                    from headcount in facts.OfType<Headcount>()
+                    where headcount.office == office
+                    where headcount.IsCurrent
+                    select headcount.value
+                )
+            }
+        );
+
+        private static Specification<Company, OfficeProjectionWithQueryable> officesInCompanyInlineQueryableWithFields = Given<Company>.Match((company, facts) =>
+            from office in facts.OfType<Office>()
+            where office.company == company
+            where !office.IsClosed
+
+            select new OfficeProjectionWithQueryable
+            {
+                Office = office,
+                Names =
+                    from name in facts.OfType<OfficeName>()
+                    where name.office == office
+                    select name.value,
+                Headcounts =
+                    from headcount in facts.OfType<Headcount>()
+                    where headcount.office == office
+                    where headcount.IsCurrent
+                    select headcount.value
             }
         );
 
@@ -311,7 +809,7 @@ namespace Jinaga.Test
             select new ManagerProjection
             {
                 Manager = manager,
-                Names = facts.All(manager, managerNames)
+                Names = facts.Observable(manager, managerNames)
             }
         );
 
@@ -323,7 +821,7 @@ namespace Jinaga.Test
             select new ManagementProjection
             {
                 Office = office,
-                Managers = facts.All(office, managersInOffice)
+                Managers = facts.Observable(office, managersInOffice)
             }
         );
     }

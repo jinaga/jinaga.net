@@ -1,0 +1,59 @@
+#!csharp
+
+#r "C:\Users\micha\Projects\jinaga.net\Jinaga\bin\Debug\netstandard2.1\Jinaga.dll"
+
+#!csharp
+
+using Jinaga;
+
+var j = JinagaClient.Create();
+
+#!csharp
+
+[FactType("Blog.Site")]
+public record Site(string domain) {}
+
+[FactType("Blog.Post")]
+public record Post(Site site, string createdAt) {}
+
+[FactType("Blog.Post.Title")]
+public record Title(Post post, string value, Title[] prior) {}
+
+#!csharp
+
+var site = await j.Fact(new Site("michaelperry.net"));
+var post = await j.Fact(new Post(site, "2022-09-30T13:40:00Z"));
+var title = await j.Fact(new Title(post, "Introduction to Jinaga Replicator", new Title[0]));
+
+#!csharp
+
+var postTitles = Given<Post>.Match((post, facts) =>
+    from title in facts.OfType<Title>()
+    where title.post == post
+    where !facts.OfType<Title>(next => next.prior.Contains(title)).Any()
+    select title.value
+);
+
+
+var specification = Given<Site>.Match((site, facts) =>
+    from post in facts.OfType<Post>()
+    where post.site == site
+    select new
+    {
+        postCreatedAt = post.createdAt,
+        titles = facts.Observable(post, postTitles),
+        newTitles = facts.Observable(
+            from title in facts.OfType<Title>()
+            where title.post == post
+            where !facts.OfType<Title>(next => next.prior.Contains(title)).Any()
+            select title.value)
+    }
+);
+
+specification.ToString()
+
+#!csharp
+
+var posts = await j.Query(site, specification);
+
+posts

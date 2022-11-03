@@ -47,7 +47,7 @@ namespace Jinaga.Test
                 select new YardData
                 (
                     yard,
-                    facts.All(yard, AddressesOfYard())
+                    facts.Observable(yard, AddressesOfYard())
                 )
             );
         }
@@ -61,8 +61,8 @@ namespace Jinaga.Test
                 select new ClientData
                 (
                     client,
-                    facts.All(client, NamesOfClient()),
-                    facts.All(client, ClientYards())
+                    facts.Observable(client, NamesOfClient()),
+                    facts.Observable(client, ClientYards())
                 )
             );
         }
@@ -126,18 +126,45 @@ namespace Jinaga.Test
                 select new
                 {
                     yard,
-                    yardAddresses = facts.All(yard, specifications.addressesOfYard),
+                    yardAddresses = facts.Observable(yard, specifications.addressesOfYard),
                     yard.client,
-                    clientNames = facts.All(yard.client, specifications.namesOfClient)
+                    clientNames = facts.Observable(yard.client, specifications.namesOfClient)
                 }
             );
 
-            var actual = YardsAddressesWithClientsForSupplier.Pipeline.ToDescriptiveString();
-            actual.Should().Be(@"supplier: DWS.Supplier {
-    yard: DWS.Yard = supplier S.supplier DWS.Client S.client DWS.Yard
-    client: DWS.Client = yard P.client DWS.Client
+            var actual = YardsAddressesWithClientsForSupplier.ToDescriptiveString();
+            actual.Should().Be(@"(supplier: DWS.Supplier) {
+    yard: DWS.Yard [
+        yard->client: DWS.Client->supplier: DWS.Supplier = supplier
+    ]
+    client: DWS.Client [
+        client = yard->client: DWS.Client
+    ]
+} => {
+    client = client
+    clientNames = {
+        clientName: DWS.Client.Name [
+            clientName->client: DWS.Client = client
+            !E {
+                next: DWS.Client.Name [
+                    next->prior: DWS.Client.Name = clientName
+                ]
+            }
+        ]
+    } => clientName
+    yard = yard
+    yardAddresses = {
+        yardAddress: DWS.Yard.Address [
+            yardAddress->yard: DWS.Yard = yard
+            !E {
+                next: DWS.Yard.Address [
+                    next->prior: DWS.Yard.Address = yardAddress
+                ]
+            }
+        ]
+    } => yardAddress
 }
-");
+".Replace("\r", ""));
         }
 
         [Fact]

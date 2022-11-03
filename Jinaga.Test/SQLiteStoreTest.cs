@@ -1,4 +1,5 @@
 ﻿using FluentAssertions;
+using Jinaga.DefaultImplementations;
 using Jinaga.Facts;
 using Jinaga.Managers;
 using Jinaga.Services;
@@ -53,7 +54,7 @@ namespace Jinaga.Test
             output.WriteLine($"{MyStopWatch.Start()}: BEGIN OF TESTS at {DateTime.Now}");
          
             DateTime now = DateTime.Parse("2021-07-04T01:39:43.241Z");
-            var j = new Jinaga(new SQLiteStore());            
+            var j = new Jinaga(new SQLiteStore(), new LocalNetwork());            
             var airlineDay = await j.Fact(new AirlineDay(new Airline("Airline1"), now));
             var flight = await j.Fact(new Flight(airlineDay, 555));
             //airlineDay = await j.Fact(new AirlineDay(new Airline("Airline2"), now));
@@ -71,7 +72,7 @@ namespace Jinaga.Test
             output.WriteLine($"{MyStopWatch.Start()}: BEGIN OF TESTS at {DateTime.Now}");
 
             DateTime now = DateTime.Parse("2021-07-04T01:39:43.241Z");
-            var j = new Jinaga(new SQLiteStore());
+            var j = new Jinaga(new SQLiteStore(), new LocalNetwork());
             var airline = new Airline("Airline1");            
             var user = await j.Fact(new User("fqjsdfqkfjqlm"));
             var passenger = await j.Fact(new Passenger(airline, user));
@@ -105,7 +106,7 @@ namespace Jinaga.Test
             IStore Store = new SQLiteStore();
 
             DateTime now = DateTime.Parse("2021-07-04T01:39:43.241Z");
-            var j = new Jinaga(Store);            
+            var j = new Jinaga(Store, new LocalNetwork());            
             var airline = new Airline("Airline1");           
             var user = await j.Fact(new User("fqjsdfqkfjqlm"));
             var passenger = await j.Fact(new Passenger(airline, user));
@@ -113,7 +114,7 @@ namespace Jinaga.Test
             var passengerName2 = await j.Fact(new PassengerName(passenger, "Caden", new PassengerName[0]));
             var passengerName3 = await j.Fact(new PassengerName(passenger, "Jan", new PassengerName []{passengerName1, passengerName2}));
 
-            var graph = new FactManager(Store).Serialize(passengerName3);            
+            var graph = new FactManager(Store, null).Serialize(passengerName3);            
             var lastRef = graph.Last;
 
             //var airlineFact = Fact.Create(
@@ -184,7 +185,7 @@ namespace Jinaga.Test
             IStore Store = new SQLiteStore();
 
             DateTime now = DateTime.Parse("2021-07-04T01:39:43.241Z");
-            var j = new Jinaga(Store);
+            var j = new Jinaga(Store, new LocalNetwork());
 
             var supplier = await j.Fact(new Supplier("abc-pubkey"));
             var client = await j.Fact(new Client(supplier, now));
@@ -194,7 +195,7 @@ namespace Jinaga.Test
             var yardAddress3 = await j.Fact(new YardAddress(yard, "myYardName3", "myRemark", "myStreet", "myHousNb", "myPostalCode", "myCity", "myCountry", new YardAddress[] { yardAddress1, yardAddress2 }));
             var yardAddress4 = await j.Fact(new YardAddress(yard, "myYardName3", "myRemark", "myStreet2", "myHousNb", "myPostalCode", "myCity", "myCountry", new YardAddress[] { yardAddress3}));
 
-            var graph = new FactManager(Store).Serialize(yardAddress4);
+            var graph = new FactManager(Store, null).Serialize(yardAddress4);
             var lastRef = graph.Last;      
             
             var factGraph = await Store.Load(ImmutableList<FactReference>.Empty.Add(lastRef), default);
@@ -213,7 +214,7 @@ namespace Jinaga.Test
         public async Task StoreRoundTripFromUTC()
         {
             DateTime now = DateTime.Parse("2021-07-04T01:39:43.241Z").ToUniversalTime();
-            var j = new Jinaga(new SQLiteStore());
+            var j = new Jinaga(new SQLiteStore(), new LocalNetwork());
             var airlineDay = await j.Fact(new AirlineDay(new Airline("value"), now));
             airlineDay.date.Kind.Should().Be(DateTimeKind.Utc);
             airlineDay.date.Hour.Should().Be(1);

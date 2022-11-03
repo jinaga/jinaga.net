@@ -149,5 +149,168 @@ namespace Jinaga.Test
             pair.booking.Should().BeEquivalentTo(booking);
             pair.cancellation.Should().BeEquivalentTo(cancellation);
         }
+
+        [Fact]
+        public async Task Query_NestedFieldProjection()
+        {
+            var site = await j.Fact(new Site("michaelperry.net"));
+            var post = await j.Fact(new Post(site, "2022-09-30T13:40:00Z"));
+            var title = await j.Fact(new Title(post, "Introduction to Jinaga Replicator", new Title[0]));
+
+            var postTitles = Given<Post>.Match((post, facts) =>
+                from title in facts.OfType<Title>()
+                where title.post == post
+                select title.value
+            );
+
+
+            var specification = Given<Site>.Match((site, facts) =>
+                from post in facts.OfType<Post>()
+                where post.site == site
+                select new
+                {
+                    postCreatedAt = post.createdAt,
+                    titles = facts.Observable(post, postTitles)
+                }
+            );
+
+            var posts = await j.Query(site, specification);
+
+            posts.Should().ContainSingle().Which
+                .titles.Should().ContainSingle().Which
+                    .Should().Be("Introduction to Jinaga Replicator");
+        }
+
+        [Fact]
+        public async Task Query_FieldProjectionOnPredecessor()
+        {
+            var site = await j.Fact(new Site("michaelperry.net"));
+            var post = await j.Fact(new Post(site, "2022-09-30T13:40:00Z"));
+
+            var specification = Given<Post>.Match((post, facts) =>
+                from site in facts.OfType<Site>()
+                where site == post.site
+                select site.domain
+            );
+
+            var result = await j.Query(post, specification);
+
+            result.Should().ContainSingle().Which
+                .Should().Be("michaelperry.net");
+        }
+        
+        [Fact]
+        public async Task Query_CompositeProjectionOnPredecessor()
+        {
+            var site = await j.Fact(new Site("michaelperry.net"));
+            var post = await j.Fact(new Post(site, "2022-09-30T13:40:00Z"));
+
+            var specification = Given<Post>.Match((post, facts) =>
+                from site in facts.OfType<Site>()
+                where site == post.site
+                select new
+                {
+                    siteName = site.domain,
+                    postCreatedAt = post.createdAt
+                }
+            );
+
+            var result = await j.Query(post, specification);
+
+            var subject = result.Should().ContainSingle().Subject;
+            subject.siteName.Should().Be("michaelperry.net");
+            subject.postCreatedAt.Should().Be("2022-09-30T13:40:00Z");
+        }
+
+        [Fact]
+        public async Task Query_InlineCollectionProjection()
+        {
+            var site = await j.Fact(new Site("michaelperry.net"));
+            var post = await j.Fact(new Post(site, "2022-09-30T13:40:00Z"));
+            var title = await j.Fact(new Title(post, "Introduction to Jinaga Replicator", new Title[0]));
+
+            var specification = Given<Site>.Match((site, facts) =>
+                from post in facts.OfType<Post>()
+                where post.site == site
+                select new
+                {
+                    postCreatedAt = post.createdAt,
+                    titles = facts.Observable(
+                        from title in facts.OfType<Title>()
+                        where title.post == post
+                        select title.value
+                    )
+                }
+            );
+
+            var posts = await j.Query(site, specification);
+
+            posts.Should().ContainSingle().Which
+                .titles.Should().ContainSingle().Which
+                    .Should().Be("Introduction to Jinaga Replicator");
+        }
+
+        [Fact]
+        public async Task Query_InlineIQueryableProjection()
+        {
+            var site = await j.Fact(new Site("michaelperry.net"));
+            var post = await j.Fact(new Post(site, "2022-09-30T13:40:00Z"));
+            var title = await j.Fact(new Title(post, "Introduction to Jinaga Replicator", new Title[0]));
+
+            var specification = Given<Site>.Match((site, facts) =>
+                from post in facts.OfType<Post>()
+                where post.site == site
+                select new
+                {
+                    postCreatedAt = post.createdAt,
+                    titles =
+                        from title in facts.OfType<Title>()
+                        where title.post == post
+                        select title
+                }
+            );
+
+            var posts = await j.Query(site, specification);
+
+            posts.Should().ContainSingle().Which
+                .titles.Should().ContainSingle().Which
+                    .value.Should().Be("Introduction to Jinaga Replicator");
+        }
+
+        [Fact]
+        public async Task Query_InlineIQueryableFieldProjection()
+        {
+            var site = await j.Fact(new Site("michaelperry.net"));
+            var post = await j.Fact(new Post(site, "2022-09-30T13:40:00Z"));
+            var title = await j.Fact(new Title(post, "Introduction to Jinaga Replicator", new Title[0]));
+
+            var specification = Given<Site>.Match((site, facts) =>
+                from post in facts.OfType<Post>()
+                where post.site == site
+                select new
+                {
+                    postCreatedAt = post.createdAt,
+                    titles =
+                        from title in facts.OfType<Title>()
+                        where title.post == post
+                        select title.value
+                }
+            );
+
+            var posts = await j.Query(site, specification);
+
+            posts.Should().ContainSingle().Which
+                .titles.Should().ContainSingle().Which
+                    .Should().Be("Introduction to Jinaga Replicator");
+        }
     }
+
+    [FactType("Blog.Site")]
+    public record Site(string domain) { }
+
+    [FactType("Blog.Post")]
+    public record Post(Site site, string createdAt) { }
+
+    [FactType("Blog.Post.Title")]
+    public record Title(Post post, string value, Title[] prior) { }
 }

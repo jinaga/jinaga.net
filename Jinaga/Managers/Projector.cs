@@ -29,12 +29,16 @@ namespace Jinaga.Managers
                 var element = product.GetElement(name);
                 if (element is CollectionElement collectionElement)
                 {
-                    return GetFactReferences(collection.Specification.Projection, collectionElement.Products);
+                    return GetFactReferences(collection.Projection, collectionElement.Products);
                 }
                 else
                 {
                     throw new NotImplementedException();
                 }
+            }
+            else if (projection is FieldProjection field)
+            {
+                return new[] { product.GetFactReference(field.Tag) };
             }
             else
             {
@@ -62,6 +66,12 @@ namespace Jinaga.Managers
                     select reference
                 ).Distinct().ToImmutableList();
                 return references;
+            }
+            else if (projection is FieldProjection field)
+            {
+                return products
+                    .Select(product => product.GetFactReference(field.Tag))
+                    .ToImmutableList();
             }
             else
             {
@@ -100,6 +110,12 @@ namespace Jinaga.Managers
                     select reference
                 ).Distinct().ToImmutableList();
                 return references;
+            }
+            else if (projection is FieldProjection field)
+            {
+                return products
+                    .Select(product => product.GetFactReference(field.Tag))
+                    .ToImmutableList();
             }
             else
             {
