@@ -1,8 +1,7 @@
-using System.Collections.Immutable;
-using System.Linq;
 using FluentAssertions;
-using Jinaga.Pipelines;
 using Jinaga.Test.Model;
+using System;
+using System.Linq;
 using Xunit;
 
 namespace Jinaga.Test.Pipelines
@@ -19,13 +18,14 @@ namespace Jinaga.Test.Pipelines
             );
 
             var inverses = specification.ComputeInverses();
-            inverses.Should().ContainSingle().Which.InverseSpecification.ToDescriptiveString()
-                .Should().Be(@"(office: Corporate.Office) {
-    company: Corporate.Company [
-        company = office->company: Corporate.Company
-    ]
-} => office
-".Replace("\r", ""));
+            inverses.Should().ContainSingle().Which.InverseSpecification.ToDescriptiveString(5)
+                .Should().Be(Indented(5, @"
+                    (office: Corporate.Office) {
+                        company: Corporate.Company [
+                            company = office->company: Corporate.Company
+                        ]
+                    } => office
+                    "));
         }
 
         [Fact]
@@ -43,22 +43,22 @@ namespace Jinaga.Test.Pipelines
             );
 
             var inverses = specification.ComputeInverses();
-            inverses.Select(i => i.InverseSpecification.ToDescriptiveString()).Should().BeEquivalentTo(new [] {
-@"(office: Corporate.Office) {
-    company: Corporate.Company [
-        company = office->company: Corporate.Company
-    ]
-} => office
-".Replace("\r", ""),
-@"(officeClosure: Corporate.Office.Closure) {
-    office: Corporate.Office [
-        office = officeClosure->office: Corporate.Office
-    ]
-    company: Corporate.Company [
-        company = office->company: Corporate.Company
-    ]
-} => office
-".Replace("\r", "")
+            inverses.Select(i => i.InverseSpecification.ToDescriptiveString(4)).Should().BeEquivalentTo(new [] {Indented(4, @"
+                (office: Corporate.Office) {
+                    company: Corporate.Company [
+                        company = office->company: Corporate.Company
+                    ]
+                } => office
+                "), Indented(4, @"
+                (officeClosure: Corporate.Office.Closure) {
+                    office: Corporate.Office [
+                        office = officeClosure->office: Corporate.Office
+                    ]
+                    company: Corporate.Company [
+                        company = office->company: Corporate.Company
+                    ]
+                } => office
+                ")
             });
         }
 
@@ -83,29 +83,29 @@ namespace Jinaga.Test.Pipelines
 
             var inverses = specification.ComputeInverses();
 
-            inverses.Select(i => i.InverseSpecification.ToDescriptiveString()).Should().BeEquivalentTo(new [] {
-@"(office: Corporate.Office) {
-    company: Corporate.Company [
-        company = office->company: Corporate.Company
-    ]
-} => {
-    Names = {
-        name: Corporate.Office.Name [
-            name->office: Corporate.Office = office
-        ]
-    } => name
-    Office = office
-}
-".Replace("\r", ""),
-@"(name: Corporate.Office.Name) {
-    office: Corporate.Office [
-        office = name->office: Corporate.Office
-    ]
-    company: Corporate.Company [
-        company = office->company: Corporate.Company
-    ]
-} => name
-".Replace("\r", "")
+            inverses.Select(i => i.InverseSpecification.ToDescriptiveString(4)).Should().BeEquivalentTo(new [] {Indented(4,@"
+                (office: Corporate.Office) {
+                    company: Corporate.Company [
+                        company = office->company: Corporate.Company
+                    ]
+                } => {
+                    Names = {
+                        name: Corporate.Office.Name [
+                            name->office: Corporate.Office = office
+                        ]
+                    } => name
+                    Office = office
+                }
+                "), Indented(4,@"
+                (name: Corporate.Office.Name) {
+                    office: Corporate.Office [
+                        office = name->office: Corporate.Office
+                    ]
+                    company: Corporate.Company [
+                        company = office->company: Corporate.Company
+                    ]
+                } => name
+                ")
             });
         }
 
@@ -139,6 +139,13 @@ namespace Jinaga.Test.Pipelines
             var collectionIdentifier = inverses[1].CollectionIdentifiers.Should().ContainSingle().Subject;
             collectionIdentifier.CollectionName.Should().Be("Names");
             // collectionIdentifier.Subset.ToString().Should().Be("name");
+        }
+
+        private string Indented(int depth, string str)
+        {
+            Assert.Equal("\r\n", str.Substring(0, 2));
+            Assert.Equal(new String(' ', 4 * depth), str.Substring(str.Length - 4 * depth));
+            return str.Substring(2, str.Length - 4 * depth - 2).Replace("\r", "");
         }
     }
 }
