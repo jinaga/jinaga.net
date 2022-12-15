@@ -39,9 +39,17 @@ namespace Jinaga.Pipelines
             foreach (var label in labels)
             {
                 matches = ShakeTree(matches, label.Name);
+                // The given will not have any successors.
+                // Simplify the matches by removing any conditions that cannot be satisfied.
+                var simplifiedMatches = SimplifyMatches(matches, label.Name);
+                if (simplifiedMatches == null)
+                {
+                    continue;
+                }
+
                 var inverseSpecification = new Specification(
                     ImmutableList.Create(label),
-                    matches.RemoveAt(0),
+                    simplifiedMatches.RemoveAt(0),
                     projection
                 );
                 var inverse = new Inverse(
@@ -72,6 +80,7 @@ namespace Jinaga.Pipelines
                     foreach (var match in existentialCondition.Matches)
                     {
                         matches = ShakeTree(matches, match.Unknown.Name);
+
                         var inverseSpecification = new Specification(
                             ImmutableList.Create(match.Unknown),
                             RemoveCondition(matches.RemoveAt(0), condition),
@@ -233,6 +242,46 @@ namespace Jinaga.Pipelines
                     }
                 }
             }
+        }
+
+        private static ImmutableList<Match>? SimplifyMatches(ImmutableList<Match> matches, string given)
+        {
+            var simplifiedMatches = ImmutableList<Match>.Empty;
+
+            foreach (var match in matches)
+            {
+                var simplifiedMatch = SimplifyMatch(match, given);
+                if (simplifiedMatch == null)
+                {
+                    return null;
+                }
+
+                simplifiedMatches = simplifiedMatches.Add(simplifiedMatch);
+            }
+
+            return simplifiedMatches;
+        }
+
+        private static Match? SimplifyMatch(Match match, string given)
+        {
+            var simplifiedConditions = ImmutableList<MatchCondition>.Empty;
+
+            foreach (var condition in match.Conditions)
+            {
+                if (condition is PathCondition pathCondition &&
+                    pathCondition.LabelRight == given &&
+                    pathCondition.RolesRight.Count == 0 &&
+                    pathCondition.RolesLeft.Count > 0)
+                {
+                    // This path condition matches successors of the given.
+                    // There are no successors yet, so the condition is unsatisfiable.
+                    return null;
+                }
+
+                simplifiedConditions = simplifiedConditions.Add(condition);
+            }
+
+            return new Match(match.Unknown, simplifiedConditions);
         }
     }
 }

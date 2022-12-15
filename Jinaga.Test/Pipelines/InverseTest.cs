@@ -29,6 +29,30 @@ namespace Jinaga.Test.Pipelines
         }
 
         [Fact]
+        public void Inverse_PredecessorOfSuccessor()
+        {
+            var specification = Given<Company>.Match((company, facts) =>
+                from office in facts.OfType<Office>()
+                where office.company == company
+                from city in facts.OfType<City>()
+                where city == office.city
+                select city
+            );
+
+            var inverses = specification.ComputeInverses();
+            inverses.Select(i => i.InverseSpecification.ToDescriptiveString(4)).Should().BeEquivalentTo(new string[] { Indented(4, @"
+                (office: Corporate.Office) {
+                    company: Corporate.Company [
+                        company = office->company: Corporate.Company
+                    ]
+                    city: Corporate.City [
+                        city = office->city: Corporate.City
+                    ]
+                } => city
+                ") });
+        }
+
+        [Fact]
         public void Inverse_NegativeExistentialCondition()
         {
             var specification = Given<Company>.Match((company, facts) =>
