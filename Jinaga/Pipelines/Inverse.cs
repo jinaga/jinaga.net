@@ -6,15 +6,15 @@ namespace Jinaga.Pipelines
     public class Inverse
     {
         public Specification InverseSpecification { get; }
-        public Subset InitialSubset { get; }
-        public Operation Operation { get; }
+        public Subset GivenSubset { get; }
+        public InverseOperation Operation { get; }
         public Subset FinalSubset { get; }
         public ImmutableList<CollectionIdentifier> CollectionIdentifiers { get; }
 
-        public Inverse(Specification inverseSpecification, Subset initialSubset, Operation operation, Subset finalSubset, ImmutableList<CollectionIdentifier> collectionIdentifiers)
+        public Inverse(Specification inverseSpecification, Subset givenSubset, InverseOperation operation, Subset finalSubset, ImmutableList<CollectionIdentifier> collectionIdentifiers)
         {
             InverseSpecification = inverseSpecification;
-            InitialSubset = initialSubset;
+            GivenSubset = givenSubset;
             Operation = operation;
             FinalSubset = finalSubset;
             CollectionIdentifiers = collectionIdentifiers;

@@ -93,15 +93,15 @@ namespace Jinaga
                             cancellationToken);
                     foreach (var product in products)
                     {
-                        var initialProduct = inverse.InitialSubset.Of(product);
+                        var initialProduct = inverse.GivenSubset.Of(product);
                         var identifyingProduct = inverse.FinalSubset.Of(product);
                         if (initialProduct.Equals(this.initialAnchor))
                         {
-                            if (inverse.Operation == Pipelines.Operation.Add)
+                            if (inverse.Operation == Pipelines.InverseOperation.Add)
                             {
                                 productsAdded = productsAdded.Add((identifyingProduct, inverse));
                             }
-                            else if (inverse.Operation == Pipelines.Operation.Remove)
+                            else if (inverse.Operation == Pipelines.InverseOperation.Remove)
                             {
                                 productsRemoved = productsRemoved.Add(identifyingProduct);
                             }
@@ -146,7 +146,7 @@ namespace Jinaga
                 let projection = inverse.InverseSpecification.Projection
                 let type = ElementType(typeof(TProjection), inverse.CollectionIdentifiers)
                 let collectionName = inverse.CollectionIdentifiers.Select(id => id.CollectionName).LastOrDefault()
-                let subset = inverse.CollectionIdentifiers.Select(c => c.IntermediateSubset).LastOrDefault() ?? inverse.InitialSubset
+                let subset = inverse.CollectionIdentifiers.Select(c => c.IntermediateSubset).LastOrDefault() ?? inverse.GivenSubset
                 let anchor = subset.Of(product)
                 from productProjection in factManager.DeserializeProductsFromGraph(graph, projection, ImmutableList<Product>.Empty.Add(product), type, anchor, collectionName, observation)
                 select productProjection;

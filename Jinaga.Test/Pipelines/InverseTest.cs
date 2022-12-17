@@ -154,11 +154,11 @@ namespace Jinaga.Test.Pipelines
 
             var inverses = specification.ComputeInverses();
 
-            inverses[0].InitialSubset.ToString().Should().Be("company");
+            inverses[0].GivenSubset.ToString().Should().Be("company");
             inverses[0].FinalSubset.ToString().Should().Be("company, office");
             inverses[0].CollectionIdentifiers.Should().BeEmpty();
 
-            inverses[1].InitialSubset.ToString().Should().Be("company");
+            inverses[1].GivenSubset.ToString().Should().Be("company");
             inverses[1].FinalSubset.ToString().Should().Be("company, office, name");
             var collectionIdentifier = inverses[1].CollectionIdentifiers.Should().ContainSingle().Subject;
             collectionIdentifier.CollectionName.Should().Be("Names");
