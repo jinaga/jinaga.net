@@ -9,7 +9,7 @@ namespace Jinaga.DefaultImplementations
 {
     public class LocalNetwork : INetwork
     {
-        public Task<ImmutableList<string>> Feeds(ImmutableList<FactReference> startReferences, Specification specification, CancellationToken cancellationToken)
+        public Task<ImmutableList<string>> Feeds(ImmutableList<FactReference> givenReferences, Specification specification, CancellationToken cancellationToken)
         {
             return Task.FromResult(ImmutableList<string>.Empty);
         }
