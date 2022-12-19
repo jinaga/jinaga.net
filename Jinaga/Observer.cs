@@ -94,16 +94,16 @@ namespace Jinaga
                     foreach (var product in products)
                     {
                         var givenProduct = inverse.GivenSubset.Of(product);
-                        var identifyingProduct = inverse.FinalSubset.Of(product);
+                        var resultProduct = inverse.ResultSubset.Of(product);
                         if (givenProduct.Equals(this.givenAnchor))
                         {
                             if (inverse.Operation == Pipelines.InverseOperation.Add)
                             {
-                                productsAdded = productsAdded.Add((identifyingProduct, inverse));
+                                productsAdded = productsAdded.Add((resultProduct, inverse));
                             }
                             else if (inverse.Operation == Pipelines.InverseOperation.Remove)
                             {
-                                productsRemoved = productsRemoved.Add(identifyingProduct);
+                                productsRemoved = productsRemoved.Add(resultProduct);
                             }
                         }
                     }
