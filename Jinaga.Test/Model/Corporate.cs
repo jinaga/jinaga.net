@@ -25,6 +25,9 @@ namespace Jinaga.Test.Model
     [FactType("Corporate.Office.Closure")]
     record OfficeClosure(Office office, DateTime closureDate);
 
+    [FactType("Corporate.Office.Reopening")]
+    record OfficeReopening(OfficeClosure officeClosure, DateTime reopeningDate);
+
     [FactType("Corporate.City")]
     record City(string name);
 

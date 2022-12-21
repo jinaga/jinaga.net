@@ -145,6 +145,74 @@ namespace Jinaga.Test.Pipelines
         }
 
         [Fact]
+        public void Inverse_RestorePattern()
+        {
+            var specification = Given<Company>.Match((company, facts) =>
+                from office in facts.OfType<Office>()
+                where office.company == company
+                where !(
+                    from officeClosure in facts.OfType<OfficeClosure>()
+                    where officeClosure.office == office
+                    where !(
+                        from officeReopening in facts.OfType<OfficeReopening>()
+                        where officeReopening.officeClosure == officeClosure
+                        select officeReopening
+                    ).Any()
+                    select officeClosure
+                ).Any()
+                select office
+            );
+
+            var inverses = specification.ComputeInverses();
+
+            inverses.Select(i => i.InverseSpecification.ToDescriptiveString(4)).Should().BeEquivalentTo(new[] { Indented(4, @"
+                (office: Corporate.Office) {
+                    company: Corporate.Company [
+                        company = office->company: Corporate.Company
+                    ]
+                } => office
+                "), Indented(4, @"
+                (officeClosure: Corporate.Office.Closure) {
+                    office: Corporate.Office [
+                        office = officeClosure->office: Corporate.Office
+                    ]
+                    company: Corporate.Company [
+                        company = office->company: Corporate.Company
+                    ]
+                } => office
+                "), Indented(4, @"
+                (officeReopening: Corporate.Office.Reopening) {
+                    officeClosure: Corporate.Office.Closure [
+                        officeClosure = officeReopening->officeClosure: Corporate.Office.Closure
+                    ]
+                    office: Corporate.Office [
+                        office = officeClosure->office: Corporate.Office
+                        !E {
+                            officeClosure: Corporate.Office.Closure [
+                                officeClosure->office: Corporate.Office = office
+                                !E {
+                                    officeReopening: Corporate.Office.Reopening [
+                                        officeReopening->officeClosure: Corporate.Office.Closure = officeClosure
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                    company: Corporate.Company [
+                        company = office->company: Corporate.Company
+                    ]
+                } => office
+                ")
+            });
+
+            inverses.Select(i => i.Operation).Should().BeEquivalentTo(new[] {
+                InverseOperation.Add,
+                InverseOperation.Remove,
+                InverseOperation.MaybeAdd
+            });
+        }
+
+        [Fact]
         public void Inverse_OfNestedProjection()
         {
             var namesOfOffice = Given<Office>.Match((office, facts) =>
