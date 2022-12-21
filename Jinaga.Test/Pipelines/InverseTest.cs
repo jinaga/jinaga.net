@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Jinaga.Pipelines;
 using Jinaga.Test.Model;
 using System;
 using System.Linq;
@@ -29,6 +30,21 @@ namespace Jinaga.Test.Pipelines
         }
 
         [Fact]
+        public void Inverse_PredecessorStep()
+        {
+            var specification = Given<Office>.Match((office, facts) =>
+                from company in facts.OfType<Company>()
+                where office.company == company
+                select company
+            );
+
+            var inverses = specification.ComputeInverses();
+
+            // When the predecessor is created, it does not have a successor yet.
+            inverses.Should().BeEmpty();
+        }
+
+        [Fact]
         public void Inverse_PredecessorOfSuccessor()
         {
             var specification = Given<Company>.Match((company, facts) =>
@@ -40,6 +56,8 @@ namespace Jinaga.Test.Pipelines
             );
 
             var inverses = specification.ComputeInverses();
+
+            // Expect the inverse to filter out the specification starting from the other predecessor.
             inverses.Select(i => i.InverseSpecification.ToDescriptiveString(4)).Should().BeEquivalentTo(new string[] { Indented(4, @"
                 (office: Corporate.Office) {
                     company: Corporate.Company [
@@ -83,6 +101,46 @@ namespace Jinaga.Test.Pipelines
                     ]
                 } => office
                 ")
+            });
+
+            inverses.Select(i => i.Operation).Should().BeEquivalentTo(new[] {
+                InverseOperation.Add,
+                InverseOperation.Remove
+            });
+        }
+
+        [Fact]
+        public void Inverse_PositiveExistentialCondition()
+        {
+            var specification = Given<Company>.Match((company, facts) =>
+                from office in facts.OfType<Office>()
+                where office.company == company
+                where (
+                    from officeClosure in facts.OfType<OfficeClosure>()
+                    where officeClosure.office == office
+                    select officeClosure
+                ).Any()
+                select office
+            );
+
+            var inverses = specification.ComputeInverses();
+
+            // The second inverse is not satisfiable because the OfficeClosed
+            // fact will not yet exist.
+            inverses.Select(i => i.InverseSpecification.ToDescriptiveString(4)).Should().BeEquivalentTo(new[] { Indented(4, @"
+                (officeClosure: Corporate.Office.Closure) {
+                    office: Corporate.Office [
+                        office = officeClosure->office: Corporate.Office
+                    ]
+                    company: Corporate.Company [
+                        company = office->company: Corporate.Company
+                    ]
+                } => office
+                ")
+            });
+
+            inverses.Select(i => i.Operation).Should().BeEquivalentTo(new[] {
+                InverseOperation.MaybeAdd
             });
         }
 

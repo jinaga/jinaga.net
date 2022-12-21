@@ -42,32 +42,30 @@ namespace Jinaga.Pipelines
                 // The given will not have any successors.
                 // Simplify the matches by removing any conditions that cannot be satisfied.
                 var simplifiedMatches = SimplifyMatches(matches, label.Name);
-                if (simplifiedMatches == null)
+                if (simplifiedMatches != null)
                 {
-                    continue;
+                    var inverseSpecification = new Specification(
+                        ImmutableList.Create(label),
+                        simplifiedMatches.RemoveAt(0),
+                        projection
+                    );
+                    var inverse = new Inverse(
+                        inverseSpecification,
+                        givenSubset,
+                        InverseOperation.Add,
+                        finalSubset,
+                        collectionIdentifiers
+                    );
+                    inverses = inverses.Add(inverse);
                 }
 
-                var inverseSpecification = new Specification(
-                    ImmutableList.Create(label),
-                    simplifiedMatches.RemoveAt(0),
-                    projection
-                );
-                var inverse = new Inverse(
-                    inverseSpecification,
-                    givenSubset,
-                    InverseOperation.Add,
-                    finalSubset,
-                    collectionIdentifiers
-                );
-                inverses = inverses.Add(inverse);
-
-                inverses = inverses.AddRange(InvertExistentialConditions(matches, givenSubset, finalSubset, projection, matches[0].Conditions));
+                inverses = inverses.AddRange(InvertExistentialConditions(matches, givenSubset, finalSubset, projection, matches[0].Conditions, InverseOperation.Add));
             }
 
             return inverses;
         }
 
-        private static ImmutableList<Inverse> InvertExistentialConditions(ImmutableList<Match> outerMatches, Subset givenSubset, Subset finalSubset, Projection projection, ImmutableList<MatchCondition> conditions)
+        private static ImmutableList<Inverse> InvertExistentialConditions(ImmutableList<Match> outerMatches, Subset givenSubset, Subset finalSubset, Projection projection, ImmutableList<MatchCondition> conditions, InverseOperation parentOperation)
         {
             ImmutableList<Inverse> inverses = ImmutableList<Inverse>.Empty;
 
@@ -86,10 +84,11 @@ namespace Jinaga.Pipelines
                             RemoveCondition(matches.RemoveAt(0), condition),
                             projection
                         );
+                        bool exists = existentialCondition.Exists;
                         var inverse = new Inverse(
                             inverseSpecification,
                             givenSubset,
-                            existentialCondition.Exists ? InverseOperation.Add : InverseOperation.Remove,
+                            InferOperation(parentOperation, exists),
                             finalSubset,
                             ImmutableList<CollectionIdentifier>.Empty
                         );
@@ -99,6 +98,18 @@ namespace Jinaga.Pipelines
             }
 
             return inverses;
+        }
+
+        private static InverseOperation InferOperation(InverseOperation parentOperation, bool exists)
+        {
+            if (parentOperation == InverseOperation.Add)
+                return exists ? InverseOperation.MaybeAdd : InverseOperation.Remove;
+            else if (parentOperation == InverseOperation.Remove || parentOperation == InverseOperation.MaybeRemove)
+                return exists ? InverseOperation.MaybeRemove : InverseOperation.MaybeAdd;
+            else if (parentOperation == InverseOperation.MaybeAdd)
+                return exists ? InverseOperation.MaybeAdd : InverseOperation.MaybeRemove;
+            else
+                throw new ArgumentException($"Cannot infer operation from {parentOperation}, {(exists ? "exists" : "not exists")}");
         }
 
         private static ImmutableList<Inverse> InvertProjection(ImmutableList<Match> matches, Subset givenSubset, Subset intermediateSubset, IEnumerable<Label> labels, ImmutableList<CollectionIdentifier> collectionIdentifiers, Projection projection)
@@ -268,20 +279,38 @@ namespace Jinaga.Pipelines
 
             foreach (var condition in match.Conditions)
             {
-                if (condition is PathCondition pathCondition &&
-                    pathCondition.LabelRight == given &&
-                    pathCondition.RolesRight.Count == 0 &&
-                    pathCondition.RolesLeft.Count > 0)
+                if (ExpectsSuccessor(given, condition))
                 {
                     // This path condition matches successors of the given.
                     // There are no successors yet, so the condition is unsatisfiable.
                     return null;
                 }
 
+                if (condition is ExistentialCondition existentialCondition)
+                {
+                    var anyExpectsSuccessor = existentialCondition.Matches.Any(m =>
+                        m.Conditions.Any(c =>
+                            ExpectsSuccessor(given, c)));
+                    if (anyExpectsSuccessor && existentialCondition.Exists)
+                    {
+                        // This existential condition expects successors of the given.
+                        // There are no successors yet, so the condition is unsatisfiable.
+                        return null;
+                    }
+                }
+
                 simplifiedConditions = simplifiedConditions.Add(condition);
             }
 
             return new Match(match.Unknown, simplifiedConditions);
+        }
+
+        private static bool ExpectsSuccessor(string given, MatchCondition condition)
+        {
+            return condition is PathCondition pathCondition &&
+                pathCondition.LabelRight == given &&
+                pathCondition.RolesRight.Count == 0 &&
+                pathCondition.RolesLeft.Count > 0;
         }
     }
 }
