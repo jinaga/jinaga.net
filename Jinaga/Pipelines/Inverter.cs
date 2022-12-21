@@ -6,6 +6,21 @@ using System;
 
 namespace Jinaga.Pipelines
 {
+    class InverterContext
+    {
+        public InverterContext(Subset givenSubset, ImmutableList<CollectionIdentifier> collectionIdentifiers, Subset resultSubset, Projection projection)
+        {
+            GivenSubset = givenSubset;
+            CollectionIdentifiers = collectionIdentifiers;
+            ResultSubset = resultSubset;
+            Projection = projection;
+        }
+
+        public Subset GivenSubset { get; }
+        public ImmutableList<CollectionIdentifier> CollectionIdentifiers { get; }
+        public Subset ResultSubset { get; }
+        public Projection Projection { get; }
+    }
     class Inverter
     {
         public static ImmutableList<Inverse> InvertSpecification(Specification specification)
@@ -23,16 +38,21 @@ namespace Jinaga.Pipelines
             );
 
             // The final subset includes all unknowns.
-            Subset finalSubset = AddUnknowns(givenSubset, matches);
+            Subset resultSubset = AddUnknowns(givenSubset, matches);
 
             var labels = specification.Matches.Select(match => match.Unknown);
             var collectionIdentifiers = ImmutableList<CollectionIdentifier>.Empty;
-            var inverses = InvertMatches(matches, givenSubset, finalSubset, labels, collectionIdentifiers, specification.Projection);
-            inverses = inverses.AddRange(InvertProjection(matches, givenSubset, finalSubset, labels, collectionIdentifiers, specification.Projection));
+            var context = new InverterContext(
+                givenSubset,
+                collectionIdentifiers,
+                resultSubset,
+                specification.Projection);
+            var inverses = InvertMatches(matches, labels, context);
+            inverses = inverses.AddRange(InvertProjection(matches, context));
             return inverses;
         }
 
-        private static ImmutableList<Inverse> InvertMatches(ImmutableList<Match> matches, Subset givenSubset, Subset finalSubset, IEnumerable<Label> labels, ImmutableList<CollectionIdentifier> collectionIdentifiers, Projection projection)
+        private static ImmutableList<Inverse> InvertMatches(ImmutableList<Match> matches, IEnumerable<Label> labels, InverterContext context)
         {
             // Produce an inverse for each unknown in the original specification.
             var inverses = ImmutableList<Inverse>.Empty;
@@ -47,25 +67,25 @@ namespace Jinaga.Pipelines
                     var inverseSpecification = new Specification(
                         ImmutableList.Create(label),
                         simplifiedMatches.RemoveAt(0),
-                        projection
+                        context.Projection
                     );
                     var inverse = new Inverse(
                         inverseSpecification,
-                        givenSubset,
+                        context.GivenSubset,
                         InverseOperation.Add,
-                        finalSubset,
-                        collectionIdentifiers
+                        context.ResultSubset,
+                        context.CollectionIdentifiers
                     );
                     inverses = inverses.Add(inverse);
                 }
 
-                inverses = inverses.AddRange(InvertExistentialConditions(matches, givenSubset, finalSubset, projection, matches[0].Conditions, InverseOperation.Add));
+                inverses = inverses.AddRange(InvertExistentialConditions(matches, matches[0].Conditions, InverseOperation.Add, context));
             }
 
             return inverses;
         }
 
-        private static ImmutableList<Inverse> InvertExistentialConditions(ImmutableList<Match> outerMatches, Subset givenSubset, Subset finalSubset, Projection projection, ImmutableList<MatchCondition> conditions, InverseOperation parentOperation)
+        private static ImmutableList<Inverse> InvertExistentialConditions(ImmutableList<Match> outerMatches, ImmutableList<MatchCondition> conditions, InverseOperation parentOperation, InverterContext context)
         {
             ImmutableList<Inverse> inverses = ImmutableList<Inverse>.Empty;
 
@@ -82,14 +102,14 @@ namespace Jinaga.Pipelines
                         var inverseSpecification = new Specification(
                             ImmutableList.Create(match.Unknown),
                             RemoveCondition(matches.RemoveAt(0), condition),
-                            projection
+                            context.Projection
                         );
                         bool exists = existentialCondition.Exists;
                         var inverse = new Inverse(
                             inverseSpecification,
-                            givenSubset,
+                            context.GivenSubset,
                             InferOperation(parentOperation, exists),
-                            finalSubset,
+                            context.ResultSubset,
                             ImmutableList<CollectionIdentifier>.Empty
                         );
                         inverses = inverses.Add(inverse);
@@ -112,19 +132,24 @@ namespace Jinaga.Pipelines
                 throw new ArgumentException($"Cannot infer operation from {parentOperation}, {(exists ? "exists" : "not exists")}");
         }
 
-        private static ImmutableList<Inverse> InvertProjection(ImmutableList<Match> matches, Subset givenSubset, Subset intermediateSubset, IEnumerable<Label> labels, ImmutableList<CollectionIdentifier> collectionIdentifiers, Projection projection)
+        private static ImmutableList<Inverse> InvertProjection(ImmutableList<Match> matches, InverterContext context)
         {
             ImmutableList<Inverse> inverses = ImmutableList<Inverse>.Empty;
 
             // Produce inverses for all collections in the projection.
-            foreach (var (name, collection) in CollectionsOf(projection, ""))
+            foreach (var (name, collection) in CollectionsOf(context.Projection, ""))
             {
-                var collectionSubset = AddUnknowns(intermediateSubset, collection.Matches);
+                var collectionSubset = AddUnknowns(context.ResultSubset, collection.Matches);
                 var collectionLabels = collection.Matches.Select(match => match.Unknown);
                 var collectionMatches = matches.AddRange(collection.Matches);
-                var childCollectionIdentifiers = collectionIdentifiers.Add(new CollectionIdentifier(name, intermediateSubset));
-                inverses = inverses.AddRange(InvertMatches(collectionMatches, givenSubset, collectionSubset, collectionLabels, childCollectionIdentifiers, collection.Projection));
-                inverses = inverses.AddRange(InvertProjection(collectionMatches, givenSubset, collectionSubset, collectionLabels, childCollectionIdentifiers, collection.Projection));
+                var childCollectionIdentifiers = context.CollectionIdentifiers.Add(new CollectionIdentifier(name, context.ResultSubset));
+                var childContext = new InverterContext(
+                    context.GivenSubset,
+                    childCollectionIdentifiers,
+                    collectionSubset,
+                    collection.Projection);
+                inverses = inverses.AddRange(InvertMatches(collectionMatches, collectionLabels, childContext));
+                inverses = inverses.AddRange(InvertProjection(collectionMatches, childContext));
             }
 
             return inverses;
