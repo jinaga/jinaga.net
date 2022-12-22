@@ -4,6 +4,7 @@ using FluentAssertions;
 using Jinaga.Test.Model;
 using Jinaga.Test.Model.Order;
 using Xunit;
+using static Jinaga.Test.Helpers;
 
 namespace Jinaga.Test
 {
@@ -17,13 +18,14 @@ namespace Jinaga.Test
                 where flight.airlineDay.airline == airline
                 select flight
             );
-            string descriptiveString = specification.ToDescriptiveString();
-            descriptiveString.Should().Be(@"(airline: Skylane.Airline) {
-    flight: Skylane.Flight [
-        flight->airlineDay: Skylane.Airline.Day->airline: Skylane.Airline = airline
-    ]
-} => flight
-".Replace("\r", ""));
+            string descriptiveString = specification.ToDescriptiveString(4);
+            descriptiveString.Should().Be(Indented(4, @"
+                (airline: Skylane.Airline) {
+                    flight: Skylane.Flight [
+                        flight->airlineDay: Skylane.Airline.Day->airline: Skylane.Airline = airline
+                    ]
+                } => flight
+                "));
         }
 
         [Fact]
@@ -115,13 +117,14 @@ namespace Jinaga.Test
             Specification<Airline, Flight> specification = Given<Airline>.Match((airline, facts) =>
                 facts.OfType<Flight>(flight => flight.airlineDay.airline == airline)
             );
-            string descriptiveString = specification.ToDescriptiveString();
-            descriptiveString.Should().Be(@"(airline: Skylane.Airline) {
-    flight: Skylane.Flight [
-        flight->airlineDay: Skylane.Airline.Day->airline: Skylane.Airline = airline
-    ]
-} => flight
-".Replace("\r", ""));
+            string descriptiveString = specification.ToDescriptiveString(4);
+            descriptiveString.Should().Be(Indented(4, @"
+                (airline: Skylane.Airline) {
+                    flight: Skylane.Flight [
+                        flight->airlineDay: Skylane.Airline.Day->airline: Skylane.Airline = airline
+                    ]
+                } => flight
+                "));
         }
 
         [Fact]
@@ -132,13 +135,14 @@ namespace Jinaga.Test
                 where flightCancellation.flight == flight
                 select flight
             );
-            string descriptiveString = specification.ToDescriptiveString();
-            descriptiveString.Should().Be(@"(flightCancellation: Skylane.Flight.Cancellation) {
-    flight: Skylane.Flight [
-        flight = flightCancellation->flight: Skylane.Flight
-    ]
-} => flight
-".Replace("\r", ""));
+            string descriptiveString = specification.ToDescriptiveString(4);
+            descriptiveString.Should().Be(Indented(4, @"
+                (flightCancellation: Skylane.Flight.Cancellation) {
+                    flight: Skylane.Flight [
+                        flight = flightCancellation->flight: Skylane.Flight
+                    ]
+                } => flight
+                "));
         }
 
         [Fact]
@@ -147,13 +151,14 @@ namespace Jinaga.Test
             Specification<FlightCancellation, Flight> specification = Given<FlightCancellation>.Match(flightCancellation =>
                 flightCancellation.flight
             );
-            string descriptiveString = specification.ToDescriptiveString();
-            descriptiveString.Should().Be(@"(flightCancellation: Skylane.Flight.Cancellation) {
-    flight: Skylane.Flight [
-        flight = flightCancellation->flight: Skylane.Flight
-    ]
-} => flight
-".Replace("\r", ""));
+            string descriptiveString = specification.ToDescriptiveString(4);
+            descriptiveString.Should().Be(Indented(4, @"
+                (flightCancellation: Skylane.Flight.Cancellation) {
+                    flight: Skylane.Flight [
+                        flight = flightCancellation->flight: Skylane.Flight
+                    ]
+                } => flight
+                "));
         }
 
         [Fact]
@@ -171,18 +176,19 @@ namespace Jinaga.Test
 
                 select flight
             );
-            var descriptiveString = activeFlights.ToDescriptiveString();
-            descriptiveString.Should().Be(@"(airlineDay: Skylane.Airline.Day) {
-    flight: Skylane.Flight [
-        flight->airlineDay: Skylane.Airline.Day = airlineDay
-        !E {
-            cancellation: Skylane.Flight.Cancellation [
-                cancellation->flight: Skylane.Flight = flight
-            ]
-        }
-    ]
-} => flight
-".Replace("\r", ""));
+            var descriptiveString = activeFlights.ToDescriptiveString(4);
+            descriptiveString.Should().Be(Indented(4, @"
+                (airlineDay: Skylane.Airline.Day) {
+                    flight: Skylane.Flight [
+                        flight->airlineDay: Skylane.Airline.Day = airlineDay
+                        !E {
+                            cancellation: Skylane.Flight.Cancellation [
+                                cancellation->flight: Skylane.Flight = flight
+                            ]
+                        }
+                    ]
+                } => flight
+                "));
         }
 
         [Fact]
@@ -196,18 +202,19 @@ namespace Jinaga.Test
 
                 select flight
             );
-            var descriptiveString = activeFlights.ToDescriptiveString();
-            descriptiveString.Should().Be(@"(airlineDay: Skylane.Airline.Day) {
-    flight: Skylane.Flight [
-        flight->airlineDay: Skylane.Airline.Day = airlineDay
-        !E {
-            cancellation: Skylane.Flight.Cancellation [
-                cancellation->flight: Skylane.Flight = flight
-            ]
-        }
-    ]
-} => flight
-".Replace("\r", ""));
+            var descriptiveString = activeFlights.ToDescriptiveString(4);
+            descriptiveString.Should().Be(Indented(4, @"
+                (airlineDay: Skylane.Airline.Day) {
+                    flight: Skylane.Flight [
+                        flight->airlineDay: Skylane.Airline.Day = airlineDay
+                        !E {
+                            cancellation: Skylane.Flight.Cancellation [
+                                cancellation->flight: Skylane.Flight = flight
+                            ]
+                        }
+                    ]
+                } => flight
+                "));
         }
 
         [Fact]
@@ -221,18 +228,19 @@ namespace Jinaga.Test
 
                 select flight
             );
-            var descriptiveString = activeFlights.ToDescriptiveString();
-            descriptiveString.Should().Be(@"(airlineDay: Skylane.Airline.Day) {
-    flight: Skylane.Flight [
-        flight->airlineDay: Skylane.Airline.Day = airlineDay
-        !E {
-            cancellation: Skylane.Flight.Cancellation [
-                cancellation->flight: Skylane.Flight = flight
-            ]
-        }
-    ]
-} => flight
-".Replace("\r", ""));
+            var descriptiveString = activeFlights.ToDescriptiveString(4);
+            descriptiveString.Should().Be(Indented(4, @"
+                (airlineDay: Skylane.Airline.Day) {
+                    flight: Skylane.Flight [
+                        flight->airlineDay: Skylane.Airline.Day = airlineDay
+                        !E {
+                            cancellation: Skylane.Flight.Cancellation [
+                                cancellation->flight: Skylane.Flight = flight
+                            ]
+                        }
+                    ]
+                } => flight
+                "));
         }
 
         [Fact]
@@ -259,26 +267,27 @@ namespace Jinaga.Test
 
                 select booking
             );
-            var descriptiveString = bookingsToRefund.ToDescriptiveString();
-            descriptiveString.Should().Be(@"(airline: Skylane.Airline) {
-    flight: Skylane.Flight [
-        flight->airlineDay: Skylane.Airline.Day->airline: Skylane.Airline = airline
-        E {
-            cancellation: Skylane.Flight.Cancellation [
-                cancellation->flight: Skylane.Flight = flight
-            ]
-        }
-    ]
-    booking: Skylane.Booking [
-        booking->flight: Skylane.Flight = flight
-        !E {
-            refund: Skylane.Refund [
-                refund->booking: Skylane.Booking = booking
-            ]
-        }
-    ]
-} => booking
-".Replace("\r", ""));
+            var descriptiveString = bookingsToRefund.ToDescriptiveString(4);
+            descriptiveString.Should().Be(Indented(4, @"
+                (airline: Skylane.Airline) {
+                    flight: Skylane.Flight [
+                        flight->airlineDay: Skylane.Airline.Day->airline: Skylane.Airline = airline
+                        E {
+                            cancellation: Skylane.Flight.Cancellation [
+                                cancellation->flight: Skylane.Flight = flight
+                            ]
+                        }
+                    ]
+                    booking: Skylane.Booking [
+                        booking->flight: Skylane.Flight = flight
+                        !E {
+                            refund: Skylane.Refund [
+                                refund->booking: Skylane.Booking = booking
+                            ]
+                        }
+                    ]
+                } => booking
+                "));
         }
 
         [Fact]
@@ -317,26 +326,27 @@ namespace Jinaga.Test
 
                 select booking
             );
-            var descriptiveString = bookingsToRefund.ToDescriptiveString();
-            descriptiveString.Should().Be(@"(airline: Skylane.Airline) {
-    flight: Skylane.Flight [
-        flight->airlineDay: Skylane.Airline.Day->airline: Skylane.Airline = airline
-        E {
-            cancellation: Skylane.Flight.Cancellation [
-                cancellation->flight: Skylane.Flight = flight
-            ]
-        }
-    ]
-    booking: Skylane.Booking [
-        booking->flight: Skylane.Flight = flight
-        !E {
-            refund: Skylane.Refund [
-                refund->booking: Skylane.Booking = booking
-            ]
-        }
-    ]
-} => booking
-".Replace("\r", ""));
+            var descriptiveString = bookingsToRefund.ToDescriptiveString(4);
+            descriptiveString.Should().Be(Indented(4, @"
+                (airline: Skylane.Airline) {
+                    flight: Skylane.Flight [
+                        flight->airlineDay: Skylane.Airline.Day->airline: Skylane.Airline = airline
+                        E {
+                            cancellation: Skylane.Flight.Cancellation [
+                                cancellation->flight: Skylane.Flight = flight
+                            ]
+                        }
+                    ]
+                    booking: Skylane.Booking [
+                        booking->flight: Skylane.Flight = flight
+                        !E {
+                            refund: Skylane.Refund [
+                                refund->booking: Skylane.Booking = booking
+                            ]
+                        }
+                    ]
+                } => booking
+                "));
         }
 
         [Fact]
@@ -364,27 +374,28 @@ namespace Jinaga.Test
                     Cancellation = cancellation
                 }
             );
-            var descriptiveString = bookingsToRefund.ToDescriptiveString();
-            descriptiveString.Should().Be(@"(airline: Skylane.Airline) {
-    flight: Skylane.Flight [
-        flight->airlineDay: Skylane.Airline.Day->airline: Skylane.Airline = airline
-    ]
-    cancellation: Skylane.Flight.Cancellation [
-        cancellation->flight: Skylane.Flight = flight
-    ]
-    booking: Skylane.Booking [
-        booking->flight: Skylane.Flight = flight
-        !E {
-            refund: Skylane.Refund [
-                refund->booking: Skylane.Booking = booking
-            ]
-        }
-    ]
-} => {
-    Booking = booking
-    Cancellation = cancellation
-}
-".Replace("\r", ""));
+            var descriptiveString = bookingsToRefund.ToDescriptiveString(4);
+            descriptiveString.Should().Be(Indented(4, @"
+                (airline: Skylane.Airline) {
+                    flight: Skylane.Flight [
+                        flight->airlineDay: Skylane.Airline.Day->airline: Skylane.Airline = airline
+                    ]
+                    cancellation: Skylane.Flight.Cancellation [
+                        cancellation->flight: Skylane.Flight = flight
+                    ]
+                    booking: Skylane.Booking [
+                        booking->flight: Skylane.Flight = flight
+                        !E {
+                            refund: Skylane.Refund [
+                                refund->booking: Skylane.Booking = booking
+                            ]
+                        }
+                    ]
+                } => {
+                    Booking = booking
+                    Cancellation = cancellation
+                }
+                "));
         }
 
         [Fact]
@@ -396,16 +407,17 @@ namespace Jinaga.Test
                 select booking.passenger
             );
 
-            var descriptiveString = passengersForAirline.ToDescriptiveString();
-            descriptiveString.Should().Be(@"(flight: Skylane.Flight) {
-    booking: Skylane.Booking [
-        booking->flight: Skylane.Flight = flight
-    ]
-    passenger: Skylane.Passenger [
-        passenger = booking->passenger: Skylane.Passenger
-    ]
-} => passenger
-".Replace("\r", ""));
+            var descriptiveString = passengersForAirline.ToDescriptiveString(4);
+            descriptiveString.Should().Be(Indented(4, @"
+                (flight: Skylane.Flight) {
+                    booking: Skylane.Booking [
+                        booking->flight: Skylane.Flight = flight
+                    ]
+                    passenger: Skylane.Passenger [
+                        passenger = booking->passenger: Skylane.Passenger
+                    ]
+                } => passenger
+                "));
         }
 
         [Fact]
@@ -427,29 +439,30 @@ namespace Jinaga.Test
                 }
             );
 
-            var descriptiveString = specification.ToDescriptiveString();
-            descriptiveString.Should().Be(@"(company: Corporate.Company) {
-    office: Corporate.Office [
-        office->company: Corporate.Company = company
-        !E {
-            closure: Corporate.Office.Closure [
-                closure->office: Corporate.Office = office
-            ]
-        }
-    ]
-    headcount: Corporate.Headcount [
-        headcount->office: Corporate.Office = office
-        !E {
-            next: Corporate.Headcount [
-                next->prior: Corporate.Headcount = headcount
-            ]
-        }
-    ]
-} => {
-    headcount = headcount
-    office = office
-}
-".Replace("\r", ""));
+            var descriptiveString = specification.ToDescriptiveString(4);
+            descriptiveString.Should().Be(Indented(4, @"
+                (company: Corporate.Company) {
+                    office: Corporate.Office [
+                        office->company: Corporate.Company = company
+                        !E {
+                            closure: Corporate.Office.Closure [
+                                closure->office: Corporate.Office = office
+                            ]
+                        }
+                    ]
+                    headcount: Corporate.Headcount [
+                        headcount->office: Corporate.Office = office
+                        !E {
+                            next: Corporate.Headcount [
+                                next->prior: Corporate.Headcount = headcount
+                            ]
+                        }
+                    ]
+                } => {
+                    headcount = headcount
+                    office = office
+                }
+                "));
         }
 
         [Fact]
@@ -471,30 +484,31 @@ namespace Jinaga.Test
                 }
             );
 
-            var descriptiveString = specification.ToDescriptiveString();
-            descriptiveString.Should().Be(@"(company: Corporate.Company) {
-    office: Corporate.Office [
-        office->company: Corporate.Company = company
-        !E {
-            closure: Corporate.Office.Closure [
-                closure->office: Corporate.Office = office
-            ]
-        }
-    ]
-} => {
-    headcount = {
-        headcount: Corporate.Headcount [
-            headcount->office: Corporate.Office = office
-            !E {
-                next: Corporate.Headcount [
-                    next->prior: Corporate.Headcount = headcount
-                ]
-            }
-        ]
-    } => headcount.value
-    office = office
-}
-".Replace("\r", ""));
+            var descriptiveString = specification.ToDescriptiveString(4);
+            descriptiveString.Should().Be(Indented(4, @"
+                (company: Corporate.Company) {
+                    office: Corporate.Office [
+                        office->company: Corporate.Company = company
+                        !E {
+                            closure: Corporate.Office.Closure [
+                                closure->office: Corporate.Office = office
+                            ]
+                        }
+                    ]
+                } => {
+                    headcount = {
+                        headcount: Corporate.Headcount [
+                            headcount->office: Corporate.Office = office
+                            !E {
+                                next: Corporate.Headcount [
+                                    next->prior: Corporate.Headcount = headcount
+                                ]
+                            }
+                        ]
+                    } => headcount.value
+                    office = office
+                }
+                "));
         }
 
         [Fact]
@@ -527,41 +541,42 @@ namespace Jinaga.Test
                 }
             );
 
-            var descriptiveString = specification.ToDescriptiveString();
-            descriptiveString.Should().Be(@"(company: Corporate.Company) {
-    office: Corporate.Office [
-        office->company: Corporate.Company = company
-        !E {
-            closure: Corporate.Office.Closure [
-                closure->office: Corporate.Office = office
-            ]
-        }
-    ]
-} => {
-    managers = {
-        manager: Corporate.Manager [
-            manager->office: Corporate.Office = office
-            !E {
-                terminated: Corporate.Manager.Terminated [
-                    terminated->Manager: Corporate.Manager = manager
-                ]
-            }
-        ]
-    } => {
-        name = {
-            name: Corporate.Manager.Name [
-                name->manager: Corporate.Manager = manager
-                !E {
-                    next: Corporate.Manager.Name [
-                        next->prior: Corporate.Manager.Name = name
+            var descriptiveString = specification.ToDescriptiveString(4);
+            descriptiveString.Should().Be(Indented(4, @"
+                (company: Corporate.Company) {
+                    office: Corporate.Office [
+                        office->company: Corporate.Company = company
+                        !E {
+                            closure: Corporate.Office.Closure [
+                                closure->office: Corporate.Office = office
+                            ]
+                        }
                     ]
+                } => {
+                    managers = {
+                        manager: Corporate.Manager [
+                            manager->office: Corporate.Office = office
+                            !E {
+                                terminated: Corporate.Manager.Terminated [
+                                    terminated->Manager: Corporate.Manager = manager
+                                ]
+                            }
+                        ]
+                    } => {
+                        name = {
+                            name: Corporate.Manager.Name [
+                                name->manager: Corporate.Manager = manager
+                                !E {
+                                    next: Corporate.Manager.Name [
+                                        next->prior: Corporate.Manager.Name = name
+                                    ]
+                                }
+                            ]
+                        } => name.value
+                    }
+                    office = office
                 }
-            ]
-        } => name.value
-    }
-    office = office
-}
-".Replace("\r", ""));
+                "));
         }
     }
 }

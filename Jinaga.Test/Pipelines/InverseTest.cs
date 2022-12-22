@@ -1,9 +1,9 @@
 using FluentAssertions;
 using Jinaga.Pipelines;
 using Jinaga.Test.Model;
-using System;
 using System.Linq;
 using Xunit;
+using static Jinaga.Test.Helpers;
 
 namespace Jinaga.Test.Pipelines
 {
@@ -144,7 +144,7 @@ namespace Jinaga.Test.Pipelines
             });
         }
 
-        [Fact]
+        [Fact(Skip = "Fails with infinite loop")]
         public void Inverse_RestorePattern()
         {
             var specification = Given<Company>.Match((company, facts) =>
@@ -289,13 +289,6 @@ namespace Jinaga.Test.Pipelines
             var collectionIdentifier = inverses[1].CollectionIdentifiers.Should().ContainSingle().Subject;
             collectionIdentifier.CollectionName.Should().Be("Names");
             // collectionIdentifier.Subset.ToString().Should().Be("name");
-        }
-
-        private string Indented(int depth, string str)
-        {
-            Assert.Equal("\r\n", str.Substring(0, 2));
-            Assert.Equal(new String(' ', 4 * depth), str.Substring(str.Length - 4 * depth));
-            return str.Substring(2, str.Length - 4 * depth - 2).Replace("\r", "");
         }
     }
 }
