@@ -578,5 +578,44 @@ namespace Jinaga.Test
                 }
                 "));
         }
+
+        [Fact]
+        public void Specification_RestorePattern()
+        {
+            var specification = Given<Company>.Match((company, facts) =>
+                from office in facts.OfType<Office>()
+                where office.company == company
+                where !(
+                    from officeClosure in facts.OfType<OfficeClosure>()
+                    where officeClosure.office == office
+                    where !(
+                        from officeReopening in facts.OfType<OfficeReopening>()
+                        where officeReopening.officeClosure == officeClosure
+                        select officeReopening
+                    ).Any()
+                    select officeClosure
+                ).Any()
+                select office
+            );
+
+            var descriptiveString = specification.ToDescriptiveString(4);
+            descriptiveString.Should().Be(Indented(4, @"
+                (company: Corporate.Company) {
+                    office: Corporate.Office [
+                        office->company: Corporate.Company = company
+                        !E {
+                            officeClosure: Corporate.Office.Closure [
+                                officeClosure->office: Corporate.Office = office
+                                !E {
+                                    officeReopening: Corporate.Office.Reopening [
+                                        officeReopening->officeClosure: Corporate.Office.Closure = officeClosure
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                } => office
+                "));
+        }
     }
 }
