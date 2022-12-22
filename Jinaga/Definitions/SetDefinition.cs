@@ -41,6 +41,8 @@ namespace Jinaga.Definitions
 
         public override string Tag => label.Name;
         public override string FactType => label.Type;
+
+        public override string ToString() => label.ToString();
     }
 
     public class SetDefinitionTarget : SetDefinition
@@ -53,6 +55,8 @@ namespace Jinaga.Definitions
         }
 
         public override string FactType => factType;
+
+        public override string ToString() => factType;
     }
 
     public class SetDefinitionPredecessorChain : SetDefinition
@@ -80,6 +84,8 @@ namespace Jinaga.Definitions
         {
             return chainRole;
         }
+
+        public override string ToString() => chainRole.ToString();
     }
 
     public class SetDefinitionJoin : SetDefinition
@@ -105,6 +111,8 @@ namespace Jinaga.Definitions
         public override string Tag => tag;
 
         public override string FactType => tail.SourceFactType;
+
+        public override string ToString() => $"{head} = {tail}";
     }
 
     public class SetDefinitionConditional : SetDefinition
@@ -127,5 +135,7 @@ namespace Jinaga.Definitions
         public override string Tag => source.Tag;
 
         public override string FactType => source.FactType;
+
+        public override string ToString() => $"{source} where {condition}";
     }
 }

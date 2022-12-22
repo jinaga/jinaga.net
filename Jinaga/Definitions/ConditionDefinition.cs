@@ -23,5 +23,10 @@ namespace Jinaga.Definitions
         {
             return new ConditionDefinition(result, true);
         }
+
+        public override string ToString()
+        {
+            return $"{(Exists ? "E" : "!E")} {SpecificationResult}";
+        }
     }
 }
