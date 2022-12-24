@@ -5,6 +5,7 @@ using Jinaga.Repository;
 using Jinaga.Projections;
 using Jinaga.Pipelines;
 using System.Collections.Immutable;
+using Jinaga.Parsers;
 
 namespace Jinaga
 {
@@ -12,7 +13,13 @@ namespace Jinaga
     {
         public static (ImmutableList<Label> given, ImmutableList<Match> matches, Projection projection) Queryable<TProjection>(LambdaExpression specExpression)
         {
-            throw new NotImplementedException();
+            var given = specExpression.Parameters
+                .Take(specExpression.Parameters.Count - 1)
+                .Select(p => new Label(p.Name, p.Type.FactTypeName()))
+                .ToImmutableList();
+            var matches = ImmutableList<Match>.Empty;
+            var projection = new SimpleProjection(given.First().Name);
+            return (given, matches, projection);
         }
 
         public static (ImmutableList<Label> given, ImmutableList<Match> matches, Projection projection) Scalar<TProjection>(LambdaExpression specExpression)
