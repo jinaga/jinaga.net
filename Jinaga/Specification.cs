@@ -9,23 +9,70 @@ using Jinaga.Parsers;
 
 namespace Jinaga
 {
-    static class SpecificationProcessor
+    class SpecificationProcessor
     {
+        private ImmutableList<Source> sources = ImmutableList<Source>.Empty;
+        private ImmutableList<Source> givenSources = ImmutableList<Source>.Empty;
+
+        private SpecificationProcessor()
+        {
+        }
+
         public static (ImmutableList<Label> given, ImmutableList<Match> matches, Projection projection) Queryable<TProjection>(LambdaExpression specExpression)
         {
-            var given = specExpression.Parameters
-                .Take(specExpression.Parameters.Count - 1)
-                .Select(p => new Label(p.Name, p.Type.FactTypeName()))
-                .ToImmutableList();
-            var matches = ImmutableList<Match>.Empty;
-            var projection = new SimpleProjection(given.First().Name);
-            return (given, matches, projection);
+            var processor = new SpecificationProcessor();
+            foreach (var parameter in specExpression.Parameters.Take(specExpression.Parameters.Count - 1))
+            {
+                var symbol = processor.NewSource(parameter.Type.FactTypeName());
+                processor.AddGiven(symbol);
+                processor.SetSourceName(symbol, parameter.Name);
+            }
+            return processor.Process<TProjection>();
         }
 
         public static (ImmutableList<Label> given, ImmutableList<Match> matches, Projection projection) Scalar<TProjection>(LambdaExpression specExpression)
         {
             throw new NotImplementedException();
         }
+
+        private Source NewSource(string factType)
+        {
+            var source = new Source(factType);
+            sources = sources.Add(source);
+            return source;
+        }
+
+        private void AddGiven(Source source)
+        {
+            givenSources = givenSources.Add(source);
+        }
+
+        private void SetSourceName(Source source, string name)
+        {
+            source.Label = new Label(name, source.FactType);
+        }
+
+        private (ImmutableList<Label> given, ImmutableList<Match> matches, Projection projection) Process<TProjection>()
+        {
+            var given = givenSources
+                .Select(g => g.Label!)
+                .ToImmutableList();
+            var matches = ImmutableList<Match>.Empty;
+            var projection = new SimpleProjection(given.First().Name);
+            return (given, matches, projection);
+            throw new NotImplementedException();
+        }
+    }
+
+    class Source
+    {
+        public Source(string factType)
+        {
+            FactType = factType;
+        }
+
+        public Label? Label { get; set; }
+        public string FactType { get; }
     }
 
     public static class Given<TFact>
