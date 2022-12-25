@@ -8,6 +8,12 @@ namespace Jinaga.Repository
     public class FactRepository
     {
         private readonly JinagaQueryProvider queryProvider = new JinagaQueryProvider();
+        private SpecificationProcessor specificationProcessor;
+
+        internal FactRepository(SpecificationProcessor specificationProcessor)
+        {
+            this.specificationProcessor = specificationProcessor;
+        }
 
         public IQueryable<TFact> OfType<TFact>()
         {
