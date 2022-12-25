@@ -1,11 +1,11 @@
-﻿using System;
+﻿using Jinaga.Parsers;
+using Jinaga.Pipelines;
+using Jinaga.Projections;
+using System;
+using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Linq.Expressions;
-using Jinaga.Projections;
-using Jinaga.Pipelines;
-using System.Collections.Immutable;
-using Jinaga.Parsers;
-using System.Collections.Generic;
 
 namespace Jinaga.Repository
 {
@@ -13,10 +13,6 @@ namespace Jinaga.Repository
     {
         private ImmutableList<Label> labels = ImmutableList<Label>.Empty;
         private ImmutableList<Label> givenLabels = ImmutableList<Label>.Empty;
-
-        private SpecificationProcessor()
-        {
-        }
 
         public static (ImmutableList<Label> given, ImmutableList<Match> matches, Projection projection) Queryable<TProjection>(LambdaExpression specExpression)
         {
@@ -28,7 +24,7 @@ namespace Jinaga.Repository
                 SymbolTable.Empty,
                 (table, parameter) => table.Set(parameter.Name, Value.Simple(parameter.Name)));
             var result = processor.ProcessExpression(specExpression.Body, symbolTable, "fact");
-            return processor.Process<TProjection>(result);
+            return processor.ProcessResult<TProjection>(result);
         }
 
         private void AddParameters(IEnumerable<ParameterExpression> parameters)
@@ -59,7 +55,11 @@ namespace Jinaga.Repository
 
         private Value ProcessExpression(Expression expression, SymbolTable symbolTable, string recommendedLabel)
         {
-            if (expression is MethodCallExpression methodCallExpression)
+            if (expression is ParameterExpression parameterExpression)
+            {
+                return symbolTable.Get(parameterExpression.Name);
+            }
+            else if (expression is MethodCallExpression methodCallExpression)
             {
                 if (methodCallExpression.Method.DeclaringType == typeof(Queryable))
                 {
@@ -71,10 +71,23 @@ namespace Jinaga.Repository
                             unaryExpression.Operand is LambdaExpression lambdaExpression ?
                                 lambdaExpression :
                                 throw new NotImplementedException();
-                        var childRecommendedLabel = predicate.Parameters[0].Name;
-                        var source = ProcessExpression(methodCallExpression.Arguments[0], symbolTable, childRecommendedLabel);
-                        var childSymbolTable = symbolTable.Set(predicate.Parameters[0].Name, source);
+                        var parameterName = predicate.Parameters[0].Name;
+                        var source = ProcessExpression(methodCallExpression.Arguments[0], symbolTable, parameterName);
+                        var childSymbolTable = symbolTable.Set(parameterName, source);
                         return ProcessWhere(source, predicate.Body, childSymbolTable);
+                    }
+                    else if (methodCallExpression.Method.Name == nameof(System.Linq.Queryable.Select) &&
+                        methodCallExpression.Arguments.Count == 2)
+                    {
+                        var selector =
+                            methodCallExpression.Arguments[1] is UnaryExpression unaryExpression &&
+                            unaryExpression.Operand is LambdaExpression lambdaExpression ?
+                                lambdaExpression :
+                                throw new NotImplementedException();
+                        var parameterName = selector.Parameters[0].Name;
+                        var source = ProcessExpression(methodCallExpression.Arguments[0], symbolTable, parameterName);
+                        var childSymbolTable = symbolTable.Set(parameterName, source);
+                        return ProcessSelect(source, selector.Body, childSymbolTable);
                     }
                     else
                     {
@@ -172,9 +185,29 @@ namespace Jinaga.Repository
                 throw new ArgumentException($"Unsupported join expression type {expression.GetType().Name} {expression}.");
             }
         }
-
-        private (ImmutableList<Label> given, ImmutableList<Match> matches, Projection projection) Process<TProjection>(Value result)
+        
+        private Value ProcessSelect(Value source, Expression selector, SymbolTable symbolTable)
         {
+            return ProcessExpression(selector, symbolTable, "unknown");
+        }
+
+        private (ImmutableList<Label> given, ImmutableList<Match> matches, Projection projection) ProcessResult<TProjection>(Value result)
+        {
+            // Look for matches with no path conditions.
+            Match? priorMatch = null;
+            foreach (var match in result.Matches)
+            {
+                if (!match.Conditions.OfType<PathCondition>().Any())
+                {
+                    var unknown = match.Unknown.Name;
+                    var prior = priorMatch != null
+                        ? $"prior variable \"{priorMatch.Unknown.Name}\""
+                        : $"parameter \"{givenLabels.First().Name}\"";
+                    throw new SpecificationException($"The variable \"{unknown}\" should be joined to the {prior}.");
+                }
+                priorMatch = match;
+            }
+
             var matches = result.Matches;
             var projection = result.Projection;
             return (givenLabels, matches, projection);

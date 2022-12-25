@@ -36,8 +36,7 @@ namespace Jinaga.Test
                 );
             constructor.Should().Throw<SpecificationException>()
                 .WithMessage(
-                    "The variable \"flight\" should be joined to the parameter \"airline\". " +
-                    "Consider \"where flight.airlineDay.airline == airline\".");
+                    "The variable \"flight\" should be joined to the parameter \"airline\".");
         }
 
         [Fact]
