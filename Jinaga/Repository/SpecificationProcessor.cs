@@ -66,11 +66,7 @@ namespace Jinaga.Repository
                     if (methodCallExpression.Method.Name == nameof(System.Linq.Queryable.Where) &&
                         methodCallExpression.Arguments.Count == 2)
                     {
-                        var predicate =
-                            methodCallExpression.Arguments[1] is UnaryExpression unaryExpression &&
-                            unaryExpression.Operand is LambdaExpression lambdaExpression ?
-                                lambdaExpression :
-                                throw new NotImplementedException();
+                        var predicate = GetLambda(methodCallExpression.Arguments[1]);
                         var parameterName = predicate.Parameters[0].Name;
                         var source = ProcessExpression(methodCallExpression.Arguments[0], symbolTable, parameterName);
                         var childSymbolTable = symbolTable.Set(parameterName, source);
@@ -79,11 +75,7 @@ namespace Jinaga.Repository
                     else if (methodCallExpression.Method.Name == nameof(System.Linq.Queryable.Select) &&
                         methodCallExpression.Arguments.Count == 2)
                     {
-                        var selector =
-                            methodCallExpression.Arguments[1] is UnaryExpression unaryExpression &&
-                            unaryExpression.Operand is LambdaExpression lambdaExpression ?
-                                lambdaExpression :
-                                throw new NotImplementedException();
+                        var selector = GetLambda(methodCallExpression.Arguments[1]);
                         var parameterName = selector.Parameters[0].Name;
                         var source = ProcessExpression(methodCallExpression.Arguments[0], symbolTable, parameterName);
                         var childSymbolTable = symbolTable.Set(parameterName, source);
@@ -99,12 +91,22 @@ namespace Jinaga.Repository
                     if (methodCallExpression.Method.Name == nameof(FactRepository.OfType) &&
                         methodCallExpression.Arguments.Count == 0)
                     {
-                        var factType = methodCallExpression.Method.GetGenericArguments()[0].FactTypeName();
-                        var source = NewLabel(recommendedLabel, factType);
-                        var match = new Match(source, ImmutableList<MatchCondition>.Empty);
-                        var matches = ImmutableList.Create(match);
-                        var projection = new SimpleProjection(recommendedLabel);
-                        return new Value(matches, projection);
+                        return AllocateLabel(recommendedLabel, methodCallExpression.Method.GetGenericArguments()[0]);
+                    }
+                    else if (methodCallExpression.Method.Name == nameof(FactRepository.OfType) &&
+                        methodCallExpression.Arguments.Count == 1)
+                    {
+                        // Get the recommended label from the predicate.
+                        var predicate = GetLambda(methodCallExpression.Arguments[0]);
+                        var parameterName = predicate.Parameters[0].Name;
+
+                        // Allocate a new label as the source of the match.
+                        var genericArgument = methodCallExpression.Method.GetGenericArguments()[0];
+                        var source = AllocateLabel(parameterName, genericArgument);
+
+                        // Process the predicate.
+                        var childSymbolTable = symbolTable.Set(parameterName, source);
+                        return ProcessWhere(source, predicate.Body, childSymbolTable);
                     }
                     else
                     {
@@ -120,6 +122,17 @@ namespace Jinaga.Repository
             {
                 throw new ArgumentException($"Unsupported expression type {expression.GetType().Name}: {expression}.");
             }
+        }
+
+        private Value AllocateLabel(string parameterName, Type genericArgument)
+        {
+            var factType = genericArgument.FactTypeName();
+            var label = NewLabel(parameterName, factType);
+            var match = new Match(label, ImmutableList<MatchCondition>.Empty);
+            var matches = ImmutableList.Create(match);
+            var projection = new SimpleProjection(parameterName);
+            var source = new Value(matches, projection);
+            return source;
         }
 
         private Value ProcessWhere(Value source, Expression predicate, SymbolTable symbolTable)
@@ -211,6 +224,14 @@ namespace Jinaga.Repository
             var matches = result.Matches;
             var projection = result.Projection;
             return (givenLabels, matches, projection);
+        }
+
+        private static LambdaExpression GetLambda(Expression argument)
+        {
+            return argument is UnaryExpression unaryExpression &&
+                unaryExpression.Operand is LambdaExpression lambdaExpression ?
+                    lambdaExpression :
+                    throw new ArgumentException($"Expected a unary lambda expression for {argument}.");
         }
     }
 }
