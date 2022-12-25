@@ -14,7 +14,7 @@ namespace Jinaga.Parsers
 {
     public static class ValueParser
     {
-        public static (SymbolValue symbolValue, string tag) ParseValue(SymbolTable symbolTable, SpecificationContext context, Expression expression)
+        public static (SymbolValue symbolValue, string tag) ParseValue(SymbolTableOld symbolTable, SpecificationContext context, Expression expression)
         {
             if (expression is NewExpression newBody)
             {
@@ -121,7 +121,7 @@ namespace Jinaga.Parsers
             }
         }
 
-        private static KeyValuePair<string, SymbolValue> ParseMemberBinding(SymbolTable symbolTable, SpecificationContext context, MemberBinding binding)
+        private static KeyValuePair<string, SymbolValue> ParseMemberBinding(SymbolTableOld symbolTable, SpecificationContext context, MemberBinding binding)
         {
             if (binding is MemberAssignment assignment)
             {

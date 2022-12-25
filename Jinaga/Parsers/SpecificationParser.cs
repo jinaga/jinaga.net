@@ -12,7 +12,7 @@ namespace Jinaga.Parsers
 {
     public static class SpecificationParser
     {
-        public static SpecificationResult ParseSpecification(SymbolTable symbolTable, SpecificationContext context, Expression body)
+        public static SpecificationResult ParseSpecification(SymbolTableOld symbolTable, SpecificationContext context, Expression body)
         {
             if (body is MethodCallExpression methodCall)
             {
@@ -76,7 +76,7 @@ namespace Jinaga.Parsers
             return InferPathsFromValue(SpecificationResult.FromValue(symbolValue), symbolValue);
         }
 
-        private static SpecificationResult ParseWhere(SpecificationResult source, SymbolTable symbolTable, SpecificationContext context, Expression predicate)
+        private static SpecificationResult ParseWhere(SpecificationResult source, SymbolTableOld symbolTable, SpecificationContext context, Expression predicate)
         {
             if (predicate is UnaryExpression {
                 Operand: LambdaExpression lambda
@@ -117,7 +117,7 @@ namespace Jinaga.Parsers
             }
         }
 
-        private static SpecificationResult ParseJoin(SpecificationResult source, SymbolTable innerSymbolTable, SpecificationContext context, Expression leftExpression, Expression rightExpression)
+        private static SpecificationResult ParseJoin(SpecificationResult source, SymbolTableOld innerSymbolTable, SpecificationContext context, Expression leftExpression, Expression rightExpression)
         {
             var (left, leftTag) = ValueParser.ParseValue(innerSymbolTable, context, leftExpression);
             var (right, rightTag) = ValueParser.ParseValue(innerSymbolTable, context, rightExpression);
@@ -139,7 +139,7 @@ namespace Jinaga.Parsers
             }
         }
 
-        private static SpecificationResult ParseConditional(SpecificationResult source, SymbolTable innerSymbolTable, SpecificationContext context, Expression body)
+        private static SpecificationResult ParseConditional(SpecificationResult source, SymbolTableOld innerSymbolTable, SpecificationContext context, Expression body)
         {
             var conditionDefinition = ParseCondition(innerSymbolTable, context, body);
             var evaluatedSet = FindEvaluatedSet(conditionDefinition);
@@ -210,7 +210,7 @@ namespace Jinaga.Parsers
             }
         }
 
-        private static SpecificationResult ParseSelect(SpecificationResult result, SymbolTable symbolTable, SpecificationContext context, Expression selector)
+        private static SpecificationResult ParseSelect(SpecificationResult result, SymbolTableOld symbolTable, SpecificationContext context, Expression selector)
         {
             if (selector is UnaryExpression {
                 Operand: LambdaExpression projectionLambda
@@ -232,7 +232,7 @@ namespace Jinaga.Parsers
             }
         }
 
-        private static SpecificationResult ParseSelectMany(SpecificationResult result, SymbolTable symbolTable, SpecificationContext context, Expression collectionSelector, Expression resultSelector)
+        private static SpecificationResult ParseSelectMany(SpecificationResult result, SymbolTableOld symbolTable, SpecificationContext context, Expression collectionSelector, Expression resultSelector)
         {
             if (collectionSelector is UnaryExpression { Operand: LambdaExpression lambda })
             {
@@ -253,7 +253,7 @@ namespace Jinaga.Parsers
             }
         }
 
-        private static ConditionDefinition ParseCondition(SymbolTable symbolTable, SpecificationContext context, Expression body)
+        private static ConditionDefinition ParseCondition(SymbolTableOld symbolTable, SpecificationContext context, Expression body)
         {
             if (body is UnaryExpression { NodeType: ExpressionType.Not, Operand: Expression operand })
             {
@@ -300,7 +300,7 @@ namespace Jinaga.Parsers
                     object target = InstanceOfFact(propertyInfo.DeclaringType);
                     var condition = (Condition)propertyInfo.GetGetMethod().Invoke(target, new object[0]);
                     var instanceValue = ValueParser.ParseValue(symbolTable, context, member.Expression).symbolValue;
-                    var innerSymbolTable = SymbolTable.Empty.With("this", instanceValue);
+                    var innerSymbolTable = SymbolTableOld.Empty.With("this", instanceValue);
                     return ParseCondition(innerSymbolTable, context, condition.Body.Body);
                 }
                 else
@@ -314,7 +314,7 @@ namespace Jinaga.Parsers
             }
         }
 
-        private static SpecificationResult ParseProjection(SymbolTable symbolTable, SpecificationContext context, SpecificationResult source, SpecificationResult continuation, Expression resultSelector)
+        private static SpecificationResult ParseProjection(SymbolTableOld symbolTable, SpecificationContext context, SpecificationResult source, SpecificationResult continuation, Expression resultSelector)
         {
             if (resultSelector is UnaryExpression {
                 Operand: LambdaExpression projectionLambda

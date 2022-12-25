@@ -32,7 +32,7 @@ namespace Jinaga
             object factRepository = new FactRepositoryOld();
             var queryable = (JinagaQueryableOld<TProjection>)spec.DynamicInvoke(proxies.Add(factRepository).ToArray());
 
-            var result = SpecificationParser.ParseSpecification(SymbolTable.Empty, context, queryable.Expression);
+            var result = SpecificationParser.ParseSpecification(SymbolTableOld.Empty, context, queryable.Expression);
             var matches = SpecificationGenerator.CreateMatches(context, result);
             var projection = SpecificationGenerator.CreateProjection(result.SymbolValue);
 
@@ -44,7 +44,7 @@ namespace Jinaga
             var given = ImmutableList<Label>.Empty;
             var proxies = ImmutableList<object>.Empty;
             var context = SpecificationContext.Empty;
-            var symbolTable = SymbolTable.Empty;
+            var symbolTable = SymbolTableOld.Empty;
 
             foreach (var parameter in specExpression.Parameters)
             {

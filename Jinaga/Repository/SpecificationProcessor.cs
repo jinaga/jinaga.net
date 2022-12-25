@@ -21,10 +21,13 @@ namespace Jinaga.Repository
         public static (ImmutableList<Label> given, ImmutableList<Match> matches, Projection projection) Queryable<TProjection>(LambdaExpression specExpression)
         {
             var processor = new SpecificationProcessor();
-            processor.AddParameters(specExpression.Parameters
-                .Take(specExpression.Parameters.Count - 1));
-            var factRepository = new FactRepository(processor);
-            var result = processor.ProcessExpression(specExpression.Body, "fact");
+            var givenParameters = specExpression.Parameters
+                .Take(specExpression.Parameters.Count - 1);
+            processor.AddParameters(givenParameters);
+            var symbolTable = givenParameters.Aggregate(
+                SymbolTable.Empty,
+                (table, parameter) => table.Set(parameter.Name, Value.Simple(parameter.Name)));
+            var result = processor.ProcessExpression(specExpression.Body, symbolTable, "fact");
             return processor.Process<TProjection>(result);
         }
 
@@ -54,7 +57,7 @@ namespace Jinaga.Repository
             givenLabels = givenLabels.Add(label);
         }
 
-        private Value ProcessExpression(Expression expression, string recommendedLabel)
+        private Value ProcessExpression(Expression expression, SymbolTable symbolTable, string recommendedLabel)
         {
             if (expression is MethodCallExpression methodCallExpression)
             {
@@ -69,8 +72,9 @@ namespace Jinaga.Repository
                                 lambdaExpression :
                                 throw new NotImplementedException();
                         var childRecommendedLabel = predicate.Parameters[0].Name;
-                        var source = ProcessExpression(methodCallExpression.Arguments[0], childRecommendedLabel);
-                        return ProcessWhere(source, predicate.Body);
+                        var source = ProcessExpression(methodCallExpression.Arguments[0], symbolTable, childRecommendedLabel);
+                        var childSymbolTable = symbolTable.Set(predicate.Parameters[0].Name, source);
+                        return ProcessWhere(source, predicate.Body, childSymbolTable);
                     }
                     else
                     {
@@ -105,11 +109,11 @@ namespace Jinaga.Repository
             }
         }
 
-        private Value ProcessWhere(Value source, Expression predicate)
+        private Value ProcessWhere(Value source, Expression predicate, SymbolTable symbolTable)
         {
             if (predicate is BinaryExpression { NodeType: ExpressionType.Equal } binary)
             {
-                return ProcessJoin(source, binary.Left, binary.Right);
+                return ProcessJoin(source, binary.Left, binary.Right, symbolTable);
             }
             else
             {
@@ -117,44 +121,51 @@ namespace Jinaga.Repository
             }
         }
 
-        private Value ProcessJoin(Value source, Expression left, Expression right)
+        private Value ProcessJoin(Value source, Expression left, Expression right, SymbolTable symbolTable)
         {
-            var (rootLeft, rolesLeft) = ProcessJoinExpression(left);
-            var (rootRight, rolesRight) = ProcessJoinExpression(right);
+            var (labelLeft, rolesLeft) = ProcessJoinExpression(left, symbolTable);
+            var (labelRight, rolesRight) = ProcessJoinExpression(right, symbolTable);
             var match = source.Matches.LastOrDefault(m =>
-                m.Unknown == rootLeft || m.Unknown == rootRight);
+                m.Unknown.Name == labelLeft || m.Unknown.Name == labelRight);
             if (match == null)
             {
                 throw new ArgumentException($"Join expression {left} or {right} is not a member of the query.");
             }
             // Swap the roles so that the left is always the unknown.
-            if (rootRight == match.Unknown)
+            if (labelRight == match.Unknown.Name)
             {
-                var temp = rootLeft;
-                rootLeft = rootRight;
-                rootRight = temp;
+                var temp = labelLeft;
+                labelLeft = labelRight;
+                labelRight = temp;
                 var tempRoles = rolesLeft;
                 rolesLeft = rolesRight;
                 rolesRight = tempRoles;
             }
-            var pathCondition = new PathCondition(rolesLeft, rootRight.Name, rolesRight);
+            var pathCondition = new PathCondition(rolesLeft, labelRight, rolesRight);
             var newMatch = new Match(match.Unknown, match.Conditions.Add(pathCondition));
             var newMatches = source.Matches.Replace(match, newMatch);
             return new Value(newMatches, source.Projection);
         }
 
-        private (Label root, ImmutableList<Role> roles) ProcessJoinExpression(Expression expression)
+        private (string label, ImmutableList<Role> roles) ProcessJoinExpression(Expression expression, SymbolTable symbolTable)
         {
             if (expression is MemberExpression memberExpression)
             {
-                var (root, roles) = ProcessJoinExpression(memberExpression.Expression);
+                var (label, roles) = ProcessJoinExpression(memberExpression.Expression, symbolTable);
                 var role = new Role(memberExpression.Member.Name, memberExpression.Type.FactTypeName());
-                return (root, roles.Add(role));
+                return (label, roles.Add(role));
             }
             else if (expression is ParameterExpression parameterExpression)
             {
-                var root = NewLabel(parameterExpression.Name, parameterExpression.Type.FactTypeName());
-                return (root, ImmutableList<Role>.Empty);
+                var value = symbolTable.Get(parameterExpression.Name);
+                if (value.Projection is SimpleProjection simpleProjection)
+                {
+                    return (simpleProjection.Tag, ImmutableList<Role>.Empty);
+                }
+                else
+                {
+                    throw new ArgumentException($"Join expression {expression} is not a simple projection.");
+                }
             }
             else
             {
