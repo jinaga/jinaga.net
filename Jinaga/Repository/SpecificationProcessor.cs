@@ -84,8 +84,10 @@ namespace Jinaga.Repository
                     {
                         var factType = methodCallExpression.Method.GetGenericArguments()[0].FactTypeName();
                         var source = NewLabel(recommendedLabel, factType);
+                        var match = new Match(source, ImmutableList<MatchCondition>.Empty);
+                        var matches = ImmutableList.Create(match);
                         var projection = new SimpleProjection(recommendedLabel);
-                        return new Value(projection);
+                        return new Value(matches, projection);
                     }
                     else
                     {
@@ -117,12 +119,52 @@ namespace Jinaga.Repository
 
         private Value ProcessJoin(Value source, Expression left, Expression right)
         {
-            return source;
+            var (rootLeft, rolesLeft) = ProcessJoinExpression(left);
+            var (rootRight, rolesRight) = ProcessJoinExpression(right);
+            var match = source.Matches.LastOrDefault(m =>
+                m.Unknown == rootLeft || m.Unknown == rootRight);
+            if (match == null)
+            {
+                throw new ArgumentException($"Join expression {left} or {right} is not a member of the query.");
+            }
+            // Swap the roles so that the left is always the unknown.
+            if (rootRight == match.Unknown)
+            {
+                var temp = rootLeft;
+                rootLeft = rootRight;
+                rootRight = temp;
+                var tempRoles = rolesLeft;
+                rolesLeft = rolesRight;
+                rolesRight = tempRoles;
+            }
+            var pathCondition = new PathCondition(rolesLeft, rootRight.Name, rolesRight);
+            var newMatch = new Match(match.Unknown, match.Conditions.Add(pathCondition));
+            var newMatches = source.Matches.Replace(match, newMatch);
+            return new Value(newMatches, source.Projection);
+        }
+
+        private (Label root, ImmutableList<Role> roles) ProcessJoinExpression(Expression expression)
+        {
+            if (expression is MemberExpression memberExpression)
+            {
+                var (root, roles) = ProcessJoinExpression(memberExpression.Expression);
+                var role = new Role(memberExpression.Member.Name, memberExpression.Type.FactTypeName());
+                return (root, roles.Add(role));
+            }
+            else if (expression is ParameterExpression parameterExpression)
+            {
+                var root = NewLabel(parameterExpression.Name, parameterExpression.Type.FactTypeName());
+                return (root, ImmutableList<Role>.Empty);
+            }
+            else
+            {
+                throw new ArgumentException($"Unsupported join expression type {expression.GetType().Name} {expression}.");
+            }
         }
 
         private (ImmutableList<Label> given, ImmutableList<Match> matches, Projection projection) Process<TProjection>(Value result)
         {
-            var matches = ImmutableList<Match>.Empty;
+            var matches = result.Matches;
             var projection = result.Projection;
             return (givenLabels, matches, projection);
         }

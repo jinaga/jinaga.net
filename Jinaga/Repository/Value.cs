@@ -1,16 +1,16 @@
 ﻿using Jinaga.Projections;
-using System;
-using System.Collections.Generic;
-using System.Text;
+using System.Collections.Immutable;
 
 namespace Jinaga.Repository
 {
     internal class Value
     {
+        public ImmutableList<Match> Matches { get; }
         public SimpleProjection Projection { get; }
 
-        public Value(SimpleProjection projection)
+        public Value(ImmutableList<Match> matches, SimpleProjection projection)
         {
+            Matches = matches;
             Projection = projection;
         }
     }
