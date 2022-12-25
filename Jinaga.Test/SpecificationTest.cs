@@ -49,8 +49,7 @@ namespace Jinaga.Test
                 );
             constructor.Should().Throw<SpecificationException>()
                 .WithMessage(
-                    "The variable \"order\" should be joined to the parameter \"item\". " +
-                    "Consider \"where order.items.Contains(item)\"."
+                    "The variable \"order\" should be joined to the parameter \"item\"."
                 );
         }
 
@@ -63,8 +62,7 @@ namespace Jinaga.Test
                 );
             constructor.Should().Throw<SpecificationException>()
                 .WithMessage(
-                    "The set should be joined to the parameter \"item\". " +
-                    "Consider \"facts.OfType<Order>(order => order.items.Contains(item))\"."
+                    "The variable \"fact\" should be joined to the parameter \"item\"."
                 );
         }
 
@@ -78,8 +76,7 @@ namespace Jinaga.Test
                 );
             constructor.Should().Throw<SpecificationException>()
                 .WithMessage(
-                    "The variable \"item\" should be joined to the parameter \"order\". " +
-                    "Consider \"where order.items.Contains(item)\"."
+                    "The variable \"item\" should be joined to the parameter \"order\"."
                 );
         }
 
@@ -92,8 +89,7 @@ namespace Jinaga.Test
                 );
             constructor.Should().Throw<SpecificationException>()
                 .WithMessage(
-                    "The set should be joined to the parameter \"order\". " +
-                    "Consider \"facts.OfType<Item>(item => order.items.Contains(item))\"."
+                    "The variable \"fact\" should be joined to the parameter \"order\"."
                 );
         }
 
@@ -104,8 +100,7 @@ namespace Jinaga.Test
                 Given<Airline>.Match((airline, facts) => facts.OfType<Flight>());
             constructor.Should().Throw<SpecificationException>()
                 .WithMessage(
-                    "The set should be joined to the parameter \"airline\". " +
-                    "Consider \"facts.OfType<Flight>(flight => flight.airlineDay.airline == airline)\".");
+                    "The variable \"fact\" should be joined to the parameter \"airline\".");
         }
 
         [Fact]
