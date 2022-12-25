@@ -18,8 +18,8 @@ namespace Jinaga.Parsers
             {
                 var method = methodCall.Method;
 
-                if (method.DeclaringType == typeof(FactRepository) &&
-                    method.Name == nameof(FactRepository.OfType))
+                if (method.DeclaringType == typeof(FactRepositoryOld) &&
+                    method.Name == nameof(FactRepositoryOld.OfType))
                 {
                     var type = method.GetGenericArguments()[0];
                     var factType = type.FactTypeName();

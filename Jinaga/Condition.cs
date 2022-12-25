@@ -6,9 +6,9 @@ namespace Jinaga
 {
     public class Condition
     {
-        public Expression<Func<FactRepository, bool>> Body { get; }
+        public Expression<Func<FactRepositoryOld, bool>> Body { get; }
 
-        public Condition(Expression<Func<FactRepository, bool>> body)
+        public Condition(Expression<Func<FactRepositoryOld, bool>> body)
         {
             this.Body = body;
         }

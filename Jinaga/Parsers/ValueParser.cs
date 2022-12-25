@@ -78,8 +78,8 @@ namespace Jinaga.Parsers
                 return (new SymbolValueSetDefinition(setDefinition), variable.Label.Name);
             }
             else if (expression is MethodCallExpression observableCallExpression &&
-                observableCallExpression.Method.DeclaringType == typeof(FactRepository) &&
-                observableCallExpression.Method.Name == nameof(FactRepository.Observable) &&
+                observableCallExpression.Method.DeclaringType == typeof(FactRepositoryOld) &&
+                observableCallExpression.Method.Name == nameof(FactRepositoryOld.Observable) &&
                 observableCallExpression.Arguments.Count == 2 &&
                 typeof(Specification).IsAssignableFrom(observableCallExpression.Arguments[1].Type))
             {
@@ -98,8 +98,8 @@ namespace Jinaga.Parsers
                 }
             }
             else if (expression is MethodCallExpression observableIQueryableCallExpression &&
-                observableIQueryableCallExpression.Method.DeclaringType == typeof(FactRepository) &&
-                observableIQueryableCallExpression.Method.Name == nameof(FactRepository.Observable) &&
+                observableIQueryableCallExpression.Method.DeclaringType == typeof(FactRepositoryOld) &&
+                observableIQueryableCallExpression.Method.Name == nameof(FactRepositoryOld.Observable) &&
                 observableIQueryableCallExpression.Arguments.Count == 1 &&
                 typeof(IQueryable).IsAssignableFrom(observableIQueryableCallExpression.Arguments[0].Type))
             {

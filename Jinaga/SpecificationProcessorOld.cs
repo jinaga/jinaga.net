@@ -29,8 +29,8 @@ namespace Jinaga
                 context = context.With(label, proxy, parameter.Type);
             }
 
-            object factRepository = new FactRepository();
-            var queryable = (JinagaQueryable<TProjection>)spec.DynamicInvoke(proxies.Add(factRepository).ToArray());
+            object factRepository = new FactRepositoryOld();
+            var queryable = (JinagaQueryableOld<TProjection>)spec.DynamicInvoke(proxies.Add(factRepository).ToArray());
 
             var result = SpecificationParser.ParseSpecification(SymbolTable.Empty, context, queryable.Expression);
             var matches = SpecificationGenerator.CreateMatches(context, result);
