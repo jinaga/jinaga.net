@@ -1,6 +1,7 @@
 ﻿using Jinaga.Parsers;
 using Jinaga.Pipelines;
 using Jinaga.Projections;
+using Jinaga.Visualizers;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
@@ -268,9 +269,22 @@ namespace Jinaga.Repository
                     var innerProjection = compoundProjection.GetProjection(memberExpression.Member.Name);
                     return (innerProjection, roles);
                 }
-                else if (projection is SimpleProjection)
+                else if (projection is SimpleProjection simpleProjection)
                 {
-                    return (projection, roles.Add(new Role(memberExpression.Member.Name, memberExpression.Type.FactTypeName())));
+                    if (memberExpression.Type.IsFactType() || memberExpression.Type.IsArrayOfFactType())
+                    {
+                        return (projection, roles.Add(new Role(memberExpression.Member.Name, memberExpression.Type.FactTypeName())));
+                    }
+                    else
+                    {
+                        if (roles.Any())
+                        {
+                            var rolePath = roles.Select(r => r.Name).Join(".");
+                            throw new SpecificationException($"Cannot select {simpleProjection.Tag}.{rolePath}.{memberExpression.Member.Name} directly. Give the fact a label first.");
+                        }
+                        var fieldProjection = new FieldProjection(simpleProjection.Tag, memberExpression.Type, memberExpression.Member.Name);
+                        return (fieldProjection, roles);
+                    }
                 }
                 else
                 {
@@ -391,18 +405,28 @@ namespace Jinaga.Repository
 
         private static LambdaExpression GetLambda(Expression argument)
         {
-            return argument is UnaryExpression unaryExpression &&
-                unaryExpression.Operand is LambdaExpression lambdaExpression ?
-                    lambdaExpression :
-                    throw new ArgumentException($"Expected a unary lambda expression for {argument}.");
+            if (argument is UnaryExpression unaryExpression &&
+                unaryExpression.Operand is LambdaExpression lambdaExpression)
+            {
+                return lambdaExpression;
+            }
+            else
+            {
+                throw new ArgumentException($"Expected a unary lambda expression for {argument}.");
+            }
         }
 
         private static string LabelOfProjection(Projection projection)
         {
             // Expect the projection to be a simple one.
-            return projection is SimpleProjection simpleProjection
-                ? simpleProjection.Tag
-                : throw new ArgumentException($"Expected a simple projection, but got {projection.GetType().Name}.");
+            if (projection is SimpleProjection simpleProjection)
+            {
+                return simpleProjection.Tag;
+            }
+            else
+            {
+                throw new ArgumentException($"Expected a simple projection, but got {projection.GetType().Name}.");
+            }
         }
 
         public static object InstanceOfFact(Type factType)
