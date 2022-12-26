@@ -202,6 +202,13 @@ namespace Jinaga.Repository
             {
                 return ProcessJoin(source, binary.Left, binary.Right, symbolTable);
             }
+            else if (predicate is MethodCallExpression methodCallExpression &&
+                methodCallExpression.Method.DeclaringType == typeof(Enumerable) &&
+                methodCallExpression.Method.Name == nameof(System.Linq.Enumerable.Contains) &&
+                methodCallExpression.Arguments.Count == 2)
+            {
+                return ProcessJoin(source, methodCallExpression.Arguments[0], methodCallExpression.Arguments[1], symbolTable);
+            }
             else
             {
                 return ProcessExistential(source, predicate, symbolTable, true);
@@ -242,6 +249,11 @@ namespace Jinaga.Repository
             if (expression is ParameterExpression parameterExpression)
             {
                 var projection = symbolTable.Get(parameterExpression.Name).Projection;
+                return (projection, ImmutableList<Role>.Empty);
+            }
+            else if (expression is ConstantExpression)
+            {
+                var projection = symbolTable.Get("this").Projection;
                 return (projection, ImmutableList<Role>.Empty);
             }
             else if (expression is MemberExpression memberExpression)
