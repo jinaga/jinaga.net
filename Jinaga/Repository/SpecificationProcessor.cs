@@ -132,7 +132,7 @@ namespace Jinaga.Repository
             }
             else
             {
-                var value = ProcessQueryable(matches, expression, symbolTable, recommendedLabel);
+                var value = ProcessQueryable(ImmutableList<Match>.Empty, expression, symbolTable, recommendedLabel);
                 var collectionProjection = new CollectionProjection(value.Matches, value.Projection);
                 return new Value(matches, collectionProjection);
             }
