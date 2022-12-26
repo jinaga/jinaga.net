@@ -161,7 +161,9 @@ namespace Jinaga.Repository
                 observableIQueryableCallExpression.Arguments.Count == 1 &&
                 typeof(IQueryable).IsAssignableFrom(observableIQueryableCallExpression.Arguments[0].Type))
             {
-                throw new NotImplementedException();
+                var value = ProcessQueryable(ImmutableList<Match>.Empty, observableIQueryableCallExpression.Arguments[0], symbolTable);
+                var collectionProjection = new CollectionProjection(value.Matches, value.Projection);
+                return new Value(matches, collectionProjection);
             }
             else
             {
