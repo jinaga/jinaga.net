@@ -1,6 +1,4 @@
-﻿using Jinaga.Definitions;
-using Jinaga.Parsers;
-using Jinaga.Pipelines;
+﻿using Jinaga.Pipelines;
 using Jinaga.Projections;
 using Jinaga.Visualizers;
 using System;
