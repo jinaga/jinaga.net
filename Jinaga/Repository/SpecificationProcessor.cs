@@ -18,12 +18,8 @@ namespace Jinaga.Repository
         public static (ImmutableList<Label> given, ImmutableList<Match> matches, Projection projection) Queryable<TProjection>(LambdaExpression specExpression)
         {
             var processor = new SpecificationProcessor();
-            var givenParameters = specExpression.Parameters
-                .Take(specExpression.Parameters.Count - 1);
-            processor.AddParameters(givenParameters);
-            var symbolTable = givenParameters.Aggregate(
-                SymbolTable.Empty,
-                (table, parameter) => table.Set(parameter.Name, Value.Simple(parameter.Name)));
+            var symbolTable = processor.Given(specExpression.Parameters
+                .Take(specExpression.Parameters.Count - 1));
             var result = processor.ProcessQueryable(ImmutableList<Match>.Empty, specExpression.Body, symbolTable);
             return processor.ProcessResult<TProjection>(result);
         }
@@ -31,22 +27,20 @@ namespace Jinaga.Repository
         public static (ImmutableList<Label> given, ImmutableList<Match> matches, Projection projection) Scalar<TProjection>(LambdaExpression specExpression)
         {
             var processor = new SpecificationProcessor();
-            var givenParameters = specExpression.Parameters;
-            processor.AddParameters(givenParameters);
-            var symbolTable = givenParameters.Aggregate(
-                SymbolTable.Empty,
-                (table, parameter) => table.Set(parameter.Name, Value.Simple(parameter.Name)));
+            var symbolTable = processor.Given(specExpression.Parameters);
             var result = processor.ProcessShorthand(ImmutableList<Match>.Empty, specExpression.Body, symbolTable);
             return processor.ProcessResult<TProjection>(result);
         }
 
-        private void AddParameters(IEnumerable<ParameterExpression> parameters)
+        private SymbolTable Given(IEnumerable<ParameterExpression> parameters)
         {
-            foreach (var parameter in parameters)
-            {
-                var source = NewLabel(parameter.Name, parameter.Type.FactTypeName());
-                AddGiven(source);
-            }
+            givenLabels = parameters
+                .Select(parameter => NewLabel(parameter.Name, parameter.Type.FactTypeName()))
+                .ToImmutableList();
+            var symbolTable = parameters.Aggregate(
+                SymbolTable.Empty,
+                (table, parameter) => table.Set(parameter.Name, Value.Simple(parameter.Name)));
+            return symbolTable;
         }
 
         private Label NewLabel(string recommendedName, string factType)
@@ -54,11 +48,6 @@ namespace Jinaga.Repository
             var source = new Label(recommendedName, factType);
             labels = labels.Add(source);
             return source;
-        }
-
-        private void AddGiven(Label label)
-        {
-            givenLabels = givenLabels.Add(label);
         }
 
         private Value ProcessShorthand(ImmutableList<Match> matches, Expression expression, SymbolTable symbolTable, string recommendedLabel = "unknown")
