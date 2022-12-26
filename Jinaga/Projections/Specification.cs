@@ -34,6 +34,15 @@ namespace Jinaga.Projections
             return new Specification(ImmutableList<Label>.Empty, newMatches, newProjection);
         }
 
+        public Specification Apply(ImmutableList<string> arguments)
+        {
+            var replacements = Given.Zip(arguments, (parameter, argument) => (parameter, argument))
+                .ToImmutableDictionary(pair => pair.parameter.Name, pair => pair.argument);
+            var newMatches = Matches.Select(match => match.Apply(replacements)).ToImmutableList();
+            var newProjection = Projection.Apply(replacements);
+            return new Specification(ImmutableList<Label>.Empty, newMatches, newProjection);
+        }
+
         public ImmutableList<Product> Execute(ImmutableList<FactReference> startReferences, FactGraph graph)
         {
             var start = Given.Zip(startReferences, (given, reference) =>

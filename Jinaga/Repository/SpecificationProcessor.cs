@@ -1,4 +1,4 @@
-using Jinaga.Definitions;
+﻿using Jinaga.Definitions;
 using Jinaga.Parsers;
 using Jinaga.Pipelines;
 using Jinaga.Projections;
@@ -139,6 +139,29 @@ namespace Jinaga.Repository
                 {
                     return new Value(matches, projection);
                 }
+            }
+            else if (expression is MethodCallExpression observableSpecificationCallExpression &&
+                observableSpecificationCallExpression.Method.DeclaringType == typeof(FactRepository) &&
+                observableSpecificationCallExpression.Method.Name == nameof(FactRepository.Observable) &&
+                observableSpecificationCallExpression.Arguments.Count == 2 &&
+                typeof(Specification).IsAssignableFrom(observableSpecificationCallExpression.Arguments[1].Type))
+            {
+                var start = ProcessScalar(matches, observableSpecificationCallExpression.Arguments[0], symbolTable);
+                var label = LabelOfProjection(start.Projection);
+                var lambdaExpression = Expression.Lambda<Func<object>>(observableSpecificationCallExpression.Arguments[1]);
+                var specification = (Specification)lambdaExpression.Compile().Invoke();
+                var arguments = ImmutableList.Create(label);
+                specification = specification.Apply(arguments);
+                var collectionProjection = new CollectionProjection(specification.Matches, specification.Projection);
+                return new Value(matches, collectionProjection);
+            }
+            else if (expression is MethodCallExpression observableIQueryableCallExpression &&
+                observableIQueryableCallExpression.Method.DeclaringType == typeof(FactRepository) &&
+                observableIQueryableCallExpression.Method.Name == nameof(FactRepository.Observable) &&
+                observableIQueryableCallExpression.Arguments.Count == 1 &&
+                typeof(IQueryable).IsAssignableFrom(observableIQueryableCallExpression.Arguments[0].Type))
+            {
+                throw new NotImplementedException();
             }
             else
             {
