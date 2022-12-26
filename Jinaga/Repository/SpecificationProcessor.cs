@@ -27,6 +27,18 @@ namespace Jinaga.Repository
             return processor.ProcessResult<TProjection>(result);
         }
 
+        public static (ImmutableList<Label> given, ImmutableList<Match> matches, Projection projection) Scalar<TProjection>(LambdaExpression specExpression)
+        {
+            var processor = new SpecificationProcessor();
+            var givenParameters = specExpression.Parameters;
+            processor.AddParameters(givenParameters);
+            var symbolTable = givenParameters.Aggregate(
+                SymbolTable.Empty,
+                (table, parameter) => table.Set(parameter.Name, Value.Simple(parameter.Name)));
+            var result = processor.ProcessExpression(specExpression.Body, symbolTable, "fact");
+            return processor.ProcessResult<TProjection>(result);
+        }
+
         private void AddParameters(IEnumerable<ParameterExpression> parameters)
         {
             foreach (var parameter in parameters)
@@ -34,11 +46,6 @@ namespace Jinaga.Repository
                 var source = NewLabel(parameter.Name, parameter.Type.FactTypeName());
                 AddGiven(source);
             }
-        }
-
-        public static (ImmutableList<Label> given, ImmutableList<Match> matches, Projection projection) Scalar<TProjection>(LambdaExpression specExpression)
-        {
-            throw new NotImplementedException();
         }
 
         private Label NewLabel(string recommendedName, string factType)
@@ -91,7 +98,7 @@ namespace Jinaga.Repository
                     if (methodCallExpression.Method.Name == nameof(FactRepository.OfType) &&
                         methodCallExpression.Arguments.Count == 0)
                     {
-                        return AllocateLabel(recommendedLabel, methodCallExpression.Method.GetGenericArguments()[0]);
+                        return AllocateLabel(recommendedLabel, methodCallExpression.Method.GetGenericArguments()[0].FactTypeName());
                     }
                     else if (methodCallExpression.Method.Name == nameof(FactRepository.OfType) &&
                         methodCallExpression.Arguments.Count == 1)
@@ -102,7 +109,7 @@ namespace Jinaga.Repository
 
                         // Allocate a new label as the source of the match.
                         var genericArgument = methodCallExpression.Method.GetGenericArguments()[0];
-                        var source = AllocateLabel(parameterName, genericArgument);
+                        var source = AllocateLabel(parameterName, genericArgument.FactTypeName());
 
                         // Process the predicate.
                         var childSymbolTable = symbolTable.Set(parameterName, source);
@@ -118,15 +125,30 @@ namespace Jinaga.Repository
                     throw new ArgumentException($"Unsupported method call declaring type {methodCallExpression.Method.DeclaringType.Name}.");
                 }
             }
+            else if (expression is MemberExpression memberExpression)
+            {
+                // Trace predecessors up from the source label.
+                var (label, roles) = ProcessJoinExpression(memberExpression, symbolTable);
+
+                // Label the tail of the predecessor chain.
+                var lastRole = roles.Last();
+                var value = AllocateLabel(lastRole.Name, lastRole.TargetType);
+
+                // Add the path condition to the match.
+                var match = value.Matches.Last();
+                var pathCondition = new PathCondition(ImmutableList<Role>.Empty, label, roles);
+                var newMatch = new Match(match.Unknown, match.Conditions.Add(pathCondition));
+                var newMatches = value.Matches.Replace(match, newMatch);
+                return new Value(newMatches, value.Projection);
+            }
             else
             {
                 throw new ArgumentException($"Unsupported expression type {expression.GetType().Name}: {expression}.");
             }
         }
 
-        private Value AllocateLabel(string parameterName, Type genericArgument)
+        private Value AllocateLabel(string parameterName, string factType)
         {
-            var factType = genericArgument.FactTypeName();
             var label = NewLabel(parameterName, factType);
             var match = new Match(label, ImmutableList<MatchCondition>.Empty);
             var matches = ImmutableList.Create(match);
