@@ -1,4 +1,5 @@
-﻿using Jinaga.Parsers;
+using Jinaga.Definitions;
+using Jinaga.Parsers;
 using Jinaga.Pipelines;
 using Jinaga.Projections;
 using Jinaga.Visualizers;
@@ -109,6 +110,15 @@ namespace Jinaga.Repository
                 var values = newExpression.Arguments
                     .Select(arg => ProcessScalar(matches, arg, symbolTable));
                 var fields = names.Zip(values, (name, value) => KeyValuePair.Create(name, value.Projection))
+                    .ToImmutableDictionary();
+                var compoundProjection = new CompoundProjection(fields);
+                var value = new Value(matches, compoundProjection);
+                return value;
+            }
+            else if (expression is MemberInitExpression memberInit)
+            {
+                var fields = memberInit.Bindings
+                    .Select(binding => ProcessMemberBinding(matches, binding, symbolTable))
                     .ToImmutableDictionary();
                 var compoundProjection = new CompoundProjection(fields);
                 var value = new Value(matches, compoundProjection);
@@ -430,6 +440,20 @@ namespace Jinaga.Repository
             var matches = result.Matches;
             var projection = result.Projection;
             return (givenLabels, matches, projection);
+        }
+
+        private KeyValuePair<string, Projection> ProcessMemberBinding(ImmutableList<Match> matches, MemberBinding binding, SymbolTable symbolTable)
+        {
+            if (binding is MemberAssignment assignment)
+            {
+                var name = assignment.Member.Name;
+                var value = ProcessScalar(matches, assignment.Expression, symbolTable);
+                return KeyValuePair.Create(name, value.Projection);
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
         }
 
         private static LambdaExpression GetLambda(Expression argument)
