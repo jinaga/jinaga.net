@@ -351,7 +351,7 @@ namespace Jinaga.Repository
                             var rolePath = roles.Select(r => r.Name).Join(".");
                             throw new SpecificationException($"Cannot select {simpleProjection.Tag}.{rolePath}.{memberExpression.Member.Name} directly. Give the fact a label first.");
                         }
-                        var fieldProjection = new FieldProjection(simpleProjection.Tag, memberExpression.Type, memberExpression.Member.Name);
+                        var fieldProjection = new FieldProjection(simpleProjection.Tag, memberExpression.Expression.Type, memberExpression.Member.Name);
                         return (fieldProjection, roles);
                     }
                 }

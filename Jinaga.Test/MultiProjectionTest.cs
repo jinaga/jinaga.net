@@ -123,12 +123,14 @@ namespace Jinaga.Test
             var YardsAddressesWithClientsForSupplier = Given<Supplier>.Match((supplier, facts) =>
                 from yard in facts.OfType<Yard>()
                 where yard.client.supplier == supplier
+                from client in facts.OfType<Client>()
+                where client == yard.client
                 select new
                 {
                     yard,
                     yardAddresses = facts.Observable(yard, specifications.addressesOfYard),
-                    yard.client,
-                    clientNames = facts.Observable(yard.client, specifications.namesOfClient)
+                    client,
+                    clientNames = facts.Observable(client, specifications.namesOfClient)
                 }
             );
 

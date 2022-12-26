@@ -59,7 +59,9 @@ namespace Jinaga.Test
             var passengersForAirline = Given<Airline>.Match((airline, facts) =>
                 from booking in facts.OfType<Booking>()
                 where booking.flight.airlineDay.airline == airline
-                select booking.passenger
+                from passenger in facts.OfType<Passenger>()
+                where passenger == booking.passenger
+                select passenger
             );
 
             var passengers = await j.Query(airline, passengersForAirline);
