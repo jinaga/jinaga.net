@@ -145,10 +145,12 @@ namespace Jinaga.Repository
             else if (expression is MemberExpression memberExpression)
             {
                 // Trace predecessors up from the source label.
-                var (label, roles) = ProcessJoinExpression(memberExpression, symbolTable);
+                var (projection, roles) = ProcessJoinExpression(memberExpression, symbolTable);
 
                 if (roles.Any())
                 {
+                    string label = LabelOfProjection(projection);
+
                     // Label the tail of the predecessor chain.
                     var lastRole = roles.Last();
                     var value = AllocateLabel(matches, lastRole.Name, lastRole.TargetType);
@@ -162,7 +164,7 @@ namespace Jinaga.Repository
                 }
                 else
                 {
-                    return new Value(matches, new SimpleProjection(label));
+                    return new Value(matches, projection);
                 }
             }
             else if (expression is NewExpression newExpression)
@@ -208,8 +210,11 @@ namespace Jinaga.Repository
 
         private Value ProcessJoin(Value source, Expression left, Expression right, SymbolTable symbolTable)
         {
-            var (labelLeft, rolesLeft) = ProcessJoinExpression(left, symbolTable);
-            var (labelRight, rolesRight) = ProcessJoinExpression(right, symbolTable);
+            var (projectionLeft, rolesLeft) = ProcessJoinExpression(left, symbolTable);
+            var (projectionRight, rolesRight) = ProcessJoinExpression(right, symbolTable);
+            var labelLeft = LabelOfProjection(projectionLeft);
+            var labelRight = LabelOfProjection(projectionRight);
+            
             var match = source.Matches.LastOrDefault(m =>
                 m.Unknown.Name == labelLeft || m.Unknown.Name == labelRight);
             if (match == null)
@@ -232,57 +237,37 @@ namespace Jinaga.Repository
             return new Value(newMatches, source.Projection);
         }
 
-        private (string label, ImmutableList<Role> roles) ProcessJoinExpression(Expression expression, SymbolTable symbolTable)
+        private (Projection projection, ImmutableList<Role> roles) ProcessJoinExpression(Expression expression, SymbolTable symbolTable)
         {
-            if (expression is MemberExpression memberExpression)
+            if (expression is ParameterExpression parameterExpression)
             {
-                if (memberExpression.Expression is ParameterExpression parameterExpression)
+                var projection = symbolTable.Get(parameterExpression.Name).Projection;
+                return (projection, ImmutableList<Role>.Empty);
+            }
+            else if (expression is MemberExpression memberExpression)
+            {
+                var (projection, roles) = ProcessJoinExpression(memberExpression.Expression, symbolTable);
+                if (projection is CompoundProjection compoundProjection)
                 {
-                    var value = symbolTable.Get(parameterExpression.Name);
-                    if (value.Projection is CompoundProjection compoundProjection)
+                    if (roles.Any())
                     {
-                        var memberValue = compoundProjection.GetProjection(memberExpression.Member.Name);
-                        if (memberValue is SimpleProjection simpleProjection)
-                        {
-                            return (simpleProjection.Tag, ImmutableList<Role>.Empty);
-                        }
-                        else
-                        {
-                            throw new ArgumentException($"This expression cannot be used in a join. The member {memberExpression.Member.Name} is not a fact: {expression}");
-                        }
+                        throw new InvalidOperationException("The role collection should not be populated until we reach a simple projection.");
                     }
+                    var innerProjection = compoundProjection.GetProjection(memberExpression.Member.Name);
+                    return (innerProjection, roles);
                 }
-                var (label, roles) = ProcessJoinExpression(memberExpression.Expression, symbolTable);
-                var role = new Role(memberExpression.Member.Name, memberExpression.Type.FactTypeName());
-                return (label, roles.Add(role));
-            }
-            else if (expression is ParameterExpression parameterExpression)
-            {
-                var value = symbolTable.Get(parameterExpression.Name);
-                if (value.Projection is SimpleProjection simpleProjection)
+                else if (projection is SimpleProjection)
                 {
-                    return (simpleProjection.Tag, ImmutableList<Role>.Empty);
+                    return (projection, roles.Add(new Role(memberExpression.Member.Name, memberExpression.Type.FactTypeName())));
                 }
                 else
                 {
-                    throw new ArgumentException($"Join expression {expression} is not a simple projection.");
-                }
-            }
-            else if (expression is ConstantExpression)
-            {
-                var value = symbolTable.Get("this");
-                if (value.Projection is SimpleProjection simpleProjection)
-                {
-                    return (simpleProjection.Tag, ImmutableList<Role>.Empty);
-                }
-                else
-                {
-                    throw new ArgumentException($"Join expression {expression} is not a simple projection.");
+                    throw new ArgumentException($"Unsupported projection type {projection.GetType().Name}.");
                 }
             }
             else
             {
-                throw new ArgumentException($"Unsupported join expression type {expression.GetType().Name} {expression}.");
+                throw new ArgumentException($"Unsupported member expression type {expression.GetType().Name} {expression}.");
             }
         }
 
@@ -398,6 +383,14 @@ namespace Jinaga.Repository
                 unaryExpression.Operand is LambdaExpression lambdaExpression ?
                     lambdaExpression :
                     throw new ArgumentException($"Expected a unary lambda expression for {argument}.");
+        }
+
+        private static string LabelOfProjection(Projection projection)
+        {
+            // Expect the projection to be a simple one.
+            return projection is SimpleProjection simpleProjection
+                ? simpleProjection.Tag
+                : throw new ArgumentException($"Expected a simple projection, but got {projection.GetType().Name}.");
         }
 
         public static object InstanceOfFact(Type factType)

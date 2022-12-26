@@ -286,8 +286,7 @@ namespace Jinaga.Test
             );
 
             bookingsToRefund.Should().Throw<SpecificationException>().WithMessage(
-                "The variable \"booking\" should be joined to the prior variable \"flight\". " +
-                "Consider \"where booking.flight == flight\"."
+                "The variable \"booking\" should be joined to the prior variable \"flight\"."
             );
         }
 
