@@ -24,7 +24,7 @@ namespace Jinaga.Repository
             var symbolTable = givenParameters.Aggregate(
                 SymbolTable.Empty,
                 (table, parameter) => table.Set(parameter.Name, Value.Simple(parameter.Name)));
-            var result = processor.ProcessExpression(specExpression.Body, symbolTable, "fact");
+            var result = processor.ProcessExpression(ImmutableList<Match>.Empty, specExpression.Body, symbolTable);
             return processor.ProcessResult<TProjection>(result);
         }
 
@@ -36,7 +36,7 @@ namespace Jinaga.Repository
             var symbolTable = givenParameters.Aggregate(
                 SymbolTable.Empty,
                 (table, parameter) => table.Set(parameter.Name, Value.Simple(parameter.Name)));
-            var result = processor.ProcessExpression(specExpression.Body, symbolTable, "fact");
+            var result = processor.ProcessExpression(ImmutableList<Match>.Empty, specExpression.Body, symbolTable);
             return processor.ProcessResult<TProjection>(result);
         }
 
@@ -61,7 +61,7 @@ namespace Jinaga.Repository
             givenLabels = givenLabels.Add(label);
         }
 
-        private Value ProcessExpression(Expression expression, SymbolTable symbolTable, string recommendedLabel)
+        private Value ProcessExpression(ImmutableList<Match> matches, Expression expression, SymbolTable symbolTable, string recommendedLabel = "unknown")
         {
             if (expression is ParameterExpression parameterExpression)
             {
@@ -76,7 +76,7 @@ namespace Jinaga.Repository
                     {
                         var predicate = GetLambda(methodCallExpression.Arguments[1]);
                         var parameterName = predicate.Parameters[0].Name;
-                        var source = ProcessExpression(methodCallExpression.Arguments[0], symbolTable, parameterName);
+                        var source = ProcessExpression(matches, methodCallExpression.Arguments[0], symbolTable, parameterName);
                         var childSymbolTable = symbolTable.Set(parameterName, source);
                         return ProcessWhere(source, predicate.Body, childSymbolTable);
                     }
@@ -85,9 +85,25 @@ namespace Jinaga.Repository
                     {
                         var selector = GetLambda(methodCallExpression.Arguments[1]);
                         var parameterName = selector.Parameters[0].Name;
-                        var source = ProcessExpression(methodCallExpression.Arguments[0], symbolTable, parameterName);
+                        var source = ProcessExpression(matches, methodCallExpression.Arguments[0], symbolTable, parameterName);
                         var childSymbolTable = symbolTable.Set(parameterName, source);
                         return ProcessSelect(source, selector.Body, childSymbolTable);
+                    }
+                    else if (methodCallExpression.Method.Name == nameof(System.Linq.Queryable.SelectMany) &&
+                        methodCallExpression.Arguments.Count == 3)
+                    {
+                        var collectionSelector = GetLambda(methodCallExpression.Arguments[1]);
+                        var collectionSelectorParameterName = collectionSelector.Parameters[0].Name;
+                        var resultSelector = GetLambda(methodCallExpression.Arguments[2]);
+                        var resultSelectorParameterName = resultSelector.Parameters[1].Name;
+                        var source = ProcessExpression(matches, methodCallExpression.Arguments[0], symbolTable, collectionSelectorParameterName);
+                        var collectionSelectorSymbolTable = symbolTable.Set(collectionSelectorParameterName, source);
+                        var collectionSelectorValue = ProcessSelect(source, collectionSelector.Body, collectionSelectorSymbolTable, resultSelectorParameterName);
+                        var resultSelectorSymbolTable = symbolTable
+                            .Set(resultSelector.Parameters[0].Name, source)
+                            .Set(resultSelector.Parameters[1].Name, collectionSelectorValue);
+                        var result = ProcessSelect(collectionSelectorValue, resultSelector.Body, resultSelectorSymbolTable);
+                        return result;
                     }
                     else
                     {
@@ -142,6 +158,19 @@ namespace Jinaga.Repository
                 var newMatches = value.Matches.Replace(match, newMatch);
                 return new Value(newMatches, value.Projection);
             }
+            else if (expression is NewExpression newExpression)
+            {
+                var names = newExpression.Members != null
+                    ? newExpression.Members.Select(member => member.Name)
+                    : newExpression.Constructor.GetParameters().Select(parameter => parameter.Name);
+                var values = newExpression.Arguments
+                    .Select(arg => ProcessExpression(matches, arg, symbolTable));
+                var fields = names.Zip(values, (name, value) => KeyValuePair.Create(name, value.Projection))
+                    .ToImmutableDictionary();
+                var compoundProjection = new CompoundProjection(fields);
+                var value = new Value(matches, compoundProjection);
+                return value;
+            }
             else
             {
                 throw new ArgumentException($"Unsupported expression type {expression.GetType().Name}: {expression}.");
@@ -164,13 +193,9 @@ namespace Jinaga.Repository
             {
                 return ProcessJoin(source, binary.Left, binary.Right, symbolTable);
             }
-            else if (predicate is UnaryExpression { NodeType: ExpressionType.Not, Operand: Expression operand })
-            {
-                return ProcessExistential(source, operand, symbolTable, false);
-            }
             else
             {
-                throw new ArgumentException($"Unsupported where predicate {predicate}.");
+                return ProcessExistential(source, predicate, symbolTable, true);
             }
         }
 
@@ -251,7 +276,7 @@ namespace Jinaga.Repository
                     if (methodCallExpression.Method.Name == nameof(System.Linq.Queryable.Any) &&
                         methodCallExpression.Arguments.Count == 1)
                     {
-                        var value = ProcessExpression(methodCallExpression.Arguments[0], symbolTable, "unknown");
+                        var value = ProcessExpression(ImmutableList<Match>.Empty, methodCallExpression.Arguments[0], symbolTable);
 
                         // Find the unknown that the condition references.
                         var firstPathCondition = value.Matches
@@ -301,7 +326,7 @@ namespace Jinaga.Repository
                 {
                     object target = InstanceOfFact(propertyInfo.DeclaringType);
                     var condition = (Condition)propertyInfo.GetGetMethod().Invoke(target, new object[0]);
-                    var value = ProcessExpression(member.Expression, symbolTable, "unknown");
+                    var value = ProcessExpression(ImmutableList<Match>.Empty, member.Expression, symbolTable);
                     var childSymbolTable = symbolTable.Set("this", value);
                     return ProcessExistential(source, condition.Body.Body, childSymbolTable, exists);
                 }
@@ -317,9 +342,9 @@ namespace Jinaga.Repository
             throw new NotImplementedException();
         }
 
-        private Value ProcessSelect(Value source, Expression selector, SymbolTable symbolTable)
+        private Value ProcessSelect(Value source, Expression selector, SymbolTable symbolTable, string recommendedLabel = "unknown")
         {
-            return ProcessExpression(selector, symbolTable, "unknown");
+            return ProcessExpression(source.Matches, selector, symbolTable, recommendedLabel);
         }
 
         private (ImmutableList<Label> given, ImmutableList<Match> matches, Projection projection) ProcessResult<TProjection>(Value result)

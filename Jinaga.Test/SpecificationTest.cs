@@ -62,7 +62,7 @@ namespace Jinaga.Test
                 );
             constructor.Should().Throw<SpecificationException>()
                 .WithMessage(
-                    "The variable \"fact\" should be joined to the parameter \"item\"."
+                    "The variable \"unknown\" should be joined to the parameter \"item\"."
                 );
         }
 
@@ -89,7 +89,7 @@ namespace Jinaga.Test
                 );
             constructor.Should().Throw<SpecificationException>()
                 .WithMessage(
-                    "The variable \"fact\" should be joined to the parameter \"order\"."
+                    "The variable \"unknown\" should be joined to the parameter \"order\"."
                 );
         }
 
@@ -100,7 +100,7 @@ namespace Jinaga.Test
                 Given<Airline>.Match((airline, facts) => facts.OfType<Flight>());
             constructor.Should().Throw<SpecificationException>()
                 .WithMessage(
-                    "The variable \"fact\" should be joined to the parameter \"airline\".");
+                    "The variable \"unknown\" should be joined to the parameter \"airline\".");
         }
 
         [Fact]
