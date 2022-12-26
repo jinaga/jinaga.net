@@ -1,4 +1,5 @@
 ﻿using Jinaga.Projections;
+using System;
 using System.Collections.Immutable;
 using System.Linq;
 
@@ -15,7 +16,13 @@ namespace Jinaga.Repository
             Projection = projection;
         }
 
-        internal static Value Simple(string label)
+        public Value Merge(ImmutableList<Match> matches)
+        {
+            // TODO: Merge the new matches into this value's matches.
+            return this;
+        }
+
+        public static Value Simple(string label)
         {
             return new Value(
                 ImmutableList<Match>.Empty,

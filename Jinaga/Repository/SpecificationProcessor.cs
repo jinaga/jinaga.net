@@ -65,7 +65,7 @@ namespace Jinaga.Repository
         {
             if (expression is ParameterExpression parameterExpression)
             {
-                return symbolTable.Get(parameterExpression.Name);
+                return symbolTable.Get(parameterExpression.Name).Merge(matches);
             }
             else if (expression is MethodCallExpression methodCallExpression)
             {
@@ -98,11 +98,11 @@ namespace Jinaga.Repository
                         var resultSelectorParameterName = resultSelector.Parameters[1].Name;
                         var source = ProcessExpression(matches, methodCallExpression.Arguments[0], symbolTable, collectionSelectorParameterName);
                         var collectionSelectorSymbolTable = symbolTable.Set(collectionSelectorParameterName, source);
-                        var collectionSelectorValue = ProcessSelect(source, collectionSelector.Body, collectionSelectorSymbolTable, resultSelectorParameterName);
+                        var collectionSelectorValue = ProcessExpression(source.Matches, collectionSelector.Body, collectionSelectorSymbolTable, resultSelectorParameterName);
                         var resultSelectorSymbolTable = symbolTable
                             .Set(resultSelector.Parameters[0].Name, source)
                             .Set(resultSelector.Parameters[1].Name, collectionSelectorValue);
-                        var result = ProcessSelect(collectionSelectorValue, resultSelector.Body, resultSelectorSymbolTable);
+                        var result = ProcessExpression(collectionSelectorValue.Matches, resultSelector.Body, resultSelectorSymbolTable);
                         return result;
                     }
                     else
@@ -115,7 +115,7 @@ namespace Jinaga.Repository
                     if (methodCallExpression.Method.Name == nameof(FactRepository.OfType) &&
                         methodCallExpression.Arguments.Count == 0)
                     {
-                        return AllocateLabel(recommendedLabel, methodCallExpression.Method.GetGenericArguments()[0].FactTypeName());
+                        return AllocateLabel(matches, recommendedLabel, methodCallExpression.Method.GetGenericArguments()[0].FactTypeName());
                     }
                     else if (methodCallExpression.Method.Name == nameof(FactRepository.OfType) &&
                         methodCallExpression.Arguments.Count == 1)
@@ -126,7 +126,7 @@ namespace Jinaga.Repository
 
                         // Allocate a new label as the source of the match.
                         var genericArgument = methodCallExpression.Method.GetGenericArguments()[0];
-                        var source = AllocateLabel(parameterName, genericArgument.FactTypeName());
+                        var source = AllocateLabel(matches, parameterName, genericArgument.FactTypeName());
 
                         // Process the predicate.
                         var childSymbolTable = symbolTable.Set(parameterName, source);
@@ -147,16 +147,23 @@ namespace Jinaga.Repository
                 // Trace predecessors up from the source label.
                 var (label, roles) = ProcessJoinExpression(memberExpression, symbolTable);
 
-                // Label the tail of the predecessor chain.
-                var lastRole = roles.Last();
-                var value = AllocateLabel(lastRole.Name, lastRole.TargetType);
+                if (roles.Any())
+                {
+                    // Label the tail of the predecessor chain.
+                    var lastRole = roles.Last();
+                    var value = AllocateLabel(matches, lastRole.Name, lastRole.TargetType);
 
-                // Add the path condition to the match.
-                var match = value.Matches.Last();
-                var pathCondition = new PathCondition(ImmutableList<Role>.Empty, label, roles);
-                var newMatch = new Match(match.Unknown, match.Conditions.Add(pathCondition));
-                var newMatches = value.Matches.Replace(match, newMatch);
-                return new Value(newMatches, value.Projection);
+                    // Add the path condition to the match.
+                    var match = value.Matches.Last();
+                    var pathCondition = new PathCondition(ImmutableList<Role>.Empty, label, roles);
+                    var newMatch = new Match(match.Unknown, match.Conditions.Add(pathCondition));
+                    var newMatches = value.Matches.Replace(match, newMatch);
+                    return new Value(newMatches, value.Projection);
+                }
+                else
+                {
+                    return new Value(matches, new SimpleProjection(label));
+                }
             }
             else if (expression is NewExpression newExpression)
             {
@@ -177,13 +184,13 @@ namespace Jinaga.Repository
             }
         }
 
-        private Value AllocateLabel(string parameterName, string factType)
+        private Value AllocateLabel(ImmutableList<Match> matches, string parameterName, string factType)
         {
             var label = NewLabel(parameterName, factType);
             var match = new Match(label, ImmutableList<MatchCondition>.Empty);
-            var matches = ImmutableList.Create(match);
+            var newMatches = matches.Add(match);
             var projection = new SimpleProjection(parameterName);
-            var source = new Value(matches, projection);
+            var source = new Value(newMatches, projection);
             return source;
         }
 
@@ -207,7 +214,7 @@ namespace Jinaga.Repository
                 m.Unknown.Name == labelLeft || m.Unknown.Name == labelRight);
             if (match == null)
             {
-                throw new ArgumentException($"Join expression {left} or {right} is not a member of the query.");
+                throw new ArgumentException($"Neither {labelLeft} nor {labelRight} is found in the query.");
             }
             // Swap the roles so that the left is always the unknown.
             if (labelRight == match.Unknown.Name)
@@ -229,6 +236,22 @@ namespace Jinaga.Repository
         {
             if (expression is MemberExpression memberExpression)
             {
+                if (memberExpression.Expression is ParameterExpression parameterExpression)
+                {
+                    var value = symbolTable.Get(parameterExpression.Name);
+                    if (value.Projection is CompoundProjection compoundProjection)
+                    {
+                        var memberValue = compoundProjection.GetProjection(memberExpression.Member.Name);
+                        if (memberValue is SimpleProjection simpleProjection)
+                        {
+                            return (simpleProjection.Tag, ImmutableList<Role>.Empty);
+                        }
+                        else
+                        {
+                            throw new ArgumentException($"This expression cannot be used in a join. The member {memberExpression.Member.Name} is not a fact: {expression}");
+                        }
+                    }
+                }
                 var (label, roles) = ProcessJoinExpression(memberExpression.Expression, symbolTable);
                 var role = new Role(memberExpression.Member.Name, memberExpression.Type.FactTypeName());
                 return (label, roles.Add(role));
