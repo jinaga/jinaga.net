@@ -163,6 +163,10 @@ namespace Jinaga.Repository
             {
                 return ProcessJoin(source, binary.Left, binary.Right, symbolTable);
             }
+            else if (predicate is UnaryExpression { NodeType: ExpressionType.Not, Operand: Expression operand })
+            {
+                return ProcessExistential(source, operand, symbolTable, false);
+            }
             else
             {
                 throw new ArgumentException($"Unsupported where predicate {predicate}.");
@@ -220,7 +224,63 @@ namespace Jinaga.Repository
                 throw new ArgumentException($"Unsupported join expression type {expression.GetType().Name} {expression}.");
             }
         }
-        
+
+        private Value ProcessExistential(Value source, Expression predicate, SymbolTable symbolTable, bool exists)
+        {
+            if (predicate is UnaryExpression { NodeType: ExpressionType.Not, Operand: Expression operand })
+            {
+                return ProcessExistential(source, operand, symbolTable, !exists);
+            }
+            if (predicate is MethodCallExpression methodCallExpression)
+            {
+                if (methodCallExpression.Method.DeclaringType == typeof(Queryable))
+                {
+                    if (methodCallExpression.Method.Name == nameof(System.Linq.Queryable.Any) &&
+                        methodCallExpression.Arguments.Count == 1)
+                    {
+                        var value = ProcessExpression(methodCallExpression.Arguments[0], symbolTable, "unknown");
+
+                        // Find the unknown that the condition references.
+                        var firstPathCondition = value.Matches
+                            .SelectMany(m => m.Conditions)
+                            .OfType<PathCondition>()
+                            .FirstOrDefault();
+                        if (firstPathCondition == null)
+                        {
+                            throw new ArgumentException($"An existential predicate must be joined to an outer variable: {predicate}.");
+                        }
+                        var label = firstPathCondition.LabelRight;
+
+                        // Find the match to which this condition applies.
+                        var match = source.Matches.FirstOrDefault(m => m.Unknown.Name == label);
+                        if (match == null)
+                        {
+                            throw new ArgumentException($"The predicate references {label} which is not in the query: {predicate}.");
+                        }
+
+                        // Add an existential condition to the match.
+                        var existentialCondition = new ExistentialCondition(exists, value.Matches);
+                        var newMatch = new Match(match.Unknown, match.Conditions.Add(existentialCondition));
+                        var newMatches = source.Matches.Remove(match).Add(newMatch);
+                        return new Value(newMatches, source.Projection);
+                    }
+                    else
+                    {
+                        throw new ArgumentException($"Unsupported method call {methodCallExpression.Method.Name} on Queryable.");
+                    }
+                }
+                else
+                {
+                    throw new ArgumentException($"Unsupported method call declaring type {methodCallExpression.Method.DeclaringType.Name}: {methodCallExpression}.");
+                }
+            }
+            else
+            {
+                throw new ArgumentException($"Unsupported existential predicate type {predicate.GetType().Name}: {predicate}.");
+            }
+            throw new NotImplementedException();
+        }
+
         private Value ProcessSelect(Value source, Expression selector, SymbolTable symbolTable)
         {
             return ProcessExpression(selector, symbolTable, "unknown");
