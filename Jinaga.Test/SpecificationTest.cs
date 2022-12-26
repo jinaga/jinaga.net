@@ -383,22 +383,15 @@ namespace Jinaga.Test
         [Fact]
         public void Specification_SelectPredecessor()
         {
-            var passengersForAirline = Given<Flight>.Match((flight, facts) =>
+            Func<Specification<Flight, Passenger>> passengersForAirline = () => Given<Flight>.Match((flight, facts) =>
                 from booking in facts.OfType<Booking>()
                 where booking.flight == flight
                 select booking.passenger
             );
 
-            var descriptiveString = passengersForAirline.ToDescriptiveString();
-            descriptiveString.Should().Be(@"(flight: Skylane.Flight) {
-    booking: Skylane.Booking [
-        booking->flight: Skylane.Flight = flight
-    ]
-    passenger: Skylane.Passenger [
-        passenger = booking->passenger: Skylane.Passenger
-    ]
-} => passenger
-".Replace("\r", ""));
+            passengersForAirline.Should().Throw<SpecificationException>().WithMessage(
+                "Cannot select passenger directly. Give the fact a label first."
+            );
         }
 
         [Fact]

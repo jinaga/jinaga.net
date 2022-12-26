@@ -123,7 +123,7 @@ namespace Jinaga.Repository
                 if (roles.Any())
                 {
                     var rolePath = roles.Select(r => r.Name).Join(".");
-                    throw new SpecificationException($"Cannot select {rolePath}.{memberExpression.Member.Name} directly. Give the fact a label first.");
+                    throw new SpecificationException($"Cannot select {rolePath} directly. Give the fact a label first.");
                 }
                 else
                 {
