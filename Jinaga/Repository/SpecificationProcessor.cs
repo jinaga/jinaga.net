@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Reflection;
 
 namespace Jinaga.Repository
 {
@@ -219,6 +220,18 @@ namespace Jinaga.Repository
                     throw new ArgumentException($"Join expression {expression} is not a simple projection.");
                 }
             }
+            else if (expression is ConstantExpression)
+            {
+                var value = symbolTable.Get("this");
+                if (value.Projection is SimpleProjection simpleProjection)
+                {
+                    return (simpleProjection.Tag, ImmutableList<Role>.Empty);
+                }
+                else
+                {
+                    throw new ArgumentException($"Join expression {expression} is not a simple projection.");
+                }
+            }
             else
             {
                 throw new ArgumentException($"Unsupported join expression type {expression.GetType().Name} {expression}.");
@@ -274,6 +287,29 @@ namespace Jinaga.Repository
                     throw new ArgumentException($"Unsupported method call declaring type {methodCallExpression.Method.DeclaringType.Name}: {methodCallExpression}.");
                 }
             }
+            else if (predicate is UnaryExpression
+            {
+                Operand: MemberExpression
+                {
+                    Member: PropertyInfo propertyInfo
+                } member,
+                NodeType: ExpressionType.Convert
+            } unaryExpression)
+            {
+                if (propertyInfo.PropertyType == typeof(Condition) &&
+                    unaryExpression.Type == typeof(Boolean))
+                {
+                    object target = InstanceOfFact(propertyInfo.DeclaringType);
+                    var condition = (Condition)propertyInfo.GetGetMethod().Invoke(target, new object[0]);
+                    var value = ProcessExpression(member.Expression, symbolTable, "unknown");
+                    var childSymbolTable = symbolTable.Set("this", value);
+                    return ProcessExistential(source, condition.Body.Body, childSymbolTable, exists);
+                }
+                else
+                {
+                    throw new ArgumentException($"A predicate must be a property of type Condition. This one is a {propertyInfo.PropertyType.Name}: {predicate}.");
+                }
+            }
             else
             {
                 throw new ArgumentException($"Unsupported existential predicate type {predicate.GetType().Name}: {predicate}.");
@@ -314,6 +350,16 @@ namespace Jinaga.Repository
                 unaryExpression.Operand is LambdaExpression lambdaExpression ?
                     lambdaExpression :
                     throw new ArgumentException($"Expected a unary lambda expression for {argument}.");
+        }
+
+        public static object InstanceOfFact(Type factType)
+        {
+            var constructor = factType.GetConstructors().First();
+            var parameters = constructor.GetParameters()
+                .Select(parameter => parameter.ParameterType)
+                .Select(type => type.IsValueType ? Activator.CreateInstance(type) : InstanceOfFact(type))
+                .ToArray();
+            return Activator.CreateInstance(factType, parameters);
         }
     }
 }
