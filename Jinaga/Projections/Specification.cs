@@ -1,9 +1,9 @@
-using System;
-using System.Collections.Immutable;
-using System.Linq;
 using Jinaga.Facts;
 using Jinaga.Pipelines;
 using Jinaga.Products;
+using System;
+using System.Collections.Immutable;
+using System.Linq;
 
 namespace Jinaga.Projections
 {
@@ -24,15 +24,6 @@ namespace Jinaga.Projections
         public Projection Projection { get; }
 
         public bool CanRunOnGraph => Matches.All(m => m.CanRunOnGraph) && Projection.CanRunOnGraph;
-
-        public Specification Apply(ImmutableList<Label> arguments)
-        {
-            var replacements = Given.Zip(arguments, (parameter, argument) => (parameter, argument))
-                .ToImmutableDictionary(pair => pair.parameter.Name, pair => pair.argument.Name);
-            var newMatches = Matches.Select(match => match.Apply(replacements)).ToImmutableList();
-            var newProjection = Projection.Apply(replacements);
-            return new Specification(ImmutableList<Label>.Empty, newMatches, newProjection);
-        }
 
         public Specification Apply(ImmutableList<string> arguments)
         {

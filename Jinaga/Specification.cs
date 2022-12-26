@@ -1,10 +1,10 @@
+using Jinaga.Pipelines;
+using Jinaga.Projections;
+using Jinaga.Repository;
 using System;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Linq.Expressions;
-using Jinaga.Repository;
-using Jinaga.Projections;
-using Jinaga.Pipelines;
-using System.Collections.Immutable;
 
 namespace Jinaga
 {
