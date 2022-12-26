@@ -394,7 +394,7 @@ namespace Jinaga.Repository
                 {
                     object target = InstanceOfFact(propertyInfo.DeclaringType);
                     var condition = (Condition)propertyInfo.GetGetMethod().Invoke(target, new object[0]);
-                    var value = ProcessQueryable(ImmutableList<Match>.Empty, member.Expression, symbolTable);
+                    var value = ProcessScalar(ImmutableList<Match>.Empty, member.Expression, symbolTable);
                     var childSymbolTable = symbolTable.Set("this", value);
                     return ProcessExistential(source, condition.Body.Body, childSymbolTable, exists);
                 }
