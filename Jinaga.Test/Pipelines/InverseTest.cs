@@ -144,7 +144,7 @@ namespace Jinaga.Test.Pipelines
             });
         }
 
-        [Fact(Skip = "Fails with infinite loop")]
+        [Fact]
         public void Inverse_RestorePattern()
         {
             var specification = Given<Company>.Match((company, facts) =>
