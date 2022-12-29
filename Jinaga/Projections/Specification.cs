@@ -34,9 +34,9 @@ namespace Jinaga.Projections
             return new Specification(ImmutableList<Label>.Empty, newMatches, newProjection);
         }
 
-        public ImmutableList<Product> Execute(ImmutableList<FactReference> startReferences, FactGraph graph)
+        public ImmutableList<Product> Execute(ImmutableList<FactReference> givenReferences, FactGraph graph)
         {
-            var start = Given.Zip(startReferences, (given, reference) =>
+            var start = Given.Zip(givenReferences, (given, reference) =>
                 (name: given.Name, reference)
             ).ToImmutableDictionary(pair => pair.name, pair => pair.reference);
             var tuples = ExecuteMatches(start, Matches, graph);

@@ -53,9 +53,9 @@ namespace Jinaga.Storage
             return Task.FromResult(newFacts);
         }
 
-        public Task<ImmutableList<Product>> Query(ImmutableList<FactReference> startReferences, Specification specification, CancellationToken cancellationToken)
+        public Task<ImmutableList<Product>> Query(ImmutableList<FactReference> givenReferences, Specification specification, CancellationToken cancellationToken)
         {
-            var start = specification.Given.Zip(startReferences, (given, reference) =>
+            var start = specification.Given.Zip(givenReferences, (given, reference) =>
                 (name: given.Name, reference)
             ).ToImmutableDictionary(pair => pair.name, pair => pair.reference);
             var products = ExecuteMatchesAndProjection(start, specification.Matches, specification.Projection);

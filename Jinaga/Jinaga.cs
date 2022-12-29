@@ -47,28 +47,28 @@ namespace Jinaga
         }
 
         public async Task<ImmutableList<TProjection>> Query<TFact, TProjection>(
-            TFact start,
+            TFact given,
             Specification<TFact, TProjection> specification,
             CancellationToken cancellationToken = default) where TFact : class
         {
-            if (start == null)
+            if (given == null)
             {
-                throw new ArgumentNullException(nameof(start));
+                throw new ArgumentNullException(nameof(given));
             }
 
-            var graph = factManager.Serialize(start);
-            var startReference = graph.Last;
-            var startReferences = ImmutableList.Create(startReference);
+            var graph = factManager.Serialize(given);
+            var givenReference = graph.Last;
+            var givenReferences = ImmutableList.Create(givenReference);
             if (specification.CanRunOnGraph)
             {
-                var products = specification.Execute(startReferences, graph);
+                var products = specification.Execute(givenReferences, graph);
                 var productAnchorProjections = factManager.DeserializeProductsFromGraph(
                     graph, specification.Projection, products, typeof(TProjection), Product.Empty, "", null);
                 return productAnchorProjections.Select(pap => (TProjection)pap.Projection).ToImmutableList();
             }
             else
             {
-                var products = await factManager.Query(startReferences, specification, cancellationToken);
+                var products = await factManager.Query(givenReferences, specification, cancellationToken);
                 var productProjections = await factManager.ComputeProjections(specification.Projection, products, typeof(TProjection), null, Product.Empty, string.Empty, cancellationToken);
                 var projections = productProjections
                     .Select(pair => (TProjection)pair.Projection)
@@ -78,11 +78,11 @@ namespace Jinaga
         }
 
         public Observer<TProjection> Watch<TFact, TProjection>(
-            TFact start,
+            TFact given,
             Specification<TFact, TProjection> specification,
             Action<TProjection> added)
         {
-            return Watch<TFact, TProjection>(start, specification,
+            return Watch<TFact, TProjection>(given, specification,
                 projection =>
                 {
                     added(projection);
@@ -93,11 +93,11 @@ namespace Jinaga
         }
 
         public Observer<TProjection> Watch<TFact, TProjection>(
-            TFact start,
+            TFact given,
             Specification<TFact, TProjection> specification,
             Func<TProjection, Action> added)
         {
-            return Watch<TFact, TProjection>(start, specification,
+            return Watch<TFact, TProjection>(given, specification,
                 projection =>
                 {
                     var removed = added(projection);
@@ -112,11 +112,11 @@ namespace Jinaga
         }
 
         public Observer<TProjection> Watch<TFact, TProjection>(
-            TFact start,
+            TFact given,
             Specification<TFact, TProjection> specification,
             Func<TProjection, Task> added)
         {
-            return Watch<TFact, TProjection>(start, specification,
+            return Watch<TFact, TProjection>(given, specification,
                 async projection =>
                 {
                     await added(projection);
@@ -126,21 +126,21 @@ namespace Jinaga
         }
 
         public Observer<TProjection> Watch<TFact, TProjection>(
-            TFact start,
+            TFact given,
             Specification<TFact, TProjection> specification,
             Func<TProjection, Task<Func<Task>>> added)
         {
-            if (start == null)
+            if (given == null)
             {
-                throw new ArgumentNullException(nameof(start));
+                throw new ArgumentNullException(nameof(given));
             }
 
-            var graph = factManager.Serialize(start);
-            var startReference = graph.Last;
+            var graph = factManager.Serialize(given);
+            var givenReference = graph.Last;
             var projection = specification.Projection;
-            var initialAnchor = Product.Empty.With(specification.Given.First().Name, new SimpleElement(startReference));
-            var observation = new FunctionObservation<TProjection>(initialAnchor, added);
-            var observer = new Observer<TProjection>(specification, initialAnchor, factManager, observation);
+            var givenAnchor = Product.Empty.With(specification.Given.First().Name, new SimpleElement(givenReference));
+            var observation = new FunctionObservation<TProjection>(givenAnchor, added);
+            var observer = new Observer<TProjection>(specification, givenAnchor, factManager, observation);
             factManager.AddObserver(observer);
             observer.Start();
             return observer;

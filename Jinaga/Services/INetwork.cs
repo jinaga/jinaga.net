@@ -11,7 +11,7 @@ namespace Jinaga.Services
 {
     public interface INetwork
     {
-        Task<ImmutableList<string>> Feeds(ImmutableList<FactReference> startReferences, Specification specification, CancellationToken cancellationToken);
+        Task<ImmutableList<string>> Feeds(ImmutableList<FactReference> givenReferences, Specification specification, CancellationToken cancellationToken);
         Task<(ImmutableList<Facts.FactReference> references, string bookmark)> FetchFeed(string feed, string bookmark, CancellationToken cancellationToken);
         Task<FactGraph> Load(ImmutableList<FactReference> factReferences, CancellationToken cancellationToken);
         Task Save(ImmutableList<Fact> facts, CancellationToken cancellationToken);

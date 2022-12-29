@@ -28,10 +28,10 @@ namespace Jinaga.Managers
             await network.Save(facts, cancellationToken);
         }
 
-        public async Task Query(ImmutableList<FactReference> startReferences, Specification specification, CancellationToken cancellationToken)
+        public async Task Query(ImmutableList<FactReference> givenReferences, Specification specification, CancellationToken cancellationToken)
         {
             // Get the feeds from the source.
-            var feeds = await network.Feeds(startReferences, specification, cancellationToken);
+            var feeds = await network.Feeds(givenReferences, specification, cancellationToken);
 
             // TODO: Fork to fetch from each feed.
             foreach (var feed in feeds)

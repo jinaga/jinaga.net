@@ -68,6 +68,23 @@ namespace Jinaga.Test
         }
 
         [Fact]
+        public async Task Watch_AddedToOtherPredecessor()
+        {
+            var company = await j.Fact(new Company("Contoso"));
+            var otherCompany = await j.Fact(new Company("OtherCompany"));
+
+            var officeObserver = j.Watch(company, officesInCompany,
+                async office => await officeRepository.Insert(office)
+            );
+            await officeObserver.Initialized;
+
+            var newOffice = await j.Fact(new Office(otherCompany, new City("Dallas")));
+            await officeObserver.Stop();
+
+            officeRepository.Items.Should().BeEmpty();
+        }
+
+        [Fact]
         public async Task Watch_ExistingRemoved()
         {
             var company = await j.Fact(new Company("Contoso"));
