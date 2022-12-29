@@ -105,14 +105,18 @@ namespace Jinaga.Pipelines
                             context.Projection
                         );
                         bool exists = existentialCondition.Exists;
+                        var operation = InferOperation(parentOperation, exists);
                         var inverse = new Inverse(
                             inverseSpecification,
                             context.GivenSubset,
-                            InferOperation(parentOperation, exists),
+                            operation,
                             context.ResultSubset,
                             ImmutableList<CollectionIdentifier>.Empty
                         );
                         inverses = inverses.Add(inverse);
+
+                        var existentialInverses = InvertExistentialConditions(matches, match.Conditions, operation, context);
+                        inverses = inverses.AddRange(existentialInverses);
                     }
                 }
             }
