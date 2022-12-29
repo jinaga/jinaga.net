@@ -1,5 +1,4 @@
-﻿using Jinaga.Pipelines;
-using System;
+﻿using System;
 using System.Collections.Immutable;
 
 namespace Jinaga.Projections
@@ -22,18 +21,6 @@ namespace Jinaga.Projections
         public override string ToDescriptiveString(int depth = 0)
         {
             return $"{Tag}.{FieldName}";
-        }
-
-        public override Projection Apply(Label parameter, Label argument)
-        {
-            if (Tag == parameter.Name)
-            {
-                return new FieldProjection(argument.Name, FactRuntimeType, FieldName);
-            }
-            else
-            {
-                return this;
-            }
         }
 
         public override Projection Apply(ImmutableDictionary<string, string> replacements)

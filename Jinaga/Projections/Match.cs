@@ -1,7 +1,7 @@
-using System.Linq;
+using Jinaga.Pipelines;
 using System;
 using System.Collections.Immutable;
-using Jinaga.Pipelines;
+using System.Linq;
 
 namespace Jinaga.Projections
 {

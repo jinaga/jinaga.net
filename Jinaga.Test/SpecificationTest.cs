@@ -38,8 +38,7 @@ namespace Jinaga.Test
                 );
             constructor.Should().Throw<SpecificationException>()
                 .WithMessage(
-                    "The variable \"flight\" should be joined to the parameter \"airline\". " +
-                    "Consider \"where flight.airlineDay.airline == airline\".");
+                    "The variable \"flight\" should be joined to the parameter \"airline\".");
         }
 
         [Fact]
@@ -52,8 +51,7 @@ namespace Jinaga.Test
                 );
             constructor.Should().Throw<SpecificationException>()
                 .WithMessage(
-                    "The variable \"order\" should be joined to the parameter \"item\". " +
-                    "Consider \"where order.items.Contains(item)\"."
+                    "The variable \"order\" should be joined to the parameter \"item\"."
                 );
         }
 
@@ -66,8 +64,7 @@ namespace Jinaga.Test
                 );
             constructor.Should().Throw<SpecificationException>()
                 .WithMessage(
-                    "The set should be joined to the parameter \"item\". " +
-                    "Consider \"facts.OfType<Order>(order => order.items.Contains(item))\"."
+                    "The variable \"unknown\" should be joined to the parameter \"item\"."
                 );
         }
 
@@ -81,8 +78,7 @@ namespace Jinaga.Test
                 );
             constructor.Should().Throw<SpecificationException>()
                 .WithMessage(
-                    "The variable \"item\" should be joined to the parameter \"order\". " +
-                    "Consider \"where order.items.Contains(item)\"."
+                    "The variable \"item\" should be joined to the parameter \"order\"."
                 );
         }
 
@@ -95,8 +91,7 @@ namespace Jinaga.Test
                 );
             constructor.Should().Throw<SpecificationException>()
                 .WithMessage(
-                    "The set should be joined to the parameter \"order\". " +
-                    "Consider \"facts.OfType<Item>(item => order.items.Contains(item))\"."
+                    "The variable \"unknown\" should be joined to the parameter \"order\"."
                 );
         }
 
@@ -107,8 +102,7 @@ namespace Jinaga.Test
                 Given<Airline>.Match((airline, facts) => facts.OfType<Flight>());
             constructor.Should().Throw<SpecificationException>()
                 .WithMessage(
-                    "The set should be joined to the parameter \"airline\". " +
-                    "Consider \"facts.OfType<Flight>(flight => flight.airlineDay.airline == airline)\".");
+                    "The variable \"unknown\" should be joined to the parameter \"airline\".");
         }
 
         [Fact]
@@ -301,8 +295,7 @@ namespace Jinaga.Test
             );
 
             bookingsToRefund.Should().Throw<SpecificationException>().WithMessage(
-                "The variable \"booking\" should be joined to the prior variable \"flight\". " +
-                "Consider \"where booking.flight == flight\"."
+                "The variable \"booking\" should be joined to the prior variable \"flight\"."
             );
         }
 
@@ -401,23 +394,15 @@ namespace Jinaga.Test
         [Fact]
         public void Specification_SelectPredecessor()
         {
-            var passengersForAirline = Given<Flight>.Match((flight, facts) =>
+            Func<Specification<Flight, Passenger>> passengersForAirline = () => Given<Flight>.Match((flight, facts) =>
                 from booking in facts.OfType<Booking>()
                 where booking.flight == flight
                 select booking.passenger
             );
 
-            var descriptiveString = passengersForAirline.ToDescriptiveString(4);
-            descriptiveString.Should().Be(Indented(4, @"
-                (flight: Skylane.Flight) {
-                    booking: Skylane.Booking [
-                        booking->flight: Skylane.Flight = flight
-                    ]
-                    passenger: Skylane.Passenger [
-                        passenger = booking->passenger: Skylane.Passenger
-                    ]
-                } => passenger
-                "));
+            passengersForAirline.Should().Throw<SpecificationException>().WithMessage(
+                "Cannot select passenger directly. Give the fact a label first."
+            );
         }
 
         [Fact]
