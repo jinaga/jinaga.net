@@ -42,13 +42,17 @@ var contosoEmployees = await j.Query(contoso, employeesOfCompany);
 ```
 
 A query returns results at a point in time.
-If you want to keep a user interface up-to-date, you will need to continually watch.
+If you want to keep a user interface up-to-date, you will need to set up an event-based watch.
 
 ```C#
-var observer = j.Watch(contoso, employeesOfCompany, o => o
-    .OnAdded(employee => AddEmployeeComponent(employee))
-    .OnRemoved(component => RemoveEmployeeComponent(component))
-);
+var observer = j.Watch(contoso, employeesOfCompany, employee =>
+{
+    var component = AddEmployeeComponent(employee);
+    return () =>
+    {
+        RemoveEmployeeComponent(component);
+    };
+});
 ```
 
 Finally, if you want to be notified in real time of new information, just subscribe.
@@ -79,7 +83,10 @@ The container is listening at port 8080 for commands.
 Configure Jinaga to use the replicator:
 
 ```C#
-var j = JinagaClient.Create();  // Defaults to http://localhost:8080/jinaga
+var j = JinagaClient.Create(options =>
+{
+    options.HttpEndpoint = new Uri("http://localhost:8080/jinaga");
+});
 ```
 
 ## Roadmap
@@ -105,24 +112,9 @@ The JS version uses polling rather than the intended mechanism of Web Sockets or
 
 ### Storage
 
-Jinaga.NET currently has only memory storage, which is packaged with the unit testing library.
+Jinaga.NET currently has only memory storage, which is packaged with the core library.
 The next storage solutions to implement are SQLite to support Xamarin mobile apps and PostgreSQL to support Docker deployment.
 After that, the MS SQL Server implementation will support enterprise solutions that need to keep the journal transactionally consistent with the projection.
-
-The `IStore` interface for Jinaga.NET currently includes both `Query` and `QueryAll`.
-The `QueryAll` method is more general.
-All calls to `Query` will be moved over, and then the more specific method will be removed.
-Jinaga.JS does not yet have the equivalent of `QueryAll`, so that will come later.
-
-### Pipelines
-
-The pipeline compiler continues to evolve.
-I'm using .NET Interactive Notebooks to explore the types of queries that applications will need, and then test drive their implementations.
-The next pipeline feature to implement is nested specifications.
-
-The pipeline inverter is currently driven by scenarios as well.
-A future project will be to walk through the proof of query inversion presented in [The Art of Immutable Architecture](https://immutablearchitecture.com) and verify that this pipeline inverter is correct.
-We will also back port the Jinaga.NET pipeline inverter to Jinaga.JS.
 
 ### Rules
 
