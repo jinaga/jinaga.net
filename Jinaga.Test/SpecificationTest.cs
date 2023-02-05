@@ -29,6 +29,26 @@ namespace Jinaga.Test
         }
 
         [Fact]
+        public void CanSpecifyGiven()
+        {
+            Specification<Airline, Flight> specification = Given<Airline>.Match((airline, facts) =>
+                from flight in facts.OfType<Flight>()
+                where flight.airlineDay.airline == airline
+                select flight
+            );
+            var airline = new Airline("Bazinga");
+            string descriptiveString = specification.ToDescriptiveString(airline);
+            descriptiveString.Should().Be(@"let airline: Skylane.Airline = #GFroig3rCwOPo1yS0N68PUHIiD20s6H8L0uResV0BNdt+sr40nogatku8z+zeBwvqYoWvTS9sMl1SBCpVZ5MtA==
+
+(airline: Skylane.Airline) {
+    flight: Skylane.Flight [
+        flight->airlineDay: Skylane.Airline.Day->airline: Skylane.Airline = airline
+    ]
+} => flight
+".Replace("\r", ""));
+        }
+
+        [Fact]
         public void Specification_MissingJoin()
         {
             Func<Specification<Airline, Flight>> constructor = () =>

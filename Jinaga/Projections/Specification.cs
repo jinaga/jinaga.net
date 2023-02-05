@@ -1,6 +1,8 @@
 using Jinaga.Facts;
+using Jinaga.Managers;
 using Jinaga.Pipelines;
 using Jinaga.Products;
+using Jinaga.Serialization;
 using System;
 using System.Collections.Immutable;
 using System.Linq;
@@ -56,6 +58,38 @@ namespace Jinaga.Projections
             var matches = string.Join("", this.Matches.Select(m => m.ToDescriptiveString(depth + 1)));
             var projection = this.Projection == null ? "" : " => " + this.Projection.ToDescriptiveString(depth);
             return $"{indent}({given}) {{\n{matches}{indent}}}{projection}\n";
+        }
+
+        public string ToDescriptiveString<TFact>(TFact given) where TFact: class
+        {
+            var collector = new Collector(SerializerCache.Empty);
+            var givenReference = collector.Serialize(given);
+            var givenReferences = ImmutableList.Create(givenReference);
+
+            string startString = GenerateDeclarationString(givenReferences);
+            string specificationString = ToDescriptiveString();
+            return startString + "\n" + specificationString;
+        }
+
+        public string ToDescriptiveString<TFactA, TFactB>(TFactA a, TFactB b)
+            where TFactA : class
+            where TFactB : class
+        {
+            var collector = new Collector(SerializerCache.Empty);
+            var aReference = collector.Serialize(a);
+            var bReference = collector.Serialize(b);
+            var givenReferences = ImmutableList.Create(aReference, bReference);
+
+            string startString = GenerateDeclarationString(givenReferences);
+            string specificationString = ToDescriptiveString();
+            return startString + "\n" + specificationString;
+        }
+
+        private string GenerateDeclarationString(ImmutableList<Facts.FactReference> givenReferences)
+        {
+            var startStrings = Given.Zip(givenReferences, (label, reference) =>
+                $"let {label.Name}: {reference.Type} = #{reference.Hash}\n");
+            return string.Join("", startStrings);
         }
 
         public override string ToString()
