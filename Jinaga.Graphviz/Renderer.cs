@@ -9,7 +9,7 @@ using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
-using System.Text.Json;
+using System.Web;
 
 namespace Jinaga.Graphviz
 {
@@ -125,9 +125,9 @@ namespace Jinaga.Graphviz
         {
             return value switch
             {
-                FieldValueString str => JsonSerializer.Serialize(str.StringValue),
-                FieldValueNumber number => JsonSerializer.Serialize(number.DoubleValue),
-                FieldValueBoolean b => JsonSerializer.Serialize(b.BoolValue),
+                FieldValueString str => HttpUtility.HtmlEncode(str.StringValue),
+                FieldValueNumber number => number.DoubleValue.ToString(),
+                FieldValueBoolean b => b.BoolValue ? "true" : "false",
                 _ => throw new NotImplementedException()
             };
         }
