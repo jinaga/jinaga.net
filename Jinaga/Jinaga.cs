@@ -81,6 +81,7 @@ namespace Jinaga
             TFact given,
             Specification<TFact, TProjection> specification,
             Action<TProjection> added)
+            where TFact : class
         {
             return Watch<TFact, TProjection>(given, specification,
                 projection =>
@@ -96,6 +97,7 @@ namespace Jinaga
             TFact given,
             Specification<TFact, TProjection> specification,
             Func<TProjection, Action> added)
+            where TFact : class
         {
             return Watch<TFact, TProjection>(given, specification,
                 projection =>
@@ -115,6 +117,7 @@ namespace Jinaga
             TFact given,
             Specification<TFact, TProjection> specification,
             Func<TProjection, Task> added)
+            where TFact: class
         {
             return Watch<TFact, TProjection>(given, specification,
                 async projection =>
@@ -129,6 +132,7 @@ namespace Jinaga
             TFact given,
             Specification<TFact, TProjection> specification,
             Func<TProjection, Task<Func<Task>>> added)
+            where TFact : class
         {
             if (given == null)
             {
