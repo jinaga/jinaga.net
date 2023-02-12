@@ -2,7 +2,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Jinaga\Jinaga.csproj" />
-    <ProjectReference Include="..\Jinaga.UnitTest\Jinaga.UnitTest.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -14,7 +13,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="..\README.md" Pack="true" PackagePath="\"/>
+    <None Include="..\README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
   <PropertyGroup>
