@@ -78,12 +78,12 @@ namespace Jinaga
         }
 
         public Observer<TProjection> Watch<TFact, TProjection>(
-            TFact given,
             Specification<TFact, TProjection> specification,
+            TFact given,
             Action<TProjection> added)
             where TFact : class
         {
-            return Watch<TFact, TProjection>(given, specification,
+            return Watch<TFact, TProjection>(specification, given,
                 projection =>
                 {
                     added(projection);
@@ -94,12 +94,12 @@ namespace Jinaga
         }
 
         public Observer<TProjection> Watch<TFact, TProjection>(
-            TFact given,
             Specification<TFact, TProjection> specification,
+            TFact given,
             Func<TProjection, Action> added)
             where TFact : class
         {
-            return Watch<TFact, TProjection>(given, specification,
+            return Watch<TFact, TProjection>(specification, given,
                 projection =>
                 {
                     var removed = added(projection);
@@ -114,12 +114,12 @@ namespace Jinaga
         }
 
         public Observer<TProjection> Watch<TFact, TProjection>(
-            TFact given,
             Specification<TFact, TProjection> specification,
+            TFact given,
             Func<TProjection, Task> added)
             where TFact: class
         {
-            return Watch<TFact, TProjection>(given, specification,
+            return Watch<TFact, TProjection>(specification, given,
                 async projection =>
                 {
                     await added(projection);
@@ -129,8 +129,8 @@ namespace Jinaga
         }
 
         public Observer<TProjection> Watch<TFact, TProjection>(
-            TFact given,
             Specification<TFact, TProjection> specification,
+            TFact given,
             Func<TProjection, Task<Func<Task>>> added)
             where TFact : class
         {

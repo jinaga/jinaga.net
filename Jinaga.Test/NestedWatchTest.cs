@@ -547,7 +547,7 @@ namespace Jinaga.Test
 
         private async Task<Observer<OfficeProjection>> WhenWatchOffices(Company company)
         {
-            var officeObserver = j.Watch(company, officesInCompany,
+            var officeObserver = j.Watch(officesInCompany, company,
                 async projection =>
                 {
                     int officeId = await officeRepository.InsertOffice(projection.Office.city.name);
@@ -571,7 +571,7 @@ namespace Jinaga.Test
 
         private async Task<Observer<OfficeProjection>> WhenWatchOfficesInlineObservable(Company company)
         {
-            var officeObserver = j.Watch(company, officesInCompanyInlineObservable,
+            var officeObserver = j.Watch(officesInCompanyInlineObservable, company,
                 async projection =>
                 {
                     int officeId = await officeRepository.InsertOffice(projection.Office.city.name);
@@ -595,7 +595,7 @@ namespace Jinaga.Test
 
         private async Task<Observer<OfficeProjectionWithFields>> WhenWatchOfficesInlineObservableWithFields(Company company)
         {
-            var officeObserver = j.Watch(company, officesInCompanyInlineObservableWithFields,
+            var officeObserver = j.Watch(officesInCompanyInlineObservableWithFields, company,
                 async projection =>
                 {
                     int officeId = await officeRepository.InsertOffice(projection.Office.city.name);
@@ -619,7 +619,7 @@ namespace Jinaga.Test
 
         private async Task<Observer<OfficeProjectionWithQueryable>> WhenWatchOfficesInlineQueryable(Company company)
         {
-            var officeObserver = j.Watch(company, officesInCompanyInlineQueryableWithFields,
+            var officeObserver = j.Watch(officesInCompanyInlineQueryableWithFields, company,
                 async projection =>
                 {
                     int officeId = await officeRepository.InsertOffice(projection.Office.city.name);
@@ -643,7 +643,7 @@ namespace Jinaga.Test
 
         private async Task<Observer<ManagementProjection>> WhenWatchManagement(Company company)
         {
-            var managementObserver = j.Watch(company, managersInCompany,
+            var managementObserver = j.Watch(managersInCompany, company,
                 async projection =>
                 {
                     int officeId = await officeRepository.InsertOffice(projection.Office.city.name);
