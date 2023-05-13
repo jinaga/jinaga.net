@@ -48,7 +48,7 @@ namespace Jinaga.Managers
         public async Task<ImmutableList<Product>> Query(ImmutableList<FactReference> givenReferences, Specification specification, CancellationToken cancellationToken)
         {
             await networkManager.Fetch(givenReferences, specification, cancellationToken);
-            return await store.Query(givenReferences, specification, cancellationToken);
+            return await store.Read(givenReferences, specification, cancellationToken);
         }
 
         public async Task<FactGraph> LoadProducts(ImmutableList<Product> products, CancellationToken cancellationToken)

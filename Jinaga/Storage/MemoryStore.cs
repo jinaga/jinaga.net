@@ -53,7 +53,7 @@ namespace Jinaga.Storage
             return Task.FromResult(newFacts);
         }
 
-        public Task<ImmutableList<Product>> Query(ImmutableList<FactReference> givenReferences, Specification specification, CancellationToken cancellationToken)
+        public Task<ImmutableList<Product>> Read(ImmutableList<FactReference> givenReferences, Specification specification, CancellationToken cancellationToken)
         {
             var start = specification.Given.Zip(givenReferences, (given, reference) =>
                 (name: given.Name, reference)
