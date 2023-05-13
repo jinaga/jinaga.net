@@ -68,6 +68,7 @@ namespace Jinaga
             }
             else
             {
+                await factManager.Fetch(givenReferences, specification, cancellationToken);
                 var products = await factManager.Query(givenReferences, specification, cancellationToken);
                 var productProjections = await factManager.ComputeProjections(specification.Projection, products, typeof(TProjection), null, Product.Empty, string.Empty, cancellationToken);
                 var projections = productProjections
