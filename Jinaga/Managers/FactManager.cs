@@ -40,7 +40,7 @@ namespace Jinaga.Managers
             return added;
         }
 
-        public async Task Fetch<TFact, TProjection>(ImmutableList<FactReference> givenReferences, Specification<TFact, TProjection> specification, CancellationToken cancellationToken) where TFact : class
+        public async Task Fetch(ImmutableList<FactReference> givenReferences, Specification specification, CancellationToken cancellationToken)
         {
             await networkManager.Fetch(givenReferences, specification, cancellationToken);
         }
