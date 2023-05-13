@@ -121,7 +121,7 @@ namespace Jinaga.Test.Facts
 
             // This instance does not contain the facts.
             var j = JinagaTest.Create();
-            var users = await j.Query(passengerName, userWithName);
+            var users = await j.Query(userWithName, passengerName);
 
             // But the graph does.
             users.Should().ContainSingle().Which

@@ -47,8 +47,8 @@ namespace Jinaga
         }
 
         public async Task<ImmutableList<TProjection>> Query<TFact, TProjection>(
-            TFact given,
             Specification<TFact, TProjection> specification,
+            TFact given,
             CancellationToken cancellationToken = default) where TFact : class
         {
             if (given == null)

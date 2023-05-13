@@ -37,7 +37,7 @@ namespace Jinaga.Test.Specifications.Specifications
             var passenger = await j.Fact(new Passenger(airline, user));
             await j.Fact(new PassengerName(passenger, "Joe", new PassengerName[0]));
 
-            var passengers = await j.Query(airline, Given<Airline>.Match((airline, facts) =>
+            var passengers = await j.Query(Given<Airline>.Match((airline, facts) =>
                 from passenger in facts.OfType<Passenger>()
                 where passenger.airline == airline
                 select new
@@ -45,7 +45,7 @@ namespace Jinaga.Test.Specifications.Specifications
                     passenger,
                     names = facts.Observable(passenger, namesOfPassenger)
                 }
-            ));
+            ), airline);
 
             var result = passengers.Should().ContainSingle().Subject;
             result.names.Should().ContainSingle().Which
@@ -60,14 +60,14 @@ namespace Jinaga.Test.Specifications.Specifications
             var passenger = await j.Fact(new Passenger(airline, user));
             await j.Fact(new PassengerName(passenger, "Joe", new PassengerName[0]));
 
-            var passengers = await j.Query(airline, Given<Airline>.Match((airline, facts) =>
+            var passengers = await j.Query(Given<Airline>.Match((airline, facts) =>
                 from passenger in facts.OfType<Passenger>()
                 where passenger.airline == airline
                 select new PassengerProjection(
                     passenger,
                     facts.Observable(passenger, namesOfPassenger)
                 )
-            ));
+            ), airline);
 
             var result = passengers.Should().ContainSingle().Subject;
             result.names.Should().ContainSingle().Which
@@ -82,7 +82,7 @@ namespace Jinaga.Test.Specifications.Specifications
             var passenger = await j.Fact(new Passenger(airline, user));
             await j.Fact(new PassengerName(passenger, "Joe", new PassengerName[0]));
 
-            var passengerNames = await j.Query(passenger, Given<Passenger>.Match((passenger, facts) =>
+            var passengerNames = await j.Query(Given<Passenger>.Match((passenger, facts) =>
                 from passengerName in facts.OfType<PassengerName>()
                 where passengerName.passenger == passenger
                 where !(
@@ -91,7 +91,7 @@ namespace Jinaga.Test.Specifications.Specifications
                     select next
                 ).Any()
                 select passengerName.value
-            ));
+            ), passenger);
 
             var result = passengerNames.Should().ContainSingle().Subject;
             result.Should().Be("Joe");
