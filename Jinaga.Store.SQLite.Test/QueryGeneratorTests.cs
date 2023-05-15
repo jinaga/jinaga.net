@@ -1,6 +1,8 @@
 using FluentAssertions;
 using Jinaga.Facts;
 using Jinaga.Projections;
+using System.Collections.Generic;
+using System.Collections.Immutable;
 
 namespace Jinaga.Store.SQLite.Test;
 
@@ -33,6 +35,128 @@ public class QueryGeneratorTests
 
     private SqlQueryTree SqlFor(Specification specification)
     {
+        ImmutableDictionary<string, int> factTypes = GetAllFactTypes(specification);
+        ImmutableDictionary<int, ImmutableDictionary<string, int>> roleMap = GetAllRoles(specification, factTypes);
         throw new NotImplementedException();
+    }
+
+    private ImmutableDictionary<string, int> GetAllFactTypes(Specification specification)
+    {
+        return GetAllFactTypesFromSpecification(specification)
+            .Select((name, index) => KeyValuePair.Create(name, index + 1))
+            .ToImmutableDictionary();
+    }
+
+    private IEnumerable<string> GetAllFactTypesFromSpecification(Specification specification)
+    {
+        var factTypeNames = specification.Given
+            .Select(label => label.Type)
+            .ToImmutableList();
+        factTypeNames = factTypeNames.AddRange(GetAllFactTypesFromMatches(specification.Matches));
+        if (specification.Projection is CompoundProjection compoundProjection)
+        {
+            factTypeNames = factTypeNames.AddRange(GetAllFactTypesFromProjection(compoundProjection));
+        }
+        return factTypeNames.Distinct();
+    }
+
+    private IEnumerable<string> GetAllFactTypesFromMatches(ImmutableList<Match> matches)
+    {
+        var factTypeNames = ImmutableList<string>.Empty;
+        foreach (var match in matches)
+        {
+            factTypeNames = factTypeNames.Add(match.Unknown.Type);
+            foreach (var condition in match.Conditions)
+            {
+                if (condition is PathCondition pathCondition)
+                {
+                    factTypeNames = factTypeNames.AddRange(
+                        pathCondition.RolesLeft.Select(role =>
+                            role.TargetType));
+                    factTypeNames = factTypeNames.AddRange(
+                        pathCondition.RolesRight.Select(role =>
+                            role.TargetType));
+                }
+                else if (condition is ExistentialCondition existentialCondition)
+                {
+                    factTypeNames = factTypeNames.AddRange(
+                        GetAllFactTypesFromMatches(existentialCondition.Matches));
+                }
+            }
+        }
+        return factTypeNames.Distinct();
+    }
+
+    private IEnumerable<string> GetAllFactTypesFromProjection(CompoundProjection compoundProjection)
+    {
+        throw new NotImplementedException();
+    }
+
+    private ImmutableDictionary<int, ImmutableDictionary<string, int>> GetAllRoles(Specification specification, ImmutableDictionary<string, int> factTypes)
+    {
+        var distinctRoles = GetAllRolesFromSpecification(specification)
+            .GroupBy(pair => pair.factType, pair => pair.roleName)
+            .SelectMany(group => group.Distinct().Select(roleName => new
+            {
+                FactType = group.Key,
+                RoleName = roleName
+            }));
+        var rolesByFactTypeId = distinctRoles
+            .Select((pair, index) => new
+            {
+                FactTypeId = factTypes[pair.FactType],
+                RoleName = pair.RoleName,
+                RoleId = index + 1
+            })
+            .GroupBy(role => role.FactTypeId, role => KeyValuePair.Create(
+                role.RoleName, role.RoleId
+            ))
+            .Select(pair => KeyValuePair.Create(pair.Key, pair.ToImmutableDictionary()))
+            .ToImmutableDictionary();
+        return rolesByFactTypeId;
+    }
+
+    private IEnumerable<(string factType, string roleName)> GetAllRolesFromSpecification(Specification specification)
+    {
+        var typesByLabel = specification.Given
+            .Select(label => KeyValuePair.Create(label.Name, label.Type))
+            .ToImmutableDictionary();
+        typesByLabel = typesByLabel.AddRange(specification.Matches
+            .Select(match => KeyValuePair.Create(match.Unknown.Name, match.Unknown.Type)));
+        var roles = GetAllRolesFromMatches(typesByLabel, specification.Matches).ToImmutableList();
+        return roles;
+    }
+
+    private IEnumerable<(string factType, string roleName)> GetAllRolesFromMatches(ImmutableDictionary<string, string> typesByLabel, ImmutableList<Match> matches)
+    {
+        var roles = ImmutableList<(string factType, string roleName)>.Empty;
+        foreach (var match in matches)
+        {
+            foreach (var condition in match.Conditions)
+            {
+                if (condition is PathCondition pathCondition)
+                {
+                    var type = match.Unknown.Type;
+                    foreach (var role in pathCondition.RolesLeft)
+                    {
+                        roles = roles.Add((type, role.Name));
+                        type = role.TargetType;
+                    }
+                    type = typesByLabel[pathCondition.LabelRight];
+                    foreach (var role in pathCondition.RolesRight)
+                    {
+                        roles = roles.Add((type, role.Name));
+                        type = role.TargetType;
+                    }
+                }
+                else if (condition is ExistentialCondition existentialCondition)
+                {
+                    typesByLabel = typesByLabel.AddRange(existentialCondition.Matches
+                        .Select(match => KeyValuePair.Create(match.Unknown.Name, match.Unknown.Type)));
+                    roles = roles.AddRange(GetAllRolesFromMatches(typesByLabel, existentialCondition.Matches));
+                }
+            }
+        }
+        return roles;
     }
 }
