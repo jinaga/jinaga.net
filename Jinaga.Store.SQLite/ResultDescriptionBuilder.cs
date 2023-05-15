@@ -1,7 +1,9 @@
 ﻿using Jinaga.Facts;
 using Jinaga.Projections;
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 
 namespace Jinaga.Store.SQLite
 {
@@ -27,6 +29,17 @@ namespace Jinaga.Store.SQLite
     {
         public QueryDescription QueryDescription { get; set; }
         public ImmutableDictionary<string, ResultDescription> ChildResultDescriptions { get; set; }
+
+        public SqlQueryTree CreateSqlQueryTree(int parentFactIdLength)
+        {
+            SpecificationSqlQuery sqlQuery = QueryDescription.GenerateResultSqlQuery();
+            var childQueries = ChildResultDescriptions
+                .Select(child => KeyValuePair.Create(
+                    child.Key,
+                    child.Value.CreateSqlQueryTree(QueryDescription.OutputLength())))
+                .ToImmutableDictionary();
+            return new SqlQueryTree(sqlQuery, parentFactIdLength, childQueries);
+        }
     }
 
     internal class ResultDescriptionBuilder
@@ -40,7 +53,7 @@ namespace Jinaga.Store.SQLite
             this.roleMap = roleMap;
         }
 
-        internal ResultDescription Build(ImmutableList<FactReference> startReferences, Specification specification)
+        public ResultDescription Build(ImmutableList<FactReference> startReferences, Specification specification)
         {
             throw new NotImplementedException();
         }

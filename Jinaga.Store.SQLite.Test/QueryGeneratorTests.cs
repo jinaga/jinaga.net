@@ -35,9 +35,18 @@ public class QueryGeneratorTests
 
     private SqlQueryTree SqlFor(Specification specification)
     {
-        ImmutableDictionary<string, int> factTypes = GetAllFactTypes(specification);
-        ImmutableDictionary<int, ImmutableDictionary<string, int>> roleMap = GetAllRoles(specification, factTypes);
-        throw new NotImplementedException();
+        var factTypes = GetAllFactTypes(specification);
+        var roleMap = GetAllRoles(specification, factTypes);
+
+        var startReferences = specification.Given
+            .Select((label, index) => new FactReference(label.Type, $"{index+1001}"))
+            .ToImmutableList();
+
+        var descriptionBuilder = new ResultDescriptionBuilder(factTypes, roleMap);
+        var description = descriptionBuilder.Build(startReferences, specification);
+
+        var sqlQueryTree = description.CreateSqlQueryTree(0);
+        return sqlQueryTree;
     }
 
     private ImmutableDictionary<string, int> GetAllFactTypes(Specification specification)
