@@ -40,7 +40,16 @@ namespace Jinaga.Store.SQLite
 
     internal class OutputDescription
     {
+        public string Label { get; }
+        public string Type { get; }
+        public int FactIndex { get; }
 
+        public OutputDescription(string label, string type, int factIndex)
+        {
+            Label = label;
+            Type = type;
+            FactIndex = factIndex;
+        }
     }
 
     internal class EdgeDescription
@@ -98,7 +107,7 @@ namespace Jinaga.Store.SQLite
 
         public bool IsSatisfiable()
         {
-            throw new NotImplementedException();
+            return true;
         }
 
         public int OutputLength()
@@ -124,6 +133,11 @@ namespace Jinaga.Store.SQLite
         public QueryDescription WithEdges(ImmutableList<EdgeDescription> edgeDescriptions)
         {
             return new QueryDescription(Inputs, Parameters, Outputs, Facts, edgeDescriptions, ExistentialConditions);
+        }
+
+        public QueryDescription WithOutputs(ImmutableList<OutputDescription> outputs)
+        {
+            return new QueryDescription(Inputs, Parameters, outputs, Facts, Edges, ExistentialConditions);
         }
     }
 
@@ -215,10 +229,25 @@ namespace Jinaga.Store.SQLite
                 return (context, predecessorFactIndex);
             }
 
-            public Context WithLabel(Label unknown, int factIndex)
+            public Context WithLabel(Label label, int factIndex)
             {
                 // If we have not captured the known fact, add it now.
-                throw new NotImplementedException();
+                if (!FactByLabel.ContainsKey(label.Name))
+                {
+                    var factByLabel = FactByLabel.Add(label.Name, new FactDescription(label.Type, factIndex));
+                    // If we have not written the output, write it now.
+                    // Only write the output if we are not inside of an existential condition.
+                    // Use the prefix, which will be set for projections.
+                    if (Path.Count == 0)
+                    {
+                        var prefix = "";
+                        var output = new OutputDescription(prefix + label.Name, label.Type, factIndex);
+                        var outputs = QueryDescription.Outputs.Add(output);
+                        var queryDescription = QueryDescription.WithOutputs(outputs);
+                        return new Context(queryDescription, factByLabel, Path);
+                    }
+                }
+                return this;
             }
         }
 
