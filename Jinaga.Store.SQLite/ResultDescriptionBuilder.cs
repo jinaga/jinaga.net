@@ -179,7 +179,7 @@ namespace Jinaga.Store.SQLite
                 int factTypeParameter = QueryDescription.Parameters.Count + 1;
                 int factHashParameter = QueryDescription.Parameters.Count + 2;
                 int factIndex = QueryDescription.Facts.Count + 1;
-                var factDescription = new FactDescription(label.Name, factIndex);
+                var factDescription = new FactDescription(label.Type, factIndex);
                 var facts = QueryDescription.Facts.Add(factDescription);
                 var input = new InputDescription(label.Name, label.Type, factIndex, factTypeParameter, factHashParameter);
                 var parameters = QueryDescription.Parameters.Add(factTypeId).Add(hash);
@@ -213,6 +213,12 @@ namespace Jinaga.Store.SQLite
                 queryDescription = queryDescription.WithEdges(queryDescription.Edges.Add(edge));
                 var context = new Context(queryDescription, FactByLabel, Path);
                 return (context, predecessorFactIndex);
+            }
+
+            public Context WithLabel(Label unknown, int factIndex)
+            {
+                // If we have not captured the known fact, add it now.
+                throw new NotImplementedException();
             }
         }
 
@@ -334,8 +340,39 @@ namespace Jinaga.Store.SQLite
                 var roleId = roleMap[typeId][role.Name];
 
                 (context, factIndex) = context.WithEdge(role.TargetType, roleId, factIndex);
+                type = role.TargetType;
             }
-            throw new NotImplementedException();
+
+            var rightType = type;
+
+            // Walk up the left-hand side.
+            // We will need to reverse this walk to generate successor joins.
+            type = unknown.Type;
+            var newEdges = ImmutableList<(int roleId, string declaringType)>.Empty;
+            foreach (var role in pathCondition.RolesLeft)
+            {
+                // If the type or role is not known, then no facts matching the condition can
+                // exist. The query is unsatisfiable.
+                var typeId = factTypes[type];
+                var roleId = roleMap[typeId][role.Name];
+                newEdges = newEdges.Add((roleId, type));
+                type = role.TargetType;
+            }
+
+            if (type != rightType)
+            {
+                throw new ArgumentException($"Type mismatch: {type} is compared to {rightType}");
+            }
+
+            // Reverse the walk to generate successor joins.
+            for (int i = newEdges.Count - 1; i >= 0; i--)
+            {
+                var (roleId, declaringType) = newEdges[i];
+                (context, factIndex) = context.WithEdge(declaringType, roleId, factIndex);
+            }
+
+            context = context.WithLabel(unknown, factIndex);
+            return context;
         }
 
         private int EnsureGetFactTypeId(string type)
