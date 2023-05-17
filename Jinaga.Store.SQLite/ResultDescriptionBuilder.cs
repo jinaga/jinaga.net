@@ -289,7 +289,15 @@ namespace Jinaga.Store.SQLite
                     KeyValuePair.Create(label.Name, startReferences[index]))
                 .ToImmutableDictionary();
             context = AddEdges(context, given, startReferences, matches);
-            throw new NotImplementedException();
+            if (projection is CompoundProjection)
+            {
+                throw new NotImplementedException();
+            }
+            return new ResultDescription
+            {
+                QueryDescription = context.QueryDescription,
+                ChildResultDescriptions = ImmutableDictionary<string, ResultDescription>.Empty
+            };
         }
 
         private Context AddEdges(Context context, ImmutableList<Label> given, ImmutableList<FactReference> startReferences, ImmutableList<Match> matches)
