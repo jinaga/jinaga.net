@@ -286,7 +286,7 @@ namespace Jinaga.Store.SQLite
                 var queryDescription = QueryDescription.WithParameters(parameters);
                 // If we have not written the fact, we need to write it now.
                 var predecessorFactIndex = QueryDescription.Facts.Count + 1;
-                var fact = new FactDescription(predecessorType, factIndex);
+                var fact = new FactDescription(predecessorType, predecessorFactIndex);
                 queryDescription = queryDescription.WithFacts(queryDescription.Facts.Add(fact));
                 int edgeIndex = queryDescription.Edges.Count + 1;
                 var edge = new EdgeDescription(
