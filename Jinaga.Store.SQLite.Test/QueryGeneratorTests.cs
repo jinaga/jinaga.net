@@ -1,7 +1,8 @@
 using FluentAssertions;
 using Jinaga.Facts;
 using Jinaga.Projections;
-using System.Collections.Generic;
+using Jinaga.Store.SQLite.Builder;
+using Jinaga.Store.SQLite.Generation;
 using System.Collections.Immutable;
 
 namespace Jinaga.Store.SQLite.Test;
@@ -45,7 +46,7 @@ public class QueryGeneratorTests
         var descriptionBuilder = new ResultDescriptionBuilder(factTypes, roleMap);
         var description = descriptionBuilder.Build(startReferences, specification);
 
-        var sqlQueryTree = description.CreateSqlQueryTree(0);
+        var sqlQueryTree = SqlGenerator.CreateSqlQueryTree(description);
         return sqlQueryTree;
     }
 
