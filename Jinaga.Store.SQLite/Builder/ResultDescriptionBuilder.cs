@@ -53,11 +53,10 @@ namespace Jinaga.Store.SQLite.Builder
             {
                 throw new NotImplementedException();
             }
-            return new ResultDescription
-            {
-                QueryDescription = context.QueryDescription,
-                ChildResultDescriptions = ImmutableDictionary<string, ResultDescription>.Empty
-            };
+            return new ResultDescription(
+                context.QueryDescription,
+                ImmutableDictionary<string, ResultDescription>.Empty
+            );
         }
 
         private ResultDescriptionBuilderContext AddEdges(ResultDescriptionBuilderContext context, ImmutableList<Label> given, ImmutableList<FactReference> startReferences, ImmutableList<Match> matches)
