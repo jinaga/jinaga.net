@@ -132,7 +132,10 @@ namespace Jinaga.Store.SQLite.Builder
                 var typeId = factTypes[type];
                 var roleId = roleMap[typeId][role.Name];
 
-                (context, factIndex) = context.WithEdgeToPredecessor(role.TargetType, roleId, factIndex);
+                var successorFactIndex = factIndex;
+                (context, factIndex) = context.WithFact(role.TargetType);
+                context = context.WithEdge(factIndex, successorFactIndex, roleId);
+                
                 type = role.TargetType;
             }
 
@@ -141,7 +144,7 @@ namespace Jinaga.Store.SQLite.Builder
             // Walk up the left-hand side.
             // We will need to reverse this walk to generate successor joins.
             type = unknown.Type;
-            var newEdges = ImmutableList<(int roleId, string declaringType)>.Empty;
+            var newEdges = ImmutableList<(int roleId, string successorType)>.Empty;
             foreach (var role in pathCondition.RolesLeft)
             {
                 // If the type or role is not known, then no facts matching the condition can
@@ -160,8 +163,10 @@ namespace Jinaga.Store.SQLite.Builder
             // Reverse the walk to generate successor joins.
             for (int i = newEdges.Count - 1; i >= 0; i--)
             {
-                var (roleId, declaringType) = newEdges[i];
-                (context, factIndex) = context.WithEdgeToSuccessor(declaringType, roleId, factIndex);
+                var (roleId, successorType) = newEdges[i];
+                var predecessorFactIndex = factIndex;
+                (context, factIndex) = context.WithFact(successorType);
+                context = context.WithEdge(predecessorFactIndex, factIndex, roleId);
             }
 
             context = context.WithLabel(unknown, factIndex);

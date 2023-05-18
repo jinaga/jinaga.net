@@ -54,15 +54,20 @@ namespace Jinaga.Store.SQLite.Builder
             }
         }
 
-        public (ResultDescriptionBuilderContext context, int factIndex) WithEdgeToPredecessor(string predecessorType, int roleId, int successorFactIndex)
+        public (ResultDescriptionBuilderContext context, int factIndex) WithFact(string type)
+        {
+            int factIndex = QueryDescription.Facts.Count + 1;
+            var fact = new FactDescription(type, factIndex);
+            var queryDescription = QueryDescription.WithFacts(QueryDescription.Facts.Add(fact));
+            var context = new ResultDescriptionBuilderContext(queryDescription, KnownFacts, Path);
+            return (context, factIndex);
+        }
+
+        public ResultDescriptionBuilderContext WithEdge(int predecessorFactIndex, int successorFactIndex, int roleId)
         {
             var roleParameter = QueryDescription.Parameters.Count + 1;
             var parameters = QueryDescription.Parameters.Add(roleId);
             var queryDescription = QueryDescription.WithParameters(parameters);
-            // If we have not written the fact, we need to write it now.
-            var predecessorFactIndex = QueryDescription.Facts.Count + 1;
-            var fact = new FactDescription(predecessorType, predecessorFactIndex);
-            queryDescription = queryDescription.WithFacts(queryDescription.Facts.Add(fact));
             int edgeIndex = queryDescription.Edges.Count + 1;
             var edge = new EdgeDescription(
                 edgeIndex,
@@ -71,27 +76,7 @@ namespace Jinaga.Store.SQLite.Builder
                 roleParameter);
             queryDescription = queryDescription.WithEdges(queryDescription.Edges.Add(edge));
             var context = new ResultDescriptionBuilderContext(queryDescription, KnownFacts, Path);
-            return (context, predecessorFactIndex);
-        }
-
-        public (ResultDescriptionBuilderContext context, int factIndex) WithEdgeToSuccessor(string successorType, int roleId, int predecessorFactId)
-        {
-            var roleParameter = QueryDescription.Parameters.Count + 1;
-            var parameters = QueryDescription.Parameters.Add(roleId);
-            var queryDescription = QueryDescription.WithParameters(parameters);
-            // If we have not written the fact, we need to write it now.
-            var successorFactIndex = QueryDescription.Facts.Count + 1;
-            var fact = new FactDescription(successorType, successorFactIndex);
-            queryDescription = queryDescription.WithFacts(queryDescription.Facts.Add(fact));
-            int edgeIndex = queryDescription.Edges.Count + 1;
-            var edge = new EdgeDescription(
-                edgeIndex,
-                predecessorFactId,
-                successorFactIndex,
-                roleParameter);
-            queryDescription = queryDescription.WithEdges(queryDescription.Edges.Add(edge));
-            var context = new ResultDescriptionBuilderContext(queryDescription, KnownFacts, Path);
-            return (context, successorFactIndex);
+            return context;
         }
 
         public ResultDescriptionBuilderContext WithLabel(Label label, int factIndex)
