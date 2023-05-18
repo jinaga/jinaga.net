@@ -118,7 +118,7 @@ namespace Jinaga.Store.SQLite
             var successorFact = Facts.Find(fact => fact.FactIndex == firstEdge.SuccessorFactIndex);
             var firstFactIndex = predecessorFact != null ? predecessorFact.FactIndex : successorFact.FactIndex;
             var writtenFactIndexes = new HashSet<int>{ firstFactIndex };
-            ImmutableList<string> joins = GenerateJoins(Edges, writtenFactIndexes);
+            var joins = GenerateJoins(Edges, writtenFactIndexes);
 
             var sql = $"SELECT {columns} FROM fact f{firstFactIndex}{joins.Join("")}";
             return new SpecificationSqlQuery(sql, Parameters, allLabels);
@@ -238,13 +238,13 @@ namespace Jinaga.Store.SQLite
                 ImmutableList<int>.Empty);
 
             public QueryDescription QueryDescription { get; }
-            public ImmutableDictionary<string, FactDescription> FactByLabel { get; }
+            public ImmutableDictionary<string, FactDescription> KnownFacts { get; }
             public ImmutableList<int> Path { get; }
 
             public Context(QueryDescription queryDescription, ImmutableDictionary<string, FactDescription> factByLabel, ImmutableList<int> path)
             {
                 QueryDescription = queryDescription;
-                FactByLabel = factByLabel;
+                KnownFacts = factByLabel;
                 Path = path;
             }
 
@@ -271,7 +271,7 @@ namespace Jinaga.Store.SQLite
                 {
                     var inputs = QueryDescription.Inputs.Add(input);
                     var queryDescription = QueryDescription.WithInputs(inputs).WithParameters(parameters).WithFacts(facts);
-                    return new Context(queryDescription, FactByLabel.Add(label.Name, factDescription), Path);
+                    return new Context(queryDescription, KnownFacts.Add(label.Name, factDescription), Path);
                 }
                 else
                 {
@@ -279,7 +279,7 @@ namespace Jinaga.Store.SQLite
                 }
             }
 
-            public (Context context, int factIndex) WithEdge(string predecessorType, int roleId, int factIndex)
+            public (Context context, int factIndex) WithEdgeToPredecessor(string predecessorType, int roleId, int successorFactIndex)
             {
                 var roleParameter = QueryDescription.Parameters.Count + 1;
                 var parameters = QueryDescription.Parameters.Add(roleId);
@@ -292,19 +292,39 @@ namespace Jinaga.Store.SQLite
                 var edge = new EdgeDescription(
                     edgeIndex,
                     predecessorFactIndex,
-                    factIndex,
+                    successorFactIndex,
                     roleParameter);
                 queryDescription = queryDescription.WithEdges(queryDescription.Edges.Add(edge));
-                var context = new Context(queryDescription, FactByLabel, Path);
+                var context = new Context(queryDescription, KnownFacts, Path);
                 return (context, predecessorFactIndex);
+            }
+
+            public (Context context, int factIndex) WithEdgeToSuccessor(string successorType, int roleId, int predecessorFactId)
+            {
+                var roleParameter = QueryDescription.Parameters.Count + 1;
+                var parameters = QueryDescription.Parameters.Add(roleId);
+                var queryDescription = QueryDescription.WithParameters(parameters);
+                // If we have not written the fact, we need to write it now.
+                var successorFactIndex = QueryDescription.Facts.Count + 1;
+                var fact = new FactDescription(successorType, successorFactIndex);
+                queryDescription = queryDescription.WithFacts(queryDescription.Facts.Add(fact));
+                int edgeIndex = queryDescription.Edges.Count + 1;
+                var edge = new EdgeDescription(
+                    edgeIndex,
+                    predecessorFactId,
+                    successorFactIndex,
+                    roleParameter);
+                queryDescription = queryDescription.WithEdges(queryDescription.Edges.Add(edge));
+                var context = new Context(queryDescription, KnownFacts, Path);
+                return (context, successorFactIndex);
             }
 
             public Context WithLabel(Label label, int factIndex)
             {
                 // If we have not captured the known fact, add it now.
-                if (!FactByLabel.ContainsKey(label.Name))
+                if (!KnownFacts.ContainsKey(label.Name))
                 {
-                    var factByLabel = FactByLabel.Add(label.Name, new FactDescription(label.Type, factIndex));
+                    var factByLabel = KnownFacts.Add(label.Name, new FactDescription(label.Type, factIndex));
                     // If we have not written the output, write it now.
                     // Only write the output if we are not inside of an existential condition.
                     // Use the prefix, which will be set for projections.
@@ -412,7 +432,7 @@ namespace Jinaga.Store.SQLite
         private Context AddPathCondition(Context context, PathCondition pathCondition, ImmutableList<Label> given, ImmutableList<FactReference> startReferences, Label unknown, string v)
         {
             // If no input parameter has been allocated, allocate one now.
-            if (!context.FactByLabel.ContainsKey(pathCondition.LabelRight))
+            if (!context.KnownFacts.ContainsKey(pathCondition.LabelRight))
             {
                 var givenIndex = given.FindIndex(given => given.Name == pathCondition.LabelRight);
                 if (givenIndex < 0)
@@ -431,11 +451,11 @@ namespace Jinaga.Store.SQLite
 
             // Walk up the right-hand side.
             // This generates predecessor joins from a given or prior label.
-            if (!context.FactByLabel.ContainsKey(pathCondition.LabelRight))
+            if (!context.KnownFacts.ContainsKey(pathCondition.LabelRight))
             {
                 throw new ArgumentException($"Label {pathCondition.LabelRight} not found.");
             }
-            var fact = context.FactByLabel[pathCondition.LabelRight];
+            var fact = context.KnownFacts[pathCondition.LabelRight];
             var type = fact.Type;
             var factIndex = fact.FactIndex;
             for (int i = 0; i < pathCondition.RolesRight.Count; i++)
@@ -446,7 +466,7 @@ namespace Jinaga.Store.SQLite
                 var typeId = factTypes[type];
                 var roleId = roleMap[typeId][role.Name];
 
-                (context, factIndex) = context.WithEdge(role.TargetType, roleId, factIndex);
+                (context, factIndex) = context.WithEdgeToPredecessor(role.TargetType, roleId, factIndex);
                 type = role.TargetType;
             }
 
@@ -475,7 +495,7 @@ namespace Jinaga.Store.SQLite
             for (int i = newEdges.Count - 1; i >= 0; i--)
             {
                 var (roleId, declaringType) = newEdges[i];
-                (context, factIndex) = context.WithEdge(declaringType, roleId, factIndex);
+                (context, factIndex) = context.WithEdgeToSuccessor(declaringType, roleId, factIndex);
             }
 
             context = context.WithLabel(unknown, factIndex);
