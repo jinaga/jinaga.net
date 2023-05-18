@@ -119,8 +119,14 @@ namespace Jinaga.Store.SQLite
             var firstFactIndex = predecessorFact != null ? predecessorFact.FactIndex : successorFact.FactIndex;
             var writtenFactIndexes = new HashSet<int>{ firstFactIndex };
             var joins = GenerateJoins(Edges, writtenFactIndexes);
+            var inputWhereClauses = Inputs
+                .Select(input => $"f{input.FactIndex}.fact_type_id = ${input.FactTypeParameter} AND f{input.FactIndex}.hash = ${input.FactHashParameter}")
+                .Join(" AND ");
+            var orderByClause = Outputs
+                .Select(output => $"f{output.FactIndex}.fact_id ASC")
+                .Join(", ");
 
-            var sql = $"SELECT {columns} FROM fact f{firstFactIndex}{joins.Join("")}";
+            var sql = $"SELECT {columns} FROM fact f{firstFactIndex}{joins.Join("")} WHERE {inputWhereClauses} ORDER BY {orderByClause}";
             return new SpecificationSqlQuery(sql, Parameters, allLabels);
         }
 
