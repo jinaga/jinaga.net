@@ -1,6 +1,7 @@
 ﻿using Jinaga.Facts;
 using Jinaga.Pipelines;
 using Jinaga.Projections;
+using Jinaga.Visualizers;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
@@ -54,10 +55,10 @@ namespace Jinaga.Store.SQLite
 
     internal class EdgeDescription
     {
-        int EdgeIndex { get; }
-        int PredecessorFactIndex { get; }
-        int SuccessorFactIndex { get; }
-        int RoleParameter { get; }
+        public int EdgeIndex { get; }
+        public int PredecessorFactIndex { get; }
+        public int SuccessorFactIndex { get; }
+        public int RoleParameter { get; }
 
         public EdgeDescription(int edgeIndex, int predecessorFactIndex, int successorFactIndex, int roleParameter)
         {
@@ -102,7 +103,76 @@ namespace Jinaga.Store.SQLite
 
         public SpecificationSqlQuery GenerateResultSqlQuery()
         {
-            throw new NotImplementedException();
+            var allLabels = Inputs
+                .Select(input => new SpecificationLabel(input.Label, input.FactIndex, input.Type))
+                .Concat(Outputs
+                    .Select(output => new SpecificationLabel(output.Label, output.FactIndex, output.Type)))
+                .ToImmutableList();
+            var columns = allLabels.Select(label =>
+                $"f{label.Index}.hash as hash{label.Index}, " +
+                $"f{label.Index}.fact_id as id{label.Index}, " +
+                $"f{label.Index}.data as data{label.Index}")
+                .Join(", ");
+            var firstEdge = Edges.First();
+            var predecessorFact = Facts.Find(fact => fact.FactIndex == firstEdge.PredecessorFactIndex);
+            var successorFact = Facts.Find(fact => fact.FactIndex == firstEdge.SuccessorFactIndex);
+            var firstFactIndex = predecessorFact != null ? predecessorFact.FactIndex : successorFact.FactIndex;
+            var writtenFactIndexes = new HashSet<int>{ firstFactIndex };
+            ImmutableList<string> joins = GenerateJoins(Edges, writtenFactIndexes);
+
+            var sql = $"SELECT {columns} FROM fact f{firstFactIndex}{joins.Join("")}";
+            return new SpecificationSqlQuery(sql, Parameters, allLabels);
+        }
+
+        private ImmutableList<string> GenerateJoins(ImmutableList<EdgeDescription> edges, HashSet<int> writtenFactIndexes)
+        {
+            var joins = ImmutableList<string>.Empty;
+            foreach (var edge in edges)
+            {
+                if (writtenFactIndexes.Contains(edge.PredecessorFactIndex))
+                {
+                    if (writtenFactIndexes.Contains(edge.SuccessorFactIndex))
+                    {
+                        joins = joins.Add(
+                            $" JOIN edge e{edge.EdgeIndex}" +
+                            $" ON e{edge.EdgeIndex}.predecessor_fact_id = f{edge.PredecessorFactIndex}.fact_id" +
+                            $" AND e{edge.EdgeIndex}.successor_fact_id = f{edge.SuccessorFactIndex}.fact_id" +
+                            $" AND e{edge.EdgeIndex}.role_id = ${edge.RoleParameter}"
+                        );
+                    }
+                    else
+                    {
+                        joins = joins.Add(
+                            $" JOIN edge e{edge.EdgeIndex}" +
+                            $" ON e{edge.EdgeIndex}.predecessor_fact_id = f{edge.PredecessorFactIndex}.fact_id" +
+                            $" AND e{edge.EdgeIndex}.role_id = ${edge.RoleParameter}"
+                        );
+                        joins = joins.Add(
+                            $" JOIN fact f{edge.SuccessorFactIndex}" +
+                            $" ON f{edge.SuccessorFactIndex}.fact_id = e{edge.EdgeIndex}.successor_fact_id"
+                        );
+                        writtenFactIndexes.Add(edge.SuccessorFactIndex);
+                    }
+                }
+                else if (writtenFactIndexes.Contains(edge.SuccessorFactIndex))
+                {
+                    joins = joins.Add(
+                        $" JOIN edge e{edge.EdgeIndex}" +
+                        $" ON e{edge.EdgeIndex}.successor_fact_id = f{edge.SuccessorFactIndex}.fact_id" +
+                        $" AND e{edge.EdgeIndex}.role_id = ${edge.RoleParameter}"
+                    );
+                    joins = joins.Add(
+                        $" JOIN fact f{edge.PredecessorFactIndex}" +
+                        $" ON f{edge.PredecessorFactIndex}.fact_id = e{edge.EdgeIndex}.predecessor_fact_id"
+                    );
+                    writtenFactIndexes.Add(edge.PredecessorFactIndex);
+                }
+                else
+                {
+                    throw new ArgumentException("Neither predecessor nor successor fact has been written");
+                }
+            }
+            return joins;
         }
 
         public bool IsSatisfiable()
