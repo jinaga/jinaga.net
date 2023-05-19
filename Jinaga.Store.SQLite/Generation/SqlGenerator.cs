@@ -33,9 +33,9 @@ namespace Jinaga.Store.SQLite.Generation
                 $"f{label.Index}.data as data{label.Index}")
                 .Join(", ");
             var firstEdge = queryDescription.Edges.First();
-            var predecessorFact = queryDescription.Facts.Find(fact => fact.FactIndex == firstEdge.PredecessorFactIndex);
-            var successorFact = queryDescription.Facts.Find(fact => fact.FactIndex == firstEdge.SuccessorFactIndex);
-            var firstFactIndex = predecessorFact != null ? predecessorFact.FactIndex : successorFact.FactIndex;
+            var predecessorInput = queryDescription.Inputs.Find(input => input.FactIndex == firstEdge.PredecessorFactIndex);
+            var successorInput = queryDescription.Inputs.Find(input => input.FactIndex == firstEdge.SuccessorFactIndex);
+            var firstFactIndex = predecessorInput != null ? predecessorInput.FactIndex : successorInput.FactIndex;
             var writtenFactIndexes = new HashSet<int> { firstFactIndex };
             var joins = GenerateJoins(queryDescription.Edges, writtenFactIndexes);
             var inputWhereClauses = queryDescription.Inputs

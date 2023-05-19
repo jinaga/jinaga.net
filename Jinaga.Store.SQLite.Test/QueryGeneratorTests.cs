@@ -34,6 +34,31 @@ public class QueryGeneratorTests
         sqlQueryTree.ChildQueries.Should().BeEmpty();
     }
 
+    [Fact]
+    public void JoinToPredecessors()
+    {
+        var specification = Given<Department>.Match((department, facts) =>
+            facts.OfType<Company>()
+                .Where(company => company == department.company)
+        );
+        SqlQueryTree sqlQueryTree = SqlFor(specification);
+
+        sqlQueryTree.SqlQuery.Sql.Should().Be(
+            "SELECT " +
+                "f1.hash as hash1, f1.fact_id as id1, f1.data as data1, " +
+                "f2.hash as hash2, f2.fact_id as id2, f2.data as data2 " +
+            "FROM fact f1 " +
+            "JOIN edge e1 " +
+                "ON e1.successor_fact_id = f1.fact_id " +
+                "AND e1.role_id = $3 " +
+            "JOIN fact f2 " +
+                "ON f2.fact_id = e1.predecessor_fact_id " +
+            "WHERE f1.fact_type_id = $1 AND f1.hash = $2 " +
+            "ORDER BY f2.fact_id ASC"
+        );
+        sqlQueryTree.ChildQueries.Should().BeEmpty();
+    }
+
     private SqlQueryTree SqlFor(Specification specification)
     {
         var factTypes = GetAllFactTypes(specification);
