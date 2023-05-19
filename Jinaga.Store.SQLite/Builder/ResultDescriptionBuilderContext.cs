@@ -2,6 +2,7 @@
 using Jinaga.Store.SQLite.Description;
 using System;
 using System.Collections.Immutable;
+using System.Linq;
 
 namespace Jinaga.Store.SQLite.Builder
 {
@@ -25,12 +26,27 @@ namespace Jinaga.Store.SQLite.Builder
 
         public ResultDescriptionBuilderContext WithExistentialCondition(bool exists)
         {
-            throw new NotImplementedException();
+            if (Path.Count == 0)
+            {
+                var path = Path.Add(QueryDescription.ExistentialConditions.Count);
+                var existentialCondition = new ExistentialConditionDescription(
+                    exists,
+                    ImmutableList<InputDescription>.Empty,
+                    ImmutableList<EdgeDescription>.Empty,
+                    ImmutableList<ExistentialConditionDescription>.Empty);
+                var existentialConditions = QueryDescription.ExistentialConditions.Add(existentialCondition);
+                var queryDescription = QueryDescription.WithExistentialConditions(existentialConditions);
+                return new ResultDescriptionBuilderContext(queryDescription, KnownFacts, path);
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
         }
 
         public ResultDescriptionBuilderContext WithQueryDescription(QueryDescription queryDescription)
         {
-            throw new NotImplementedException();
+            return new ResultDescriptionBuilderContext(queryDescription, KnownFacts, Path);
         }
 
         public ResultDescriptionBuilderContext WithInputParameter(Label label, int factTypeId, string hash)
@@ -68,15 +84,54 @@ namespace Jinaga.Store.SQLite.Builder
             var roleParameter = QueryDescription.Parameters.Count + 1;
             var parameters = QueryDescription.Parameters.Add(roleId);
             var queryDescription = QueryDescription.WithParameters(parameters);
-            int edgeIndex = queryDescription.Edges.Count + 1;
+            int edgeIndex = queryDescription.Edges.Count + CountEdges(QueryDescription.ExistentialConditions) + 1;
             var edge = new EdgeDescription(
                 edgeIndex,
                 predecessorFactIndex,
                 successorFactIndex,
                 roleParameter);
-            queryDescription = queryDescription.WithEdges(queryDescription.Edges.Add(edge));
-            var context = new ResultDescriptionBuilderContext(queryDescription, KnownFacts, Path);
-            return context;
+            if (Path.Count == 0)
+            {
+                queryDescription = queryDescription.WithEdges(queryDescription.Edges.Add(edge));
+                var context = new ResultDescriptionBuilderContext(queryDescription, KnownFacts, Path);
+                return context;
+            }
+            else
+            {
+                var existentialConditions = ExistentialsWithEdge(QueryDescription.ExistentialConditions, edge, Path);
+                queryDescription = queryDescription.WithExistentialConditions(existentialConditions);
+                var context = new ResultDescriptionBuilderContext(queryDescription, KnownFacts, Path);
+                return context;
+            }
+        }
+
+        private int CountEdges(ImmutableList<ExistentialConditionDescription> existentialConditions)
+        {
+            return existentialConditions
+                .Select(ec => ec.Edges.Count + CountEdges(ec.ExistentialConditions))
+                .Sum();
+        }
+
+        private ImmutableList<ExistentialConditionDescription> ExistentialsWithEdge(ImmutableList<ExistentialConditionDescription> existentialConditions, EdgeDescription edge, ImmutableList<int> path)
+        {
+            int index = path[0];
+            var existentialCondition = existentialConditions[index];
+            if (path.Count == 1)
+            {
+                var edges = existentialCondition.Edges.Add(edge);
+                var existentialConditionWithEdge = existentialCondition.WithEdges(edges);
+                return existentialConditions
+                    .RemoveAt(index)
+                    .Insert(index, existentialConditionWithEdge);
+            }
+            else
+            {
+                var existentialConditionsWithEdge = ExistentialsWithEdge(existentialCondition.ExistentialConditions, edge, path.RemoveAt(0));
+                var existentialConditionWithExistentialConditions = existentialCondition.WithExistentialConditions(existentialConditionsWithEdge);
+                return existentialConditions
+                    .RemoveAt(index)
+                    .Insert(index, existentialConditionWithExistentialConditions);
+            }
         }
 
         public ResultDescriptionBuilderContext WithLabel(Label label, int factIndex)

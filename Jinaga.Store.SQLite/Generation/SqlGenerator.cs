@@ -41,12 +41,20 @@ namespace Jinaga.Store.SQLite.Generation
             var inputWhereClauses = queryDescription.Inputs
                 .Select(input => $"f{input.FactIndex}.fact_type_id = ${input.FactTypeParameter} AND f{input.FactIndex}.hash = ${input.FactHashParameter}")
                 .Join(" AND ");
+            var existentialWhereClauses = queryDescription.ExistentialConditions
+                .Select(existentialCondition => $" AND {(existentialCondition.Exists ? "EXISTS" : "NOT EXISTS")} ({GenerateExistentialWhereClause(existentialCondition, writtenFactIndexes)})")
+                .Join("");
             var orderByClause = queryDescription.Outputs
                 .Select(output => $"f{output.FactIndex}.fact_id ASC")
                 .Join(", ");
 
             var sql = $"SELECT {columns} FROM fact f{firstFactIndex}{joins.Join("")} WHERE {inputWhereClauses} ORDER BY {orderByClause}";
             return new SpecificationSqlQuery(sql, queryDescription.Parameters, allLabels);
+        }
+
+        private static string GenerateExistentialWhereClause(ExistentialConditionDescription existentialCondition, HashSet<int> writtenFactIndexes)
+        {
+            throw new NotImplementedException();
         }
 
         private static ImmutableList<string> GenerateJoins(ImmutableList<EdgeDescription> edges, HashSet<int> writtenFactIndexes)

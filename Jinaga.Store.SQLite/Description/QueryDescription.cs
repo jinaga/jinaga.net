@@ -64,5 +64,10 @@ namespace Jinaga.Store.SQLite.Description
         {
             return new QueryDescription(Inputs, Parameters, outputs, Facts, Edges, ExistentialConditions);
         }
-    }
+
+        public QueryDescription WithExistentialConditions(ImmutableList<ExistentialConditionDescription> existentialConditions)
+        {
+            return new QueryDescription(Inputs, Parameters, Outputs, Facts, Edges, existentialConditions);
+        }
+  }
 }
