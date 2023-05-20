@@ -11,3 +11,6 @@ internal record Project(Department department) { }
 
 [FactType("Project.Deleted")]
 internal record ProjectDeleted(Project project) { }
+
+[FactType("Project.Restored")]
+internal record ProjectRestored(ProjectDeleted deleted) { }

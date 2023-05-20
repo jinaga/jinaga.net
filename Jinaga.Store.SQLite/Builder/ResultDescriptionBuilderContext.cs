@@ -26,21 +26,34 @@ namespace Jinaga.Store.SQLite.Builder
 
         public ResultDescriptionBuilderContext WithExistentialCondition(bool exists)
         {
-            if (Path.Count == 0)
+            (var newExistentialConditions, var newPath) = ExistentialsWithNewCondition(QueryDescription.ExistentialConditions, exists, Path);
+            var queryDescription = QueryDescription.WithExistentialConditions(newExistentialConditions);
+            return new ResultDescriptionBuilderContext(queryDescription, KnownFacts, newPath);
+        }
+
+        private (ImmutableList<ExistentialConditionDescription> newExistentialCondition, ImmutableList<int> newPath) ExistentialsWithNewCondition(ImmutableList<ExistentialConditionDescription> existentialConditions, bool exists, ImmutableList<int> path)
+        {
+            if (path.Count == 0)
             {
-                var path = Path.Add(QueryDescription.ExistentialConditions.Count);
+                var newPath = Path.Add(existentialConditions.Count);
                 var existentialCondition = new ExistentialConditionDescription(
                     exists,
                     ImmutableList<InputDescription>.Empty,
                     ImmutableList<EdgeDescription>.Empty,
                     ImmutableList<ExistentialConditionDescription>.Empty);
-                var existentialConditions = QueryDescription.ExistentialConditions.Add(existentialCondition);
-                var queryDescription = QueryDescription.WithExistentialConditions(existentialConditions);
-                return new ResultDescriptionBuilderContext(queryDescription, KnownFacts, path);
+                var existentialConditionsWithNewCondition = existentialConditions.Add(existentialCondition);
+                return (existentialConditionsWithNewCondition, newPath);
             }
             else
             {
-                throw new NotImplementedException();
+                int index = path[0];
+                var existentialCondition = existentialConditions[index];
+                (var newExistentialConditions, var newPath) = ExistentialsWithNewCondition(existentialCondition.ExistentialConditions, exists, path.RemoveAt(0));
+                var newExistentialCondition = existentialCondition.WithExistentialConditions(newExistentialConditions);
+                var existentialConditionsWithNewCondition = existentialConditions
+                    .RemoveAt(index)
+                    .Insert(index, newExistentialCondition);
+                return (existentialConditionsWithNewCondition, newPath);
             }
         }
 
