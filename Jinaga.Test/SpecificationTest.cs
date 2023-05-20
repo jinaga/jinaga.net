@@ -622,5 +622,80 @@ namespace Jinaga.Test
                 } => office
                 "));
         }
+
+        [Fact]
+        public void CanSpecifyNestedExistentialConditions()
+        {
+            var specification = Given<Department>.Match((department, facts) =>
+                facts.OfType<Project>()
+                    .Where(project => project.department == department)
+                    .Where(project => !facts.OfType<ProjectDeleted>()
+                        .Where(deleted => deleted.project == project)
+                        .Where(deleted => !facts.OfType<ProjectRestored>()
+                            .Where(restored => restored.deleted == deleted)
+                            .Any()
+                        )
+                        .Any()
+                    )
+            );
+            specification.ToString().Should().Be(
+                """
+                (company: Company) {
+                    project: Project [
+                        project->department: Department->company: Company = company
+                        !E {
+                            deleted: Project.Deleted [
+                                deleted->project: Project = project
+                                !E {
+                                    restored: Project.Restored [
+                                        restored->deleted: Project.Deleted = deleted
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                } => project
+                """
+            );
+        }
+
+        [Fact]
+        public void CanSpecififyOtherNestedExistentialCondition()
+        {
+            var specification = Given<School>.Match((school, facts) =>
+              from course in facts.OfType<Course>()
+              where course.school == school
+              where !(
+                from deleted in facts.OfType<CourseDeleted>()
+                where deleted.course == course
+                where !(
+                  from restored in facts.OfType<CourseRestored>()
+                  where restored.deleted == deleted
+                  select restored
+                ).Any()
+                select deleted
+              ).Any()
+              select course
+            );
+            specification.ToString().Should().Be(
+                """
+                (school: School) {
+                    course: Course [
+                        course->school: School = school
+                        !E {
+                            deleted: Course.Deleted [
+                                deleted->course: Course = course
+                                !E {
+                                    restored: Course.Restored [
+                                        restored->deleted: Course.Deleted = deleted
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                } => course
+                """
+            );
+        }
     }
 }
