@@ -102,6 +102,49 @@ public class QueryGeneratorTests
         );
     }
 
+    [Fact]
+    public void ApplyPositiveExistentialCondition()
+    {
+        var specification = Given<Company>.Match((company, facts) =>
+            from project in facts.OfType<Project>()
+            where project.department.company == company
+            where (
+                from deleted in facts.OfType<ProjectDeleted>()
+                where deleted.project == project
+                select deleted
+            ).Any()
+            select project
+        );
+        SqlQueryTree sqlQueryTree = SqlFor(specification);
+
+        sqlQueryTree.SqlQuery.Sql.Should().Be(
+            "SELECT " +
+                "f1.hash as hash1, f1.fact_id as id1, f1.data as data1, " +
+                "f3.hash as hash3, f3.fact_id as id3, f3.data as data3 " +
+            "FROM fact f1 " +
+            "JOIN edge e1 " +
+                "ON e1.predecessor_fact_id = f1.fact_id " +
+                "AND e1.role_id = $3 " +
+            "JOIN fact f2 " +
+                "ON f2.fact_id = e1.successor_fact_id " +
+            "JOIN edge e2 " +
+                "ON e2.predecessor_fact_id = f2.fact_id " +
+                "AND e2.role_id = $4 " +
+            "JOIN fact f3 " +
+                "ON f3.fact_id = e2.successor_fact_id " +
+            "WHERE f1.fact_type_id = $1 AND f1.hash = $2 " +
+            "AND EXISTS (" +
+                "SELECT 1 " +
+                "FROM edge e3 " +
+                "JOIN fact f4 " +
+                    "ON f4.fact_id = e3.successor_fact_id " +
+                "WHERE e3.predecessor_fact_id = f3.fact_id " +
+                    "AND e3.role_id = $5" +
+            ") " +
+            "ORDER BY f3.fact_id ASC"
+        );
+    }
+
     private SqlQueryTree SqlFor(Specification specification)
     {
         var factTypes = GetAllFactTypes(specification);

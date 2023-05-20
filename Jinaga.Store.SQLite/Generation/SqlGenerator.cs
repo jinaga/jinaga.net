@@ -48,13 +48,61 @@ namespace Jinaga.Store.SQLite.Generation
                 .Select(output => $"f{output.FactIndex}.fact_id ASC")
                 .Join(", ");
 
-            var sql = $"SELECT {columns} FROM fact f{firstFactIndex}{joins.Join("")} WHERE {inputWhereClauses} ORDER BY {orderByClause}";
+            var sql = $"SELECT {columns} FROM fact f{firstFactIndex}{joins.Join("")} WHERE {inputWhereClauses}{existentialWhereClauses} ORDER BY {orderByClause}";
             return new SpecificationSqlQuery(sql, queryDescription.Parameters, allLabels);
         }
 
-        private static string GenerateExistentialWhereClause(ExistentialConditionDescription existentialCondition, HashSet<int> writtenFactIndexes)
+        private static string GenerateExistentialWhereClause(ExistentialConditionDescription existentialCondition, HashSet<int> outerFactIndexes)
         {
-            throw new NotImplementedException();
+            var firstEdge = existentialCondition.Edges.First();
+            var writtenFactIndexes = new HashSet<int>(outerFactIndexes);
+            var firstJoin = ImmutableList<string>.Empty;
+            var whereClause = ImmutableList<string>.Empty;
+            if (writtenFactIndexes.Contains(firstEdge.PredecessorFactIndex))
+            {
+                if (writtenFactIndexes.Contains(firstEdge.SuccessorFactIndex))
+                {
+                    throw new NotImplementedException();
+                }
+                else
+                {
+                    whereClause = whereClause.Add(
+                        $"e{firstEdge.EdgeIndex}.predecessor_fact_id = f{firstEdge.PredecessorFactIndex}.fact_id" +
+                        $" AND e{firstEdge.EdgeIndex}.role_id = ${firstEdge.RoleParameter}"
+                    );
+                    firstJoin = firstJoin.Add(
+                        $" JOIN fact f{firstEdge.SuccessorFactIndex}" +
+                        $" ON f{firstEdge.SuccessorFactIndex}.fact_id = e{firstEdge.EdgeIndex}.successor_fact_id"
+                    );
+                    writtenFactIndexes.Add(firstEdge.SuccessorFactIndex);
+                }
+            }
+            else if (writtenFactIndexes.Contains(firstEdge.SuccessorFactIndex))
+            {
+                whereClause = whereClause.Add(
+                    $"e{firstEdge.EdgeIndex}.successor_fact_id = f{firstEdge.SuccessorFactIndex}.fact_id" +
+                    $" AND e{firstEdge.EdgeIndex}.role_id = ${firstEdge.RoleParameter}"
+                );
+                firstJoin = firstJoin.Add(
+                    $" JOIN fact f{firstEdge.PredecessorFactIndex}" +
+                    $" ON f{firstEdge.PredecessorFactIndex}.fact_id = e{firstEdge.EdgeIndex}.predecessor_fact_id"
+                );
+                writtenFactIndexes.Add(firstEdge.PredecessorFactIndex);
+            }
+            else
+            {
+                throw new ArgumentException("Neither predecessor nor successor fact has been written");
+            }
+
+            var tailJoins = GenerateJoins(existentialCondition.Edges.Skip(1).ToImmutableList(), writtenFactIndexes);
+            var joins = firstJoin.AddRange(tailJoins);
+            var inputWhereClauses = existentialCondition.Inputs
+                .Select(input => $" AND f{input.FactIndex}.fact_type_id = ${input.FactTypeParameter} AND f{input.FactIndex}.hash = ${input.FactHashParameter}")
+                .Join("");
+            var existentialWhereClauses = existentialCondition.ExistentialConditions
+                .Select(condition => $" AND {(condition.Exists ? "EXISTS" : "NOT EXISTS")} ({GenerateExistentialWhereClause(condition, writtenFactIndexes)})")
+                .Join("");
+            return $"SELECT 1 FROM edge e{firstEdge.EdgeIndex}{joins.Join("")} WHERE {whereClause.Join(" AND ")}{inputWhereClauses}{existentialWhereClauses}";
         }
 
         private static ImmutableList<string> GenerateJoins(ImmutableList<EdgeDescription> edges, HashSet<int> writtenFactIndexes)
