@@ -15,7 +15,7 @@ The following constructs are accepted in the `Match` clause:
 - source -> SelectMany(source, selector, resultSelector)
 - predicate -> left == right
 - predicate -> left.Contains(right)
-- predicate -> predicated && predicate
+- predicate -> predicate && predicate
 - predicate -> !predicate
 - predicate -> Any(source)
 - predicate -> Any(source, predicate)
