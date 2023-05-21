@@ -59,4 +59,32 @@ public class LinqProcessorTest
         action.Should().Throw<ArgumentException>()
             .WithMessage("Cannot join Company to User.");
     }
+
+    [Fact]
+    public void CanProcessWhere()
+    {
+        var employees = Where(
+            FactsOfType("Employee"),
+            new Label("employee", "Employee"),
+            Compare(
+                new ReferenceContext(
+                    new Label("employee", "Employee"),
+                    ImmutableList.Create(new Role("company", "Company"))
+                ),
+                new ReferenceContext(
+                    new Label("company", "Company"),
+                    ImmutableList<Role>.Empty
+                )
+            )
+        );
+
+        var match = employees.Matches.Should().ContainSingle().Subject;
+        match.ToString().ReplaceLineEndings("\r\n").Should().Be(
+            """
+            employee: Employee [
+                employee->company: Company = company
+            ]
+
+            """);
+    }
 }

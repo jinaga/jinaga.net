@@ -1,6 +1,8 @@
 ﻿using Jinaga.Pipelines;
 using Jinaga.Projections;
+using System;
 using System.Collections.Immutable;
+using System.Linq;
 
 namespace Jinaga.Specifications
 {
@@ -31,6 +33,44 @@ namespace Jinaga.Specifications
             ConditionContext pathCondition = new PathConditionContext(left, right);
             var conditions = ImmutableList.Create(pathCondition);
             return new PredicateContext(conditions);
+        }
+
+        public static SourceContext Where(SourceContext source, Label newLabel, PredicateContext predicate)
+        {
+            var replacements = ImmutableDictionary<string, string>.Empty
+                .Add("***", newLabel.Name);
+            var matches = source.Matches
+                .Select(match => match.Apply(replacements))
+                .ToImmutableList();
+            foreach (var condition in predicate.Conditions)
+            {
+                matches = ApplyCondition(condition, matches);
+            }
+            var projection = source.Projection.Apply(replacements);
+            return new SourceContext(matches, projection);
+        }
+
+        private static ImmutableList<Match> ApplyCondition(ConditionContext condition, ImmutableList<Match> matches)
+        {
+            if (condition is PathConditionContext pathCondition)
+            {
+                int matchIndex = 0;
+                var match = matches[matchIndex];
+                var conditions = match.Conditions;
+                MatchCondition newCondition = new PathCondition(
+                    pathCondition.Left.Roles,
+                    pathCondition.Right.Label.Name,
+                    pathCondition.Right.Roles);
+                conditions = conditions.Add(newCondition);
+                match = new Match(match.Unknown, conditions);
+                return matches
+                    .RemoveAt(matchIndex)
+                    .Insert(matchIndex, match);
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
         }
     }
 }
