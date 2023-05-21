@@ -87,4 +87,32 @@ public class LinqProcessorTest
 
             """);
     }
+
+    [Fact]
+    public void ReversesPathCondition()
+    {
+        var employees = Where(
+            FactsOfType("Employee"),
+            new Label("employee", "Employee"),
+            Compare(
+                new ReferenceContext(
+                    new Label("company", "Company"),
+                    ImmutableList<Role>.Empty
+                ),
+                new ReferenceContext(
+                    new Label("employee", "Employee"),
+                    ImmutableList.Create(new Role("company", "Company"))
+                )
+            )
+        );
+
+        var match = employees.Matches.Should().ContainSingle().Subject;
+        match.ToString().ReplaceLineEndings("\r\n").Should().Be(
+            """
+            employee: Employee [
+                employee->company: Company = company
+            ]
+
+            """);
+    }
 }

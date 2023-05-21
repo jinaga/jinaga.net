@@ -57,10 +57,18 @@ namespace Jinaga.Specifications
                 int matchIndex = 0;
                 var match = matches[matchIndex];
                 var conditions = match.Conditions;
-                MatchCondition newCondition = new PathCondition(
-                    pathCondition.Left.Roles,
-                    pathCondition.Right.Label.Name,
-                    pathCondition.Right.Roles);
+                MatchCondition newCondition =
+                    pathCondition.Left.Label == match.Unknown
+                        ? new PathCondition(
+                            pathCondition.Left.Roles,
+                            pathCondition.Right.Label.Name,
+                            pathCondition.Right.Roles) :
+                    pathCondition.Right.Label == match.Unknown
+                        ? new PathCondition(
+                            pathCondition.Right.Roles,
+                            pathCondition.Left.Label.Name,
+                            pathCondition.Left.Roles) :
+                    throw new ArgumentException("The path condition does not match the unknown");
                 conditions = conditions.Add(newCondition);
                 match = new Match(match.Unknown, conditions);
                 return matches
