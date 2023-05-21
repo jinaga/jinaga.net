@@ -14,5 +14,12 @@ namespace Jinaga.Specifications
             var projection = new SimpleProjection(unknown.Name);
             return new SourceContext(matches, projection);
         }
+
+        public static PredicateContext Compare(ReferenceContext left, ReferenceContext right)
+        {
+            ConditionContext pathCondition = new PathConditionContext(left, right);
+            var conditions = ImmutableList.Create(pathCondition);
+            return new PredicateContext(conditions);
+        }
     }
 }

@@ -3,7 +3,7 @@ using System.Collections.Immutable;
 
 namespace Jinaga.Specifications
 {
-    public class SourceContext
+    internal class SourceContext
     {
         public ImmutableList<Match> Matches { get; }
         public Projection Projection { get; }
