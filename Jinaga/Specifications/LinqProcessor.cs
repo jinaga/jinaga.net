@@ -17,6 +17,17 @@ namespace Jinaga.Specifications
 
         public static PredicateContext Compare(ReferenceContext left, ReferenceContext right)
         {
+            var leftType = left.Roles.Count > 0
+                ? left.Roles[left.Roles.Count - 1].TargetType
+                : left.Label.Type;
+            var rightType = right.Roles.Count > 0
+                ? right.Roles[right.Roles.Count - 1].TargetType
+                : right.Label.Type;
+            if (leftType != rightType)
+            {
+                throw new System.ArgumentException($"Cannot join {leftType} to {rightType}.");
+            }
+
             ConditionContext pathCondition = new PathConditionContext(left, right);
             var conditions = ImmutableList.Create(pathCondition);
             return new PredicateContext(conditions);
