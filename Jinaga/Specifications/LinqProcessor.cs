@@ -74,10 +74,15 @@ namespace Jinaga.Specifications
             }
         }
 
-        public static SourceContext SelectMany(SourceContext source, SourceContext selector, Projection resultSelector)
+        public static SourceContext Select(SourceContext source, Projection selector)
+        {
+            return new SourceContext(source.Matches, selector);
+        }
+
+        public static SourceContext SelectMany(SourceContext source, SourceContext selector)
         {
             var matches = source.Matches.AddRange(selector.Matches);
-            return new SourceContext(matches, resultSelector);
+            return new SourceContext(matches, selector.Projection);
         }
     }
 }

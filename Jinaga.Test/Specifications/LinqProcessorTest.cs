@@ -137,11 +137,7 @@ public class LinqProcessorTest
                     )
                 )
             ),
-            FactsOfType(new Label("manager", "Manager")),
-            new CompoundProjection(ImmutableDictionary<string, Projection>.Empty
-                .Add("employee", new SimpleProjection("employee"))
-                .Add("manager", new SimpleProjection("manager"))
-            )
+            FactsOfType(new Label("manager", "Manager"))
         );
 
         TextOf(specification.Matches).Should().Be(
