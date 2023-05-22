@@ -40,6 +40,23 @@ namespace Jinaga.Specifications
             return new PredicateContext(conditions);
         }
 
+        public static PredicateContext Not(PredicateContext predicate)
+        {
+            if (predicate.Conditions.Count != 1)
+            {
+                throw new ArgumentException("Not must have exactly one condition");
+            }
+            var condition = predicate.Conditions[0];
+            if (!(condition is ExistentialConditionContext existentialCondition))
+            {
+                throw new ArgumentException("Not must have an existential condition");
+            }
+
+            ConditionContext newCondition = new ExistentialConditionContext(!existentialCondition.Exists, existentialCondition.Matches);
+            var conditions = ImmutableList.Create(newCondition);
+            return new PredicateContext(conditions);
+        }
+
         public static SourceContext Where(SourceContext source, PredicateContext predicate)
         {
             var matches = source.Matches;
@@ -54,6 +71,7 @@ namespace Jinaga.Specifications
         {
             if (condition is PathConditionContext pathCondition)
             {
+                // TODO: Find the latest match with the unknown that matches the path condition.
                 int matchIndex = 0;
                 var match = matches[matchIndex];
                 var conditions = match.Conditions;
@@ -75,9 +93,22 @@ namespace Jinaga.Specifications
                     .RemoveAt(matchIndex)
                     .Insert(matchIndex, match);
             }
+            else if (condition is ExistentialConditionContext existentialCondition)
+            {
+                // TODO: Find the match with the unknown that matches the existential condition.
+                int matchIndex = 0;
+                var match = matches[matchIndex];
+                var conditions = match.Conditions;
+                MatchCondition newCondition = new ExistentialCondition(existentialCondition.Exists, existentialCondition.Matches);
+                conditions = conditions.Add(newCondition);
+                match = new Match(match.Unknown, conditions);
+                return matches
+                    .RemoveAt(matchIndex)
+                    .Insert(matchIndex, match);
+            }
             else
             {
-                throw new NotImplementedException();
+                throw new ArgumentException("Unknown condition type");
             }
         }
 

@@ -154,6 +154,44 @@ public class LinqProcessorTest
     }
 
     [Fact]
+    public void CanApplyNegativeExistentialCondition()
+    {
+        var specification = Where(
+            FactsOfType(new Label("employee", "Employee")),
+            Not(
+                Any(
+                    Where(
+                        FactsOfType(new Label("terminated", "Terminated")),
+                        Compare(
+                            new ReferenceContext(
+                                new Label("terminated", "Terminated"),
+                                ImmutableList.Create(new Role("employee", "Employee"))
+                            ),
+                            new ReferenceContext(
+                                new Label("employee", "Employee"),
+                                ImmutableList<Role>.Empty
+                            )
+                        )
+                    )
+                )
+            )
+        );
+
+        TextOf(specification.Matches).Should().Be(
+            """
+            employee: Employee [
+                !E {
+                    terminated: Terminated [
+                        terminated->employee: Employee = employee
+                    ]
+                }
+            ]
+            
+            """
+        );
+    }
+
+    [Fact]
     public void CanProcessSelectMany()
     {
         var specification = SelectMany(
