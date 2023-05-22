@@ -7,8 +7,8 @@ From there the `SpecificationProcessor` translates either an `IQueryable` or a s
 
 The following constructs are accepted in the `Match` clause:
 
-- source -> facts.OfType<T>()
-- source -> facts.OfType<T>(predicate)
+- source -> facts.OfType`<T>`()
+- source -> facts.OfType`<T>`(predicate)
 - source -> Where(source, predicate)
 - source -> Select(source, selector)
 - source -> SelectMany(source, selector)
@@ -19,7 +19,7 @@ The following constructs are accepted in the `Match` clause:
 - predicate -> !predicate
 - predicate -> Any(source)
 - predicate -> Any(source, predicate)
-- predicate -> facts.Any<T>(predicate)
+- predicate -> facts.Any`<T>`(predicate)
 - predicate -> Condition
 - left,right -> label (.role)*
 

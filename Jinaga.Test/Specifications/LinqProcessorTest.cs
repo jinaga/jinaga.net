@@ -1,4 +1,5 @@
 ﻿using FluentAssertions;
+using Jinaga.Facts;
 using Jinaga.Pipelines;
 using Jinaga.Projections;
 using Jinaga.Specifications;
@@ -64,6 +65,38 @@ public class LinqProcessorTest
 
         action.Should().Throw<ArgumentException>()
             .WithMessage("Cannot join Company to User.");
+    }
+
+    [Fact]
+    public void CanProcessExistential()
+    {
+        var predicate = Any(
+            Where(
+                FactsOfType(new Label("terminated", "Terminated")),
+                Compare(
+                    new ReferenceContext(
+                        new Label("terminated", "Terminated"),
+                        ImmutableList.Create(new Role("employee", "Employee"))
+                    ),
+                    new ReferenceContext(
+                        new Label("employee", "Employee"),
+                        ImmutableList<Role>.Empty
+                    )
+                )
+            )
+        );
+
+        var condition = predicate.Conditions.Should().ContainSingle().Which
+            .Should().BeOfType<ExistentialConditionContext>().Subject;
+        TextOf(condition.Matches).Should().Be(
+            """
+            terminated: Terminated [
+                terminated->employee: Employee = employee
+            ]
+
+            """
+        );
+        condition.Exists.Should().BeTrue();
     }
 
     [Fact]

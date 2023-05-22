@@ -33,6 +33,13 @@ namespace Jinaga.Specifications
             return new PredicateContext(conditions);
         }
 
+        public static PredicateContext Any(SourceContext source)
+        {
+            ConditionContext existentialContidion = new ExistentialConditionContext(true, source.Matches);
+            var conditions = ImmutableList.Create(existentialContidion);
+            return new PredicateContext(conditions);
+        }
+
         public static SourceContext Where(SourceContext source, PredicateContext predicate)
         {
             var matches = source.Matches;
