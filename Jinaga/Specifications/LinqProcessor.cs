@@ -80,5 +80,20 @@ namespace Jinaga.Specifications
                 throw new NotImplementedException();
             }
         }
+
+        public static SourceContext SelectMany(SourceContext source, SourceContext selector, Label newLabel, Projection resultSelector)
+        {
+            // Replace the unknown in the selector with the new label.
+            var replacements = ImmutableDictionary<string, string>.Empty
+                .Add("***", newLabel.Name);
+            var selectorMatches = selector.Matches
+                .Select(match => match.Apply(replacements))
+                .ToImmutableList();
+            // Concatenate the matches from the source and the selector.
+            var matches = source.Matches.AddRange(selectorMatches);
+            // Use the result selector to create a new projection.
+            var projection = resultSelector;
+            return new SourceContext(matches, projection);
+        }
     }
 }

@@ -2,8 +2,10 @@
 using Jinaga.Pipelines;
 using Jinaga.Projections;
 using Jinaga.Specifications;
+using Jinaga.Visualizers;
 using System;
 using System.Collections.Immutable;
+using System.Linq;
 using Xunit;
 using static Jinaga.Specifications.LinqProcessor;
 
@@ -116,5 +118,45 @@ public class LinqProcessorTest
             ]
 
             """);
+    }
+
+    [Fact]
+    public void CanProcessSelectMany()
+    {
+        var specification = SelectMany(
+            Where(
+                FactsOfType("Employee"),
+                new Label("employee", "Employee"),
+                Compare(
+                    new ReferenceContext(
+                        new Label("employee", "Employee"),
+                        ImmutableList.Create(new Role("company", "Company"))
+                    ),
+                    new ReferenceContext(
+                        new Label("company", "Company"),
+                        ImmutableList<Role>.Empty
+                    )
+                )
+            ),
+            FactsOfType("Manager"),
+            new Label("manager", "Manager"),
+            new CompoundProjection(ImmutableDictionary<string, Projection>.Empty
+                .Add("employee", new SimpleProjection("employee"))
+                .Add("manager", new SimpleProjection("manager"))
+            )
+        );
+
+        specification.Matches.Select(m => m.ToString()).Join("")
+            .ReplaceLineEndings("\r\n")
+            .Should().Be(
+                """
+                employee: Employee [
+                    employee->company: Company = company
+                ]
+                manager: Manager [
+                ]
+
+                """
+            );
     }
 }
