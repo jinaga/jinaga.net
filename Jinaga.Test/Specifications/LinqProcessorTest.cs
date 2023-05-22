@@ -86,6 +86,8 @@ public class LinqProcessorTest
             ]
 
             """);
+        employees.Projection.Should().BeOfType<SimpleProjection>().Which
+            .Tag.Should().Be("employee");
     }
 
     [Fact]
