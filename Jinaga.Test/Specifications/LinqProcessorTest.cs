@@ -4,6 +4,7 @@ using Jinaga.Projections;
 using Jinaga.Specifications;
 using Jinaga.Visualizers;
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using Xunit;
@@ -17,13 +18,16 @@ public class LinqProcessorTest
     {
         var source = FactsOfType(new Label("employee", "Employee"));
 
-        var match = source.Matches.Should().ContainSingle().Subject;
-        match.Unknown.Name.Should().Be("employee");
-        match.Unknown.Type.Should().Be("Employee");
-        match.Conditions.Should().BeEmpty();
+        TextOf(source.Matches).Should().Be(
+            """
+            employee: Employee [
+            ]
 
-        var projection = source.Projection.Should().BeOfType<SimpleProjection>().Subject;
-        projection.Tag.Should().Be("employee");
+            """
+        );
+
+        source.Projection.Should().BeOfType<SimpleProjection>().Which
+            .Tag.Should().Be("employee");
     }
 
     [Fact]
@@ -79,8 +83,7 @@ public class LinqProcessorTest
             )
         );
 
-        var match = employees.Matches.Should().ContainSingle().Subject;
-        match.ToString().ReplaceLineEndings("\r\n").Should().Be(
+        TextOf(employees.Matches).Should().Be(
             """
             employee: Employee [
                 employee->company: Company = company
@@ -108,8 +111,7 @@ public class LinqProcessorTest
             )
         );
 
-        var match = employees.Matches.Should().ContainSingle().Subject;
-        match.ToString().ReplaceLineEndings("\r\n").Should().Be(
+        TextOf(employees.Matches).Should().Be(
             """
             employee: Employee [
                 employee->company: Company = company
@@ -142,17 +144,23 @@ public class LinqProcessorTest
             )
         );
 
-        specification.Matches.Select(m => m.ToString()).Join("")
-            .ReplaceLineEndings("\r\n")
-            .Should().Be(
-                """
-                employee: Employee [
-                    employee->company: Company = company
-                ]
-                manager: Manager [
-                ]
+        TextOf(specification.Matches).Should().Be(
+            """
+            employee: Employee [
+                employee->company: Company = company
+            ]
+            manager: Manager [
+            ]
 
-                """
-            );
+            """
+        );
+    }
+
+    private static string TextOf(IEnumerable<Match> matches)
+    {
+        return matches
+            .Select(m => m.ToString())
+            .Join("")
+            .ReplaceLineEndings("\r\n");
     }
 }
