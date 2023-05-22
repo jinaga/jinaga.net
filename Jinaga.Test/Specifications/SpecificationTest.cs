@@ -638,11 +638,11 @@ namespace Jinaga.Test.Specifications.Specifications
                         .Any()
                     )
             );
-            specification.ToString().Should().Be(
+            specification.ToString().ReplaceLineEndings("\r\n").Should().Be(
                 """
-                (company: Company) {
+                (department: Department) {
                     project: Project [
-                        project->department: Department->company: Company = company
+                        project->department: Department = department
                         !E {
                             deleted: Project.Deleted [
                                 deleted->project: Project = project
@@ -655,6 +655,7 @@ namespace Jinaga.Test.Specifications.Specifications
                         }
                     ]
                 } => project
+                
                 """
             );
         }
@@ -677,7 +678,7 @@ namespace Jinaga.Test.Specifications.Specifications
               ).Any()
               select course
             );
-            specification.ToString().Should().Be(
+            specification.ToString().ReplaceLineEndings("\r\n").Should().Be(
                 """
                 (school: School) {
                     course: Course [
@@ -694,6 +695,7 @@ namespace Jinaga.Test.Specifications.Specifications
                         }
                     ]
                 } => course
+                
                 """
             );
         }
