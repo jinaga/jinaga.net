@@ -201,6 +201,7 @@ Finally, the `Select` construct replaces the projection with the `manager` label
 ## Source
 
 A source produces a set of matches and a projection.
+A source expects a suggested label.
 
 ### facts.OfType<T>()
 
@@ -208,10 +209,12 @@ Facts from a repository produces a single match.
 
 ```
 {
-  u1: T [
+  label: T [
   ]
-} => u1
+} => label
 ```
+
+The label used in the match is the one that the caller suggests.
 
 ### facts.OfType<T>(predicate)
 
@@ -226,6 +229,8 @@ It also sets the label of the match.
 } apply predicate => label
 ```
 
+The label is the name of the predicate parameter.
+
 ### Where(source, predicate)
 
 Where applies the conditions in the predicate to the appropriate matches of the source.
@@ -233,6 +238,8 @@ Where applies the conditions in the predicate to the appropriate matches of the 
 ```
 source apply predicate
 ```
+
+When it calls the source, it suggests a label based on the predicate parameter.
 
 To find the appropriate match, first find the target unknowns of each condition.
 An existential condition has only one target unknown.
@@ -250,6 +257,9 @@ Select replaces the projection with a new projection.
 source => selector
 ```
 
+When it calls the source, it suggests a label based on the selector parameter.
+And when it calls the selector, it forwards the suggested label given by the caller.
+
 ### SelectMany(source, selector)
 
 SelectMany concatenates the matches of the source with the matches of the selector.
@@ -259,6 +269,9 @@ It then replaces the projection with the selector projection.
 source.matches concat selector.matches => selector.projection
 ```
 
+When it calls the source, it suggests a label based on the selector parameter.
+And when it calls the selector, it forwards the suggested label given by the caller.
+
 ### SelectMany(source, selector, resultSelector)
 
 SelectMany with a result selector concatenates the matches of the source with the matches of the selector.
@@ -267,6 +280,8 @@ It then replaces the projection with the result selector projection.
 ```
 source.matches concat selector.matches => resultSelector
 ```
+
+When it calls the source, it suggests a label based on the selector parameter.
 
 ## Predicate
 
@@ -322,10 +337,11 @@ It applies the conditions in the predicate to the appropriate matches.
 E source.matches apply predicate
 ```
 
+When it calls the source, it suggests a label based on the predicate parameter.
+
 ### facts.Any<T>(predicate)
 
 Any from the repository produces a single existential condition.
-It also sets the label of the match.
 
 ```
 E {
@@ -333,6 +349,8 @@ E {
   ]
 } apply predicate
 ```
+
+The label of the match is based on the predicate parameter.
 
 ### Condition
 

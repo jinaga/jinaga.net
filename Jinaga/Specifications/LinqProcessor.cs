@@ -2,15 +2,13 @@
 using Jinaga.Projections;
 using System;
 using System.Collections.Immutable;
-using System.Linq;
 
 namespace Jinaga.Specifications
 {
     internal class LinqProcessor
     {
-        public static SourceContext FactsOfType(string typeName)
+        public static SourceContext FactsOfType(Label unknown)
         {
-            var unknown = new Label("***", typeName);
             var match = new Match(unknown, ImmutableList<MatchCondition>.Empty);
             var matches = ImmutableList.Create(match);
             var projection = new SimpleProjection(unknown.Name);
@@ -35,19 +33,14 @@ namespace Jinaga.Specifications
             return new PredicateContext(conditions);
         }
 
-        public static SourceContext Where(SourceContext source, Label newLabel, PredicateContext predicate)
+        public static SourceContext Where(SourceContext source, PredicateContext predicate)
         {
-            var replacements = ImmutableDictionary<string, string>.Empty
-                .Add("***", newLabel.Name);
-            var matches = source.Matches
-                .Select(match => match.Apply(replacements))
-                .ToImmutableList();
+            var matches = source.Matches;
             foreach (var condition in predicate.Conditions)
             {
                 matches = ApplyCondition(condition, matches);
             }
-            var projection = source.Projection.Apply(replacements);
-            return new SourceContext(matches, projection);
+            return new SourceContext(matches, source.Projection);
         }
 
         private static ImmutableList<Match> ApplyCondition(ConditionContext condition, ImmutableList<Match> matches)
@@ -81,19 +74,10 @@ namespace Jinaga.Specifications
             }
         }
 
-        public static SourceContext SelectMany(SourceContext source, SourceContext selector, Label newLabel, Projection resultSelector)
+        public static SourceContext SelectMany(SourceContext source, SourceContext selector, Projection resultSelector)
         {
-            // Replace the unknown in the selector with the new label.
-            var replacements = ImmutableDictionary<string, string>.Empty
-                .Add("***", newLabel.Name);
-            var selectorMatches = selector.Matches
-                .Select(match => match.Apply(replacements))
-                .ToImmutableList();
-            // Concatenate the matches from the source and the selector.
-            var matches = source.Matches.AddRange(selectorMatches);
-            // Use the result selector to create a new projection.
-            var projection = resultSelector;
-            return new SourceContext(matches, projection);
+            var matches = source.Matches.AddRange(selector.Matches);
+            return new SourceContext(matches, resultSelector);
         }
     }
 }

@@ -15,15 +15,15 @@ public class LinqProcessorTest
     [Fact]
     public void CanProcessFactSource()
     {
-        var source = FactsOfType("Employee");
+        var source = FactsOfType(new Label("employee", "Employee"));
 
         var match = source.Matches.Should().ContainSingle().Subject;
-        match.Unknown.Name.Should().Be("***");
+        match.Unknown.Name.Should().Be("employee");
         match.Unknown.Type.Should().Be("Employee");
         match.Conditions.Should().BeEmpty();
 
         var projection = source.Projection.Should().BeOfType<SimpleProjection>().Subject;
-        projection.Tag.Should().Be("***");
+        projection.Tag.Should().Be("employee");
     }
 
     [Fact]
@@ -66,8 +66,7 @@ public class LinqProcessorTest
     public void CanProcessWhere()
     {
         var employees = Where(
-            FactsOfType("Employee"),
-            new Label("employee", "Employee"),
+            FactsOfType(new Label("employee", "Employee")),
             Compare(
                 new ReferenceContext(
                     new Label("employee", "Employee"),
@@ -96,8 +95,7 @@ public class LinqProcessorTest
     public void ReversesPathCondition()
     {
         var employees = Where(
-            FactsOfType("Employee"),
-            new Label("employee", "Employee"),
+            FactsOfType(new Label("employee", "Employee")),
             Compare(
                 new ReferenceContext(
                     new Label("company", "Company"),
@@ -125,8 +123,7 @@ public class LinqProcessorTest
     {
         var specification = SelectMany(
             Where(
-                FactsOfType("Employee"),
-                new Label("employee", "Employee"),
+                FactsOfType(new Label("employee", "Employee")),
                 Compare(
                     new ReferenceContext(
                         new Label("employee", "Employee"),
@@ -138,8 +135,7 @@ public class LinqProcessorTest
                     )
                 )
             ),
-            FactsOfType("Manager"),
-            new Label("manager", "Manager"),
+            FactsOfType(new Label("manager", "Manager")),
             new CompoundProjection(ImmutableDictionary<string, Projection>.Empty
                 .Add("employee", new SimpleProjection("employee"))
                 .Add("manager", new SimpleProjection("manager"))
