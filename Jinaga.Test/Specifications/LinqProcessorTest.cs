@@ -223,6 +223,120 @@ public class LinqProcessorTest
         );
     }
 
+    [Fact]
+    public void AppliesPathConditionsToTheCorrectMatch()
+    {
+        var specification = Where(
+            SelectMany(
+                FactsOfType(new Label("employee", "Employee")),
+                FactsOfType(new Label("manager", "Manager"))
+            ),
+            And(
+                Compare(
+                    new ReferenceContext(
+                        new Label("employee", "Employee"),
+                        ImmutableList.Create(new Role("company", "Company"))
+                    ),
+                    new ReferenceContext(
+                        new Label("company", "Company"),
+                        ImmutableList<Role>.Empty
+                    )
+                ),
+                Compare(
+                    new ReferenceContext(
+                        new Label("employee", "Employee"),
+                        ImmutableList<Role>.Empty
+                    ),
+                    new ReferenceContext(
+                        new Label("manager", "Manager"),
+                        ImmutableList.Create(new Role("employee", "Employee"))
+                    )
+                )
+            )
+        );
+
+        TextOf(specification.Matches).Should().Be(
+            """
+            employee: Employee [
+                employee->company: Company = company
+            ]
+            manager: Manager [
+                manager->employee: Employee = employee
+            ]
+            
+            """
+        );
+    }
+
+    [Fact]
+    public void AppliesExistentialConditionToTheCorrectMatch()
+    {
+        var specification = Where(
+            SelectMany(
+                FactsOfType(new Label("employee", "Employee")),
+                FactsOfType(new Label("manager", "Manager"))
+            ),
+            And(
+                And(
+                    Compare(
+                        new ReferenceContext(
+                            new Label("employee", "Employee"),
+                            ImmutableList.Create(new Role("company", "Company"))
+                        ),
+                        new ReferenceContext(
+                            new Label("company", "Company"),
+                            ImmutableList<Role>.Empty
+                        )
+                    ),
+                    Compare(
+                        new ReferenceContext(
+                            new Label("employee", "Employee"),
+                            ImmutableList<Role>.Empty
+                        ),
+                        new ReferenceContext(
+                            new Label("manager", "Manager"),
+                            ImmutableList.Create(new Role("employee", "Employee"))
+                        )
+                    )
+                ),
+                Not(
+                    Any(
+                        Where(
+                            FactsOfType(new Label("terminated", "Terminated")),
+                            Compare(
+                                new ReferenceContext(
+                                    new Label("terminated", "Terminated"),
+                                    ImmutableList.Create(new Role("employee", "Employee"))
+                                ),
+                                new ReferenceContext(
+                                    new Label("employee", "Employee"),
+                                    ImmutableList<Role>.Empty
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        );
+
+        TextOf(specification.Matches).Should().Be(
+            """
+            employee: Employee [
+                employee->company: Company = company
+                !E {
+                    terminated: Terminated [
+                        terminated->employee: Employee = employee
+                    ]
+                }
+            ]
+            manager: Manager [
+                manager->employee: Employee = employee
+            ]
+            
+            """
+        );
+    }
+
     private static string TextOf(IEnumerable<Match> matches)
     {
         return matches

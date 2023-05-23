@@ -2,6 +2,7 @@
 using Jinaga.Projections;
 using System;
 using System.Collections.Immutable;
+using System.Linq;
 
 namespace Jinaga.Specifications
 {
@@ -57,6 +58,12 @@ namespace Jinaga.Specifications
             return new PredicateContext(conditions);
         }
 
+        public static PredicateContext And(PredicateContext predicate1, PredicateContext predicate2)
+        {
+            var conditions = predicate1.Conditions.AddRange(predicate2.Conditions);
+            return new PredicateContext(conditions);
+        }
+
         public static SourceContext Where(SourceContext source, PredicateContext predicate)
         {
             var matches = source.Matches;
@@ -71,8 +78,14 @@ namespace Jinaga.Specifications
         {
             if (condition is PathConditionContext pathCondition)
             {
-                // TODO: Find the latest match with the unknown that matches the path condition.
-                int matchIndex = 0;
+                int matchIndex = matches.FindLastIndex(match =>
+                    match.Unknown == pathCondition.Left.Label ||
+                    match.Unknown == pathCondition.Right.Label);
+                if (matchIndex < 0)
+                {
+                    throw new ArgumentException("The path condition does not apply to any of the unknowns");
+                }
+                
                 var match = matches[matchIndex];
                 var conditions = match.Conditions;
                 MatchCondition newCondition =
@@ -95,8 +108,25 @@ namespace Jinaga.Specifications
             }
             else if (condition is ExistentialConditionContext existentialCondition)
             {
-                // TODO: Find the match with the unknown that matches the existential condition.
-                int matchIndex = 0;
+                // Find all of the labels in the existential condition.
+                var labels = existentialCondition.Matches
+                    .SelectMany(match => match.Conditions)
+                    .OfType<PathCondition>()
+                    .Select(pathCondition => pathCondition.LabelRight);
+
+                // Exclude the unknowns that are in the existential condition.
+                var unsatisfiedLabels = labels
+                    .Where(label => !existentialCondition.Matches
+                        .Any(match => match.Unknown.Name == label));
+
+                // There should be only one.
+                if (unsatisfiedLabels.Count() != 1)
+                {
+                    throw new ArgumentException("The existential condition does not apply to exactly one unknown");
+                }
+                var unsatisfiedLabel = unsatisfiedLabels.Single();
+
+                int matchIndex = matches.FindIndex(match => match.Unknown.Name == unsatisfiedLabel);
                 var match = matches[matchIndex];
                 var conditions = match.Conditions;
                 MatchCondition newCondition = new ExistentialCondition(existentialCondition.Exists, existentialCondition.Matches);
