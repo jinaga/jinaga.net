@@ -100,7 +100,8 @@ namespace Jinaga.Specifications
                             pathCondition.Left.Label.Name,
                             pathCondition.Left.Roles) :
                     throw new ArgumentException("The path condition does not match the unknown");
-                conditions = conditions.Add(newCondition);
+                int insertionIndex = conditions.TakeWhile(condition => condition is PathCondition).Count();
+                conditions = conditions.Insert(insertionIndex, newCondition);
                 match = new Match(match.Unknown, conditions);
                 return matches
                     .RemoveAt(matchIndex)
