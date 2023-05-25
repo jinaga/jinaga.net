@@ -118,6 +118,10 @@ namespace Jinaga.Repository
                 {
                     return compoundProjection.GetProjection(memberExpression.Member.Name);
                 }
+                else if (head is SimpleProjection)
+                {
+                    throw new SpecificationException($"Cannot select {memberExpression.Member.Name} directly. Give the fact a label first.");
+                }
             }
             throw new NotImplementedException();
         }
