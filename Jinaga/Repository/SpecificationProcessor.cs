@@ -22,6 +22,7 @@ namespace Jinaga.Repository
             var symbolTable = processor.Given(specExpression.Parameters
                 .Take(specExpression.Parameters.Count - 1));
             var result = processor.ProcessQueryable(specExpression.Body, symbolTable);
+            processor.ValidateMatches(result.Matches);
             return (processor.givenLabels, result.Matches, result.Projection);
         }
 
@@ -82,6 +83,15 @@ namespace Jinaga.Repository
             {
                 throw new SpecificationException($"A shorthand specification must select predecessors: {expression}");
             }
+        }
+
+        private Projection ProcessProjection(Expression expression, SymbolTable symbolTable)
+        {
+            if (expression is ParameterExpression parameterExpression)
+            {
+                return symbolTable.Get(parameterExpression.Name).Projection;
+            }
+            throw new NotImplementedException();
         }
 
         private Value ProcessScalar(ImmutableList<Match> matches, Expression expression, SymbolTable symbolTable, string recommendedLabel = "unknown")
@@ -176,6 +186,16 @@ namespace Jinaga.Repository
                         var childSymbolTable = symbolTable.Set(parameterName, Value.From(source.Projection));
                         var predicate = ProcessPredicate(lambda.Body, childSymbolTable);
                         return LinqProcessor.Where(source, predicate);
+                    }
+                    else if (methodCallExpression.Method.Name == nameof(System.Linq.Queryable.Select) &&
+                        methodCallExpression.Arguments.Count == 2)
+                    {
+                        var selector = GetLambda(methodCallExpression.Arguments[1]);
+                        var parameterName = selector.Parameters[0].Name;
+                        var source = ProcessQueryable(methodCallExpression.Arguments[0], symbolTable, parameterName);
+                        var childSymbolTable = symbolTable.Set(parameterName, Value.From(source.Projection));
+                        var projection = ProcessProjection(selector.Body, childSymbolTable);
+                        return LinqProcessor.Select(source, projection);
                     }
                 }
                 else if (methodCallExpression.Method.DeclaringType == typeof(FactRepository))
@@ -515,9 +535,18 @@ namespace Jinaga.Repository
 
         private (ImmutableList<Label> given, ImmutableList<Match> matches, Projection projection) ProcessResult<TProjection>(Value result)
         {
+            var matches = result.Matches;
+            ValidateMatches(matches);
+
+            var projection = result.Projection;
+            return (givenLabels, matches, projection);
+        }
+
+        private void ValidateMatches(ImmutableList<Match> matches)
+        {
             // Look for matches with no path conditions.
             Match? priorMatch = null;
-            foreach (var match in result.Matches)
+            foreach (var match in matches)
             {
                 if (!match.Conditions.OfType<PathCondition>().Any())
                 {
@@ -529,10 +558,6 @@ namespace Jinaga.Repository
                 }
                 priorMatch = match;
             }
-
-            var matches = result.Matches;
-            var projection = result.Projection;
-            return (givenLabels, matches, projection);
         }
 
         private KeyValuePair<string, Projection> ProcessMemberBinding(ImmutableList<Match> matches, MemberBinding binding, SymbolTable symbolTable)
