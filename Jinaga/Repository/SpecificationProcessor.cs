@@ -220,7 +220,7 @@ namespace Jinaga.Repository
 
                         // Process the predicate.
                         var childSymbolTable = symbolTable.Set(parameterName, Value.From(source.Projection));
-                        var predicate = ProcessPredicate(lambda.Body, symbolTable);
+                        var predicate = ProcessPredicate(lambda.Body, childSymbolTable);
                         return LinqProcessor.Where(source, predicate);
                     }
                 }
