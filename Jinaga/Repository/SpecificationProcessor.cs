@@ -345,6 +345,28 @@ namespace Jinaga.Repository
                     }
                 }
             }
+            else if (body is UnaryExpression
+            {
+                Operand: MemberExpression
+                {
+                    Member: PropertyInfo propertyInfo
+                } member,
+                NodeType: ExpressionType.Convert
+            } unaryExpression)
+            {
+                if (propertyInfo.PropertyType == typeof(Condition) &&
+                    unaryExpression.Type == typeof(Boolean))
+                {
+                    object target = InstanceOfFact(propertyInfo.DeclaringType);
+                    var condition = (Condition)propertyInfo.GetGetMethod().Invoke(target, new object[0]);
+                    if (member.Expression is ParameterExpression parameterExpression)
+                    {
+                        var value = symbolTable.Get(parameterExpression.Name);
+                        var childSymbolTable = symbolTable.Set("this", value);
+                        return ProcessPredicate(condition.Body.Body, childSymbolTable);
+                    }
+                }
+            }
             throw new NotImplementedException();
         }
 
@@ -404,6 +426,15 @@ namespace Jinaga.Repository
                 if (projection is SimpleProjection simpleProjection)
                 {
                     var type = parameterExpression.Type.FactTypeName();
+                    return ReferenceContext.From(new Label(simpleProjection.Tag, type));
+                }
+            }
+            else if (expression is ConstantExpression)
+            {
+                var projection = symbolTable.Get("this").Projection;
+                if (projection is SimpleProjection simpleProjection)
+                {
+                    var type = expression.Type.FactTypeName();
                     return ReferenceContext.From(new Label(simpleProjection.Tag, type));
                 }
             }
