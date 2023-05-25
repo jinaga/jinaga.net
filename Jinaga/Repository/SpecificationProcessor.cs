@@ -1,5 +1,6 @@
 ﻿using Jinaga.Pipelines;
 using Jinaga.Projections;
+using Jinaga.Specifications;
 using Jinaga.Visualizers;
 using System;
 using System.Collections.Generic;
@@ -20,8 +21,8 @@ namespace Jinaga.Repository
             var processor = new SpecificationProcessor();
             var symbolTable = processor.Given(specExpression.Parameters
                 .Take(specExpression.Parameters.Count - 1));
-            var result = processor.ProcessQueryable(ImmutableList<Match>.Empty, specExpression.Body, symbolTable);
-            return processor.ProcessResult<TProjection>(result);
+            var result = processor.ProcessQueryable(specExpression.Body, symbolTable);
+            return (processor.givenLabels, result.Matches, result.Projection);
         }
 
         public static (ImmutableList<Label> given, ImmutableList<Match> matches, Projection projection) Scalar<TProjection>(LambdaExpression specExpression)
@@ -148,19 +149,50 @@ namespace Jinaga.Repository
                 observableIQueryableCallExpression.Arguments.Count == 1 &&
                 typeof(IQueryable).IsAssignableFrom(observableIQueryableCallExpression.Arguments[0].Type))
             {
-                var value = ProcessQueryable(ImmutableList<Match>.Empty, observableIQueryableCallExpression.Arguments[0], symbolTable);
+                var value = ProcessQueryableOld(ImmutableList<Match>.Empty, observableIQueryableCallExpression.Arguments[0], symbolTable);
                 var collectionProjection = new CollectionProjection(value.Matches, value.Projection);
                 return new Value(matches, collectionProjection);
             }
             else
             {
-                var value = ProcessQueryable(ImmutableList<Match>.Empty, expression, symbolTable, recommendedLabel);
+                var value = ProcessQueryableOld(ImmutableList<Match>.Empty, expression, symbolTable, recommendedLabel);
                 var collectionProjection = new CollectionProjection(value.Matches, value.Projection);
                 return new Value(matches, collectionProjection);
             }
         }
 
-        private Value ProcessQueryable(ImmutableList<Match> matches, Expression expression, SymbolTable symbolTable, string recommendedLabel = "unknown")
+        private SourceContext ProcessQueryable(Expression expression, SymbolTable symbolTable, string recommendedLabel = "unknown")
+        {
+            if (expression is MethodCallExpression methodCallExpression)
+            {
+                if (methodCallExpression.Method.DeclaringType == typeof(Queryable))
+                {
+                    if (methodCallExpression.Method.Name == nameof(System.Linq.Queryable.Where) &&
+                        methodCallExpression.Arguments.Count == 2)
+                    {
+                        var lambda = GetLambda(methodCallExpression.Arguments[1]);
+                        var parameterName = lambda.Parameters[0].Name;
+                        var source = ProcessQueryable(methodCallExpression.Arguments[0], symbolTable, parameterName);
+                        var childSymbolTable = symbolTable.Set(parameterName, Value.From(source.Projection));
+                        var predicate = ProcessPredicate(lambda.Body, childSymbolTable);
+                        return LinqProcessor.Where(source, predicate);
+                    }
+                }
+                else if (methodCallExpression.Method.DeclaringType == typeof(FactRepository))
+                {
+                    if (methodCallExpression.Method.Name == nameof(FactRepository.OfType) &&
+                        methodCallExpression.Arguments.Count == 0)
+                    {
+                        string type = methodCallExpression.Method.GetGenericArguments()[0].FactTypeName();
+                        var label = new Label(recommendedLabel, type);
+                        return LinqProcessor.FactsOfType(label);
+                    }
+                }
+            }
+            throw new NotImplementedException();
+        }
+
+        private Value ProcessQueryableOld(ImmutableList<Match> matches, Expression expression, SymbolTable symbolTable, string recommendedLabel = "unknown")
         {
             if (expression is MethodCallExpression methodCallExpression)
             {
@@ -171,7 +203,7 @@ namespace Jinaga.Repository
                     {
                         var predicate = GetLambda(methodCallExpression.Arguments[1]);
                         var parameterName = predicate.Parameters[0].Name;
-                        var source = ProcessQueryable(matches, methodCallExpression.Arguments[0], symbolTable, parameterName);
+                        var source = ProcessQueryableOld(matches, methodCallExpression.Arguments[0], symbolTable, parameterName);
                         var childSymbolTable = symbolTable.Set(parameterName, source);
                         return ProcessWhere(source, predicate.Body, childSymbolTable);
                     }
@@ -180,7 +212,7 @@ namespace Jinaga.Repository
                     {
                         var selector = GetLambda(methodCallExpression.Arguments[1]);
                         var parameterName = selector.Parameters[0].Name;
-                        var source = ProcessQueryable(matches, methodCallExpression.Arguments[0], symbolTable, parameterName);
+                        var source = ProcessQueryableOld(matches, methodCallExpression.Arguments[0], symbolTable, parameterName);
                         var childSymbolTable = symbolTable.Set(parameterName, source);
                         return ProcessScalar(source.Matches, selector.Body, childSymbolTable);
                     }
@@ -191,9 +223,9 @@ namespace Jinaga.Repository
                         var collectionSelectorParameterName = collectionSelector.Parameters[0].Name;
                         var resultSelector = GetLambda(methodCallExpression.Arguments[2]);
                         var resultSelectorParameterName = resultSelector.Parameters[1].Name;
-                        var source = ProcessQueryable(matches, methodCallExpression.Arguments[0], symbolTable, collectionSelectorParameterName);
+                        var source = ProcessQueryableOld(matches, methodCallExpression.Arguments[0], symbolTable, collectionSelectorParameterName);
                         var collectionSelectorSymbolTable = symbolTable.Set(collectionSelectorParameterName, source);
-                        var collectionSelectorValue = ProcessQueryable(source.Matches, collectionSelector.Body, collectionSelectorSymbolTable, resultSelectorParameterName);
+                        var collectionSelectorValue = ProcessQueryableOld(source.Matches, collectionSelector.Body, collectionSelectorSymbolTable, resultSelectorParameterName);
                         var resultSelectorSymbolTable = symbolTable
                             .Set(resultSelector.Parameters[0].Name, source)
                             .Set(resultSelector.Parameters[1].Name, collectionSelectorValue);
@@ -253,6 +285,17 @@ namespace Jinaga.Repository
             return source;
         }
 
+        private PredicateContext ProcessPredicate(Expression body, SymbolTable symbolTable)
+        {
+            if (body is BinaryExpression { NodeType: ExpressionType.Equal } binary)
+            {
+                var left = ProcessReference(binary.Left, symbolTable);
+                var right = ProcessReference(binary.Right, symbolTable);
+                return LinqProcessor.Compare(left, right);
+            }
+            throw new NotImplementedException();
+        }
+
         private Value ProcessWhere(Value source, Expression predicate, SymbolTable symbolTable)
         {
             if (predicate is BinaryExpression { NodeType: ExpressionType.Equal } binary)
@@ -299,6 +342,28 @@ namespace Jinaga.Repository
             var newMatch = new Match(match.Unknown, match.Conditions.Add(pathCondition));
             var newMatches = source.Matches.Replace(match, newMatch);
             return new Value(newMatches, source.Projection);
+        }
+
+        private ReferenceContext ProcessReference(Expression expression, SymbolTable symbolTable)
+        {
+            if (expression is ParameterExpression parameterExpression)
+            {
+                var projection = symbolTable.Get(parameterExpression.Name).Projection;
+                if (projection is SimpleProjection simpleProjection)
+                {
+                    var type = parameterExpression.Type.FactTypeName();
+                    return ReferenceContext.From(new Label(simpleProjection.Tag, type));
+                }
+            }
+            else if (expression is MemberExpression memberExpression)
+            {
+                if (memberExpression.Expression.Type.IsFactType())
+                {
+                    var head = ProcessReference(memberExpression.Expression, symbolTable);
+                    return head.Push(new Role(memberExpression.Member.Name, memberExpression.Type.FactTypeName()));
+                }
+            }
+            throw new NotImplementedException();
         }
 
         private (Projection projection, ImmutableList<Role> roles) ProcessJoinExpression(Expression expression, SymbolTable symbolTable)
@@ -366,7 +431,7 @@ namespace Jinaga.Repository
                     if (methodCallExpression.Method.Name == nameof(System.Linq.Queryable.Any) &&
                         methodCallExpression.Arguments.Count == 1)
                     {
-                        var value = ProcessQueryable(ImmutableList<Match>.Empty, methodCallExpression.Arguments[0], symbolTable);
+                        var value = ProcessQueryableOld(ImmutableList<Match>.Empty, methodCallExpression.Arguments[0], symbolTable);
 
                         // Find the unknown that the condition references.
                         var firstPathCondition = value.Matches

@@ -22,6 +22,13 @@ namespace Jinaga.Repository
             return this;
         }
 
+        public static Value From(Projection projection)
+        {
+            return new Value(
+                ImmutableList<Match>.Empty,
+                projection);
+        }
+
         public static Value Simple(string label)
         {
             return new Value(
