@@ -329,6 +329,22 @@ namespace Jinaga.Repository
                 var right = ProcessReference(binary.Right, symbolTable);
                 return LinqProcessor.Compare(left, right);
             }
+            if (body is UnaryExpression { NodeType: ExpressionType.Not, Operand: Expression operand })
+            {
+                return LinqProcessor.Not(ProcessPredicate(operand, symbolTable));
+            }
+            if (body is MethodCallExpression methodCallExpression)
+            {
+                if (methodCallExpression.Method.DeclaringType == typeof(Queryable))
+                {
+                    if (methodCallExpression.Method.Name == nameof(System.Linq.Queryable.Any) &&
+                        methodCallExpression.Arguments.Count == 1)
+                    {
+                        var source = ProcessQueryable(methodCallExpression.Arguments[0], symbolTable);
+                        return LinqProcessor.Any(source);
+                    }
+                }
+            }
             throw new NotImplementedException();
         }
 
