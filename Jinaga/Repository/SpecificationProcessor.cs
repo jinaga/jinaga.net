@@ -398,6 +398,14 @@ namespace Jinaga.Repository
                         return LinqProcessor.Any(source);
                     }
                 }
+                else if (methodCallExpression.Method.DeclaringType == typeof(Enumerable) &&
+                    methodCallExpression.Method.Name == nameof(System.Linq.Enumerable.Contains) &&
+                    methodCallExpression.Arguments.Count == 2)
+                {
+                    var left = ProcessReference(methodCallExpression.Arguments[0], symbolTable);
+                    var right = ProcessReference(methodCallExpression.Arguments[1], symbolTable);
+                    return LinqProcessor.Compare(left, right);
+                }
             }
             else if (body is UnaryExpression
             {
@@ -413,12 +421,9 @@ namespace Jinaga.Repository
                 {
                     object target = InstanceOfFact(propertyInfo.DeclaringType);
                     var condition = (Condition)propertyInfo.GetGetMethod().Invoke(target, new object[0]);
-                    if (member.Expression is ParameterExpression parameterExpression)
-                    {
-                        var value = symbolTable.Get(parameterExpression.Name);
-                        var childSymbolTable = symbolTable.Set("this", value);
-                        return ProcessPredicate(condition.Body.Body, childSymbolTable);
-                    }
+                    var projection = ProcessProjection(member.Expression, symbolTable);
+                    var childSymbolTable = symbolTable.Set("this", Value.From(projection));
+                    return ProcessPredicate(condition.Body.Body, childSymbolTable);
                 }
             }
             throw new NotImplementedException();
