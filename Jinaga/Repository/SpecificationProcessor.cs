@@ -187,6 +187,22 @@ namespace Jinaga.Repository
                         var label = new Label(recommendedLabel, type);
                         return LinqProcessor.FactsOfType(label);
                     }
+                    else if (methodCallExpression.Method.Name == nameof(FactRepository.OfType) &&
+                        methodCallExpression.Arguments.Count == 1)
+                    {
+                        // Get the recommended label from the predicate.
+                        var lambda = GetLambda(methodCallExpression.Arguments[0]);
+                        var parameterName = lambda.Parameters[0].Name;
+
+                        // Produce the source of the match.
+                        var genericArgument = methodCallExpression.Method.GetGenericArguments()[0];
+                        var source = LinqProcessor.FactsOfType(new Label(parameterName, genericArgument.FactTypeName()));
+
+                        // Process the predicate.
+                        var childSymbolTable = symbolTable.Set(parameterName, Value.From(source.Projection));
+                        var predicate = ProcessPredicate(lambda.Body, symbolTable);
+                        return LinqProcessor.Where(source, predicate);
+                    }
                 }
             }
             throw new NotImplementedException();
