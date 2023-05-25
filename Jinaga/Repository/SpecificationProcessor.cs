@@ -91,6 +91,34 @@ namespace Jinaga.Repository
             {
                 return symbolTable.Get(parameterExpression.Name).Projection;
             }
+            else if (expression is NewExpression newExpression)
+            {
+                var names = newExpression.Members != null
+                    ? newExpression.Members.Select(member => member.Name)
+                    : newExpression.Constructor.GetParameters().Select(parameter => parameter.Name);
+                var values = newExpression.Arguments
+                    .Select(arg => ProcessProjection(arg, symbolTable));
+                var fields = names.Zip(values, (name, value) => KeyValuePair.Create(name, value))
+                    .ToImmutableDictionary();
+                var compoundProjection = new CompoundProjection(fields);
+                return compoundProjection;
+            }
+            else if (expression is MemberInitExpression memberInit)
+            {
+                var fields = memberInit.Bindings
+                    .Select(binding => ProcessProjectionMember(binding, symbolTable))
+                    .ToImmutableDictionary();
+                var compoundProjection = new CompoundProjection(fields);
+                return compoundProjection;
+            }
+            else if (expression is MemberExpression memberExpression)
+            {
+                var head = ProcessProjection(memberExpression.Expression, symbolTable);
+                if (head is CompoundProjection compoundProjection)
+                {
+                    return compoundProjection.GetProjection(memberExpression.Member.Name);
+                }
+            }
             throw new NotImplementedException();
         }
 
@@ -196,6 +224,28 @@ namespace Jinaga.Repository
                         var childSymbolTable = symbolTable.Set(parameterName, Value.From(source.Projection));
                         var projection = ProcessProjection(selector.Body, childSymbolTable);
                         return LinqProcessor.Select(source, projection);
+                    }
+                    else if (methodCallExpression.Method.Name == nameof(System.Linq.Queryable.SelectMany) &&
+                        methodCallExpression.Arguments.Count == 3)
+                    {
+                        var collectionSelector = GetLambda(methodCallExpression.Arguments[1]);
+                        var collectionSelectorParameterName = collectionSelector.Parameters[0].Name;
+                        var resultSelector = GetLambda(methodCallExpression.Arguments[2]);
+                        var resultSelectorParameterName = resultSelector.Parameters[1].Name;
+
+                        var source = ProcessQueryable(methodCallExpression.Arguments[0], symbolTable, collectionSelectorParameterName);
+
+                        var collectionSelectorSymbolTable = symbolTable.Set(collectionSelectorParameterName, Value.From(source.Projection));
+                        var selector = ProcessQueryable(collectionSelector.Body, collectionSelectorSymbolTable, resultSelectorParameterName);
+
+                        var resultSelectorSymbolTable = symbolTable
+                            .Set(resultSelector.Parameters[0].Name, Value.From(source.Projection))
+                            .Set(resultSelector.Parameters[1].Name, Value.From(selector.Projection));
+                        var projection = ProcessProjection(resultSelector.Body, resultSelectorSymbolTable);
+
+                        return LinqProcessor.Select(
+                            LinqProcessor.SelectMany(source, selector),
+                            projection);
                     }
                 }
                 else if (methodCallExpression.Method.DeclaringType == typeof(FactRepository))
@@ -445,6 +495,19 @@ namespace Jinaga.Repository
                     var head = ProcessReference(memberExpression.Expression, symbolTable);
                     return head.Push(new Role(memberExpression.Member.Name, memberExpression.Type.FactTypeName()));
                 }
+                else
+                {
+                    var head = ProcessProjection(memberExpression.Expression, symbolTable);
+                    if (head is CompoundProjection compoundProjection)
+                    {
+                        var member = compoundProjection.GetProjection(memberExpression.Member.Name);
+                        if (member is SimpleProjection simpleProjection)
+                        {
+                            var type = memberExpression.Type.FactTypeName();
+                            return ReferenceContext.From(new Label(simpleProjection.Tag, type));
+                        }
+                    }
+                }
             }
             throw new NotImplementedException();
         }
@@ -604,6 +667,20 @@ namespace Jinaga.Repository
                     throw new SpecificationException($"The variable \"{unknown}\" should be joined to the {prior}.");
                 }
                 priorMatch = match;
+            }
+        }
+
+        private KeyValuePair<string, Projection> ProcessProjectionMember(MemberBinding binding, SymbolTable symbolTable)
+        {
+            if (binding is MemberAssignment assignment)
+            {
+                var name = assignment.Member.Name;
+                var value = ProcessProjection(assignment.Expression, symbolTable);
+                return KeyValuePair.Create(name, value);
+            }
+            else
+            {
+                throw new NotImplementedException();
             }
         }
 
