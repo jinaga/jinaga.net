@@ -15,7 +15,7 @@ namespace Jinaga.Repository
         private ImmutableList<Label> labels = ImmutableList<Label>.Empty;
         private ImmutableList<Label> givenLabels = ImmutableList<Label>.Empty;
 
-        public static (ImmutableList<Label> given, ImmutableList<Match> matches, Projection projection) Queryable<TProjection>(LambdaExpression specExpression)
+        public static (ImmutableList<Label> given, ImmutableList<Match> matches, Projections.Projection projection) Queryable<TProjection>(LambdaExpression specExpression)
         {
             var processor = new SpecificationProcessor();
             var symbolTable = processor.Given(specExpression.Parameters
@@ -25,7 +25,7 @@ namespace Jinaga.Repository
             return (processor.givenLabels, result.Matches, result.Projection);
         }
 
-        public static (ImmutableList<Label> given, ImmutableList<Match> matches, Projection projection) Scalar<TProjection>(LambdaExpression specExpression)
+        public static (ImmutableList<Label> given, ImmutableList<Match> matches, Projections.Projection projection) Scalar<TProjection>(LambdaExpression specExpression)
         {
             var processor = new SpecificationProcessor();
             var symbolTable = processor.Given(specExpression.Parameters);
@@ -41,7 +41,7 @@ namespace Jinaga.Repository
                 .ToImmutableList();
             var symbolTable = parameters.Aggregate(
                 SymbolTable.Empty,
-                (table, parameter) => table.Set(parameter.Name, Value.Simple(parameter.Name)));
+                (table, parameter) => table.Set(parameter.Name, new SimpleProjection(parameter.Name)));
             return symbolTable;
         }
 
@@ -71,11 +71,11 @@ namespace Jinaga.Repository
             throw new SpecificationException($"A shorthand specification must select predecessors: {expression}");
         }
 
-        private Projection ProcessProjection(Expression expression, SymbolTable symbolTable)
+        private Projections.Projection ProcessProjection(Expression expression, SymbolTable symbolTable)
         {
             if (expression is ParameterExpression parameterExpression)
             {
-                return symbolTable.Get(parameterExpression.Name).Projection;
+                return symbolTable.Get(parameterExpression.Name);
             }
             else if (expression is NewExpression newExpression)
             {
@@ -163,7 +163,7 @@ namespace Jinaga.Repository
                         var lambda = GetLambda(methodCallExpression.Arguments[1]);
                         var parameterName = lambda.Parameters[0].Name;
                         var source = ProcessSource(methodCallExpression.Arguments[0], symbolTable, parameterName);
-                        var childSymbolTable = symbolTable.Set(parameterName, Value.From(source.Projection));
+                        var childSymbolTable = symbolTable.Set(parameterName, source.Projection);
                         var predicate = ProcessPredicate(lambda.Body, childSymbolTable);
                         return LinqProcessor.Where(source, predicate);
                     }
@@ -173,7 +173,7 @@ namespace Jinaga.Repository
                         var selector = GetLambda(methodCallExpression.Arguments[1]);
                         var parameterName = selector.Parameters[0].Name;
                         var source = ProcessSource(methodCallExpression.Arguments[0], symbolTable, parameterName);
-                        var childSymbolTable = symbolTable.Set(parameterName, Value.From(source.Projection));
+                        var childSymbolTable = symbolTable.Set(parameterName, source.Projection);
                         var projection = ProcessProjection(selector.Body, childSymbolTable);
                         return LinqProcessor.Select(source, projection);
                     }
@@ -187,12 +187,12 @@ namespace Jinaga.Repository
 
                         var source = ProcessSource(methodCallExpression.Arguments[0], symbolTable, collectionSelectorParameterName);
 
-                        var collectionSelectorSymbolTable = symbolTable.Set(collectionSelectorParameterName, Value.From(source.Projection));
+                        var collectionSelectorSymbolTable = symbolTable.Set(collectionSelectorParameterName, source.Projection);
                         var selector = ProcessSource(collectionSelector.Body, collectionSelectorSymbolTable, resultSelectorParameterName);
 
                         var resultSelectorSymbolTable = symbolTable
-                            .Set(resultSelector.Parameters[0].Name, Value.From(source.Projection))
-                            .Set(resultSelector.Parameters[1].Name, Value.From(selector.Projection));
+                            .Set(resultSelector.Parameters[0].Name, source.Projection)
+                            .Set(resultSelector.Parameters[1].Name, selector.Projection);
                         var projection = ProcessProjection(resultSelector.Body, resultSelectorSymbolTable);
 
                         return LinqProcessor.Select(
@@ -221,7 +221,7 @@ namespace Jinaga.Repository
                         var source = LinqProcessor.FactsOfType(new Label(parameterName, genericArgument.FactTypeName()));
 
                         // Process the predicate.
-                        var childSymbolTable = symbolTable.Set(parameterName, Value.From(source.Projection));
+                        var childSymbolTable = symbolTable.Set(parameterName, source.Projection);
                         var predicate = ProcessPredicate(lambda.Body, childSymbolTable);
                         return LinqProcessor.Where(source, predicate);
                     }
@@ -277,7 +277,7 @@ namespace Jinaga.Repository
                     object target = InstanceOfFact(propertyInfo.DeclaringType);
                     var condition = (Condition)propertyInfo.GetGetMethod().Invoke(target, new object[0]);
                     var projection = ProcessProjection(member.Expression, symbolTable);
-                    var childSymbolTable = symbolTable.Set("this", Value.From(projection));
+                    var childSymbolTable = symbolTable.Set("this", projection);
                     return ProcessPredicate(condition.Body.Body, childSymbolTable);
                 }
             }
@@ -288,7 +288,7 @@ namespace Jinaga.Repository
         {
             if (expression is ParameterExpression parameterExpression)
             {
-                var projection = symbolTable.Get(parameterExpression.Name).Projection;
+                var projection = symbolTable.Get(parameterExpression.Name);
                 if (projection is SimpleProjection simpleProjection)
                 {
                     var type = parameterExpression.Type.FactTypeName();
@@ -297,7 +297,7 @@ namespace Jinaga.Repository
             }
             else if (expression is ConstantExpression)
             {
-                var projection = symbolTable.Get("this").Projection;
+                var projection = symbolTable.Get("this");
                 if (projection is SimpleProjection simpleProjection)
                 {
                     var type = expression.Type.FactTypeName();
@@ -346,7 +346,7 @@ namespace Jinaga.Repository
             }
         }
 
-        private KeyValuePair<string, Projection> ProcessProjectionMember(MemberBinding binding, SymbolTable symbolTable)
+        private KeyValuePair<string, Projections.Projection> ProcessProjectionMember(MemberBinding binding, SymbolTable symbolTable)
         {
             if (binding is MemberAssignment assignment)
             {
@@ -373,7 +373,7 @@ namespace Jinaga.Repository
             }
         }
 
-        private static string LabelOfProjection(Projection projection)
+        private static string LabelOfProjection(Projections.Projection projection)
         {
             // Expect the projection to be a simple one.
             if (projection is SimpleProjection simpleProjection)
