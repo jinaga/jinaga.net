@@ -130,6 +130,32 @@ namespace Jinaga.Repository
                     }
                 }
             }
+            else if (expression is MethodCallExpression methodCallExpression)
+            {
+                if (methodCallExpression.Method.DeclaringType == typeof(FactRepository) &&
+                    methodCallExpression.Method.Name == nameof(FactRepository.Observable))
+                {
+                    if (methodCallExpression.Arguments.Count == 2 &&
+                        typeof(Specification).IsAssignableFrom(methodCallExpression.Arguments[1].Type))
+                    {
+                        var start = ProcessProjection(methodCallExpression.Arguments[0], symbolTable);
+                        var label = LabelOfProjection(start);
+                        var lambdaExpression = Expression.Lambda<Func<object>>(methodCallExpression.Arguments[1]);
+                        var specification = (Specification)lambdaExpression.Compile().Invoke();
+                        var arguments = ImmutableList.Create(label);
+                        specification = specification.Apply(arguments);
+                        var collectionProjection = new CollectionProjection(specification.Matches, specification.Projection);
+                        return collectionProjection;
+                    }
+                    else if (methodCallExpression.Arguments.Count == 1 &&
+                        typeof(IQueryable).IsAssignableFrom(methodCallExpression.Arguments[0].Type))
+                    {
+                        var value = ProcessQueryable(methodCallExpression.Arguments[0], symbolTable);
+                        var collectionProjection = new CollectionProjection(value.Matches, value.Projection);
+                        return collectionProjection;
+                    }
+                }
+            }
             else if (expression.Type.IsGenericType && expression.Type.GetGenericTypeDefinition() == typeof(IQueryable<>))
             {
                 var value = ProcessQueryable(expression, symbolTable);
