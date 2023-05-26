@@ -118,10 +118,23 @@ namespace Jinaga.Repository
                 {
                     return compoundProjection.GetProjection(memberExpression.Member.Name);
                 }
-                else if (head is SimpleProjection)
+                else if (head is SimpleProjection simpleProjection)
                 {
-                    throw new SpecificationException($"Cannot select {memberExpression.Member.Name} directly. Give the fact a label first.");
+                    if (!memberExpression.Type.IsFactType())
+                    {
+                        return new FieldProjection(simpleProjection.Tag, memberExpression.Type, memberExpression.Member.Name);
+                    }
+                    else
+                    {
+                        throw new SpecificationException($"Cannot select {memberExpression.Member.Name} directly. Give the fact a label first.");
+                    }
                 }
+            }
+            else if (expression.Type.IsGenericType && expression.Type.GetGenericTypeDefinition() == typeof(IQueryable<>))
+            {
+                var value = ProcessQueryable(expression, symbolTable);
+                var collectionProjection = new CollectionProjection(value.Matches, value.Projection);
+                return collectionProjection;
             }
             throw new NotImplementedException();
         }
