@@ -162,7 +162,7 @@ namespace Jinaga.Repository
                     return collectionProjection;
                 }
             }
-            throw new NotImplementedException();
+            throw new SpecificationException($"Unsupported type of projection {expression}.");
         }
 
         private Value ProcessScalar(ImmutableList<Match> matches, Expression expression, SymbolTable symbolTable, string recommendedLabel = "unknown")
@@ -318,7 +318,7 @@ namespace Jinaga.Repository
                     }
                 }
             }
-            throw new NotImplementedException();
+            throw new SpecificationException($"Unsupported type of specification {expression}.");
         }
 
         private Value ProcessQueryableOld(ImmutableList<Match> matches, Expression expression, SymbolTable symbolTable, string recommendedLabel = "unknown")
@@ -465,7 +465,7 @@ namespace Jinaga.Repository
                     return ProcessPredicate(condition.Body.Body, childSymbolTable);
                 }
             }
-            throw new NotImplementedException();
+            throw new SpecificationException($"Unsupported predicate type {body}.");
         }
 
         private Value ProcessWhere(Value source, Expression predicate, SymbolTable symbolTable)
@@ -557,7 +557,7 @@ namespace Jinaga.Repository
                     }
                 }
             }
-            throw new NotImplementedException();
+            throw new SpecificationException($"Unsuported reference {expression}."); ;
         }
 
         private (Projection projection, ImmutableList<Role> roles) ProcessJoinExpression(Expression expression, SymbolTable symbolTable)
@@ -728,7 +728,7 @@ namespace Jinaga.Repository
             }
             else
             {
-                throw new NotImplementedException();
+                throw new SpecificationException($"Unsupported projection member {binding}.");
             }
         }
 
