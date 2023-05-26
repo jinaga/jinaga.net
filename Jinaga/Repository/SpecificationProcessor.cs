@@ -155,12 +155,12 @@ namespace Jinaga.Repository
                         return collectionProjection;
                     }
                 }
-            }
-            else if (expression.Type.IsGenericType && expression.Type.GetGenericTypeDefinition() == typeof(IQueryable<>))
-            {
-                var value = ProcessQueryable(expression, symbolTable);
-                var collectionProjection = new CollectionProjection(value.Matches, value.Projection);
-                return collectionProjection;
+                else if (expression.Type.IsGenericType && expression.Type.GetGenericTypeDefinition() == typeof(IQueryable<>))
+                {
+                    var value = ProcessQueryable(expression, symbolTable);
+                    var collectionProjection = new CollectionProjection(value.Matches, value.Projection);
+                    return collectionProjection;
+                }
             }
             throw new NotImplementedException();
         }
