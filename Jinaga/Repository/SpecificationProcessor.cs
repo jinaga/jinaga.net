@@ -122,7 +122,7 @@ namespace Jinaga.Repository
                 {
                     if (!memberExpression.Type.IsFactType())
                     {
-                        return new FieldProjection(simpleProjection.Tag, memberExpression.Type, memberExpression.Member.Name);
+                        return new FieldProjection(simpleProjection.Tag, memberExpression.Expression.Type, memberExpression.Member.Name);
                     }
                     else
                     {
