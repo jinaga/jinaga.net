@@ -30,8 +30,9 @@ namespace Jinaga.Repository
         {
             var processor = new SpecificationProcessor();
             var symbolTable = processor.Given(specExpression.Parameters);
-            var result = processor.ProcessShorthand(ImmutableList<Match>.Empty, specExpression.Body, symbolTable);
-            return processor.ProcessResult<TProjection>(result);
+            SourceContext result = processor.ProcessShorthand(specExpression.Body, symbolTable);
+            processor.ValidateMatches(result.Matches);
+            return (processor.givenLabels, result.Matches, result.Projection);
         }
 
         private SymbolTable Given(IEnumerable<ParameterExpression> parameters)
@@ -52,7 +53,26 @@ namespace Jinaga.Repository
             return source;
         }
 
-        private Value ProcessShorthand(ImmutableList<Match> matches, Expression expression, SymbolTable symbolTable, string recommendedLabel = "unknown")
+        private SourceContext ProcessShorthand(Expression expression, SymbolTable symbolTable)
+        {
+            var reference = ProcessReference(expression, symbolTable);
+            if (reference.Roles.Any())
+            {
+                // Label the tail of the predecessor chain.
+                var lastRole = reference.Roles.Last();
+                var unknown = new Label(lastRole.Name, lastRole.TargetType);
+                var self = ReferenceContext.From(unknown);
+                return LinqProcessor.Where(
+                    LinqProcessor.FactsOfType(unknown),
+                    LinqProcessor.Compare(
+                        reference, self
+                    )
+                );
+            }
+            throw new SpecificationException($"A shorthand specification must select predecessors: {expression}");
+        }
+
+        private Value ProcessShorthandOld(ImmutableList<Match> matches, Expression expression, SymbolTable symbolTable, string recommendedLabel = "unknown")
         {
             if (expression is MemberExpression memberExpression)
             {
