@@ -39,7 +39,7 @@ namespace Jinaga.Store.SQLite.Generation
             var writtenFactIndexes = new HashSet<int> { firstFactIndex };
             var joins = GenerateJoins(queryDescription.Edges, writtenFactIndexes);
             var inputWhereClauses = queryDescription.Inputs
-                .Select(input => $"f{input.FactIndex}.fact_type_id = ${input.FactTypeParameter} AND f{input.FactIndex}.hash = ${input.FactHashParameter}")
+                .Select(input => $"f{input.FactIndex}.fact_type_id = ?{input.FactTypeParameter} AND f{input.FactIndex}.hash = ?{input.FactHashParameter}")
                 .Join(" AND ");
             var existentialWhereClauses = queryDescription.ExistentialConditions
                 .Select(existentialCondition => $" AND {(existentialCondition.Exists ? "EXISTS" : "NOT EXISTS")} ({GenerateExistentialWhereClause(existentialCondition, writtenFactIndexes)})")
@@ -68,7 +68,7 @@ namespace Jinaga.Store.SQLite.Generation
                 {
                     whereClause = whereClause.Add(
                         $"e{firstEdge.EdgeIndex}.predecessor_fact_id = f{firstEdge.PredecessorFactIndex}.fact_id" +
-                        $" AND e{firstEdge.EdgeIndex}.role_id = ${firstEdge.RoleParameter}"
+                        $" AND e{firstEdge.EdgeIndex}.role_id = ?{firstEdge.RoleParameter}"
                     );
                     firstJoin = firstJoin.Add(
                         $" JOIN fact f{firstEdge.SuccessorFactIndex}" +
@@ -81,7 +81,7 @@ namespace Jinaga.Store.SQLite.Generation
             {
                 whereClause = whereClause.Add(
                     $"e{firstEdge.EdgeIndex}.successor_fact_id = f{firstEdge.SuccessorFactIndex}.fact_id" +
-                    $" AND e{firstEdge.EdgeIndex}.role_id = ${firstEdge.RoleParameter}"
+                    $" AND e{firstEdge.EdgeIndex}.role_id = ?{firstEdge.RoleParameter}"
                 );
                 firstJoin = firstJoin.Add(
                     $" JOIN fact f{firstEdge.PredecessorFactIndex}" +
@@ -97,7 +97,7 @@ namespace Jinaga.Store.SQLite.Generation
             var tailJoins = GenerateJoins(existentialCondition.Edges.Skip(1).ToImmutableList(), writtenFactIndexes);
             var joins = firstJoin.AddRange(tailJoins);
             var inputWhereClauses = existentialCondition.Inputs
-                .Select(input => $" AND f{input.FactIndex}.fact_type_id = ${input.FactTypeParameter} AND f{input.FactIndex}.hash = ${input.FactHashParameter}")
+                .Select(input => $" AND f{input.FactIndex}.fact_type_id = ?{input.FactTypeParameter} AND f{input.FactIndex}.hash = ?{input.FactHashParameter}")
                 .Join("");
             var existentialWhereClauses = existentialCondition.ExistentialConditions
                 .Select(condition => $" AND {(condition.Exists ? "EXISTS" : "NOT EXISTS")} ({GenerateExistentialWhereClause(condition, writtenFactIndexes)})")
@@ -118,7 +118,7 @@ namespace Jinaga.Store.SQLite.Generation
                             $" JOIN edge e{edge.EdgeIndex}" +
                             $" ON e{edge.EdgeIndex}.predecessor_fact_id = f{edge.PredecessorFactIndex}.fact_id" +
                             $" AND e{edge.EdgeIndex}.successor_fact_id = f{edge.SuccessorFactIndex}.fact_id" +
-                            $" AND e{edge.EdgeIndex}.role_id = ${edge.RoleParameter}"
+                            $" AND e{edge.EdgeIndex}.role_id = ?{edge.RoleParameter}"
                         );
                     }
                     else
@@ -126,7 +126,7 @@ namespace Jinaga.Store.SQLite.Generation
                         joins = joins.Add(
                             $" JOIN edge e{edge.EdgeIndex}" +
                             $" ON e{edge.EdgeIndex}.predecessor_fact_id = f{edge.PredecessorFactIndex}.fact_id" +
-                            $" AND e{edge.EdgeIndex}.role_id = ${edge.RoleParameter}"
+                            $" AND e{edge.EdgeIndex}.role_id = ?{edge.RoleParameter}"
                         );
                         joins = joins.Add(
                             $" JOIN fact f{edge.SuccessorFactIndex}" +
@@ -140,7 +140,7 @@ namespace Jinaga.Store.SQLite.Generation
                     joins = joins.Add(
                         $" JOIN edge e{edge.EdgeIndex}" +
                         $" ON e{edge.EdgeIndex}.successor_fact_id = f{edge.SuccessorFactIndex}.fact_id" +
-                        $" AND e{edge.EdgeIndex}.role_id = ${edge.RoleParameter}"
+                        $" AND e{edge.EdgeIndex}.role_id = ?{edge.RoleParameter}"
                     );
                     joins = joins.Add(
                         $" JOIN fact f{edge.PredecessorFactIndex}" +

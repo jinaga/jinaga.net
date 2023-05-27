@@ -25,10 +25,10 @@ public class QueryGeneratorTests
             "FROM fact f1 " +
             "JOIN edge e1 " +
                 "ON e1.predecessor_fact_id = f1.fact_id " +
-                "AND e1.role_id = $3 " +
+                "AND e1.role_id = ?3 " +
             "JOIN fact f2 " +
                 "ON f2.fact_id = e1.successor_fact_id " +
-            "WHERE f1.fact_type_id = $1 AND f1.hash = $2 " +
+            "WHERE f1.fact_type_id = ?1 AND f1.hash = ?2 " +
             "ORDER BY f2.fact_id ASC"
         );
         sqlQueryTree.ChildQueries.Should().BeEmpty();
@@ -50,10 +50,10 @@ public class QueryGeneratorTests
             "FROM fact f1 " +
             "JOIN edge e1 " +
                 "ON e1.successor_fact_id = f1.fact_id " +
-                "AND e1.role_id = $3 " +
+                "AND e1.role_id = ?3 " +
             "JOIN fact f2 " +
                 "ON f2.fact_id = e1.predecessor_fact_id " +
-            "WHERE f1.fact_type_id = $1 AND f1.hash = $2 " +
+            "WHERE f1.fact_type_id = ?1 AND f1.hash = ?2 " +
             "ORDER BY f2.fact_id ASC"
         );
         sqlQueryTree.ChildQueries.Should().BeEmpty();
@@ -81,22 +81,22 @@ public class QueryGeneratorTests
             "FROM fact f1 " +
             "JOIN edge e1 " +
                 "ON e1.predecessor_fact_id = f1.fact_id " +
-                "AND e1.role_id = $3 " +
+                "AND e1.role_id = ?3 " +
             "JOIN fact f2 " +
                 "ON f2.fact_id = e1.successor_fact_id " +
             "JOIN edge e2 " +
                 "ON e2.predecessor_fact_id = f2.fact_id " +
-                "AND e2.role_id = $4 " +
+                "AND e2.role_id = ?4 " +
             "JOIN fact f3 " +
                 "ON f3.fact_id = e2.successor_fact_id " +
-            "WHERE f1.fact_type_id = $1 AND f1.hash = $2 " +
+            "WHERE f1.fact_type_id = ?1 AND f1.hash = ?2 " +
             "AND NOT EXISTS (" +
                 "SELECT 1 " +
                 "FROM edge e3 " +
                 "JOIN fact f4 " +
                     "ON f4.fact_id = e3.successor_fact_id " +
                 "WHERE e3.predecessor_fact_id = f3.fact_id " +
-                    "AND e3.role_id = $5" +
+                    "AND e3.role_id = ?5" +
             ") " +
             "ORDER BY f3.fact_id ASC"
         );
@@ -124,22 +124,22 @@ public class QueryGeneratorTests
             "FROM fact f1 " +
             "JOIN edge e1 " +
                 "ON e1.predecessor_fact_id = f1.fact_id " +
-                "AND e1.role_id = $3 " +
+                "AND e1.role_id = ?3 " +
             "JOIN fact f2 " +
                 "ON f2.fact_id = e1.successor_fact_id " +
             "JOIN edge e2 " +
                 "ON e2.predecessor_fact_id = f2.fact_id " +
-                "AND e2.role_id = $4 " +
+                "AND e2.role_id = ?4 " +
             "JOIN fact f3 " +
                 "ON f3.fact_id = e2.successor_fact_id " +
-            "WHERE f1.fact_type_id = $1 AND f1.hash = $2 " +
+            "WHERE f1.fact_type_id = ?1 AND f1.hash = ?2 " +
             "AND EXISTS (" +
                 "SELECT 1 " +
                 "FROM edge e3 " +
                 "JOIN fact f4 " +
                     "ON f4.fact_id = e3.successor_fact_id " +
                 "WHERE e3.predecessor_fact_id = f3.fact_id " +
-                    "AND e3.role_id = $5" +
+                    "AND e3.role_id = ?5" +
             ") " +
             "ORDER BY f3.fact_id ASC"
         );
@@ -172,29 +172,29 @@ public class QueryGeneratorTests
             "FROM fact f1 " +
             "JOIN edge e1 " +
                 "ON e1.predecessor_fact_id = f1.fact_id " +
-                "AND e1.role_id = $3 " +
+                "AND e1.role_id = ?3 " +
             "JOIN fact f2 " +
                 "ON f2.fact_id = e1.successor_fact_id " +
             "JOIN edge e2 " +
                 "ON e2.predecessor_fact_id = f2.fact_id " +
-                "AND e2.role_id = $4 " +
+                "AND e2.role_id = ?4 " +
             "JOIN fact f3 " +
                 "ON f3.fact_id = e2.successor_fact_id " +
-            "WHERE f1.fact_type_id = $1 AND f1.hash = $2 " +
+            "WHERE f1.fact_type_id = ?1 AND f1.hash = ?2 " +
             "AND NOT EXISTS (" +
                 "SELECT 1 " +
                 "FROM edge e3 " +
                 "JOIN fact f4 " +
                     "ON f4.fact_id = e3.successor_fact_id " +
                 "WHERE e3.predecessor_fact_id = f3.fact_id " +
-                    "AND e3.role_id = $5" +
+                    "AND e3.role_id = ?5" +
                 "AND NOT EXISTS (" +
                     "SELECT 1 " +
                     "FROM edge e4 " +
                     "JOIN fact f5 " +
                         "ON f5.fact_id = e4.successor_fact_id " +
                     "WHERE e4.predecessor_fact_id = f4.fact_id " +
-                        "AND e4.role_id = $6" +
+                        "AND e4.role_id = ?6" +
                 ")" +
             ") " +
             "ORDER BY f3.fact_id ASC"
