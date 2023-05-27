@@ -164,6 +164,10 @@ namespace Jinaga.Store.SQLite.Builder
                     var queryDescription = QueryDescription.WithOutputs(outputs);
                     return new ResultDescriptionBuilderContext(queryDescription, factByLabel, Path);
                 }
+                else
+                {
+                    return new ResultDescriptionBuilderContext(QueryDescription, factByLabel, Path);
+                }
             }
             return this;
         }

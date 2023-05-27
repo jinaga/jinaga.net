@@ -187,7 +187,7 @@ public class QueryGeneratorTests
                 "JOIN fact f4 " +
                     "ON f4.fact_id = e3.successor_fact_id " +
                 "WHERE e3.predecessor_fact_id = f3.fact_id " +
-                    "AND e3.role_id = ?5" +
+                    "AND e3.role_id = ?5 " +
                 "AND NOT EXISTS (" +
                     "SELECT 1 " +
                     "FROM edge e4 " +
@@ -211,6 +211,7 @@ public class QueryGeneratorTests
             .ToImmutableList();
 
         var descriptionBuilder = new ResultDescriptionBuilder(factTypes, roleMap);
+        string str = specification.ToString();
         var description = descriptionBuilder.Build(startReferences, specification);
 
         var sqlQueryTree = SqlGenerator.CreateSqlQueryTree(description);
