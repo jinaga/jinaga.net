@@ -31,7 +31,12 @@ namespace Jinaga.Projections
 
         public Match Apply(ImmutableDictionary<string, string> replacements)
         {
-            return new Match(Unknown, Conditions.Select(c => c.Apply(replacements)).ToImmutableList());
+            Label unknown = Unknown;
+            if (replacements.TryGetValue(unknown.Name, out var replacement))
+            {
+                unknown = new Label(replacement, unknown.Type);
+            }
+            return new Match(unknown, Conditions.Select(c => c.Apply(replacements)).ToImmutableList());
         }
     }
 }

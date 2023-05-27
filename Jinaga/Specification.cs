@@ -46,7 +46,7 @@ namespace Jinaga
     public class Specification<TFact, TProjection> : Specification
         where TFact : class
     {
-        public Specification(ImmutableList<Label> given, ImmutableList<Match> matches, Projection projection)
+        public Specification(ImmutableList<Label> given, ImmutableList<Match> matches, Projections.Projection projection)
             : base(given, matches, projection)
         {
         }
@@ -67,7 +67,7 @@ namespace Jinaga
         where TFact1: class
         where TFact2 : class
     {
-        public Specification(ImmutableList<Label> given, ImmutableList<Match> matches, Projection projection)
+        public Specification(ImmutableList<Label> given, ImmutableList<Match> matches, Projections.Projection projection)
             : base(given, matches, projection)
         {
         }
