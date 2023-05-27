@@ -40,10 +40,10 @@ namespace Jinaga.Managers
             return added;
         }
 
-        public async Task<ImmutableList<Product>> Query(ImmutableList<FactReference> startReferences, Specification specification, CancellationToken cancellationToken)
+        public async Task<ImmutableList<Product>> Query(ImmutableList<FactReference> givenReferences, Specification specification, CancellationToken cancellationToken)
         {
-            await networkManager.Query(startReferences, specification, cancellationToken);
-            return await store.Query(startReferences, specification, cancellationToken);
+            await networkManager.Query(givenReferences, specification, cancellationToken);
+            return await store.Query(givenReferences, specification, cancellationToken);
         }
 
         public async Task<FactGraph> LoadProducts(ImmutableList<Product> products, CancellationToken cancellationToken)

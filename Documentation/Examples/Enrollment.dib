@@ -29,7 +29,7 @@ record CourseName(Course course, CourseName[] prior, string value) {}
 record Semester(School school, string season, int year) {}
 
 [FactType("Enrollment.Offering")]
-record Offering(Course course, Semester semster, DateTime offeredDate) {}
+record Offering(Course course, Semester semester, DateTime offeredDate) {}
 
 [FactType("Enrollment.Cancellation")]
 record Cancellation(Offering offering, DateTime cancelledDate) {}
@@ -65,8 +65,55 @@ var coursesForStudent = Given<Student>.Match((student, facts) =>
     select new {
         registration,
         course,
-        courseName = facts.All(course, namesOfCourse)
+        courseName =
+            from name in facts.OfType<CourseName>()
+            where name.course == course
+            where !(facts.OfType<CourseName>().Where(n => n.prior.Contains(name)).Any())
+            select name
     }
 );
 
-$"{coursesForStudent.Pipeline.ToDescriptiveString()}{coursesForStudent.Projection.ToDescriptiveString()}"
+coursesForStudent.ToDescriptiveString()
+
+#!csharp
+
+var school = new School("Jinaga Academy");
+var fall = new Semester(school, "Fall", 2020);
+var spring = new Semester(school, "Spring", 2021);
+var course = new Course(school, "CS-101");
+var fallOffering = new Offering(course, fall, new DateTime(2020, 9, 1));
+var springOffering = new Offering(course, spring, new DateTime(2021, 1, 1));
+
+Renderer.RenderFacts(school, fall, spring, course, fallOffering, springOffering)
+
+#!csharp
+
+var coursesOffered = Given<Semester>.Match((semester, facts) =>
+    from offering in facts.OfType<Offering>()
+    where offering.semester == semester
+    from course in facts.OfType<Course>()
+    where offering.course == course
+    select course
+);
+
+coursesOffered.ToDescriptiveString()
+
+#!csharp
+
+var secondFallOffering = new Offering(course, fall, new DateTime(2020, 9, 2));
+var fallCancellation = new Cancellation(fallOffering, new DateTime(2020, 9, 3));
+
+Renderer.RenderFacts(secondFallOffering, fallCancellation)
+
+#!csharp
+
+var coursesOfferedAndNotCancelled = Given<Semester>.Match((semester, facts) =>
+    from offering in facts.OfType<Offering>()
+    where offering.semester == semester
+    where !(facts.OfType<Cancellation>().Where(cancellation => cancellation.offering == offering).Any())
+    from course in facts.OfType<Course>()
+    where offering.course == course
+    select course
+);
+
+coursesOfferedAndNotCancelled.ToDescriptiveString()

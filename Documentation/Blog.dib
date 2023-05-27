@@ -1,12 +1,19 @@
+#!meta
+
+{"kernelInfo":{"defaultKernelName":"csharp","items":[{"name":"csharp","aliases":[]},{"name":"vscode","aliases":["frontend"],"languageName":null}]}}
+
 #!csharp
 
-#r "C:\Users\micha\Projects\jinaga.net\Jinaga\bin\Debug\netstandard2.1\Jinaga.dll"
+#r "nuget: Jinaga"
 
 #!csharp
 
 using Jinaga;
 
-var j = JinagaClient.Create();
+var j = JinagaClient.Create(opt =>
+{
+    opt.HttpEndpoint = new Uri("http://localhost:8080/jinaga");
+});
 
 #!csharp
 
@@ -18,12 +25,6 @@ public record Post(Site site, string createdAt) {}
 
 [FactType("Blog.Post.Title")]
 public record Title(Post post, string value, Title[] prior) {}
-
-#!csharp
-
-var site = await j.Fact(new Site("michaelperry.net"));
-var post = await j.Fact(new Post(site, "2022-09-30T13:40:00Z"));
-var title = await j.Fact(new Title(post, "Introduction to Jinaga Replicator", new Title[0]));
 
 #!csharp
 
@@ -54,6 +55,57 @@ specification.ToString()
 
 #!csharp
 
+var site = await j.Fact(new Site("michaelperry.net"));
+
+#!csharp
+
+var request = specification.ToDescriptiveString(site);
+
+request
+
+#!csharp
+
+var webRequest = System.Net.WebRequest.CreateHttp("http://localhost:8080/jinaga/read");
+webRequest.Method = "POST";
+webRequest.ContentType = "text/plain";
+var bytes = System.Text.Encoding.UTF8.GetBytes(request);
+webRequest.ContentLength = bytes.Length;
+using (var stream = webRequest.GetRequestStream())
+{
+    stream.Write(bytes, 0, bytes.Length);
+}
+var response = await webRequest.GetResponseAsync();
+dynamic[] result = null;
+using (var stream = response.GetResponseStream())
+{
+    var reader = new System.IO.StreamReader(stream);
+    var json = await reader.ReadToEndAsync();
+    result = System.Text.Json.JsonSerializer.Deserialize<dynamic[]>(json);
+}
+
+result
+
+#!csharp
+
+#r "nuget: Flurl.Http"
+
+#!csharp
+
+using Flurl.Http;
+
+var response = await "http://localhost:8080/jinaga/read"
+    .PostStringAsync(request)
+    .ReceiveJsonList();
+
+response
+
+#!csharp
+
 var posts = await j.Query(site, specification);
 
 posts
+
+#!csharp
+
+var post = await j.Fact(new Post(site, "2022-09-30T13:40:00Z"));
+var title = await j.Fact(new Title(post, "Introduction to Jinaga Replicator", new Title[0]));

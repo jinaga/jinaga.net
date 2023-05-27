@@ -1,9 +1,11 @@
+using Jinaga.Facts;
+using Jinaga.Managers;
+using Jinaga.Pipelines;
+using Jinaga.Products;
+using Jinaga.Serialization;
 using System;
 using System.Collections.Immutable;
 using System.Linq;
-using Jinaga.Facts;
-using Jinaga.Pipelines;
-using Jinaga.Products;
 
 namespace Jinaga.Projections
 {
@@ -25,18 +27,18 @@ namespace Jinaga.Projections
 
         public bool CanRunOnGraph => Matches.All(m => m.CanRunOnGraph) && Projection.CanRunOnGraph;
 
-        public Specification Apply(ImmutableList<Label> arguments)
+        public Specification Apply(ImmutableList<string> arguments)
         {
             var replacements = Given.Zip(arguments, (parameter, argument) => (parameter, argument))
-                .ToImmutableDictionary(pair => pair.parameter.Name, pair => pair.argument.Name);
+                .ToImmutableDictionary(pair => pair.parameter.Name, pair => pair.argument);
             var newMatches = Matches.Select(match => match.Apply(replacements)).ToImmutableList();
             var newProjection = Projection.Apply(replacements);
             return new Specification(ImmutableList<Label>.Empty, newMatches, newProjection);
         }
 
-        public ImmutableList<Product> Execute(ImmutableList<FactReference> startReferences, FactGraph graph)
+        public ImmutableList<Product> Execute(ImmutableList<FactReference> givenReferences, FactGraph graph)
         {
-            var start = Given.Zip(startReferences, (given, reference) =>
+            var start = Given.Zip(givenReferences, (given, reference) =>
                 (name: given.Name, reference)
             ).ToImmutableDictionary(pair => pair.name, pair => pair.reference);
             var tuples = ExecuteMatches(start, Matches, graph);
@@ -56,6 +58,13 @@ namespace Jinaga.Projections
             var matches = string.Join("", this.Matches.Select(m => m.ToDescriptiveString(depth + 1)));
             var projection = this.Projection == null ? "" : " => " + this.Projection.ToDescriptiveString(depth);
             return $"{indent}({given}) {{\n{matches}{indent}}}{projection}\n";
+        }
+
+        protected string GenerateDeclarationString(ImmutableList<Facts.FactReference> givenReferences)
+        {
+            var startStrings = Given.Zip(givenReferences, (label, reference) =>
+                $"let {label.Name}: {reference.Type} = #{reference.Hash}\n");
+            return string.Join("", startStrings);
         }
 
         public override string ToString()

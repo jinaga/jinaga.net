@@ -1,15 +1,14 @@
-using Jinaga.Definitions;
-using Jinaga.Projections;
+﻿using Jinaga.Projections;
 using System.Collections.Immutable;
 
-namespace Jinaga.Parsers
+namespace Jinaga.Specifications
 {
-    public class SymbolValueCollection : SymbolValue
+    internal class SourceContext
     {
         public ImmutableList<Match> Matches { get; }
         public Projection Projection { get; }
 
-        public SymbolValueCollection(ImmutableList<Match> matches, Projection projection)
+        public SourceContext(ImmutableList<Match> matches, Projection projection)
         {
             Matches = matches;
             Projection = projection;

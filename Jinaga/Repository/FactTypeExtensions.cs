@@ -1,7 +1,7 @@
 using System;
 using System.Linq;
 
-namespace Jinaga.Parsers
+namespace Jinaga.Repository
 {
     public static class FactTypeExtensions
     {
@@ -11,7 +11,7 @@ namespace Jinaga.Parsers
                 .OfType<FactTypeAttribute>()
                 .Any();
         }
-        
+
         public static bool IsArrayOfFactType(this Type type)
         {
             return type.IsArray && type.GetElementType().IsFactType();
@@ -21,7 +21,7 @@ namespace Jinaga.Parsers
         {
             if (type.IsArray)
             {
-                return FactTypeName(type.GetElementType());
+                return type.GetElementType().FactTypeName();
             }
             else
             {

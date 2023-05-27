@@ -1,7 +1,5 @@
-using System.Collections.Immutable;
-using System;
-using Jinaga.Pipelines;
 using Jinaga.Visualizers;
+using System.Collections.Immutable;
 using System.Linq;
 
 namespace Jinaga.Projections
@@ -22,11 +20,6 @@ namespace Jinaga.Projections
             return new CollectionProjection(
                 Matches.Select(match => match.Apply(replacements)).ToImmutableList(),
                 Projection.Apply(replacements));
-        }
-
-        public override Projection Apply(Label parameter, Label argument)
-        {
-            throw new NotImplementedException();
         }
 
         public override bool CanRunOnGraph => Matches.All(m => m.CanRunOnGraph) && Projection.CanRunOnGraph;
