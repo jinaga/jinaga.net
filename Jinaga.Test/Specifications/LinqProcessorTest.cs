@@ -411,6 +411,6 @@ public class LinqProcessorTest
         return matches
             .Select(m => m.ToString())
             .Join("")
-            .ReplaceLineEndings("\r\n");
+            .ReplaceLineEndings();
     }
 }

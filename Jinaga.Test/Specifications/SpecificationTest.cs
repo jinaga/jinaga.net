@@ -4,7 +4,6 @@ using FluentAssertions;
 using Jinaga.Test.Model;
 using Jinaga.Test.Model.Order;
 using Xunit;
-using static Jinaga.Test.Helpers;
 
 namespace Jinaga.Test.Specifications.Specifications
 {
@@ -18,14 +17,16 @@ namespace Jinaga.Test.Specifications.Specifications
                 where flight.airlineDay.airline == airline
                 select flight
             );
-            string descriptiveString = specification.ToDescriptiveString(4);
-            descriptiveString.Should().Be(Indented(4, @"
+            specification.ToString().ReplaceLineEndings().Should().Be(
+                """
                 (airline: Skylane.Airline) {
                     flight: Skylane.Flight [
                         flight->airlineDay: Skylane.Airline.Day->airline: Skylane.Airline = airline
                     ]
                 } => flight
-                "));
+
+                """
+                );
         }
 
         [Fact]
@@ -37,15 +38,18 @@ namespace Jinaga.Test.Specifications.Specifications
                 select flight
             );
             var airline = new Airline("Bazinga");
-            string descriptiveString = specification.ToDescriptiveString(airline);
-            descriptiveString.Should().Be(@"let airline: Skylane.Airline = #GFroig3rCwOPo1yS0N68PUHIiD20s6H8L0uResV0BNdt+sr40nogatku8z+zeBwvqYoWvTS9sMl1SBCpVZ5MtA==
+            specification.ToDescriptiveString(airline).ReplaceLineEndings().Should().Be(
+                """
+                let airline: Skylane.Airline = #GFroig3rCwOPo1yS0N68PUHIiD20s6H8L0uResV0BNdt+sr40nogatku8z+zeBwvqYoWvTS9sMl1SBCpVZ5MtA==
 
-(airline: Skylane.Airline) {
-    flight: Skylane.Flight [
-        flight->airlineDay: Skylane.Airline.Day->airline: Skylane.Airline = airline
-    ]
-} => flight
-".Replace("\r", ""));
+                (airline: Skylane.Airline) {
+                    flight: Skylane.Flight [
+                        flight->airlineDay: Skylane.Airline.Day->airline: Skylane.Airline = airline
+                    ]
+                } => flight
+
+                """
+                );
         }
 
         [Fact]
@@ -131,14 +135,16 @@ namespace Jinaga.Test.Specifications.Specifications
             Specification<Airline, Flight> specification = Given<Airline>.Match((airline, facts) =>
                 facts.OfType<Flight>(flight => flight.airlineDay.airline == airline)
             );
-            string descriptiveString = specification.ToDescriptiveString(4);
-            descriptiveString.Should().Be(Indented(4, @"
+            specification.ToString().ReplaceLineEndings().Should().Be(
+                """
                 (airline: Skylane.Airline) {
                     flight: Skylane.Flight [
                         flight->airlineDay: Skylane.Airline.Day->airline: Skylane.Airline = airline
                     ]
                 } => flight
-                "));
+
+                """
+                );
         }
 
         [Fact]
@@ -149,14 +155,16 @@ namespace Jinaga.Test.Specifications.Specifications
                 where flightCancellation.flight == flight
                 select flight
             );
-            string descriptiveString = specification.ToDescriptiveString(4);
-            descriptiveString.Should().Be(Indented(4, @"
+            specification.ToString().ReplaceLineEndings().Should().Be(
+                """
                 (flightCancellation: Skylane.Flight.Cancellation) {
                     flight: Skylane.Flight [
                         flight = flightCancellation->flight: Skylane.Flight
                     ]
                 } => flight
-                "));
+
+                """
+                );
         }
 
         [Fact]
@@ -165,14 +173,16 @@ namespace Jinaga.Test.Specifications.Specifications
             Specification<FlightCancellation, Flight> specification = Given<FlightCancellation>.Match(flightCancellation =>
                 flightCancellation.flight
             );
-            string descriptiveString = specification.ToDescriptiveString(4);
-            descriptiveString.Should().Be(Indented(4, @"
+            specification.ToString().ReplaceLineEndings().Should().Be(
+                """
                 (flightCancellation: Skylane.Flight.Cancellation) {
                     flight: Skylane.Flight [
                         flight = flightCancellation->flight: Skylane.Flight
                     ]
                 } => flight
-                "));
+
+                """
+                );
         }
 
         [Fact]
@@ -190,8 +200,8 @@ namespace Jinaga.Test.Specifications.Specifications
 
                 select flight
             );
-            var descriptiveString = activeFlights.ToDescriptiveString(4);
-            descriptiveString.Should().Be(Indented(4, @"
+            activeFlights.ToString().ReplaceLineEndings().Should().Be(
+                """
                 (airlineDay: Skylane.Airline.Day) {
                     flight: Skylane.Flight [
                         flight->airlineDay: Skylane.Airline.Day = airlineDay
@@ -202,7 +212,9 @@ namespace Jinaga.Test.Specifications.Specifications
                         }
                     ]
                 } => flight
-                "));
+
+                """
+                );
         }
 
         [Fact]
@@ -216,8 +228,8 @@ namespace Jinaga.Test.Specifications.Specifications
 
                 select flight
             );
-            var descriptiveString = activeFlights.ToDescriptiveString(4);
-            descriptiveString.Should().Be(Indented(4, @"
+            activeFlights.ToString().ReplaceLineEndings().Should().Be(
+                """
                 (airlineDay: Skylane.Airline.Day) {
                     flight: Skylane.Flight [
                         flight->airlineDay: Skylane.Airline.Day = airlineDay
@@ -228,7 +240,9 @@ namespace Jinaga.Test.Specifications.Specifications
                         }
                     ]
                 } => flight
-                "));
+
+                """
+                );
         }
 
         [Fact]
@@ -242,8 +256,8 @@ namespace Jinaga.Test.Specifications.Specifications
 
                 select flight
             );
-            var descriptiveString = activeFlights.ToDescriptiveString(4);
-            descriptiveString.Should().Be(Indented(4, @"
+            activeFlights.ToString().ReplaceLineEndings().Should().Be(
+                """
                 (airlineDay: Skylane.Airline.Day) {
                     flight: Skylane.Flight [
                         flight->airlineDay: Skylane.Airline.Day = airlineDay
@@ -254,7 +268,9 @@ namespace Jinaga.Test.Specifications.Specifications
                         }
                     ]
                 } => flight
-                "));
+
+                """
+                );
         }
 
         [Fact]
@@ -281,8 +297,8 @@ namespace Jinaga.Test.Specifications.Specifications
 
                 select booking
             );
-            var descriptiveString = bookingsToRefund.ToDescriptiveString(4);
-            descriptiveString.Should().Be(Indented(4, @"
+            bookingsToRefund.ToString().ReplaceLineEndings().Should().Be(
+                """
                 (airline: Skylane.Airline) {
                     flight: Skylane.Flight [
                         flight->airlineDay: Skylane.Airline.Day->airline: Skylane.Airline = airline
@@ -301,7 +317,9 @@ namespace Jinaga.Test.Specifications.Specifications
                         }
                     ]
                 } => booking
-                "));
+
+                """
+                );
         }
 
         [Fact]
@@ -339,8 +357,8 @@ namespace Jinaga.Test.Specifications.Specifications
 
                 select booking
             );
-            var descriptiveString = bookingsToRefund.ToDescriptiveString(4);
-            descriptiveString.Should().Be(Indented(4, @"
+            bookingsToRefund.ToString().ReplaceLineEndings().Should().Be(
+                """
                 (airline: Skylane.Airline) {
                     flight: Skylane.Flight [
                         flight->airlineDay: Skylane.Airline.Day->airline: Skylane.Airline = airline
@@ -359,7 +377,9 @@ namespace Jinaga.Test.Specifications.Specifications
                         }
                     ]
                 } => booking
-                "));
+
+                """
+                );
         }
 
         [Fact]
@@ -387,8 +407,8 @@ namespace Jinaga.Test.Specifications.Specifications
                     Cancellation = cancellation
                 }
             );
-            var descriptiveString = bookingsToRefund.ToDescriptiveString(4);
-            descriptiveString.Should().Be(Indented(4, @"
+            bookingsToRefund.ToString().ReplaceLineEndings().Should().Be(
+                """
                 (airline: Skylane.Airline) {
                     flight: Skylane.Flight [
                         flight->airlineDay: Skylane.Airline.Day->airline: Skylane.Airline = airline
@@ -408,7 +428,9 @@ namespace Jinaga.Test.Specifications.Specifications
                     Booking = booking
                     Cancellation = cancellation
                 }
-                "));
+
+                """
+                );
         }
 
         [Fact]
@@ -444,8 +466,8 @@ namespace Jinaga.Test.Specifications.Specifications
                 }
             );
 
-            var descriptiveString = specification.ToDescriptiveString(4);
-            descriptiveString.Should().Be(Indented(4, @"
+            specification.ToString().ReplaceLineEndings().Should().Be(
+                """
                 (company: Corporate.Company) {
                     office: Corporate.Office [
                         office->company: Corporate.Company = company
@@ -467,7 +489,9 @@ namespace Jinaga.Test.Specifications.Specifications
                     headcount = headcount
                     office = office
                 }
-                "));
+
+                """
+                );
         }
 
         [Fact]
@@ -489,8 +513,8 @@ namespace Jinaga.Test.Specifications.Specifications
                 }
             );
 
-            var descriptiveString = specification.ToDescriptiveString(4);
-            descriptiveString.Should().Be(Indented(4, @"
+            specification.ToString().ReplaceLineEndings().Should().Be(
+                """
                 (company: Corporate.Company) {
                     office: Corporate.Office [
                         office->company: Corporate.Company = company
@@ -513,7 +537,9 @@ namespace Jinaga.Test.Specifications.Specifications
                     } => headcount.value
                     office = office
                 }
-                "));
+
+                """
+                );
         }
 
         [Fact]
@@ -546,8 +572,8 @@ namespace Jinaga.Test.Specifications.Specifications
                 }
             );
 
-            var descriptiveString = specification.ToDescriptiveString(4);
-            descriptiveString.Should().Be(Indented(4, @"
+            specification.ToString().ReplaceLineEndings().Should().Be(
+                """
                 (company: Corporate.Company) {
                     office: Corporate.Office [
                         office->company: Corporate.Company = company
@@ -581,7 +607,9 @@ namespace Jinaga.Test.Specifications.Specifications
                     }
                     office = office
                 }
-                "));
+
+                """
+                );
         }
 
         [Fact]
@@ -603,8 +631,8 @@ namespace Jinaga.Test.Specifications.Specifications
                 select office
             );
 
-            var descriptiveString = specification.ToDescriptiveString(4);
-            descriptiveString.Should().Be(Indented(4, @"
+            specification.ToString().ReplaceLineEndings().Should().Be(
+                """
                 (company: Corporate.Company) {
                     office: Corporate.Office [
                         office->company: Corporate.Company = company
@@ -620,7 +648,9 @@ namespace Jinaga.Test.Specifications.Specifications
                         }
                     ]
                 } => office
-                "));
+
+                """
+                );
         }
 
         [Fact]
@@ -638,7 +668,7 @@ namespace Jinaga.Test.Specifications.Specifications
                         .Any()
                     )
             );
-            specification.ToString().ReplaceLineEndings("\r\n").Should().Be(
+            specification.ToString().ReplaceLineEndings().Should().Be(
                 """
                 (department: Department) {
                     project: Project [
@@ -678,7 +708,7 @@ namespace Jinaga.Test.Specifications.Specifications
               ).Any()
               select course
             );
-            specification.ToString().ReplaceLineEndings("\r\n").Should().Be(
+            specification.ToString().ReplaceLineEndings().Should().Be(
                 """
                 (school: School) {
                     course: Course [

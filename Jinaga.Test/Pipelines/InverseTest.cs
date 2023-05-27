@@ -3,7 +3,6 @@ using Jinaga.Pipelines;
 using Jinaga.Test.Model;
 using System.Linq;
 using Xunit;
-using static Jinaga.Test.Helpers;
 
 namespace Jinaga.Test.Pipelines
 {
@@ -19,14 +18,17 @@ namespace Jinaga.Test.Pipelines
             );
 
             var inverses = specification.ComputeInverses();
-            inverses.Should().ContainSingle().Which.InverseSpecification.ToDescriptiveString(5)
-                .Should().Be(Indented(5, @"
+            inverses.Should().ContainSingle().Which
+                .InverseSpecification.ToString().ReplaceLineEndings().Should().Be(
+                    """
                     (office: Corporate.Office) {
                         company: Corporate.Company [
                             company = office->company: Corporate.Company
                         ]
                     } => office
-                    "));
+
+                    """
+                    );
         }
 
         [Fact]
@@ -58,16 +60,20 @@ namespace Jinaga.Test.Pipelines
             var inverses = specification.ComputeInverses();
 
             // Expect the inverse to filter out the specification starting from the other predecessor.
-            inverses.Select(i => i.InverseSpecification.ToDescriptiveString(4)).Should().BeEquivalentTo(new string[] { Indented(4, @"
-                (office: Corporate.Office) {
-                    company: Corporate.Company [
-                        company = office->company: Corporate.Company
-                    ]
-                    city: Corporate.City [
-                        city = office->city: Corporate.City
-                    ]
-                } => city
-                ") });
+            inverses.Select(i => i.InverseSpecification.ToString().ReplaceLineEndings())
+                .Should().BeEquivalentTo(new string[] {
+                    """
+                    (office: Corporate.Office) {
+                        company: Corporate.Company [
+                            company = office->company: Corporate.Company
+                        ]
+                        city: Corporate.City [
+                            city = office->city: Corporate.City
+                        ]
+                    } => city
+
+                    """
+                    });
         }
 
         [Fact]
@@ -85,23 +91,28 @@ namespace Jinaga.Test.Pipelines
             );
 
             var inverses = specification.ComputeInverses();
-            inverses.Select(i => i.InverseSpecification.ToDescriptiveString(4)).Should().BeEquivalentTo(new [] {Indented(4, @"
-                (office: Corporate.Office) {
-                    company: Corporate.Company [
-                        company = office->company: Corporate.Company
-                    ]
-                } => office
-                "), Indented(4, @"
-                (officeClosure: Corporate.Office.Closure) {
-                    office: Corporate.Office [
-                        office = officeClosure->office: Corporate.Office
-                    ]
-                    company: Corporate.Company [
-                        company = office->company: Corporate.Company
-                    ]
-                } => office
-                ")
-            });
+            inverses.Select(i => i.InverseSpecification.ToString().ReplaceLineEndings())
+                .Should().BeEquivalentTo(new [] {
+                    """
+                    (office: Corporate.Office) {
+                        company: Corporate.Company [
+                            company = office->company: Corporate.Company
+                        ]
+                    } => office
+
+                    """,
+                    """
+                    (officeClosure: Corporate.Office.Closure) {
+                        office: Corporate.Office [
+                            office = officeClosure->office: Corporate.Office
+                        ]
+                        company: Corporate.Company [
+                            company = office->company: Corporate.Company
+                        ]
+                    } => office
+
+                    """
+                });
 
             inverses.Select(i => i.Operation).Should().BeEquivalentTo(new[] {
                 InverseOperation.Add,
@@ -127,17 +138,20 @@ namespace Jinaga.Test.Pipelines
 
             // The second inverse is not satisfiable because the OfficeClosed
             // fact will not yet exist.
-            inverses.Select(i => i.InverseSpecification.ToDescriptiveString(4)).Should().BeEquivalentTo(new[] { Indented(4, @"
-                (officeClosure: Corporate.Office.Closure) {
-                    office: Corporate.Office [
-                        office = officeClosure->office: Corporate.Office
-                    ]
-                    company: Corporate.Company [
-                        company = office->company: Corporate.Company
-                    ]
-                } => office
-                ")
-            });
+            inverses.Select(i => i.InverseSpecification.ToString().ReplaceLineEndings())
+                .Should().BeEquivalentTo(new[] {
+                    """
+                    (officeClosure: Corporate.Office.Closure) {
+                        office: Corporate.Office [
+                            office = officeClosure->office: Corporate.Office
+                        ]
+                        company: Corporate.Company [
+                            company = office->company: Corporate.Company
+                        ]
+                    } => office
+
+                    """
+                });
 
             inverses.Select(i => i.Operation).Should().BeEquivalentTo(new[] {
                 InverseOperation.MaybeAdd
@@ -165,45 +179,52 @@ namespace Jinaga.Test.Pipelines
 
             var inverses = specification.ComputeInverses();
 
-            inverses.Select(i => i.InverseSpecification.ToDescriptiveString(4)).Should().BeEquivalentTo(new[] { Indented(4, @"
-                (office: Corporate.Office) {
-                    company: Corporate.Company [
-                        company = office->company: Corporate.Company
-                    ]
-                } => office
-                "), Indented(4, @"
-                (officeClosure: Corporate.Office.Closure) {
-                    office: Corporate.Office [
-                        office = officeClosure->office: Corporate.Office
-                    ]
-                    company: Corporate.Company [
-                        company = office->company: Corporate.Company
-                    ]
-                } => office
-                "), Indented(4, @"
-                (officeReopening: Corporate.Office.Reopening) {
-                    officeClosure: Corporate.Office.Closure [
-                        officeClosure = officeReopening->officeClosure: Corporate.Office.Closure
-                    ]
-                    office: Corporate.Office [
-                        office = officeClosure->office: Corporate.Office
-                        !E {
-                            officeClosure: Corporate.Office.Closure [
-                                officeClosure->office: Corporate.Office = office
-                                !E {
-                                    officeReopening: Corporate.Office.Reopening [
-                                        officeReopening->officeClosure: Corporate.Office.Closure = officeClosure
-                                    ]
-                                }
-                            ]
-                        }
-                    ]
-                    company: Corporate.Company [
-                        company = office->company: Corporate.Company
-                    ]
-                } => office
-                ")
-            });
+            inverses.Select(i => i.InverseSpecification.ToString().ReplaceLineEndings())
+                .Should().BeEquivalentTo(new[] {
+                    """
+                    (office: Corporate.Office) {
+                        company: Corporate.Company [
+                            company = office->company: Corporate.Company
+                        ]
+                    } => office
+
+                    """,
+                    """
+                    (officeClosure: Corporate.Office.Closure) {
+                        office: Corporate.Office [
+                            office = officeClosure->office: Corporate.Office
+                        ]
+                        company: Corporate.Company [
+                            company = office->company: Corporate.Company
+                        ]
+                    } => office
+                    
+                    """,
+                    """
+                    (officeReopening: Corporate.Office.Reopening) {
+                        officeClosure: Corporate.Office.Closure [
+                            officeClosure = officeReopening->officeClosure: Corporate.Office.Closure
+                        ]
+                        office: Corporate.Office [
+                            office = officeClosure->office: Corporate.Office
+                            !E {
+                                officeClosure: Corporate.Office.Closure [
+                                    officeClosure->office: Corporate.Office = office
+                                    !E {
+                                        officeReopening: Corporate.Office.Reopening [
+                                            officeReopening->officeClosure: Corporate.Office.Closure = officeClosure
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
+                        company: Corporate.Company [
+                            company = office->company: Corporate.Company
+                        ]
+                    } => office
+
+                    """
+                });
 
             inverses.Select(i => i.Operation).Should().BeEquivalentTo(new[] {
                 InverseOperation.Add,
@@ -233,30 +254,35 @@ namespace Jinaga.Test.Pipelines
 
             var inverses = specification.ComputeInverses();
 
-            inverses.Select(i => i.InverseSpecification.ToDescriptiveString(4)).Should().BeEquivalentTo(new [] {Indented(4,@"
-                (office: Corporate.Office) {
-                    company: Corporate.Company [
-                        company = office->company: Corporate.Company
-                    ]
-                } => {
-                    Names = {
-                        name: Corporate.Office.Name [
-                            name->office: Corporate.Office = office
+            inverses.Select(i => i.InverseSpecification.ToString().ReplaceLineEndings())
+                .Should().BeEquivalentTo(new [] {
+                    """
+                    (office: Corporate.Office) {
+                        company: Corporate.Company [
+                            company = office->company: Corporate.Company
+                        ]
+                    } => {
+                        Names = {
+                            name: Corporate.Office.Name [
+                                name->office: Corporate.Office = office
+                            ]
+                        } => name
+                        Office = office
+                    }
+
+                    """,
+                    """
+                    (name: Corporate.Office.Name) {
+                        office: Corporate.Office [
+                            office = name->office: Corporate.Office
+                        ]
+                        company: Corporate.Company [
+                            company = office->company: Corporate.Company
                         ]
                     } => name
-                    Office = office
-                }
-                "), Indented(4,@"
-                (name: Corporate.Office.Name) {
-                    office: Corporate.Office [
-                        office = name->office: Corporate.Office
-                    ]
-                    company: Corporate.Company [
-                        company = office->company: Corporate.Company
-                    ]
-                } => name
-                ")
-            });
+
+                    """
+                });
         }
 
         [Fact]
