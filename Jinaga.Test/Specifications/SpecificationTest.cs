@@ -245,6 +245,31 @@ namespace Jinaga.Test.Specifications.Specifications
         }
 
         [Fact]
+        public void CanCombinePredicatesWithAndOperator()
+        {
+            var conjunctionSpecification = Given<AirlineDay>.Match((airlineDay, facts) =>
+                from flight in facts.OfType<Flight>()
+                where flight.airlineDay == airlineDay &&
+                    !facts.OfType<FlightCancellation>().Any(cancellation => cancellation.flight == flight)
+                select flight
+            );
+            var longSpecification = Given<AirlineDay>.Match((airlineDay, facts) =>
+                from flight in facts.OfType<Flight>()
+                where flight.airlineDay == airlineDay
+
+                where !(
+                    from cancellation in facts.OfType<FlightCancellation>()
+                    where cancellation.flight == flight
+                    select cancellation
+                ).Any()
+
+                select flight
+            );
+
+            conjunctionSpecification.ToString().Should().Be(longSpecification.ToString());
+        }
+
+        [Fact]
         public void CanSpecifyNamedNegativeExistentialConditions()
         {
             Specification<AirlineDay, Flight> activeFlights = Given<AirlineDay>.Match((airlineDay, facts) =>

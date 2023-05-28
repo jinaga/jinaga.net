@@ -293,6 +293,15 @@ namespace Jinaga.Repository
                     return ProcessPredicate(condition.Body.Body, childSymbolTable);
                 }
             }
+            else if (body is BinaryExpression
+            {
+                NodeType: ExpressionType.AndAlso
+            } andExpression)
+            {
+                var left = ProcessPredicate(andExpression.Left, symbolTable);
+                var right = ProcessPredicate(andExpression.Right, symbolTable);
+                return LinqProcessor.And(left, right);
+            }
             throw new SpecificationException($"Unsupported predicate type {body}.");
         }
 
