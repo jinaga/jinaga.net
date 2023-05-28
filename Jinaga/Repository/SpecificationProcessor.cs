@@ -178,6 +178,19 @@ namespace Jinaga.Repository
                         return LinqProcessor.Select(source, projection);
                     }
                     else if (methodCallExpression.Method.Name == nameof(System.Linq.Queryable.SelectMany) &&
+                        methodCallExpression.Arguments.Count == 2)
+                    {
+                        var collectionSelector = GetLambda(methodCallExpression.Arguments[1]);
+                        var collectionSelectorParameterName = collectionSelector.Parameters[0].Name;
+
+                        var source = ProcessSource(methodCallExpression.Arguments[0], symbolTable, collectionSelectorParameterName);
+
+                        var collectionSelectorSymbolTable = symbolTable.Set(collectionSelectorParameterName, source.Projection);
+                        var selector = ProcessSource(collectionSelector.Body, collectionSelectorSymbolTable, recommendedLabel);
+
+                        return LinqProcessor.SelectMany(source, selector);
+                    }
+                    else if (methodCallExpression.Method.Name == nameof(System.Linq.Queryable.SelectMany) &&
                         methodCallExpression.Arguments.Count == 3)
                     {
                         var collectionSelector = GetLambda(methodCallExpression.Arguments[1]);
@@ -252,6 +265,18 @@ namespace Jinaga.Repository
                         var source = ProcessSource(methodCallExpression.Arguments[0], symbolTable);
                         return LinqProcessor.Any(source);
                     }
+                    else if (methodCallExpression.Method.Name == nameof(System.Linq.Queryable.Any) &&
+                        methodCallExpression.Arguments.Count == 2)
+                    {
+                        var lambda = GetLambda(methodCallExpression.Arguments[1]);
+                        string parameterName = lambda.Parameters[0].Name;
+                        
+                        var source = ProcessSource(methodCallExpression.Arguments[0], symbolTable, parameterName);
+                        var childSymbolTable = symbolTable.Set(parameterName, source.Projection);
+                        var predicate = ProcessPredicate(lambda.Body, childSymbolTable);
+
+                        return LinqProcessor.Any(LinqProcessor.Where(source, predicate));
+                    }
                 }
                 else if (methodCallExpression.Method.DeclaringType == typeof(Enumerable) &&
                     methodCallExpression.Method.Name == nameof(System.Linq.Enumerable.Contains) &&
@@ -260,6 +285,17 @@ namespace Jinaga.Repository
                     var left = ProcessReference(methodCallExpression.Arguments[0], symbolTable);
                     var right = ProcessReference(methodCallExpression.Arguments[1], symbolTable);
                     return LinqProcessor.Compare(left, right);
+                }
+                else if (methodCallExpression.Method.DeclaringType == typeof(FactRepository) &&
+                    methodCallExpression.Method.Name == nameof(FactRepository.Any))
+                {
+                    var lambda = GetLambda(methodCallExpression.Arguments[0]);
+                    var parameterName = lambda.Parameters[0].Name;
+
+                    var source = LinqProcessor.FactsOfType(new Label(parameterName, lambda.Parameters[0].Type.FactTypeName()));
+                    var childSymbolTable = symbolTable.Set(parameterName, source.Projection);
+                    var predicate = ProcessPredicate(lambda.Body, childSymbolTable);
+                    return LinqProcessor.Any(LinqProcessor.Where(source, predicate));
                 }
             }
             else if (body is UnaryExpression
@@ -280,6 +316,15 @@ namespace Jinaga.Repository
                     var childSymbolTable = symbolTable.Set("this", projection);
                     return ProcessPredicate(condition.Body.Body, childSymbolTable);
                 }
+            }
+            else if (body is BinaryExpression
+            {
+                NodeType: ExpressionType.AndAlso
+            } andExpression)
+            {
+                var left = ProcessPredicate(andExpression.Left, symbolTable);
+                var right = ProcessPredicate(andExpression.Right, symbolTable);
+                return LinqProcessor.And(left, right);
             }
             throw new SpecificationException($"Unsupported predicate type {body}.");
         }

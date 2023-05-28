@@ -218,6 +218,110 @@ namespace Jinaga.Test.Specifications.Specifications
         }
 
         [Fact]
+        public void CanPassPredicateToAny()
+        {
+            var shortSpecification = Given<AirlineDay>.Match((airlineDay, facts) =>
+                from flight in facts.OfType<Flight>()
+                where flight.airlineDay == airlineDay
+
+                where !facts.OfType<FlightCancellation>().Any(cancellation => cancellation.flight == flight)
+
+                select flight
+            );
+            var longSpecification = Given<AirlineDay>.Match((airlineDay, facts) =>
+                from flight in facts.OfType<Flight>()
+                where flight.airlineDay == airlineDay
+
+                where !(
+                    from cancellation in facts.OfType<FlightCancellation>()
+                    where cancellation.flight == flight
+                    select cancellation
+                ).Any()
+
+                select flight
+            );
+
+            shortSpecification.ToString().Should().Be(longSpecification.ToString());
+        }
+
+        [Fact]
+        public void CanCombinePredicatesWithAndOperator()
+        {
+            var conjunctionSpecification = Given<AirlineDay>.Match((airlineDay, facts) =>
+                from flight in facts.OfType<Flight>()
+                where flight.airlineDay == airlineDay &&
+                    !facts.OfType<FlightCancellation>().Any(cancellation => cancellation.flight == flight)
+                select flight
+            );
+            var longSpecification = Given<AirlineDay>.Match((airlineDay, facts) =>
+                from flight in facts.OfType<Flight>()
+                where flight.airlineDay == airlineDay
+
+                where !(
+                    from cancellation in facts.OfType<FlightCancellation>()
+                    where cancellation.flight == flight
+                    select cancellation
+                ).Any()
+
+                select flight
+            );
+
+            conjunctionSpecification.ToString().Should().Be(longSpecification.ToString());
+        }
+
+        [Fact]
+        public void CanPassConditionToFactsAny()
+        {
+            var shorterSpecification = Given<AirlineDay>.Match((airlineDay, facts) =>
+                from flight in facts.OfType<Flight>()
+                where flight.airlineDay == airlineDay &&
+                    !facts.Any<FlightCancellation>(cancellation => cancellation.flight == flight)
+                select flight
+            );
+            var longSpecification = Given<AirlineDay>.Match((airlineDay, facts) =>
+                from flight in facts.OfType<Flight>()
+                where flight.airlineDay == airlineDay
+
+                where !(
+                    from cancellation in facts.OfType<FlightCancellation>()
+                    where cancellation.flight == flight
+                    select cancellation
+                ).Any()
+
+                select flight
+            );
+
+            shorterSpecification.ToString().Should().Be(longSpecification.ToString());
+        }
+
+        [Fact]
+        public void CanProcessTheShortestPossibleSpecification()
+        {
+            var shortestSpecification = Given<AirlineDay>.Match((airlineDay, facts) =>
+                facts.OfType<Flight>(flight =>
+                    flight.airlineDay == airlineDay &&
+                    !facts.Any<FlightCancellation>(cancellation =>
+                        cancellation.flight == flight
+                    )
+                )
+            );
+            var longSpecification = Given<AirlineDay>.Match((airlineDay, facts) =>
+                from flight in facts.OfType<Flight>()
+                where flight.airlineDay == airlineDay
+
+                where !(
+                    from cancellation in facts.OfType<FlightCancellation>()
+                    where cancellation.flight == flight
+                    select cancellation
+                ).Any()
+
+                select flight
+            );
+
+            shortestSpecification.ToString().Should().Be(longSpecification.ToString());
+        }
+
+        [Fact]
         public void CanSpecifyNamedNegativeExistentialConditions()
         {
             Specification<AirlineDay, Flight> activeFlights = Given<AirlineDay>.Match((airlineDay, facts) =>
@@ -320,6 +424,92 @@ namespace Jinaga.Test.Specifications.Specifications
 
                 """
                 );
+        }
+
+
+        [Fact]
+        public void CanCallSelectManyWithOneParameter()
+        {
+            var testSpecification = Given<Airline>.Match((airline, facts) =>
+                facts.OfType<Flight>(flight =>
+                    flight.airlineDay.airline == airline &&
+                    facts.Any<FlightCancellation>(cancellation =>
+                        cancellation.flight == flight
+                    )
+                )
+                .SelectMany(flight => facts.OfType<Booking>(booking =>
+                    booking.flight == flight &&
+                    !facts.Any<Refund>(refund =>
+                        refund.booking == booking
+                    )
+                ))
+            );
+            var referenceSpecification = Given<Airline>.Match((airline, facts) =>
+                from flight in facts.OfType<Flight>()
+                where flight.airlineDay.airline == airline
+
+                where (
+                    from cancellation in facts.OfType<FlightCancellation>()
+                    where cancellation.flight == flight
+                    select cancellation
+                ).Any()
+
+                from booking in facts.OfType<Booking>()
+                where booking.flight == flight
+
+                where !(
+                    from refund in facts.OfType<Refund>()
+                    where refund.booking == booking
+                    select refund
+                ).Any()
+
+                select booking
+            );
+
+            testSpecification.ToString().Should().Be(referenceSpecification.ToString());
+        }
+
+        [Fact]
+        public void CanPutWhereAfterSelectMany()
+        {
+            var testSpecification = Given<Airline>.Match((airline, facts) =>
+                facts.OfType<Flight>(flight =>
+                    flight.airlineDay.airline == airline &&
+                    facts.Any<FlightCancellation>(cancellation =>
+                        cancellation.flight == flight
+                    )
+                )
+                .SelectMany(flight => facts.OfType<Booking>(booking =>
+                    booking.flight == flight))
+                .Where(booking =>
+                    !facts.Any<Refund>(refund =>
+                        refund.booking == booking
+                    )
+                )
+            );
+            var referenceSpecification = Given<Airline>.Match((airline, facts) =>
+                from flight in facts.OfType<Flight>()
+                where flight.airlineDay.airline == airline
+
+                where (
+                    from cancellation in facts.OfType<FlightCancellation>()
+                    where cancellation.flight == flight
+                    select cancellation
+                ).Any()
+
+                from booking in facts.OfType<Booking>()
+                where booking.flight == flight
+
+                where !(
+                    from refund in facts.OfType<Refund>()
+                    where refund.booking == booking
+                    select refund
+                ).Any()
+
+                select booking
+            );
+
+            testSpecification.ToString().Should().Be(referenceSpecification.ToString());
         }
 
         [Fact]
