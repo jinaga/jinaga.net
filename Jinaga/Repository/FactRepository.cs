@@ -11,6 +11,8 @@ namespace Jinaga.Repository
             where TFact : class;
         public abstract IQueryable<TFact> OfType<TFact>(Expression<Func<TFact, bool>> predicate)
             where TFact : class;
+        public abstract bool Any<TFact>(Expression<Func<TFact, bool>> predicate)
+            where TFact : class;
         public abstract IObservableCollection<TProjection> Observable<TFact, TProjection>(
             TFact start,
             Specification<TFact, TProjection> specification)

@@ -273,6 +273,17 @@ namespace Jinaga.Repository
                     var right = ProcessReference(methodCallExpression.Arguments[1], symbolTable);
                     return LinqProcessor.Compare(left, right);
                 }
+                else if (methodCallExpression.Method.DeclaringType == typeof(FactRepository) &&
+                    methodCallExpression.Method.Name == nameof(FactRepository.Any))
+                {
+                    var lambda = GetLambda(methodCallExpression.Arguments[0]);
+                    var parameterName = lambda.Parameters[0].Name;
+
+                    var source = LinqProcessor.FactsOfType(new Label(parameterName, lambda.Parameters[0].Type.FactTypeName()));
+                    var childSymbolTable = symbolTable.Set(parameterName, source.Projection);
+                    var predicate = ProcessPredicate(lambda.Body, childSymbolTable);
+                    return LinqProcessor.Any(LinqProcessor.Where(source, predicate));
+                }
             }
             else if (body is UnaryExpression
             {
