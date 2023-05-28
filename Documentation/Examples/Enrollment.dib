@@ -1,3 +1,7 @@
+#!meta
+
+{"kernelInfo":{"defaultKernelName":"csharp","items":[{"aliases":[],"name":"csharp"}]}}
+
 #!csharp
 
 #r "nuget:Jinaga.Graphviz"
@@ -49,17 +53,17 @@ Renderer.RenderTypes(typeof(User), typeof(School), typeof(Student), typeof(Stude
 var namesOfCourse = Given<Course>.Match((course, facts) =>
     from name in facts.OfType<CourseName>()
     where name.course == course
-    where !(facts.OfType<CourseName>().Where(n => n.prior.Contains(name)).Any())
+    where !facts.Any<CourseName>(n => n.prior.Contains(name))
     select name
 );
 
 var coursesForStudent = Given<Student>.Match((student, facts) =>
     from registration in facts.OfType<Registration>()
     where registration.student == student
-    where !(facts.OfType<Drop>().Where(d => d.registration == registration).Any())
+    where !facts.Any<Drop>(d => d.registration == registration)
     from offering in facts.OfType<Offering>()
     where registration.offering == offering
-    where !(facts.OfType<Cancellation>().Where(c => c.offering == offering).Any())
+    where !facts.Any<Cancellation>(c => c.offering == offering)
     from course in facts.OfType<Course>()
     where offering.course == course
     select new {
@@ -68,7 +72,7 @@ var coursesForStudent = Given<Student>.Match((student, facts) =>
         courseName =
             from name in facts.OfType<CourseName>()
             where name.course == course
-            where !(facts.OfType<CourseName>().Where(n => n.prior.Contains(name)).Any())
+            where !facts.Any<CourseName>(n => n.prior.Contains(name))
             select name
     }
 );
@@ -110,7 +114,7 @@ Renderer.RenderFacts(secondFallOffering, fallCancellation)
 var coursesOfferedAndNotCancelled = Given<Semester>.Match((semester, facts) =>
     from offering in facts.OfType<Offering>()
     where offering.semester == semester
-    where !(facts.OfType<Cancellation>().Where(cancellation => cancellation.offering == offering).Any())
+    where !facts.Any<Cancellation>(cancellation => cancellation.offering == offering)
     from course in facts.OfType<Course>()
     where offering.course == course
     select course
