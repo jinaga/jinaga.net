@@ -178,6 +178,19 @@ namespace Jinaga.Repository
                         return LinqProcessor.Select(source, projection);
                     }
                     else if (methodCallExpression.Method.Name == nameof(System.Linq.Queryable.SelectMany) &&
+                        methodCallExpression.Arguments.Count == 2)
+                    {
+                        var collectionSelector = GetLambda(methodCallExpression.Arguments[1]);
+                        var collectionSelectorParameterName = collectionSelector.Parameters[0].Name;
+
+                        var source = ProcessSource(methodCallExpression.Arguments[0], symbolTable, collectionSelectorParameterName);
+
+                        var collectionSelectorSymbolTable = symbolTable.Set(collectionSelectorParameterName, source.Projection);
+                        var selector = ProcessSource(collectionSelector.Body, collectionSelectorSymbolTable, recommendedLabel);
+
+                        return LinqProcessor.SelectMany(source, selector);
+                    }
+                    else if (methodCallExpression.Method.Name == nameof(System.Linq.Queryable.SelectMany) &&
                         methodCallExpression.Arguments.Count == 3)
                     {
                         var collectionSelector = GetLambda(methodCallExpression.Arguments[1]);

@@ -426,6 +426,92 @@ namespace Jinaga.Test.Specifications.Specifications
                 );
         }
 
+
+        [Fact]
+        public void CanCallSelectManyWithOneParameter()
+        {
+            var testSpecification = Given<Airline>.Match((airline, facts) =>
+                facts.OfType<Flight>(flight =>
+                    flight.airlineDay.airline == airline &&
+                    facts.Any<FlightCancellation>(cancellation =>
+                        cancellation.flight == flight
+                    )
+                )
+                .SelectMany(flight => facts.OfType<Booking>(booking =>
+                    booking.flight == flight &&
+                    !facts.Any<Refund>(refund =>
+                        refund.booking == booking
+                    )
+                ))
+            );
+            var referenceSpecification = Given<Airline>.Match((airline, facts) =>
+                from flight in facts.OfType<Flight>()
+                where flight.airlineDay.airline == airline
+
+                where (
+                    from cancellation in facts.OfType<FlightCancellation>()
+                    where cancellation.flight == flight
+                    select cancellation
+                ).Any()
+
+                from booking in facts.OfType<Booking>()
+                where booking.flight == flight
+
+                where !(
+                    from refund in facts.OfType<Refund>()
+                    where refund.booking == booking
+                    select refund
+                ).Any()
+
+                select booking
+            );
+
+            testSpecification.ToString().Should().Be(referenceSpecification.ToString());
+        }
+
+        [Fact]
+        public void CanPutWhereAfterSelectMany()
+        {
+            var testSpecification = Given<Airline>.Match((airline, facts) =>
+                facts.OfType<Flight>(flight =>
+                    flight.airlineDay.airline == airline &&
+                    facts.Any<FlightCancellation>(cancellation =>
+                        cancellation.flight == flight
+                    )
+                )
+                .SelectMany(flight => facts.OfType<Booking>(booking =>
+                    booking.flight == flight))
+                .Where(booking =>
+                    !facts.Any<Refund>(refund =>
+                        refund.booking == booking
+                    )
+                )
+            );
+            var referenceSpecification = Given<Airline>.Match((airline, facts) =>
+                from flight in facts.OfType<Flight>()
+                where flight.airlineDay.airline == airline
+
+                where (
+                    from cancellation in facts.OfType<FlightCancellation>()
+                    where cancellation.flight == flight
+                    select cancellation
+                ).Any()
+
+                from booking in facts.OfType<Booking>()
+                where booking.flight == flight
+
+                where !(
+                    from refund in facts.OfType<Refund>()
+                    where refund.booking == booking
+                    select refund
+                ).Any()
+
+                select booking
+            );
+
+            testSpecification.ToString().Should().Be(referenceSpecification.ToString());
+        }
+
         [Fact]
         public void Specification_MissingJoinToPriorPath()
         {
