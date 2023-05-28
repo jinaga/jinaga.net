@@ -120,3 +120,21 @@ After that, the MS SQL Server implementation will support enterprise solutions t
 
 Authorization rules -- which limit the users who can create facts -- are implemented in Jinaga.JS, but not yet in Jinaga.NET.
 Distribution rules -- which limit the specifications that a user can query -- are not yet implemented in either.
+
+## Release
+
+This repository uses [Nerdbank.GitVersioning](https://github.com/dotnet/Nerdbank.GitVersioning) to manage version numbers.
+To release a new version of the Jinaga.NET library, create a new tag in the format `1.2.3`.
+Then create a new release based on that tag.
+The release will be published to [NuGet](https://www.nuget.org/packages/Jinaga/).
+
+To accomplish this from the command line, use a combination of `git` and `gh` commands.
+
+```powershell
+$VERSION = "1.2.3"
+git checkout main
+git pull
+git tag $VERSION
+git push --follow-tags
+gh release create $VERSION --generate-notes --verify-tag
+```
