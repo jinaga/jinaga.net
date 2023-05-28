@@ -295,6 +295,33 @@ namespace Jinaga.Test.Specifications.Specifications
         }
 
         [Fact]
+        public void CanProcessTheShortestPossibleSpecification()
+        {
+            var shortestSpecification = Given<AirlineDay>.Match((airlineDay, facts) =>
+                facts.OfType<Flight>(flight =>
+                    flight.airlineDay == airlineDay &&
+                    !facts.Any<FlightCancellation>(cancellation =>
+                        cancellation.flight == flight
+                    )
+                )
+            );
+            var longSpecification = Given<AirlineDay>.Match((airlineDay, facts) =>
+                from flight in facts.OfType<Flight>()
+                where flight.airlineDay == airlineDay
+
+                where !(
+                    from cancellation in facts.OfType<FlightCancellation>()
+                    where cancellation.flight == flight
+                    select cancellation
+                ).Any()
+
+                select flight
+            );
+
+            shortestSpecification.ToString().Should().Be(longSpecification.ToString());
+        }
+
+        [Fact]
         public void CanSpecifyNamedNegativeExistentialConditions()
         {
             Specification<AirlineDay, Flight> activeFlights = Given<AirlineDay>.Match((airlineDay, facts) =>
