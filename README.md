@@ -135,6 +135,6 @@ $VERSION = "1.2.3"
 git checkout main
 git pull
 git tag $VERSION
-git push --follow-tags
+git push --tags
 gh release create $VERSION --generate-notes --verify-tag
 ```
