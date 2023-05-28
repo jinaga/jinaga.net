@@ -252,6 +252,18 @@ namespace Jinaga.Repository
                         var source = ProcessSource(methodCallExpression.Arguments[0], symbolTable);
                         return LinqProcessor.Any(source);
                     }
+                    else if (methodCallExpression.Method.Name == nameof(System.Linq.Queryable.Any) &&
+                        methodCallExpression.Arguments.Count == 2)
+                    {
+                        var lambda = GetLambda(methodCallExpression.Arguments[1]);
+                        string parameterName = lambda.Parameters[0].Name;
+                        
+                        var source = ProcessSource(methodCallExpression.Arguments[0], symbolTable, parameterName);
+                        var childSymbolTable = symbolTable.Set(parameterName, source.Projection);
+                        var predicate = ProcessPredicate(lambda.Body, childSymbolTable);
+
+                        return LinqProcessor.Any(LinqProcessor.Where(source, predicate));
+                    }
                 }
                 else if (methodCallExpression.Method.DeclaringType == typeof(Enumerable) &&
                     methodCallExpression.Method.Name == nameof(System.Linq.Enumerable.Contains) &&
