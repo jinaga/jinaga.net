@@ -6,13 +6,20 @@ using Sqlite3BackupHandle = SQLitePCL.sqlite3_backup;
 using Sqlite3Statement = SQLitePCL.sqlite3_stmt;
 using Sqlite3 = SQLitePCL.raw;
 using System.Reflection;
+using System.Text;
+using System.Collections.Immutable;
 
 namespace Jinaga.Store.SQLite
 {
     public static class SQLite
 	{
 
-		public enum ColType : int
+        // This is the SQLite3 Class from the file SQLite.cs from the SQLite-net project from Frank Krueger ( https://github.com/praeclarum/sqlite-net )
+        // ,which makes use of the SQLitePCL.raw project from Eric Sink ( https://github.com/ericsink/SQLitePCL.raw ),
+        // with some personal additions/modifications.
+
+
+        public enum ColType : int
 		{
 			Integer = 1,
 			Float = 2,
@@ -125,7 +132,20 @@ namespace Jinaga.Store.SQLite
 		}
 
 
-		public static T row<T>(this SQLitePCL.sqlite3_stmt stmt) where T : new()
+        public static ImmutableDictionary<string, string> rawRow(this SQLitePCL.sqlite3_stmt stmt)
+        {
+            var row = ImmutableDictionary<string, string>.Empty;
+            for (int i = 0; i < ColumnCount(stmt); i++)
+            {
+                string colName = ColumnName(stmt, i);
+                string colText = ColumnText(stmt, i);
+                row.Add(colName, colText);
+            }
+            return row;
+        }
+
+
+        public static T row<T>(this SQLitePCL.sqlite3_stmt stmt) where T : new()
 		{
 			Type typ = typeof(T);
 			var obj = new T();
@@ -241,11 +261,101 @@ namespace Jinaga.Store.SQLite
 			}
 		}
 
-		
-		#endregion
+
+        public static void BindParameter(Sqlite3Statement stmt, int index, object value, bool storeDateTimeAsTicks, string dateTimeStringFormat, bool storeTimeSpanAsTicks)
+        {
+            if (value == null)
+            {
+                BindNull(stmt, index);
+            }
+            else
+            {
+                if (value is Int32)
+                {
+                    BindInt(stmt, index, (int)value);
+                }
+                else if (value is String)
+                {
+                    BindText(stmt, index, (string)value, -1, NegativePointer);
+                }
+                else if (value is Byte || value is UInt16 || value is SByte || value is Int16)
+                {
+                    BindInt(stmt, index, Convert.ToInt32(value));
+                }
+                else if (value is Boolean)
+                {
+                    BindInt(stmt, index, (bool)value ? 1 : 0);
+                }
+                else if (value is UInt32 || value is Int64)
+                {
+                    BindInt64(stmt, index, Convert.ToInt64(value));
+                }
+                else if (value is Single || value is Double || value is Decimal)
+                {
+                    BindDouble(stmt, index, Convert.ToDouble(value));
+                }
+                else if (value is TimeSpan)
+                {
+                    if (storeTimeSpanAsTicks)
+                    {
+                        BindInt64(stmt, index, ((TimeSpan)value).Ticks);
+                    }
+                    else
+                    {
+                        BindText(stmt, index, ((TimeSpan)value).ToString(), -1, NegativePointer);
+                    }
+                }
+                else if (value is DateTime)
+                {
+                    if (storeDateTimeAsTicks)
+                    {
+                        BindInt64(stmt, index, ((DateTime)value).Ticks);
+                    }
+                    else
+                    {
+                        BindText(stmt, index, ((DateTime)value).ToString(dateTimeStringFormat, System.Globalization.CultureInfo.InvariantCulture), -1, NegativePointer);
+                    }
+                }
+                else if (value is DateTimeOffset)
+                {
+                    BindInt64(stmt, index, ((DateTimeOffset)value).UtcTicks);
+                }
+                else if (value is byte[])
+                {
+                    BindBlob(stmt, index, (byte[])value, ((byte[])value).Length, NegativePointer);
+                }
+                else if (value is Guid)
+                {
+                    BindText(stmt, index, ((Guid)value).ToString(), 72, NegativePointer);
+                }
+                else if (value is Uri)
+                {
+                    BindText(stmt, index, ((Uri)value).ToString(), -1, NegativePointer);
+                }
+                else if (value is StringBuilder)
+                {
+                    BindText(stmt, index, ((StringBuilder)value).ToString(), -1, NegativePointer);
+                }
+                else if (value is UriBuilder)
+                {
+                    BindText(stmt, index, ((UriBuilder)value).ToString(), -1, NegativePointer);
+                }
+                else
+                {
+                    throw new NotSupportedException("Cannot store type");
+                }
+            }
+        }
 
 
-		public static Result Open (string filename, out Sqlite3DatabaseHandle db)
+
+        static IntPtr NegativePointer = new IntPtr(-1);
+
+
+        #endregion
+
+
+        public static Result Open (string filename, out Sqlite3DatabaseHandle db)
 		{
 			return (Result)Sqlite3.sqlite3_open (filename, out db);
 		}

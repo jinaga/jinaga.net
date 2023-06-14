@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
@@ -192,6 +193,43 @@ namespace Jinaga.Store.SQLite
                     if (r2 != SQLite.Result.OK)
                     {
                         throw SQLiteException.New(r2, $"ExecuteQuery<T>/2: {r2} - {SQLite.GetErrmsg(_db)}");
+                    }
+                }
+            }
+
+
+            public IEnumerable<ImmutableDictionary<string, string>> ExecuteQueryRaw(string sql, params object[] parameters)
+            {
+                var result = new List<ImmutableDictionary<string, string>>();
+                var stmt = SQLite.Prepare2(_db, sql);
+                try
+                {
+                    int index = 1;
+                    foreach (object parameter in parameters)
+                    {
+                        SQLite.BindParameter(stmt, index, parameter, true, "", true);
+                        index++;
+                    };
+
+                    var r = SQLite.Step(stmt);
+                    while (r == SQLite.Result.Row)
+                    {
+                        //yield return stmt.row<T>();
+                        result.Add(stmt.rawRow());
+                        r = SQLite.Step(stmt);
+                    }
+                    if (r == SQLite.Result.Done)
+                    {
+                        return result;
+                    }
+                    throw SQLiteException.New(r, $"ExecuteQueryRaw/1: {r} - {SQLite.GetErrmsg(_db)}");
+                }
+                finally
+                {
+                    var r2 = SQLite.Finalize(stmt);
+                    if (r2 != SQLite.Result.OK)
+                    {
+                        throw SQLiteException.New(r2, $"ExecuteQueryRaw/2: {r2} - {SQLite.GetErrmsg(_db)}");
                     }
                 }
             }
