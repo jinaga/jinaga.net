@@ -11,11 +11,9 @@ namespace Jinaga.Test.Model
     [FactType("Corporate.Office")]
     record Office(Company company, City city)
     {
-        public Condition IsClosed => new Condition(facts => (
-            from closure in facts.OfType<OfficeClosure>()
-            where closure.office == this
-            select closure)
-        .Any());
+        public Condition IsClosed => new Condition(facts =>
+            facts.Any<OfficeClosure>(closure => closure.office == this)
+        );
     }
 
     [FactType("Corporate.Office.Name")]
