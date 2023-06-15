@@ -2,9 +2,12 @@
 using Jinaga.Products;
 using Jinaga.Projections;
 using Jinaga.Services;
+using Jinaga.Store.SQLite.Builder;
+using Jinaga.Store.SQLite.Generation;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
 using System.Text.Json;
 using System.Threading;
@@ -258,8 +261,127 @@ namespace Jinaga.Store.SQLite
 
         Task<ImmutableList<Product>> IStore.Query(ImmutableList<FactReference> startReferences, Specification specification, CancellationToken cancellationToken)
         {
-            throw new NotImplementedException();
+            var factTypes = LoadFactTypesFromSpecification(specification);
+            var factTypeMap = factTypes.Select(factType => KeyValuePair.Create(factType.name, factType.fact_type_id)).ToImmutableDictionary();
+            
+            var roles = LoadRolesFromSpecification(specification, factTypes);
+            var roleMap = roles
+                .GroupBy(
+                    role => role.defining_fact_type_id, 
+                    role => KeyValuePair.Create(role.name, role.role_id)
+                )
+                .Select(
+                    pair => KeyValuePair.Create(pair.Key, pair.ToImmutableDictionary())
+                )
+                .ToImmutableDictionary();                                    
+
+            var descriptionBuilder = new ResultDescriptionBuilder(factTypeMap, roleMap);
+            
+            var description = descriptionBuilder.Build(startReferences, specification);
+
+            var sqlQueryTree = SqlGenerator.CreateSqlQueryTree(description);
+
+            ResultSetTree resultSets = connFactory.WithConn(
+                    (conn, id) =>
+                    {
+                        return ExecuteQueryTree(sqlQueryTree, conn);
+                    },
+                    false   //exponentional backoff
+            );
+
+            Debug.WriteLine(resultSets);
+            return null; //Task.FromResult(composer.Compose(resultSets));
         }
+
+
+
+
+
+        private ResultSetTree ExecuteQueryTree(SqlQueryTree sqlQueryTree, ConnectionFactory.Conn conn)
+        {
+            var sqlQuery = sqlQueryTree.SqlQuery;
+            var dataRows = conn.ExecuteQueryRaw(sqlQueryTree.SqlQuery.Sql, sqlQueryTree.SqlQuery.Parameters.ToArray());
+            var resultSet = dataRows.Select(dataRow =>
+            {
+                var resultSetRow = sqlQuery.Labels.Aggregate(ImmutableDictionary<int, ResultSetFact>.Empty,
+                                                    (acc, next) =>
+                                                    {
+                                                        var fact = new ResultSetFact();
+                                                        fact.Hash = dataRow[$"hash{next.Index}"];
+                                                        fact.FactId = int.Parse(dataRow[$"id{next.Index}"]);
+                                                        fact.Data = dataRow[$"data{next.Index}"];
+
+                                                        return acc.Add(next.Index, fact);
+                                                    });
+
+                return resultSetRow;
+            });
+
+            var resultSetTree = new ResultSetTree();
+
+            resultSetTree.ResultSet = resultSet.ToImmutableList();
+
+            foreach (var childQuery in sqlQueryTree.ChildQueries)
+            {
+                var childResultSet = ExecuteQueryTree(childQuery.Value, conn);
+                resultSetTree.ChildResultSets.Add(childQuery.Key, childResultSet);
+            };           
+
+            return resultSetTree;
+        }
+
+        private IEnumerable<FactTypeFromDb> LoadFactTypesFromSpecification(Specification specification)
+        {
+            //TODO: Now we load all factTypes from the DB.  Optimize by caching, and by adding only the factTypes used in the specification
+            var factTypeResult = connFactory.WithConn(
+                    (conn, id) =>
+                    {
+                        string sql;
+                        sql = $@"
+                            SELECT fact_type_id , name 
+                            FROM fact_type
+                        ";
+                        return conn.ExecuteQuery<FactTypeFromDb>(sql);
+                    },
+                    true   //exponentional backoff
+                );
+            return factTypeResult;
+        }
+
+        private IEnumerable<RoleFromDb> LoadRolesFromSpecification(Specification specification, object factTypes)
+        {
+            //TODO: Now we load all roles from the DB.  Optimize by caching, and by adding only the roles used in the specification
+            var rolesResult = connFactory.WithConn(
+                    (conn, id) =>
+                    {
+                        string sql;
+                        sql = $@"
+                            SELECT role_id, defining_fact_type_id, name
+                            FROM role                                             
+                        ";
+                        return conn.ExecuteQuery<RoleFromDb>(sql);
+                    },
+                    true   //exponentional backoff
+                );
+            return rolesResult;
+        }
+
+
+        private class FactTypeFromDb
+        {
+            public int fact_type_id { get; set; }
+            public string name { get; set; }
+        }
+
+        private class RoleFromDb
+        {
+            public int role_id { get; set; }
+            public int defining_fact_type_id { get; set; }
+            public string name { get; set; }
+        }
+
+
+
 
         public Task<string> LoadBookmark(string feed)
         {
