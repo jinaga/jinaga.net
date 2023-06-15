@@ -139,7 +139,7 @@ namespace Jinaga.Store.SQLite
             {
                 string colName = ColumnName(stmt, i);
                 string colText = ColumnText(stmt, i);
-                row.Add(colName, colText);
+                row = row.Add(colName, colText);
             }
             return row;
         }
