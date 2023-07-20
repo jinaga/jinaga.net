@@ -2,6 +2,8 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using FluentAssertions;
+using Jinaga.DefaultImplementations;
+using Jinaga.Store.SQLite;
 using Jinaga.Test.Model;
 using Jinaga.UnitTest;
 using Xunit;
@@ -14,7 +16,8 @@ namespace Jinaga.Test
 
         public QueryTest()
         {
-            j = JinagaTest.Create();
+            //j = JinagaTest.Create();
+            j = new Jinaga(new SQLiteStore(), new LocalNetwork());
         }
 
         [Fact]

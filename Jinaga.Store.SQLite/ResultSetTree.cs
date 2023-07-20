@@ -7,6 +7,8 @@ namespace Jinaga.Store.SQLite
         public string Hash { get; set; }
         public int FactId { get; set; }
         public string Data { get;set; }
+        public string Type { get; set; }
+        public string Name { get; set; }
     }
 
     internal class ResultSetTree

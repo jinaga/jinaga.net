@@ -288,12 +288,29 @@ namespace Jinaga.Store.SQLite
                     },
                     false   //exponentional backoff
             );
-
-            Debug.WriteLine(resultSets);
-            return null; //Task.FromResult(composer.Compose(resultSets));
+            
+            return Task.FromResult(ResultSetTreeToProductList(resultSets));
         }
 
 
+
+
+        private ImmutableList<Product> ResultSetTreeToProductList (ResultSetTree resultSetTree)
+        {
+            
+            ImmutableList<Product> products = ImmutableList<Product>.Empty;
+            
+            foreach (var resultSetRow in resultSetTree.ResultSet) {
+                var myProduct = Product.Empty;
+                foreach (var fact in resultSetRow.Values)
+                {
+                    myProduct = myProduct.With(fact.Name, new SimpleElement(new FactReference(fact.Type, fact.Hash)));
+                }
+                products = products.Add(myProduct);
+            }
+
+            return products;
+        }
 
 
 
@@ -310,7 +327,8 @@ namespace Jinaga.Store.SQLite
                                                         fact.Hash = dataRow[$"hash{next.Index}"];
                                                         fact.FactId = int.Parse(dataRow[$"id{next.Index}"]);
                                                         fact.Data = dataRow[$"data{next.Index}"];
-
+                                                        fact.Type = next.Type;
+                                                        fact.Name = next.Name;
                                                         return acc.Add(next.Index, fact);
                                                     });
 
@@ -329,6 +347,8 @@ namespace Jinaga.Store.SQLite
 
             return resultSetTree;
         }
+
+
 
         private IEnumerable<FactTypeFromDb> LoadFactTypesFromSpecification(Specification specification)
         {

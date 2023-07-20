@@ -1,8 +1,10 @@
 ﻿using FluentAssertions;
 using Jinaga.DefaultImplementations;
 using Jinaga.Facts;
+using Jinaga.Http;
 using Jinaga.Managers;
 using Jinaga.Services;
+using Jinaga.Storage;
 using Jinaga.Store.SQLite;
 using Jinaga.Test.Model;
 using Jinaga.Test.Model.DWS;
@@ -50,8 +52,11 @@ namespace Jinaga.Test
         [Fact]
         public async Task CanQueryForSuccessors()
         {
+
             var j = new Jinaga(new SQLiteStore(), new LocalNetwork());
             //var j = new Jinaga(new SQLiteStore(), new HttpNetwork());
+            //var j = new Jinaga(new MemoryStore(), new SimulatedNetwork());
+
             var airlineDay = await j.Fact(new AirlineDay(new Airline("IA"), DateTime.Parse("2021-07-04T01:39:43.241Z").Date));
             var flight = await j.Fact(new Flight(airlineDay, 4247));
 
