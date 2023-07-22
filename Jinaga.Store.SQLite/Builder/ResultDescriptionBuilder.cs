@@ -49,13 +49,29 @@ namespace Jinaga.Store.SQLite.Builder
                     KeyValuePair.Create(label.Name, startReferences[index]))
                 .ToImmutableDictionary();
             context = AddEdges(context, given, startReferences, matches);
-            if (projection is CompoundProjection)
+
+            var childResultDescriptions = ImmutableDictionary<string, ResultDescription>.Empty;
+            if (projection is CompoundProjection compoundProjection)
             {
-                throw new NotImplementedException();
+                foreach (var name in compoundProjection.Names)
+                {
+                    var childProjection = compoundProjection.GetProjection(name);
+                    if (childProjection is CollectionProjection collectionProjection)
+                    {
+                        var resultDescription = CreateResultDescription(
+                            context,
+                            given,
+                            startReferences,
+                            collectionProjection.Matches,
+                            collectionProjection.Projection);
+                        childResultDescriptions = childResultDescriptions.Add(name, resultDescription);
+                    }
+                }
             }
+
             return new ResultDescription(
                 context.QueryDescription,
-                ImmutableDictionary<string, ResultDescription>.Empty
+                childResultDescriptions
             );
         }
 

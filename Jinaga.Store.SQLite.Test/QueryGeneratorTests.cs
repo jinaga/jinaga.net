@@ -201,6 +201,57 @@ public class QueryGeneratorTests
         );
     }
 
+    [Fact]
+    public void ShouldIncludeChildProjection()
+    {
+        var specification = Given<Company>.Match((company, facts) =>
+            from department in facts.OfType<Department>()
+            where department.company == company
+            select new
+            {
+                department,
+                projects = facts.OfType<Project>(project =>
+                    project.department == department)
+            }
+        );
+        SqlQueryTree sqlQueryTree = SqlFor(specification);
+
+        sqlQueryTree.SqlQuery.Sql.Should().Be(
+            "SELECT " +
+                "f1.hash as hash1, f1.fact_id as id1, f1.data as data1, " +
+                "f2.hash as hash2, f2.fact_id as id2, f2.data as data2 " +
+            "FROM fact f1 " +
+            "JOIN edge e1 " +
+                "ON e1.predecessor_fact_id = f1.fact_id " +
+                "AND e1.role_id = ?3 " +
+            "JOIN fact f2 " +
+                "ON f2.fact_id = e1.successor_fact_id " +
+            "WHERE f1.fact_type_id = ?1 AND f1.hash = ?2 " +
+            "ORDER BY f2.fact_id ASC"
+        );
+        var childQuery = sqlQueryTree.ChildQueries.Should().ContainSingle().Subject;
+        childQuery.Key.Should().Be("projects");
+        childQuery.Value.SqlQuery.Sql.Should().Be(
+            "SELECT " +
+                "f1.hash as hash1, f1.fact_id as id1, f1.data as data1, " +
+                "f2.hash as hash2, f2.fact_id as id2, f2.data as data2, " +
+                "f3.hash as hash3, f3.fact_id as id3, f3.data as data3 " +
+            "FROM fact f1 " +
+            "JOIN edge e1 " +
+                "ON e1.predecessor_fact_id = f1.fact_id " +
+                "AND e1.role_id = ?3 " +
+            "JOIN fact f2 " +
+                "ON f2.fact_id = e1.successor_fact_id " +
+            "JOIN edge e2 " +
+                "ON e2.predecessor_fact_id = f2.fact_id " +
+                "AND e2.role_id = ?4 " +
+            "JOIN fact f3 " +
+                "ON f3.fact_id = e2.successor_fact_id " +
+            "WHERE f1.fact_type_id = ?1 AND f1.hash = ?2 " +
+            "ORDER BY f2.fact_id ASC, f3.fact_id ASC"
+        );
+    }
+
     private SqlQueryTree SqlFor(Specification specification)
     {
         var factTypes = GetAllFactTypes(specification);
@@ -267,7 +318,28 @@ public class QueryGeneratorTests
 
     private IEnumerable<string> GetAllFactTypesFromProjection(CompoundProjection compoundProjection)
     {
-        throw new NotImplementedException();
+        var factTypeNames = ImmutableList<string>.Empty;
+
+        foreach (var name in compoundProjection.Names)
+        {
+            var projection = compoundProjection.GetProjection(name);
+            if (projection is CompoundProjection nestedCompoundProjection)
+            {
+                factTypeNames = factTypeNames.AddRange(
+                    GetAllFactTypesFromProjection(nestedCompoundProjection));
+            }
+            else if (projection is CollectionProjection collectionProjection)
+            {
+                factTypeNames = factTypeNames.AddRange(
+                    GetAllFactTypesFromMatches(collectionProjection.Matches));
+                if (collectionProjection.Projection is CompoundProjection nestedCompoundProjection2)
+                {
+                    factTypeNames = factTypeNames.AddRange(
+                        GetAllFactTypesFromProjection(nestedCompoundProjection2));
+                }
+            }
+        }
+        return factTypeNames.Distinct();
     }
 
     private ImmutableDictionary<int, ImmutableDictionary<string, int>> GetAllRoles(Specification specification, ImmutableDictionary<string, int> factTypes)
@@ -302,6 +374,7 @@ public class QueryGeneratorTests
         typesByLabel = typesByLabel.AddRange(specification.Matches
             .Select(match => KeyValuePair.Create(match.Unknown.Name, match.Unknown.Type)));
         var roles = GetAllRolesFromMatches(typesByLabel, specification.Matches).ToImmutableList();
+        roles = roles.AddRange(GetAllRolesFromProjection(typesByLabel, specification.Projection));
         return roles;
     }
 
@@ -332,6 +405,31 @@ public class QueryGeneratorTests
                     typesByLabel = typesByLabel.AddRange(existentialCondition.Matches
                         .Select(match => KeyValuePair.Create(match.Unknown.Name, match.Unknown.Type)));
                     roles = roles.AddRange(GetAllRolesFromMatches(typesByLabel, existentialCondition.Matches));
+                }
+            }
+        }
+        return roles;
+    }
+
+    private IEnumerable<(string factType, string roleName)> GetAllRolesFromProjection(ImmutableDictionary<string, string> typesByLabel, Projection projection)
+    {
+        var roles = ImmutableList<(string factType, string roleName)>.Empty;
+        if (projection is CompoundProjection compoundProjection)
+        {
+            foreach (var name in compoundProjection.Names)
+            {
+                var nestedProjection = compoundProjection.GetProjection(name);
+                if (nestedProjection is CompoundProjection nestedCompoundProjection)
+                {
+                    roles = roles.AddRange(GetAllRolesFromProjection(typesByLabel, nestedCompoundProjection));
+                }
+                else if (nestedProjection is CollectionProjection collectionProjection)
+                {
+                    roles = roles.AddRange(GetAllRolesFromMatches(typesByLabel, collectionProjection.Matches));
+                    if (collectionProjection.Projection is CompoundProjection nestedCompoundProjection2)
+                    {
+                        roles = roles.AddRange(GetAllRolesFromProjection(typesByLabel, nestedCompoundProjection2));
+                    }
                 }
             }
         }

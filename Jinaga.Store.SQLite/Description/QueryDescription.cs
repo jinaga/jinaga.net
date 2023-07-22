@@ -37,7 +37,7 @@ namespace Jinaga.Store.SQLite.Description
 
         public int OutputLength()
         {
-            throw new NotImplementedException();
+            return Inputs.Count + Outputs.Count;
         }
 
         public QueryDescription WithInputs(ImmutableList<InputDescription> inputs)
