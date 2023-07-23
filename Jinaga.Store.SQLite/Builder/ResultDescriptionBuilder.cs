@@ -3,9 +3,7 @@ using Jinaga.Pipelines;
 using Jinaga.Projections;
 using Jinaga.Store.SQLite.Description;
 using System;
-using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Linq;
 
 namespace Jinaga.Store.SQLite.Builder
 {
