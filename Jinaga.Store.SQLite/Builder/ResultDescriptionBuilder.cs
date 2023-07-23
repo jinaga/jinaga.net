@@ -44,10 +44,6 @@ namespace Jinaga.Store.SQLite.Builder
 
         private ResultDescription CreateResultDescription(ResultDescriptionBuilderContext context, ImmutableList<Label> given, ImmutableList<FactReference> startReferences, ImmutableList<Match> matches, Projection projection)
         {
-            var givenTuple = given
-                .Select((label, index) =>
-                    KeyValuePair.Create(label.Name, startReferences[index]))
-                .ToImmutableDictionary();
             context = AddEdges(context, given, startReferences, matches);
 
             var childResultDescriptions = ImmutableDictionary<string, ResultDescription>.Empty;
