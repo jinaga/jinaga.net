@@ -1,4 +1,5 @@
-﻿using System.Collections.Immutable;
+﻿using Jinaga.Facts;
+using System.Collections.Immutable;
 
 namespace Jinaga.Store.SQLite
 {
@@ -13,6 +14,11 @@ namespace Jinaga.Store.SQLite
 
     internal class ResultSetTree
     {
+        public ResultSetTree()
+        {
+            ChildResultSets =  ImmutableDictionary<string, ResultSetTree>.Empty;            
+        } 
+
         public ImmutableList<ImmutableDictionary<int, ResultSetFact>> ResultSet { get; set; }
         public ImmutableDictionary<string, ResultSetTree> ChildResultSets { get; set; }
     }
