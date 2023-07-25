@@ -286,32 +286,24 @@ namespace Jinaga.Store.SQLite
                     {
                         return ExecuteQueryTree(sqlQueryTree, conn);
                     },
-                    false   //exponentional backoff
+                    true   //exponentional backoff
             );
-            
-            return Task.FromResult(ResultSetTreeToProductList(resultSets));
-        }
 
-
-
-
-        private ImmutableList<Product> ResultSetTreeToProductList (ResultSetTree resultSetTree)
-        {
-            
-            ImmutableList<Product> products = ImmutableList<Product>.Empty;
-            
-            foreach (var resultSetRow in resultSetTree.ResultSet) {
-                var myProduct = Product.Empty;
-                foreach (var fact in resultSetRow.Values)
-                {
-                    myProduct = myProduct.With(fact.Name, new SimpleElement(new FactReference(fact.Type, fact.Hash)));
-                }
-                products = products.Add(myProduct);
+            var givenProduct = Product.Empty;
+            foreach (var pair in specification.Given
+                .Zip(startReferences, (label, reference) =>
+                    (label, reference)
+                )
+            )
+            {
+                givenProduct = givenProduct.With(
+                    pair.label.Name,
+                    new SimpleElement(pair.reference)
+                );
             }
 
-            return products;
+            return Task.FromResult(sqlQueryTree.ResultsToProducts(resultSets, givenProduct));
         }
-
 
 
         private ResultSetTree ExecuteQueryTree(SqlQueryTree sqlQueryTree, ConnectionFactory.Conn conn)
