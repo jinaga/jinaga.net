@@ -342,7 +342,7 @@ namespace Jinaga.Store.SQLite
             foreach (var childQuery in sqlQueryTree.ChildQueries)
             {
                 var childResultSet = ExecuteQueryTree(childQuery.Value, conn);
-                resultSetTree.ChildResultSets.Add(childQuery.Key, childResultSet);
+                resultSetTree.ChildResultSets = resultSetTree.ChildResultSets.Add(childQuery.Key, childResultSet);
             };           
 
             return resultSetTree;
