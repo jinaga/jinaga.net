@@ -3,6 +3,7 @@ using Jinaga.Facts;
 using Jinaga.Projections;
 using Jinaga.Store.SQLite.Builder;
 using Jinaga.Store.SQLite.Generation;
+using Jinaga.Store.SQLite.Test.Models;
 using System.Collections.Immutable;
 
 namespace Jinaga.Store.SQLite.Test;

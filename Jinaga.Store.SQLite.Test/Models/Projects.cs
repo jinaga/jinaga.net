@@ -1,4 +1,4 @@
-﻿namespace Jinaga.Store.SQLite.Test;
+﻿namespace Jinaga.Store.SQLite.Test.Models;
 
 [FactType("Company")]
 internal record Company() { }
