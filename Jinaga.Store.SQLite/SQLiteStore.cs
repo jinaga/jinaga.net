@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Threading;
@@ -20,11 +21,17 @@ namespace Jinaga.Store.SQLite
     {
 
         private ConnectionFactory connFactory;
+        private string dbFullPath;
 
-        public SQLiteStore()
+        public SQLiteStore(Boolean dropDbFirst = false)
         {
             string dbFolderName = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            this.connFactory = new ConnectionFactory(dbFolderName + "\\jinaga.db");
+            dbFullPath = dbFolderName + "\\jinaga.db";
+            if (dropDbFirst) {
+                connFactory = null;
+                File.Delete(dbFullPath);
+            }                         
+            this.connFactory = new ConnectionFactory(dbFullPath);            
         }
 
 

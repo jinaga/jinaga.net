@@ -12,8 +12,9 @@ public class QueryTest
 
 
     public QueryTest(ITestOutputHelper output)
-    {            
-        j = new Jinaga(new SQLiteStore(), new LocalNetwork());
+    {       
+        
+        j = new Jinaga(new SQLiteStore(true), new LocalNetwork());
         this.output = output;
     }
 
