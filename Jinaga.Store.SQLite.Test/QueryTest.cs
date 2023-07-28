@@ -307,12 +307,3 @@ public class QueryTest
                 .Should().Be("Introduction to Jinaga Replicator");
     }
 }
-
-[FactType("Blog.Site")]
-public record Site(string domain) { }
-
-[FactType("Blog.Post")]
-public record Post(Site site, string createdAt) { }
-
-[FactType("Blog.Post.Title")]
-public record Title(Post post, string value, Title[] prior) { }
