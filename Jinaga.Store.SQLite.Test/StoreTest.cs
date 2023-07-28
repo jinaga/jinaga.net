@@ -24,14 +24,14 @@ namespace Jinaga.Test
 {
 
 
-    public class SQLiteStoreTest
+    public class StoreTest
     {
 
         private readonly ITestOutputHelper output;
         public Stopwatch stopwatch;
 
 
-        public SQLiteStoreTest(ITestOutputHelper output)
+        public StoreTest(ITestOutputHelper output)
         {
             this.output = output;
         }
