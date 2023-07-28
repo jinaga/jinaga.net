@@ -2,22 +2,21 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using FluentAssertions;
-using Jinaga.DefaultImplementations;
-using Jinaga.Store.SQLite;
 using Jinaga.Test.Model;
 using Jinaga.UnitTest;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace Jinaga.Test
 {
     public class QueryTest
     {
         private readonly Jinaga j;
+        
 
         public QueryTest()
         {
-            //j = JinagaTest.Create();
-            j = new Jinaga(new SQLiteStore(), new LocalNetwork());
+            j = JinagaTest.Create();            
         }
 
         [Fact]
@@ -98,7 +97,7 @@ namespace Jinaga.Test
 
             var flights = await j.Query(airlineDay, specification);
             flights.Should().ContainSingle().Which
-                .Should().BeEquivalentTo(flight);
+                .Should().BeEquivalentTo(flight);            
         }
 
         [Fact]
