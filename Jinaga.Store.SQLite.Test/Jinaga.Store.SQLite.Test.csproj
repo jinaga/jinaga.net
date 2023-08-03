@@ -25,7 +25,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Jinaga.Store.SQLite\Jinaga.Store.SQLite.csproj" />
-    <ProjectReference Include="..\Jinaga.UnitTest\Jinaga.UnitTest.csproj" />
     <ProjectReference Include="..\Jinaga\Jinaga.csproj" />
   </ItemGroup>
 
