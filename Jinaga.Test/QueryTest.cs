@@ -5,16 +5,18 @@ using FluentAssertions;
 using Jinaga.Test.Model;
 using Jinaga.UnitTest;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace Jinaga.Test
 {
     public class QueryTest
     {
         private readonly Jinaga j;
+        
 
         public QueryTest()
         {
-            j = JinagaTest.Create();
+            j = JinagaTest.Create();            
         }
 
         [Fact]
@@ -95,7 +97,7 @@ namespace Jinaga.Test
 
             var flights = await j.Query(airlineDay, specification);
             flights.Should().ContainSingle().Which
-                .Should().BeEquivalentTo(flight);
+                .Should().BeEquivalentTo(flight);            
         }
 
         [Fact]

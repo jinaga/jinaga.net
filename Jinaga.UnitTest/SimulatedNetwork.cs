@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Jinaga.UnitTest
 {
-    class SimulatedNetwork : INetwork
+    public class SimulatedNetwork : INetwork
     {
         public Task Save(ImmutableList<Fact> facts, CancellationToken cancellationToken)
         {

@@ -131,7 +131,7 @@ namespace Jinaga.Facts
             return hashString;
         }
 
-        private static string Canonicalize(ImmutableList<Field> fields, ImmutableList<Predecessor> predecessors)
+        public static string Canonicalize(ImmutableList<Field> fields, ImmutableList<Predecessor> predecessors)
         {
             string fieldsString = CanonicalizeFields(fields);
             string predecessorsString = CanonicalizePredecessors(predecessors);
