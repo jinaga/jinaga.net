@@ -10,11 +10,17 @@ public class QueryTest
     private readonly Jinaga j;
     private readonly ITestOutputHelper output;
 
+    private static string SQLitePath { get; } = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "JinagaSQLiteTest",
+        "QueryTest.db");
 
     public QueryTest(ITestOutputHelper output)
-    {       
-        
-        j = new Jinaga(new SQLiteStore(true), new LocalNetwork());
+    {
+        if (File.Exists(SQLitePath))
+            File.Delete(SQLitePath);
+
+        j = new Jinaga(new SQLiteStore(SQLitePath), new LocalNetwork());
         this.output = output;
     }
 

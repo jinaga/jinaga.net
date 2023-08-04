@@ -19,6 +19,11 @@ public class StoreTest
     public Stopwatch stopwatch;
 
 
+    private static string SQLitePath { get; } = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "JinagaSQLiteTest",
+        "StoreTest.db");
+
     public StoreTest(ITestOutputHelper output)
     {
         this.output = output;
@@ -41,7 +46,7 @@ public class StoreTest
     public async Task CanQueryForSuccessors()
     {
 
-        var j = new Jinaga(new SQLiteStore(), new LocalNetwork());
+        var j = new Jinaga(new SQLiteStore(SQLitePath), new LocalNetwork());
         //var j = new Jinaga(new SQLiteStore(), new HttpNetwork());
         //var j = new Jinaga(new MemoryStore(), new SimulatedNetwork());
 
@@ -66,7 +71,7 @@ public class StoreTest
         output.WriteLine($"{MyStopWatch.Start()}: BEGIN OF TESTS at {DateTime.Now}");
          
         DateTime now = DateTime.Parse("2021-07-04T01:39:43.241Z");
-        var j = new Jinaga(new SQLiteStore(), new LocalNetwork());            
+        var j = new Jinaga(new SQLiteStore(SQLitePath), new LocalNetwork());            
         var airlineDay = await j.Fact(new AirlineDay(new Airline("Airline1"), now));
         var flight = await j.Fact(new Flight(airlineDay, 555));
         //airlineDay = await j.Fact(new AirlineDay(new Airline("Airline2"), now));
@@ -84,7 +89,7 @@ public class StoreTest
         output.WriteLine($"{MyStopWatch.Start()}: BEGIN OF TESTS at {DateTime.Now}");
 
         DateTime now = DateTime.Parse("2021-07-04T01:39:43.241Z");
-        var j = new Jinaga(new SQLiteStore(), new LocalNetwork());
+        var j = new Jinaga(new SQLiteStore(SQLitePath), new LocalNetwork());
         var airline = new Airline("Airline1");            
         var user = await j.Fact(new User("fqjsdfqkfjqlm"));
         var passenger = await j.Fact(new Passenger(airline, user));
@@ -102,7 +107,7 @@ public class StoreTest
     public async Task LoadNothingFromStore()
     {
         output.WriteLine($"{MyStopWatch.Start()}: BEGIN OF TESTS at {DateTime.Now}");
-        IStore sqliteStore = new SQLiteStore();
+        IStore sqliteStore = new SQLiteStore(SQLitePath);
         FactGraph factGraph = await sqliteStore.Load(ImmutableList<FactReference>.Empty, default);
         factGraph.FactReferences.Should().BeEmpty();
         output.WriteLine($"{MyStopWatch.Elapsed()}: END OF TESTS at {DateTime.Now}\n\r");
@@ -115,7 +120,7 @@ public class StoreTest
         output.WriteLine($"{MyStopWatch.Start()}: BEGIN OF TESTS at {DateTime.Now}");
 
         //IStore Store = new MemoryStore();
-        IStore Store = new SQLiteStore();
+        IStore Store = new SQLiteStore(SQLitePath);
 
         DateTime now = DateTime.Parse("2021-07-04T01:39:43.241Z");
         var j = new Jinaga(Store, new LocalNetwork());            
@@ -194,7 +199,7 @@ public class StoreTest
         output.WriteLine($"{MyStopWatch.Start()}: BEGIN OF TESTS at {DateTime.Now}");
 
         //IStore Store = new MemoryStore();
-        IStore Store = new SQLiteStore();
+        IStore Store = new SQLiteStore(SQLitePath);
 
         DateTime now = DateTime.Parse("2021-07-04T01:39:43.241Z");
         var j = new Jinaga(Store, new LocalNetwork());
@@ -226,7 +231,7 @@ public class StoreTest
     public async Task StoreRoundTripFromUTC()
     {
         DateTime now = DateTime.Parse("2021-07-04T01:39:43.241Z").ToUniversalTime();
-        var j = new Jinaga(new SQLiteStore(), new LocalNetwork());
+        var j = new Jinaga(new SQLiteStore(SQLitePath), new LocalNetwork());
         var airlineDay = await j.Fact(new AirlineDay(new Airline("value"), now));
         airlineDay.date.Kind.Should().Be(DateTimeKind.Utc);
         airlineDay.date.Hour.Should().Be(1);
