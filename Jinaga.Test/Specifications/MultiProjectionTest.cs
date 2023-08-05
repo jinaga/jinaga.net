@@ -212,7 +212,7 @@ namespace Jinaga.Test.Specifications
             var address1_Y1_C1_S2 = await j.Fact(new YardAddress(yard1_C1_S2, "Name_Y1_C1_S2", "Remark for address1_Y1_C1_S2", "AnotherStreet", "547B", "66740", "Place", "Belgique", new YardAddress[] { }));
 
 
-            ImmutableList<ClientData> ClientsWithTheirNamesAndTheirYardsWithAddressesForSupplier1 = await j.Query(Specifications.ClientsWithTheirNamesAndTheirYardsWithAddressesForSupplier(), supplier1);
+            ImmutableList<ClientData> ClientsWithTheirNamesAndTheirYardsWithAddressesForSupplier1 = await j.Query(TestSpecifications.ClientsWithTheirNamesAndTheirYardsWithAddressesForSupplier(), supplier1);
 
             var flattened = Transforms.FlattenClientYardData(ClientsWithTheirNamesAndTheirYardsWithAddressesForSupplier1);
             flattened.Should().BeEquivalentTo(

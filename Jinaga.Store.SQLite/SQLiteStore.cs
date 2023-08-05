@@ -262,7 +262,7 @@ namespace Jinaga.Store.SQLite
         }
 
 
-        Task<ImmutableList<Product>> IStore.Query(ImmutableList<FactReference> startReferences, Specification specification, CancellationToken cancellationToken)
+        Task<ImmutableList<Product>> IStore.Read(ImmutableList<FactReference> startReferences, Specification specification, CancellationToken cancellationToken)
         {
             var factTypes = LoadFactTypesFromSpecification(specification);
             var factTypeMap = factTypes.Select(factType => KeyValuePair.Create(factType.name, factType.fact_type_id)).ToImmutableDictionary();

@@ -59,7 +59,7 @@ public class StoreTest
             select flight.flightNumber
         );
 
-        var flightNumbers = await j.Query(airlineDay, specification);
+        var flightNumbers = await j.Query(specification, airlineDay);
         flightNumbers.Should().ContainSingle().Which.Should().Be(4247);
     }
 
