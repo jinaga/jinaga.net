@@ -112,10 +112,10 @@ namespace Jinaga.Graphviz
         private static string NodeLine(Fact fact, bool hilight)
         {
             var fieldRows = fact.Fields
-                .Select(field => $"<TR><TD>{Uri.EscapeUriString(field.Name)}</TD><TD>{SerializeFieldValue(field.Value)}</TD></TR>")
+                .Select(field => $"<TR><TD>{Uri.EscapeDataString(field.Name)}</TD><TD>{SerializeFieldValue(field.Value)}</TD></TR>")
                 .ToArray();
             var fieldText = String.Join("", fieldRows);
-            string typeRow = @$"<TR><TD COLSPAN=""2"">{Uri.EscapeUriString(fact.Reference.Type)}</TD></TR>";
+            string typeRow = @$"<TR><TD COLSPAN=""2"">{Uri.EscapeDataString(fact.Reference.Type)}</TD></TR>";
             int border = hilight ? 1 : 0;
             string factLabel = @$"<TABLE BORDER=""{border}"" CELLBORDER=""1"" CELLSPACING=""0"">{typeRow}{fieldText}</TABLE>";
             return $"\"{fact.Reference.Hash}\" [label=<{factLabel}>]";

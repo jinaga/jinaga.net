@@ -1,4 +1,4 @@
-﻿using FluentAssertions;
+using FluentAssertions;
 using Jinaga.DefaultImplementations;
 using Jinaga.Managers;
 using Jinaga.Facts;
@@ -8,6 +8,7 @@ using System.Collections.Immutable;
 using System.Diagnostics;
 
 using Xunit.Abstractions;
+using Jinaga.Storage;
 
 namespace Jinaga.Store.SQLite.Test;
 
@@ -24,7 +25,9 @@ public class StoreTest
         "JinagaSQLiteTest",
         "StoreTest.db");
 
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
     public StoreTest(ITestOutputHelper output)
+#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
     {
         this.output = output;
     }
@@ -33,7 +36,7 @@ public class StoreTest
     private class FactType
     {
         public int fact_type_id { get; set; }
-        public string name { get; set; }
+        public string name { get; set; } = "";
 
         public override string ToString()
         {
@@ -131,8 +134,7 @@ public class StoreTest
         var passengerName2 = await j.Fact(new PassengerName(passenger, "Caden", new PassengerName[0]));
         var passengerName3 = await j.Fact(new PassengerName(passenger, "Jan", new PassengerName []{passengerName1, passengerName2}));
 
-        var graph = new FactManager(Store, null).Serialize(passengerName3);            
-        var lastRef = graph.Last;
+        var lastRef = ReferenceOfFact(passengerName3);
 
         //var airlineFact = Fact.Create(
         //    "Skylane.Airline",
@@ -212,8 +214,7 @@ public class StoreTest
         var yardAddress3 = await j.Fact(new YardAddress(yard, "myYardName3", "myRemark", "myStreet", "myHousNb", "myPostalCode", "myCity", "myCountry", new YardAddress[] { yardAddress1, yardAddress2 }));
         var yardAddress4 = await j.Fact(new YardAddress(yard, "myYardName3", "myRemark", "myStreet2", "myHousNb", "myPostalCode", "myCity", "myCountry", new YardAddress[] { yardAddress3}));
 
-        var graph = new FactManager(Store, null).Serialize(yardAddress4);
-        var lastRef = graph.Last;      
+        var lastRef = ReferenceOfFact(yardAddress4);      
             
         var factGraph = await Store.Load(ImmutableList<FactReference>.Empty.Add(lastRef), default);
         factGraph.FactReferences.Count.Should().Be(7);
@@ -693,6 +694,7 @@ public class StoreTest
 
             threads[i] = new Thread((param) =>
             {
+#pragma warning disable CS8605 // Unboxing a possibly null value.
                 connFactory.WithTxn<string>((conn, id) =>
                 {
                     output.WriteLine($"{MyStopWatch.Elapsed()}: {id:D2} -- STARTED Read-Thread: {Thread.CurrentThread.ManagedThreadId}");
@@ -714,6 +716,7 @@ public class StoreTest
                     true,
                     (int)param
                 );
+#pragma warning restore CS8605 // Unboxing a possibly null value.
                 barrier.SignalAndWait();
             }
             );
@@ -729,5 +732,13 @@ public class StoreTest
 
     }
 
-
+    private static FactReference ReferenceOfFact(object fact)
+    {
+        var store = new MemoryStore();
+        var networkManager = new NetworkManager(new LocalNetwork(), store, (FactGraph g, ImmutableList<Fact> l, CancellationToken c) => Task.CompletedTask);
+        var factManager = new FactManager(store, networkManager);
+        var graph = factManager.Serialize(fact);
+        var lastRef = graph.Last;
+        return lastRef;
+    }
 }

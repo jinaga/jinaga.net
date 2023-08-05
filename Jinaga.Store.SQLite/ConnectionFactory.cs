@@ -88,7 +88,7 @@ namespace Jinaga.Store.SQLite
         {
             //TODO: Use prepared stmts (on startup or via caching ?) to increase performance.
             SQLitePCL.sqlite3 _db;
-            String connLog;
+            String connLog = "";
 
 
             public Conn(string connectionString, int id)
