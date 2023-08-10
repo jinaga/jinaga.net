@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
@@ -74,9 +75,17 @@ namespace Jinaga.Http
             });
         }
 
-        private T WithHttpClient<T>(Func<HttpClient, T> func)
+        private async Task<T> WithHttpClient<T>(Func<HttpClient, Task<T>> func)
         {
-            return func(httpClient);
+            try
+            {
+                return await func(httpClient);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(@"\tERROR {0}", ex.Message);
+                throw;
+            }
         }
     }
 }
