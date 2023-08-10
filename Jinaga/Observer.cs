@@ -13,7 +13,7 @@ using System.Threading.Tasks;
 
 namespace Jinaga
 {
-    public class Observer<TProjection> : IObserver
+    public class Observer<TProjection> : IObserver, IWatch
     {
         private readonly Specification specification;
         private readonly Product givenAnchor;
@@ -44,7 +44,7 @@ namespace Jinaga
             initialize = Task.Run(() => RunInitialQuery(cancellationToken), cancellationToken);
         }
 
-        internal async Task Stop()
+        public async Task Stop()
         {
             if (initialize != null)
             {
