@@ -68,12 +68,6 @@ namespace Jinaga
 
         public async Task FactsAdded(ImmutableList<Fact> added, FactGraph graph, CancellationToken cancellationToken)
         {
-            if (initialize == null)
-            {
-                return;
-            }
-            await initialize;
-
             var productsAdded = ImmutableList<(Product product, Inverse inverse)>.Empty;
             var productsRemoved = ImmutableList<Product>.Empty;
             var givenReferences = added.Select(a => a.Reference).ToImmutableList();
