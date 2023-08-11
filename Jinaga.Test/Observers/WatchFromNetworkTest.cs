@@ -30,6 +30,37 @@ public class WatchFromNetworkTest
         }
     }
 
+    [Fact]
+    public async Task Watch_SingleUnnamedOffice()
+    {
+        var network = new FakeNetwork();
+        var contoso = new Company("contoso");
+        var dallas = new City("Dallas");
+        var dallasOffice = new Office(contoso, dallas);
+        network.AddFeed("offices", new object[]
+        {
+            contoso,
+            dallas,
+            dallasOffice
+        });
+
+        var j = new Jinaga(new MemoryStore(), network);
+
+        var viewModel = new CompanyViewModel();
+        var watch = viewModel.Load(j, "contoso");
+
+        try
+        {
+            await watch.Initialized;
+            viewModel.Offices.Should().ContainSingle().Which
+                .Name.Should().BeNull();
+        }
+        finally
+        {
+            await watch.Stop();
+        }
+    }
+
     private class OfficeViewModel
     {
         public Office Office;
