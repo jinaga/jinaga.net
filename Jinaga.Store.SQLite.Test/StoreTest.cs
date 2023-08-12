@@ -1,4 +1,4 @@
-﻿using FluentAssertions;
+using FluentAssertions;
 using Jinaga.DefaultImplementations;
 using Jinaga.Managers;
 using Jinaga.Facts;
@@ -8,6 +8,7 @@ using System.Collections.Immutable;
 using System.Diagnostics;
 
 using Xunit.Abstractions;
+using Jinaga.Storage;
 
 namespace Jinaga.Store.SQLite.Test;
 
@@ -19,7 +20,14 @@ public class StoreTest
     public Stopwatch stopwatch;
 
 
+    private static string SQLitePath { get; } = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "JinagaSQLiteTest",
+        "StoreTest.db");
+
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
     public StoreTest(ITestOutputHelper output)
+#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
     {
         this.output = output;
     }
@@ -28,7 +36,7 @@ public class StoreTest
     private class FactType
     {
         public int fact_type_id { get; set; }
-        public string name { get; set; }
+        public string name { get; set; } = "";
 
         public override string ToString()
         {
@@ -41,7 +49,7 @@ public class StoreTest
     public async Task CanQueryForSuccessors()
     {
 
-        var j = new Jinaga(new SQLiteStore(), new LocalNetwork());
+        var j = new Jinaga(new SQLiteStore(SQLitePath), new LocalNetwork());
         //var j = new Jinaga(new SQLiteStore(), new HttpNetwork());
         //var j = new Jinaga(new MemoryStore(), new SimulatedNetwork());
 
@@ -54,7 +62,7 @@ public class StoreTest
             select flight.flightNumber
         );
 
-        var flightNumbers = await j.Query(airlineDay, specification);
+        var flightNumbers = await j.Query(specification, airlineDay);
         flightNumbers.Should().ContainSingle().Which.Should().Be(4247);
     }
 
@@ -66,7 +74,7 @@ public class StoreTest
         output.WriteLine($"{MyStopWatch.Start()}: BEGIN OF TESTS at {DateTime.Now}");
          
         DateTime now = DateTime.Parse("2021-07-04T01:39:43.241Z");
-        var j = new Jinaga(new SQLiteStore(), new LocalNetwork());            
+        var j = new Jinaga(new SQLiteStore(SQLitePath), new LocalNetwork());            
         var airlineDay = await j.Fact(new AirlineDay(new Airline("Airline1"), now));
         var flight = await j.Fact(new Flight(airlineDay, 555));
         //airlineDay = await j.Fact(new AirlineDay(new Airline("Airline2"), now));
@@ -84,7 +92,7 @@ public class StoreTest
         output.WriteLine($"{MyStopWatch.Start()}: BEGIN OF TESTS at {DateTime.Now}");
 
         DateTime now = DateTime.Parse("2021-07-04T01:39:43.241Z");
-        var j = new Jinaga(new SQLiteStore(), new LocalNetwork());
+        var j = new Jinaga(new SQLiteStore(SQLitePath), new LocalNetwork());
         var airline = new Airline("Airline1");            
         var user = await j.Fact(new User("fqjsdfqkfjqlm"));
         var passenger = await j.Fact(new Passenger(airline, user));
@@ -102,7 +110,7 @@ public class StoreTest
     public async Task LoadNothingFromStore()
     {
         output.WriteLine($"{MyStopWatch.Start()}: BEGIN OF TESTS at {DateTime.Now}");
-        IStore sqliteStore = new SQLiteStore();
+        IStore sqliteStore = new SQLiteStore(SQLitePath);
         FactGraph factGraph = await sqliteStore.Load(ImmutableList<FactReference>.Empty, default);
         factGraph.FactReferences.Should().BeEmpty();
         output.WriteLine($"{MyStopWatch.Elapsed()}: END OF TESTS at {DateTime.Now}\n\r");
@@ -115,7 +123,7 @@ public class StoreTest
         output.WriteLine($"{MyStopWatch.Start()}: BEGIN OF TESTS at {DateTime.Now}");
 
         //IStore Store = new MemoryStore();
-        IStore Store = new SQLiteStore();
+        IStore Store = new SQLiteStore(SQLitePath);
 
         DateTime now = DateTime.Parse("2021-07-04T01:39:43.241Z");
         var j = new Jinaga(Store, new LocalNetwork());            
@@ -126,8 +134,7 @@ public class StoreTest
         var passengerName2 = await j.Fact(new PassengerName(passenger, "Caden", new PassengerName[0]));
         var passengerName3 = await j.Fact(new PassengerName(passenger, "Jan", new PassengerName []{passengerName1, passengerName2}));
 
-        var graph = new FactManager(Store, null).Serialize(passengerName3);            
-        var lastRef = graph.Last;
+        var lastRef = ReferenceOfFact(passengerName3);
 
         //var airlineFact = Fact.Create(
         //    "Skylane.Airline",
@@ -194,7 +201,7 @@ public class StoreTest
         output.WriteLine($"{MyStopWatch.Start()}: BEGIN OF TESTS at {DateTime.Now}");
 
         //IStore Store = new MemoryStore();
-        IStore Store = new SQLiteStore();
+        IStore Store = new SQLiteStore(SQLitePath);
 
         DateTime now = DateTime.Parse("2021-07-04T01:39:43.241Z");
         var j = new Jinaga(Store, new LocalNetwork());
@@ -207,8 +214,7 @@ public class StoreTest
         var yardAddress3 = await j.Fact(new YardAddress(yard, "myYardName3", "myRemark", "myStreet", "myHousNb", "myPostalCode", "myCity", "myCountry", new YardAddress[] { yardAddress1, yardAddress2 }));
         var yardAddress4 = await j.Fact(new YardAddress(yard, "myYardName3", "myRemark", "myStreet2", "myHousNb", "myPostalCode", "myCity", "myCountry", new YardAddress[] { yardAddress3}));
 
-        var graph = new FactManager(Store, null).Serialize(yardAddress4);
-        var lastRef = graph.Last;      
+        var lastRef = ReferenceOfFact(yardAddress4);      
             
         var factGraph = await Store.Load(ImmutableList<FactReference>.Empty.Add(lastRef), default);
         factGraph.FactReferences.Count.Should().Be(7);
@@ -226,7 +232,7 @@ public class StoreTest
     public async Task StoreRoundTripFromUTC()
     {
         DateTime now = DateTime.Parse("2021-07-04T01:39:43.241Z").ToUniversalTime();
-        var j = new Jinaga(new SQLiteStore(), new LocalNetwork());
+        var j = new Jinaga(new SQLiteStore(SQLitePath), new LocalNetwork());
         var airlineDay = await j.Fact(new AirlineDay(new Airline("value"), now));
         airlineDay.date.Kind.Should().Be(DateTimeKind.Utc);
         airlineDay.date.Hour.Should().Be(1);
@@ -688,6 +694,7 @@ public class StoreTest
 
             threads[i] = new Thread((param) =>
             {
+#pragma warning disable CS8605 // Unboxing a possibly null value.
                 connFactory.WithTxn<string>((conn, id) =>
                 {
                     output.WriteLine($"{MyStopWatch.Elapsed()}: {id:D2} -- STARTED Read-Thread: {Thread.CurrentThread.ManagedThreadId}");
@@ -709,6 +716,7 @@ public class StoreTest
                     true,
                     (int)param
                 );
+#pragma warning restore CS8605 // Unboxing a possibly null value.
                 barrier.SignalAndWait();
             }
             );
@@ -724,5 +732,13 @@ public class StoreTest
 
     }
 
-
+    private static FactReference ReferenceOfFact(object fact)
+    {
+        var store = new MemoryStore();
+        var networkManager = new NetworkManager(new LocalNetwork(), store, (FactGraph g, ImmutableList<Fact> l, CancellationToken c) => Task.CompletedTask);
+        var factManager = new FactManager(store, networkManager);
+        var graph = factManager.Serialize(fact);
+        var lastRef = graph.Last;
+        return lastRef;
+    }
 }

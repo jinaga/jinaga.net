@@ -47,8 +47,8 @@ namespace Jinaga
         }
 
         public async Task<ImmutableList<TProjection>> Query<TFact, TProjection>(
-            TFact given,
             Specification<TFact, TProjection> specification,
+            TFact given,
             CancellationToken cancellationToken = default) where TFact : class
         {
             if (given == null)
@@ -68,6 +68,7 @@ namespace Jinaga
             }
             else
             {
+                await factManager.Fetch(givenReferences, specification, cancellationToken);
                 var products = await factManager.Query(givenReferences, specification, cancellationToken);
                 var productProjections = await factManager.ComputeProjections(specification.Projection, products, typeof(TProjection), null, Product.Empty, string.Empty, cancellationToken);
                 var projections = productProjections
@@ -78,12 +79,12 @@ namespace Jinaga
         }
 
         public Observer<TProjection> Watch<TFact, TProjection>(
-            TFact given,
             Specification<TFact, TProjection> specification,
+            TFact given,
             Action<TProjection> added)
             where TFact : class
         {
-            return Watch<TFact, TProjection>(given, specification,
+            return Watch<TFact, TProjection>(specification, given,
                 projection =>
                 {
                     added(projection);
@@ -94,12 +95,12 @@ namespace Jinaga
         }
 
         public Observer<TProjection> Watch<TFact, TProjection>(
-            TFact given,
             Specification<TFact, TProjection> specification,
+            TFact given,
             Func<TProjection, Action> added)
             where TFact : class
         {
-            return Watch<TFact, TProjection>(given, specification,
+            return Watch<TFact, TProjection>(specification, given,
                 projection =>
                 {
                     var removed = added(projection);
@@ -114,12 +115,12 @@ namespace Jinaga
         }
 
         public Observer<TProjection> Watch<TFact, TProjection>(
-            TFact given,
             Specification<TFact, TProjection> specification,
+            TFact given,
             Func<TProjection, Task> added)
             where TFact: class
         {
-            return Watch<TFact, TProjection>(given, specification,
+            return Watch<TFact, TProjection>(specification, given,
                 async projection =>
                 {
                     await added(projection);
@@ -129,8 +130,8 @@ namespace Jinaga
         }
 
         public Observer<TProjection> Watch<TFact, TProjection>(
-            TFact given,
             Specification<TFact, TProjection> specification,
+            TFact given,
             Func<TProjection, Task<Func<Task>>> added)
             where TFact : class
         {

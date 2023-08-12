@@ -28,7 +28,7 @@ namespace Jinaga.Managers
             await network.Save(facts, cancellationToken);
         }
 
-        public async Task Query(ImmutableList<FactReference> givenReferences, Specification specification, CancellationToken cancellationToken)
+        public async Task Fetch(ImmutableList<FactReference> givenReferences, Specification specification, CancellationToken cancellationToken)
         {
             // Get the feeds from the source.
             var feeds = await network.Feeds(givenReferences, specification, cancellationToken);

@@ -10,11 +10,17 @@ public class QueryTest
     private readonly Jinaga j;
     private readonly ITestOutputHelper output;
 
+    private static string SQLitePath { get; } = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "JinagaSQLiteTest",
+        "QueryTest.db");
 
     public QueryTest(ITestOutputHelper output)
-    {       
-        
-        j = new Jinaga(new SQLiteStore(true), new LocalNetwork());
+    {
+        if (File.Exists(SQLitePath))
+            File.Delete(SQLitePath);
+
+        j = new Jinaga(new SQLiteStore(SQLitePath), new LocalNetwork());
         this.output = output;
     }
 
@@ -27,7 +33,7 @@ public class QueryTest
         var specification = Given<FlightCancellation>.Match(
             flightCancellation => flightCancellation.flight
         );
-        var flights = await j.Query(cancellation, specification);
+        var flights = await j.Query(specification, cancellation);
 
         flights.Should().ContainSingle().Which.Should().BeEquivalentTo(flight);
     }
@@ -43,7 +49,7 @@ public class QueryTest
             where flight.airlineDay == airlineDay
             select flight
         );
-        var flights = await j.Query(airlineDay, specification);
+        var flights = await j.Query(specification, airlineDay);
 
         flights.Should().ContainSingle().Which.Should().BeEquivalentTo(flight);
     }
@@ -65,7 +71,7 @@ public class QueryTest
             select passenger
         );
 
-        var passengers = await j.Query(airline, passengersForAirline);
+        var passengers = await j.Query(passengersForAirline, airline);
         passengers.Should().BeEquivalentTo(expectedPassengers);
     }
 
@@ -94,7 +100,7 @@ public class QueryTest
             select flight
         );
 
-        var flights = await j.Query(airlineDay, specification);
+        var flights = await j.Query(specification, airlineDay);
         flights.Should().ContainSingle().Which
             .Should().BeEquivalentTo(flight);
         output.WriteLine($"Flight = {flight}\n\r");
@@ -110,7 +116,7 @@ public class QueryTest
         var initialName = await j.Fact(new PassengerName(passenger, "Joe", new PassengerName[] { }));
         var updatedName = await j.Fact(new PassengerName(passenger, "Joseph", new PassengerName[] { initialName }));
 
-        var currentNames = await j.Query(passenger, Given<Passenger>.Match((passenger, facts) =>
+        var currentNames = await j.Query(Given<Passenger>.Match((passenger, facts) =>
             from name in facts.OfType<PassengerName>()
             where name.passenger == passenger
             where !(
@@ -119,7 +125,7 @@ public class QueryTest
                 select next
             ).Any()
             select name
-        ));
+        ), passenger);
 
         currentNames.Should().ContainSingle().Which
             .value.Should().Be("Joseph");
@@ -135,7 +141,7 @@ public class QueryTest
         var booking = await j.Fact(new Booking(flight, joe, DateTime.UtcNow));
         var cancellation = await j.Fact(new FlightCancellation(flight, DateTime.Now));
 
-        var bookingCancellations = await j.Query(ia, Given<Airline>.Match((airline, facts) =>
+        var bookingCancellations = await j.Query(Given<Airline>.Match((airline, facts) =>
             from flight in facts.OfType<Flight>()
             where flight.airlineDay.airline == airline
             from booking in facts.OfType<Booking>()
@@ -147,7 +153,7 @@ public class QueryTest
                 booking,
                 cancellation
             }
-        ));
+        ), ia);
 
         var pair = bookingCancellations.Should().ContainSingle().Subject;
         pair.booking.Should().BeEquivalentTo(booking);
@@ -178,7 +184,7 @@ public class QueryTest
             }
         );
 
-        var posts = await j.Query(site, specification);
+        var posts = await j.Query(specification, site);
 
         posts.Should().ContainSingle().Which
             .titles.Should().ContainSingle().Which
@@ -197,7 +203,7 @@ public class QueryTest
             select site.domain
         );
 
-        var result = await j.Query(post, specification);
+        var result = await j.Query(specification, post);
 
         result.Should().ContainSingle().Which
             .Should().Be("michaelperry.net");
@@ -219,7 +225,7 @@ public class QueryTest
             }
         );
 
-        var result = await j.Query(post, specification);
+        var result = await j.Query(specification, post);
 
         var subject = result.Should().ContainSingle().Subject;
         subject.siteName.Should().Be("michaelperry.net");
@@ -247,7 +253,7 @@ public class QueryTest
             }
         );
 
-        var posts = await j.Query(site, specification);
+        var posts = await j.Query(specification, site);
 
         posts.Should().ContainSingle().Which
             .titles.Should().ContainSingle().Which
@@ -274,7 +280,7 @@ public class QueryTest
             }
         );
 
-        var posts = await j.Query(site, specification);
+        var posts = await j.Query(specification, site);
 
         posts.Should().ContainSingle().Which
             .titles.Should().ContainSingle().Which
@@ -301,7 +307,7 @@ public class QueryTest
             }
         );
 
-        var posts = await j.Query(site, specification);
+        var posts = await j.Query(specification, site);
 
         posts.Should().ContainSingle().Which
             .titles.Should().ContainSingle().Which

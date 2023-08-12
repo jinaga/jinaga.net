@@ -13,7 +13,7 @@ using System.Threading.Tasks;
 
 namespace Jinaga
 {
-    public class Observer<TProjection> : IObserver
+    public class Observer<TProjection> : IObserver, IWatch
     {
         private readonly Specification specification;
         private readonly Product givenAnchor;
@@ -44,7 +44,7 @@ namespace Jinaga
             initialize = Task.Run(() => RunInitialQuery(cancellationToken), cancellationToken);
         }
 
-        internal async Task Stop()
+        public async Task Stop()
         {
             if (initialize != null)
             {
@@ -68,12 +68,6 @@ namespace Jinaga
 
         public async Task FactsAdded(ImmutableList<Fact> added, FactGraph graph, CancellationToken cancellationToken)
         {
-            if (initialize == null)
-            {
-                return;
-            }
-            await initialize;
-
             var productsAdded = ImmutableList<(Product product, Inverse inverse)>.Empty;
             var productsRemoved = ImmutableList<Product>.Empty;
             var givenReferences = added.Select(a => a.Reference).ToImmutableList();

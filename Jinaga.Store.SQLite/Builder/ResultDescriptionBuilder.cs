@@ -3,9 +3,7 @@ using Jinaga.Pipelines;
 using Jinaga.Projections;
 using Jinaga.Store.SQLite.Description;
 using System;
-using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Linq;
 
 namespace Jinaga.Store.SQLite.Builder
 {
@@ -44,10 +42,6 @@ namespace Jinaga.Store.SQLite.Builder
 
         private ResultDescription CreateResultDescription(ResultDescriptionBuilderContext context, ImmutableList<Label> given, ImmutableList<FactReference> startReferences, ImmutableList<Match> matches, Projection projection)
         {
-            var givenTuple = given
-                .Select((label, index) =>
-                    KeyValuePair.Create(label.Name, startReferences[index]))
-                .ToImmutableDictionary();
             context = AddEdges(context, given, startReferences, matches);
 
             var childResultDescriptions = ImmutableDictionary<string, ResultDescription>.Empty;
