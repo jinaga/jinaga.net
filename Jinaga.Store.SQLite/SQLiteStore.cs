@@ -308,6 +308,10 @@ namespace Jinaga.Store.SQLite
             return Task.FromResult(sqlQueryTree.ResultsToProducts(resultSets, givenProduct));
         }
 
+        public Task<ImmutableList<Product>> Read(Product givenProduct, Specification specification, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
 
         private ResultSetTree ExecuteQueryTree(SqlQueryTree sqlQueryTree, ConnectionFactory.Conn conn)
         {

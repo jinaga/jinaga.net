@@ -63,6 +63,15 @@ namespace Jinaga.Storage
             return Task.FromResult(products);
         }
 
+        public Task<ImmutableList<Product>> Read(Product givenProduct, Specification specification, CancellationToken cancellationToken)
+        {
+            var start = specification.Given.Select(label =>
+                (name: label.Name, reference: givenProduct.GetFactReference(label.Name))
+            ).ToImmutableDictionary(pair => pair.name, pair => pair.reference);
+            var products = ExecuteMatchesAndProjection(start, specification.Matches, specification.Projection);
+            return Task.FromResult(products);
+        }
+
         private ImmutableList<Product> ExecuteMatchesAndProjection(ImmutableDictionary<string, FactReference> start, ImmutableList<Match> matches, Projection projection)
         {
             ImmutableList<ImmutableDictionary<string, FactReference>> tuples = ExecuteMatches(start, matches);

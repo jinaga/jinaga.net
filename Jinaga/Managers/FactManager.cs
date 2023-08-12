@@ -17,11 +17,14 @@ namespace Jinaga.Managers
     {
         private readonly IStore store;
         private readonly NetworkManager networkManager;
+        private readonly ObservableSource observableSource;
 
         public FactManager(IStore store, NetworkManager networkManager)
         {
             this.store = store;
             this.networkManager = networkManager;
+            
+            observableSource = new ObservableSource(store);
         }
 
         private SerializerCache serializerCache = SerializerCache.Empty;
@@ -48,6 +51,11 @@ namespace Jinaga.Managers
         public async Task Fetch(Product givenProduct, Specification specification, CancellationToken cancellationToken)
         {
             await networkManager.Fetch(givenProduct, specification, cancellationToken);
+        }
+
+        public async Task<ImmutableList<Product>> Read(Product givenProduct, Specification specification, CancellationToken cancellationToken)
+        {
+            return await store.Read(givenProduct, specification, cancellationToken);
         }
 
         public async Task<ImmutableList<Product>> Query(ImmutableList<FactReference> givenReferences, Specification specification, CancellationToken cancellationToken)
@@ -127,6 +135,11 @@ namespace Jinaga.Managers
             var observer = new Observer<TProjection>(specification, givenAnchor, this, observation);
             observer.Start();
             return observer;
+        }
+
+        public SpecificationListener AddSpecificationListener(Specification specification, Action<Product[]> onResult)
+        {
+            return observableSource.AddSpecificationListener(specification, onResult);
         }
 
         public void AddObserver(IObserver observer)

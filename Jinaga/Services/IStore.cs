@@ -12,6 +12,7 @@ namespace Jinaga.Services
     {
         Task<ImmutableList<Fact>> Save(FactGraph graph, System.Threading.CancellationToken cancellationToken);
         Task<ImmutableList<Product>> Read(ImmutableList<FactReference> givenReferences, Specification specification, CancellationToken cancellationToken);
+        Task<ImmutableList<Product>> Read(Product givenProduct, Specification specification, CancellationToken cancellationToken);
         Task<FactGraph> Load(ImmutableList<FactReference> references, System.Threading.CancellationToken cancellationToken);
         Task<string> LoadBookmark(string feed);
         Task<ImmutableList<FactReference>> ListKnown(ImmutableList<FactReference> factReferences);

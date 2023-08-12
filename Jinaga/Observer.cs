@@ -28,6 +28,8 @@ namespace Jinaga
         private Task<bool>? cachedTask;
         private Task? loadedTask;
 
+        private ImmutableList<SpecificationListener> listeners =
+            ImmutableList<SpecificationListener>.Empty;
         private ImmutableDictionary<Product, Func<Task>> removalsByProduct =
             ImmutableDictionary<Product, Func<Task>>.Empty;
 
@@ -66,7 +68,7 @@ namespace Jinaga
             }
 
             // Read from local storage.
-            await Read();
+            await Read(cancellationToken);
             return true;
         }
 
@@ -77,7 +79,7 @@ namespace Jinaga
                 // Fetch from the network first,
                 // then read from local storage.
                 await Fetch(cancellationToken);
-                await Read();
+                await Read(cancellationToken);
             }
             else
             {
@@ -92,9 +94,12 @@ namespace Jinaga
         {
         }
 
-        private Task Read()
+        private async Task Read(CancellationToken cancellationToken)
         {
-            throw new NotImplementedException();
+            var products = await factManager.Read(givenAnchor, specification, cancellationToken);
+            AddSpecificationListeners();
+            var givenSubset = specification.Given.Select(label => label.Name).ToImmutableList();
+            await NotifyAdded(products, specification.Projection, "", givenSubset);
         }
 
         private Task Fetch(CancellationToken cancellationToken)
@@ -211,6 +216,26 @@ namespace Jinaga
             {
                 throw new InvalidOperationException($"Collection {collectionName} is not an IObservableCollection or IQueryable");
             }
+        }
+
+        private void AddSpecificationListeners()
+        {
+            var inverses = specification.ComputeInverses();
+            ImmutableList<SpecificationListener> listeners = inverses.Select(inverse => factManager.AddSpecificationListener(
+                inverse.InverseSpecification,
+                (Product[] results) => OnResult(inverse, results)
+            )).ToImmutableList();
+            this.listeners = listeners;
+        }
+
+        private void OnResult(Inverse inverse, Product[] results)
+        {
+            throw new NotImplementedException();
+        }
+
+        private Task NotifyAdded(ImmutableList<Product> products, Projection projection, string v, ImmutableList<string> givenSubset)
+        {
+            throw new NotImplementedException();
         }
     }
 }
