@@ -2,6 +2,23 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.1</TargetFramework>
+
+    <PackageId>Jinaga.Store.SQLite</PackageId>
+    <Authors>Michael L Perry, Jan Verhaegen</Authors>
+    <Company>Jinaga LLC</Company>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <Copyright>Copyright (c) 2023 Michael L Perry</Copyright>
+    <ProjectUrl>https://jinaga.net</ProjectUrl>
+    <RepositoryUrl>https://github.com/jinaga/jinaga.net</RepositoryUrl>
+    <PackageTags>Data;Synchronization;Offline;Occasionally connected</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Description>
+      SQLite storage for Jinaga applications.
+
+      Data management for web and mobile applications.
+      Connect your client to a replicator to replace your hand-written API and database.
+      Jinaga supports occasionally connected clients with local storage in SQLite.
+    </Description>
   </PropertyGroup>
 
   <ItemGroup>

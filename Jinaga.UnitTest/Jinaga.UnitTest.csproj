@@ -26,7 +26,7 @@
     <Authors>Michael L Perry</Authors>
     <Company>Jinaga LLC</Company>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <Copyright>Copyright (c) 2021 Michael L Perry</Copyright>
+    <Copyright>Copyright (c) 2023 Michael L Perry</Copyright>
     <ProjectUrl>https://jinaga.net</ProjectUrl>
     <RepositoryUrl>https://github.com/jinaga/jinaga.net</RepositoryUrl>
     <PackageTags>Data;Synchronization;Offline;Occasionally connected</PackageTags>
@@ -34,14 +34,9 @@
     <Description>
       Support for unit testing Jinaga applications.
 
-      Jinaga is a data synchronization library that supports offline access to data.
-      It is designed to be used in a variety of scenarios, including:
-      - Synchronizing data between devices
-      - Synchronizing data between applications
-      - Synchronizing data between applications and devices
-      - Synchronizing data between applications and servers
-      - Synchronizing data between servers
-      - Synchronizing data between servers and devices
+      Data management for web and mobile applications.
+      Connect your client to a replicator to replace your hand-written API and database.
+      Jinaga supports occasionally connected clients with local storage in SQLite.
     </Description>
   </PropertyGroup>
 
