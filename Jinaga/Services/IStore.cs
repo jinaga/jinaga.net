@@ -1,6 +1,7 @@
 using Jinaga.Facts;
 using Jinaga.Products;
 using Jinaga.Projections;
+using System;
 using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
@@ -15,5 +16,7 @@ namespace Jinaga.Services
         Task<string> LoadBookmark(string feed);
         Task<ImmutableList<FactReference>> ListKnown(ImmutableList<FactReference> factReferences);
         Task SaveBookmark(string feed, string bookmark);
+        Task<DateTime?> GetMruDate(string specificationHash);
+        Task SetMruDate(string specificationHash, DateTime mruDate);
     }
 }

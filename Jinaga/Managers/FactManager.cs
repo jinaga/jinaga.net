@@ -113,6 +113,17 @@ namespace Jinaga.Managers
             }
         }
 
+        public Observer<TProjection> StartObserver<TProjection>(FactGraph graph, Specification specification, Func<TProjection, Task<Func<Task>>> added)
+        {
+            var givenReference = graph.Last;
+            var projection = specification.Projection;
+            var givenAnchor = Product.Empty.With(specification.Given.First().Name, new SimpleElement(givenReference));
+            var observation = new FunctionObservation<TProjection>(givenAnchor, added);
+            var observer = new Observer<TProjection>(specification, givenAnchor, this, observation);
+            observer.Start();
+            return observer;
+        }
+
         public void AddObserver(IObserver observer)
         {
             lock (this)
@@ -135,6 +146,16 @@ namespace Jinaga.Managers
             {
                 await observer.FactsAdded(added, graph, cancellationToken);
             }
+        }
+
+        public Task<DateTime?> GetMruDate(string specificationHash)
+        {
+            return store.GetMruDate(specificationHash);
+        }
+
+        public Task SetMruDate(string specificationHash, DateTime mruDate)
+        {
+            return store.SetMruDate(specificationHash, mruDate);
         }
     }
 }

@@ -413,6 +413,16 @@ namespace Jinaga.Store.SQLite
             throw new NotImplementedException();
         }
 
+        public Task<DateTime?> GetMruDate(string specificationHash)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task SetMruDate(string specificationHash, DateTime mruDate)
+        {
+            throw new NotImplementedException();
+        }
+
         public class FactFromDb
         {
             public string hash { get; set; }

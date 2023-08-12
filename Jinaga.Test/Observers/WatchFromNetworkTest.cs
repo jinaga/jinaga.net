@@ -26,7 +26,7 @@ public class WatchFromNetworkTest
         }
         finally
         {
-            await watch.Stop();
+            watch.Stop();
         }
     }
 
@@ -39,8 +39,6 @@ public class WatchFromNetworkTest
         var dallasOffice = new Office(contoso, dallas);
         network.AddFeed("offices", new object[]
         {
-            contoso,
-            dallas,
             dallasOffice
         });
 
@@ -57,7 +55,7 @@ public class WatchFromNetworkTest
         }
         finally
         {
-            await watch.Stop();
+            watch.Stop();
         }
     }
 
@@ -93,7 +91,10 @@ public class WatchFromNetworkTest
             var company = new Company(identifier);
             var watch = j.Watch(officesInCompany, company, projection =>
             {
-                var officeViewModel = new OfficeViewModel();
+                var officeViewModel = new OfficeViewModel
+                {
+                    Office = projection.office
+                };
                 Offices.Add(officeViewModel);
 
                 projection.names.OnAdded(name =>

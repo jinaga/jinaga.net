@@ -6,6 +6,6 @@ namespace Jinaga
     {
         Task Initialized { get; }
 
-        Task Stop();
+        void Stop();
     }
 }

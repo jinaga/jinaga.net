@@ -60,6 +60,24 @@ namespace Jinaga.Projections
             return $"{indent}({given}) {{\n{matches}{indent}}}{projection}\n";
         }
 
+        internal string GenerateDeclarationString(Product given)
+        {
+            var startStrings = Given.Select(label =>
+            {
+                var value = given.GetElement(label.Name);
+                if (value is SimpleElement simple)
+                {
+                    return $"let {label.Name}: {label.Type} = #{simple.FactReference.Hash}\n";
+                }
+                else
+                {
+                    throw new Exception($"Unsupported element type {value.GetType().Name}.");
+                }
+            });
+            return string.Join("", startStrings);
+        }
+            
+
         protected string GenerateDeclarationString(ImmutableList<Facts.FactReference> givenReferences)
         {
             var startStrings = Given.Zip(givenReferences, (label, reference) =>

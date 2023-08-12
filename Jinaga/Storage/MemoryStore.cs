@@ -18,6 +18,7 @@ namespace Jinaga.Storage
         private ImmutableList<Edge> edges = ImmutableList<Edge>.Empty;
         private ImmutableDictionary<FactReference, ImmutableList<FactReference>> ancestors = ImmutableDictionary<FactReference, ImmutableList<FactReference>>.Empty;
         private ImmutableDictionary<string, string> bookmarks = ImmutableDictionary<string, string>.Empty;
+        private ImmutableDictionary<string, DateTime> mruDates = ImmutableDictionary<string, DateTime>.Empty;
 
         public Task<ImmutableList<Fact>> Save(FactGraph graph, CancellationToken cancellationToken)
         {
@@ -277,6 +278,24 @@ namespace Jinaga.Storage
         public Task SaveBookmark(string feed, string bookmark)
         {
             bookmarks = bookmarks.SetItem(feed, bookmark);
+            return Task.CompletedTask;
+        }
+
+        public Task<DateTime?> GetMruDate(string specificationHash)
+        {
+            if (mruDates.TryGetValue(specificationHash, out var mruDate))
+            {
+                return Task.FromResult<DateTime?>(mruDate);
+            }
+            else
+            {
+                return Task.FromResult<DateTime?>(null);
+            }
+        }
+
+        public Task SetMruDate(string specificationHash, DateTime mruDate)
+        {
+            mruDates = mruDates.SetItem(specificationHash, mruDate);
             return Task.CompletedTask;
         }
     }

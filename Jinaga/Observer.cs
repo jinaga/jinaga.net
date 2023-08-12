@@ -1,4 +1,5 @@
 ﻿using Jinaga.Facts;
+using Jinaga.Identity;
 using Jinaga.Managers;
 using Jinaga.Observers;
 using Jinaga.Pipelines;
@@ -16,13 +17,16 @@ namespace Jinaga
     public class Observer<TProjection> : IObserver, IWatch
     {
         private readonly Specification specification;
+        private readonly string specificationHash;
         private readonly Product givenAnchor;
         private readonly FactManager factManager;
         private readonly IObservation observation;
         private readonly ImmutableList<Inverse> inverses;
 
-        private Task? initialize;
         private CancellationTokenSource cancelInitialize = new CancellationTokenSource();
+
+        private Task<bool>? cachedTask;
+        private Task? loadedTask;
 
         private ImmutableDictionary<Product, Func<Task>> removalsByProduct =
             ImmutableDictionary<Product, Func<Task>>.Empty;
@@ -34,24 +38,70 @@ namespace Jinaga
             this.factManager = factManager;
             this.observation = observation;
             this.inverses = specification.ComputeInverses();
+
+            // Identify a specification by its hash.
+            string declarationString = specification.GenerateDeclarationString(givenAnchor);
+            string specificationString = specification.ToDescriptiveString();
+            string request = $"{declarationString}\n${specificationString}";
+            specificationHash = IdentityUtilities.ComputeStringHash(request);
         }
 
-        public Task Initialized => initialize!;
+        public Task Initialized => loadedTask!;
 
         internal void Start()
         {
             var cancellationToken = cancelInitialize.Token;
-            initialize = Task.Run(() => RunInitialQuery(cancellationToken), cancellationToken);
+            cachedTask = Task.Run(ReadFromStore);
+            loadedTask = Task.Run(async () =>
+            {
+                bool cached = await cachedTask;
+                await FetchFromNetwork(cached);
+            });
         }
 
-        public async Task Stop()
+        private async Task<bool> ReadFromStore()
         {
-            if (initialize != null)
+            DateTime? mruDate = await factManager.GetMruDate(specificationHash);
+            if (mruDate == null)
             {
-                cancelInitialize.CancelAfter(TimeSpan.FromSeconds(2));
-                await initialize;
+                return false;
             }
-            factManager.RemoveObserver(this);
+
+            // Read from local storage.
+            await Read();
+            return true;
+        }
+
+        private async Task FetchFromNetwork(bool cached)
+        {
+            if (!cached)
+            {
+                // Fetch from the network first,
+                // then read from local storage.
+                await Fetch();
+                await Read();
+            }
+            else
+            {
+                // Already read from local storage.
+                // Fetch from the network to update the cache.
+                await Fetch();
+            }
+            await factManager.SetMruDate(specificationHash, DateTime.UtcNow);
+        }
+
+        public void Stop()
+        {
+        }
+
+        private Task Read()
+        {
+            throw new NotImplementedException();
+        }
+
+        private Task Fetch()
+        {
+            throw new NotImplementedException();
         }
 
         private async Task RunInitialQuery(CancellationToken cancellationToken)

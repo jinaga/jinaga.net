@@ -28,7 +28,7 @@ namespace Jinaga.Test
 
             var officeObserver = await WhenWatchOffices(company);
 
-            await officeObserver.Stop();
+            officeObserver.Stop();
 
             officeRepository.Offices.Should().BeEmpty();
         }
@@ -40,7 +40,7 @@ namespace Jinaga.Test
 
             var officeObserver = await WhenWatchOfficesInlineObservable(company);
 
-            await officeObserver.Stop();
+            officeObserver.Stop();
 
             officeRepository.Offices.Should().BeEmpty();
         }
@@ -52,7 +52,7 @@ namespace Jinaga.Test
 
             var officeObserver = await WhenWatchOfficesInlineObservableWithFields(company);
 
-            await officeObserver.Stop();
+            officeObserver.Stop();
 
             officeRepository.Offices.Should().BeEmpty();
         }
@@ -64,7 +64,7 @@ namespace Jinaga.Test
 
             var officeObserver = await WhenWatchOfficesInlineQueryable(company);
 
-            await officeObserver.Stop();
+            officeObserver.Stop();
 
             officeRepository.Offices.Should().BeEmpty();
         }
@@ -87,7 +87,7 @@ namespace Jinaga.Test
                 }
             });
 
-            await officeObserver.Stop();
+            officeObserver.Stop();
         }
 
         [Fact]
@@ -108,7 +108,7 @@ namespace Jinaga.Test
                 }
             });
 
-            await officeObserver.Stop();
+            officeObserver.Stop();
         }
 
         [Fact]
@@ -129,7 +129,7 @@ namespace Jinaga.Test
                 }
             });
 
-            await officeObserver.Stop();
+            officeObserver.Stop();
         }
 
         [Fact]
@@ -150,7 +150,7 @@ namespace Jinaga.Test
                 }
             });
 
-            await officeObserver.Stop();
+            officeObserver.Stop();
         }
 
         [Fact]
@@ -165,7 +165,7 @@ namespace Jinaga.Test
 
             officeRepository.Offices.Should().BeEmpty();
 
-            await officeObserver.Stop();
+            officeObserver.Stop();
         }
 
         [Fact]
@@ -180,7 +180,7 @@ namespace Jinaga.Test
 
             officeRepository.Offices.Should().BeEmpty();
 
-            await officeObserver.Stop();
+            officeObserver.Stop();
         }
 
         [Fact]
@@ -195,7 +195,7 @@ namespace Jinaga.Test
 
             officeRepository.Offices.Should().BeEmpty();
 
-            await officeObserver.Stop();
+            officeObserver.Stop();
         }
 
         [Fact]
@@ -210,7 +210,7 @@ namespace Jinaga.Test
 
             officeRepository.Offices.Should().BeEmpty();
 
-            await officeObserver.Stop();
+            officeObserver.Stop();
         }
 
         [Fact]
@@ -233,7 +233,7 @@ namespace Jinaga.Test
                 }
             });
 
-            await officeObserver.Stop();
+            officeObserver.Stop();
         }
 
         [Fact]
@@ -256,7 +256,7 @@ namespace Jinaga.Test
                 }
             });
 
-            await officeObserver.Stop();
+            officeObserver.Stop();
         }
 
         [Fact]
@@ -279,7 +279,7 @@ namespace Jinaga.Test
                 }
             });
 
-            await officeObserver.Stop();
+            officeObserver.Stop();
         }
 
         [Fact]
@@ -302,7 +302,7 @@ namespace Jinaga.Test
                 }
             });
 
-            await officeObserver.Stop();
+            officeObserver.Stop();
         }
 
         [Fact]
@@ -324,7 +324,7 @@ namespace Jinaga.Test
                 }
             });
 
-            await officeObserver.Stop();
+            officeObserver.Stop();
         }
 
         [Fact]
@@ -346,7 +346,7 @@ namespace Jinaga.Test
                 }
             });
 
-            await officeObserver.Stop();
+            officeObserver.Stop();
         }
 
         [Fact]
@@ -368,7 +368,7 @@ namespace Jinaga.Test
                 }
             });
 
-            await officeObserver.Stop();
+            officeObserver.Stop();
         }
 
         [Fact]
@@ -390,7 +390,7 @@ namespace Jinaga.Test
                 }
             });
 
-            await officeObserver.Stop();
+            officeObserver.Stop();
         }
 
         [Fact]
@@ -413,7 +413,7 @@ namespace Jinaga.Test
                 }
             });
 
-            await officeObserver.Stop();
+            officeObserver.Stop();
         }
 
         [Fact]
@@ -436,7 +436,7 @@ namespace Jinaga.Test
                 }
             });
 
-            await officeObserver.Stop();
+            officeObserver.Stop();
         }
 
         [Fact]
@@ -459,7 +459,7 @@ namespace Jinaga.Test
                 }
             });
 
-            await officeObserver.Stop();
+            officeObserver.Stop();
         }
 
         [Fact]
@@ -482,7 +482,7 @@ namespace Jinaga.Test
                 }
             });
 
-            await officeObserver.Stop();
+            officeObserver.Stop();
         }
 
         [Fact]

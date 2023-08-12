@@ -141,13 +141,7 @@ namespace Jinaga
             }
 
             var graph = factManager.Serialize(given);
-            var givenReference = graph.Last;
-            var projection = specification.Projection;
-            var givenAnchor = Product.Empty.With(specification.Given.First().Name, new SimpleElement(givenReference));
-            var observation = new FunctionObservation<TProjection>(givenAnchor, added);
-            var observer = new Observer<TProjection>(specification, givenAnchor, factManager, observation);
-            factManager.AddObserver(observer);
-            observer.Start();
+            var observer = factManager.StartObserver(graph, specification, added);
             return observer;
         }
     }
