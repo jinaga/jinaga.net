@@ -45,6 +45,11 @@ namespace Jinaga.Managers
             await networkManager.Fetch(givenReferences, specification, cancellationToken);
         }
 
+        public async Task Fetch(Product givenProduct, Specification specification, CancellationToken cancellationToken)
+        {
+            await networkManager.Fetch(givenProduct, specification, cancellationToken);
+        }
+
         public async Task<ImmutableList<Product>> Query(ImmutableList<FactReference> givenReferences, Specification specification, CancellationToken cancellationToken)
         {
             await networkManager.Fetch(givenReferences, specification, cancellationToken);

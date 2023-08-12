@@ -51,15 +51,16 @@ namespace Jinaga
         internal void Start()
         {
             var cancellationToken = cancelInitialize.Token;
-            cachedTask = Task.Run(ReadFromStore);
+            cachedTask = Task.Run(async () =>
+                await ReadFromStore(cancellationToken));
             loadedTask = Task.Run(async () =>
             {
                 bool cached = await cachedTask;
-                await FetchFromNetwork(cached);
+                await FetchFromNetwork(cached, cancellationToken);
             });
         }
 
-        private async Task<bool> ReadFromStore()
+        private async Task<bool> ReadFromStore(CancellationToken cancellationToken)
         {
             DateTime? mruDate = await factManager.GetMruDate(specificationHash);
             if (mruDate == null)
@@ -72,20 +73,20 @@ namespace Jinaga
             return true;
         }
 
-        private async Task FetchFromNetwork(bool cached)
+        private async Task FetchFromNetwork(bool cached, CancellationToken cancellationToken)
         {
             if (!cached)
             {
                 // Fetch from the network first,
                 // then read from local storage.
-                await Fetch();
+                await Fetch(cancellationToken);
                 await Read();
             }
             else
             {
                 // Already read from local storage.
                 // Fetch from the network to update the cache.
-                await Fetch();
+                await Fetch(cancellationToken);
             }
             await factManager.SetMruDate(specificationHash, DateTime.UtcNow);
         }
@@ -99,9 +100,9 @@ namespace Jinaga
             throw new NotImplementedException();
         }
 
-        private Task Fetch()
+        private Task Fetch(CancellationToken cancellationToken)
         {
-            throw new NotImplementedException();
+            return factManager.Fetch(givenAnchor, specification, cancellationToken);
         }
 
         private async Task RunInitialQuery(CancellationToken cancellationToken)

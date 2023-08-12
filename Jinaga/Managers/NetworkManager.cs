@@ -1,4 +1,5 @@
 ﻿using Jinaga.Facts;
+using Jinaga.Products;
 using Jinaga.Projections;
 using Jinaga.Services;
 using System;
@@ -65,6 +66,11 @@ namespace Jinaga.Managers
                     await store.SaveBookmark(feed, bookmark);
                 }
             }
+        }
+
+        public Task Fetch(Product givenProduct, Specification specification, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
         }
     }
 }
