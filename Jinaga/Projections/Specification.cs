@@ -179,5 +179,11 @@ namespace Jinaga.Projections
             return set.SelectMany(reference => graph.Predecessors(reference, role, targetType))
                 .ToImmutableList();
         }
+
+        internal Specification Reduce()
+        {
+            // TODO: Remove all projections except for specification projections.
+            return this;
+        }
     }
 }
