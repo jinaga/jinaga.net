@@ -40,10 +40,7 @@ namespace Jinaga
             this.inverses = specification.ComputeInverses();
 
             // Identify a specification by its hash.
-            string declarationString = specification.GenerateDeclarationString(givenAnchor);
-            string specificationString = specification.ToDescriptiveString();
-            string request = $"{declarationString}\n${specificationString}";
-            specificationHash = IdentityUtilities.ComputeStringHash(request);
+            specificationHash = IdentityUtilities.ComputeSpecificationHash(specification, givenAnchor);
         }
 
         public Task Initialized => loadedTask!;

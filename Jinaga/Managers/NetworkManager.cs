@@ -1,4 +1,5 @@
 ﻿using Jinaga.Facts;
+using Jinaga.Identity;
 using Jinaga.Products;
 using Jinaga.Projections;
 using Jinaga.Services;
@@ -79,7 +80,7 @@ namespace Jinaga.Managers
         public async Task Fetch(Product givenProduct, Specification specification, CancellationToken cancellationToken)
         {
             var reducedSpecification = specification.Reduce();
-            ImmutableList<string> feeds = GetFeedsFromCache(givenProduct, reducedSpecification);
+            var feeds = await GetFeedsFromCache(givenProduct, reducedSpecification, cancellationToken);
 
             // Fork to fetch from each feed.
             var tasks = feeds.Select(feed =>
@@ -179,9 +180,16 @@ namespace Jinaga.Managers
             }
         }
 
-        private ImmutableList<string> GetFeedsFromCache(Product givenProduct, Specification specification)
+        private async Task<ImmutableList<string>> GetFeedsFromCache(Product givenProduct, Specification specification, CancellationToken cancellationToken)
         {
-            throw new NotImplementedException();
+            var hash = IdentityUtilities.ComputeSpecificationHash(specification, givenProduct);
+            if (feedsCache.TryGetValue(hash, out var cached))
+            {
+                return cached;
+            }
+            var feeds = await network.Feeds(givenProduct, specification, cancellationToken);
+            feedsCache = feedsCache.Add(hash, feeds);
+            return feeds;
         }
 
         private void RemoveFeedsFromCache(Product givenProduct, Specification specification)
