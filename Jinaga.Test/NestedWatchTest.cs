@@ -545,7 +545,7 @@ namespace Jinaga.Test
             });
         }
 
-        private async Task<Observer<OfficeProjection>> WhenWatchOffices(Company company)
+        private async Task<IWatch> WhenWatchOffices(Company company)
         {
             var officeObserver = j.Watch(officesInCompany, company,
                 async projection =>
@@ -569,7 +569,7 @@ namespace Jinaga.Test
             return officeObserver;
         }
 
-        private async Task<Observer<OfficeProjection>> WhenWatchOfficesInlineObservable(Company company)
+        private async Task<IWatch> WhenWatchOfficesInlineObservable(Company company)
         {
             var officeObserver = j.Watch(officesInCompanyInlineObservable, company,
                 async projection =>
@@ -593,7 +593,7 @@ namespace Jinaga.Test
             return officeObserver;
         }
 
-        private async Task<Observer<OfficeProjectionWithFields>> WhenWatchOfficesInlineObservableWithFields(Company company)
+        private async Task<IWatch> WhenWatchOfficesInlineObservableWithFields(Company company)
         {
             var officeObserver = j.Watch(officesInCompanyInlineObservableWithFields, company,
                 async projection =>
@@ -617,7 +617,7 @@ namespace Jinaga.Test
             return officeObserver;
         }
 
-        private async Task<Observer<OfficeProjectionWithQueryable>> WhenWatchOfficesInlineQueryable(Company company)
+        private async Task<IWatch> WhenWatchOfficesInlineQueryable(Company company)
         {
             var officeObserver = j.Watch(officesInCompanyInlineQueryableWithFields, company,
                 async projection =>
@@ -641,7 +641,7 @@ namespace Jinaga.Test
             return officeObserver;
         }
 
-        private async Task<Observer<ManagementProjection>> WhenWatchManagement(Company company)
+        private async Task<IWatch> WhenWatchManagement(Company company)
         {
             var managementObserver = j.Watch(managersInCompany, company,
                 async projection =>

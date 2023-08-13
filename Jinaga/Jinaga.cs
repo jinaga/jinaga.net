@@ -78,7 +78,7 @@ namespace Jinaga
             }
         }
 
-        public Observer<TProjection> Watch<TFact, TProjection>(
+        public IWatch Watch<TFact, TProjection>(
             Specification<TFact, TProjection> specification,
             TFact given,
             Action<TProjection> added)
@@ -94,7 +94,7 @@ namespace Jinaga
             );
         }
 
-        public Observer<TProjection> Watch<TFact, TProjection>(
+        public IWatch Watch<TFact, TProjection>(
             Specification<TFact, TProjection> specification,
             TFact given,
             Func<TProjection, Action> added)
@@ -114,7 +114,7 @@ namespace Jinaga
             );
         }
 
-        public Observer<TProjection> Watch<TFact, TProjection>(
+        public IWatch Watch<TFact, TProjection>(
             Specification<TFact, TProjection> specification,
             TFact given,
             Func<TProjection, Task> added)
@@ -129,7 +129,7 @@ namespace Jinaga
             );
         }
 
-        public Observer<TProjection> Watch<TFact, TProjection>(
+        public IWatch Watch<TFact, TProjection>(
             Specification<TFact, TProjection> specification,
             TFact given,
             Func<TProjection, Task<Func<Task>>> added)
@@ -141,7 +141,8 @@ namespace Jinaga
             }
 
             var graph = factManager.Serialize(given);
-            var observer = factManager.StartObserver(graph, specification, added);
+            Func<object, Task<Func<Task>>> onAdded = (object obj) => added((TProjection)obj);
+            var observer = factManager.StartObserver(graph, specification, typeof(TProjection), onAdded);
             return observer;
         }
     }

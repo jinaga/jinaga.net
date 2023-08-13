@@ -28,7 +28,6 @@ namespace Jinaga.Managers
 
         private SerializerCache serializerCache = SerializerCache.Empty;
         private DeserializerCache deserializerCache = DeserializerCache.Empty;
-        private ImmutableList<IObserver> observers = ImmutableList<IObserver>.Empty;
 
         public async Task<ImmutableList<Fact>> Save(FactGraph graph, CancellationToken cancellationToken)
         {
@@ -134,13 +133,12 @@ namespace Jinaga.Managers
             }
         }
 
-        public Observer<TProjection> StartObserver<TProjection>(FactGraph graph, Specification specification, Func<TProjection, Task<Func<Task>>> added)
+        public Observer StartObserver(FactGraph graph, Specification specification, Type projectionType, Func<object, Task<Func<Task>>> onAdded)
         {
             var givenReference = graph.Last;
             var projection = specification.Projection;
             var givenAnchor = Product.Empty.With(specification.Given.First().Name, new SimpleElement(givenReference));
-            var observation = new FunctionObservation<TProjection>(givenAnchor, added);
-            var observer = new Observer<TProjection>(specification, givenAnchor, this, observation);
+            var observer = new Observer(specification, givenAnchor, projectionType, this, onAdded);
             observer.Start();
             return observer;
         }
@@ -148,22 +146,6 @@ namespace Jinaga.Managers
         public SpecificationListener AddSpecificationListener(Specification specification, Action<ImmutableList<Product>> onResult)
         {
             return observableSource.AddSpecificationListener(specification, onResult);
-        }
-
-        public void AddObserver(IObserver observer)
-        {
-            lock (this)
-            {
-                observers = observers.Add(observer);
-            }
-        }
-
-        public void RemoveObserver(IObserver observer)
-        {
-            lock (this)
-            {
-                observers = observers.Remove(observer);
-            }
         }
 
         public async Task NotifyObservers(FactGraph graph, ImmutableList<Fact> facts, CancellationToken cancellationToken)
