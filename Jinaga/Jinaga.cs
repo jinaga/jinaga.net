@@ -141,8 +141,11 @@ namespace Jinaga
             }
 
             var graph = factManager.Serialize(given);
+            var givenReference = graph.Last;
+            var givenTuple = FactReferenceTuple.Empty
+                .Add(specification.Given.Single().Name, givenReference);
             Func<object, Task<Func<Task>>> onAdded = (object obj) => added((TProjection)obj);
-            var observer = factManager.StartObserver(graph, specification, typeof(TProjection), onAdded);
+            var observer = factManager.StartObserver(givenTuple, specification, typeof(TProjection), onAdded);
             return observer;
         }
     }

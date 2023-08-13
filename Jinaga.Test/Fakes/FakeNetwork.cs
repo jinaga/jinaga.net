@@ -1,6 +1,4 @@
 ﻿using Jinaga.Facts;
-using Jinaga.Managers;
-using Jinaga.Products;
 using Jinaga.Projections;
 using Jinaga.Serialization;
 using Jinaga.Services;
@@ -52,7 +50,7 @@ internal class FakeNetwork : INetwork
         return Task.FromResult(feeds.Select(feed => feed.Name).ToImmutableList());
     }
 
-    public Task<ImmutableList<string>> Feeds(Product givenProduct, Specification specification, CancellationToken cancellationToken)
+    public Task<ImmutableList<string>> Feeds(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
     {
         return Task.FromResult(feeds.Select(feed => feed.Name).ToImmutableList());
     }

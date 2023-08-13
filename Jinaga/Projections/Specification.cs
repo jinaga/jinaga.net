@@ -1,8 +1,6 @@
 using Jinaga.Facts;
-using Jinaga.Managers;
 using Jinaga.Pipelines;
 using Jinaga.Products;
-using Jinaga.Serialization;
 using System;
 using System.Collections.Immutable;
 using System.Linq;
@@ -40,30 +38,18 @@ namespace Jinaga.Projections
         {
             var start = Given.Zip(givenReferences, (given, reference) =>
                 (name: given.Name, reference)
-            ).ToImmutableDictionary(pair => pair.name, pair => pair.reference);
+            ).Aggregate(
+                FactReferenceTuple.Empty,
+                (tuple, pair) => tuple.Add(pair.name, pair.reference)
+            );
             var tuples = ExecuteMatches(start, Matches, graph);
             var products = tuples.Select(tuple => CreateProduct(tuple, Projection, graph)).ToImmutableList();
             return products;
         }
 
-        public ImmutableList<Product> Execute(Product givenProduct, FactGraph graph)
+        public ImmutableList<Product> Execute(FactReferenceTuple givenTuple, FactGraph graph)
         {
-            var start = Given.Aggregate(
-                ImmutableDictionary<string, FactReference>.Empty,
-                (dictionary, label) =>
-                {
-                    var value = givenProduct.GetElement(label.Name);
-                    if (value is SimpleElement simple)
-                    {
-                        return dictionary.Add(label.Name, simple.FactReference);
-                    }
-                    else
-                    {
-                        throw new Exception($"Unsupported element type {value.GetType().Name}.");
-                    }
-                }
-            );
-            var tuples = ExecuteMatches(start, Matches, graph);
+            var tuples = ExecuteMatches(givenTuple, Matches, graph);
             var products = tuples.Select(tuple => CreateProduct(tuple, Projection, graph)).ToImmutableList();
             return products;
         }
@@ -82,19 +68,12 @@ namespace Jinaga.Projections
             return $"{indent}({given}) {{\n{matches}{indent}}}{projection}\n";
         }
 
-        internal string GenerateDeclarationString(Product given)
+        internal string GenerateDeclarationString(FactReferenceTuple given)
         {
             var startStrings = Given.Select(label =>
             {
-                var value = given.GetElement(label.Name);
-                if (value is SimpleElement simple)
-                {
-                    return $"let {label.Name}: {label.Type} = #{simple.FactReference.Hash}\n";
-                }
-                else
-                {
-                    throw new Exception($"Unsupported element type {value.GetType().Name}.");
-                }
+                var reference = given.Get(label.Name);
+                return $"let {label.Name}: {label.Type} = #{reference.Hash}\n";
             });
             return string.Join("", startStrings);
         }
@@ -112,7 +91,7 @@ namespace Jinaga.Projections
             return ToDescriptiveString();
         }
 
-        private static ImmutableList<ImmutableDictionary<string, FactReference>> ExecuteMatches(ImmutableDictionary<string, FactReference> start, ImmutableList<Match> matches, FactGraph graph)
+        private static ImmutableList<FactReferenceTuple> ExecuteMatches(FactReferenceTuple start, ImmutableList<Match> matches, FactGraph graph)
         {
             return matches.Aggregate(
                 ImmutableList.Create(start),
@@ -121,17 +100,17 @@ namespace Jinaga.Projections
                     .ToImmutableList());
         }
 
-        private static Product CreateProduct(ImmutableDictionary<string, FactReference> tuple, Projection projection, FactGraph graph)
+        private static Product CreateProduct(FactReferenceTuple tuple, Projection projection, FactGraph graph)
         {
-            var product = tuple.Keys.Aggregate(
+            var product = tuple.Names.Aggregate(
                 Product.Empty,
-                (product, name) => product.With(name, new SimpleElement(tuple[name]))
+                (product, name) => product.With(name, new SimpleElement(tuple.Get(name)))
             );
             product = ExecuteProjection(tuple, product, projection, graph);
             return product;
         }
 
-        private static Product ExecuteProjection(ImmutableDictionary<string, FactReference> tuple, Product product, Projection projection, FactGraph graph)
+        private static Product ExecuteProjection(FactReferenceTuple tuple, Product product, Projection projection, FactGraph graph)
         {
             if (projection is CompoundProjection compoundProjection)
             {
@@ -140,7 +119,7 @@ namespace Jinaga.Projections
                     var childProjection = compoundProjection.GetProjection(name);
                     if (childProjection is SimpleProjection simpleProjection)
                     {
-                        var element = new SimpleElement(tuple[simpleProjection.Tag]);
+                        var element = new SimpleElement(tuple.Get(simpleProjection.Tag));
                         product = product.With(name, element);
                     }
                     else if (childProjection is CollectionProjection collectionProjection)
@@ -152,7 +131,7 @@ namespace Jinaga.Projections
                     }
                     else if (childProjection is FieldProjection fieldProjection)
                     {
-                        var element = new SimpleElement(tuple[fieldProjection.Tag]);
+                        var element = new SimpleElement(tuple.Get(fieldProjection.Tag));
                         product = product.With(name, element);
                     }
                     else
@@ -164,7 +143,7 @@ namespace Jinaga.Projections
             return product;
         }
 
-        private static ImmutableList<ImmutableDictionary<string, FactReference>> ExecuteMatch(ImmutableDictionary<string, FactReference> references, Match match, FactGraph graph)
+        private static ImmutableList<FactReferenceTuple> ExecuteMatch(FactReferenceTuple references, Match match, FactGraph graph)
         {
             var condition = match.Conditions.Single();
             if (condition is PathCondition pathCondition)
@@ -180,14 +159,9 @@ namespace Jinaga.Projections
             }
         }
 
-        private static ImmutableList<FactReference> ExecutePathCondition(ImmutableDictionary<string, FactReference> start, Label unknown, PathCondition pathCondition, FactGraph graph)
+        private static ImmutableList<FactReference> ExecutePathCondition(FactReferenceTuple start, Label unknown, PathCondition pathCondition, FactGraph graph)
         {
-            if (!start.ContainsKey(pathCondition.LabelRight))
-            {
-                var keys = string.Join(", ", start.Keys);
-                throw new ArgumentException($"The label {pathCondition.LabelRight} is not in the start set: {keys}.");
-            }
-            var startingFactReference = start[pathCondition.LabelRight];
+            var startingFactReference = start.Get(pathCondition.LabelRight);
             var set = ImmutableList.Create(startingFactReference);
             foreach (var role in pathCondition.RolesRight)
             {

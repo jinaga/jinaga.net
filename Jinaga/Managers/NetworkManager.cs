@@ -1,6 +1,5 @@
 ﻿using Jinaga.Facts;
 using Jinaga.Identity;
-using Jinaga.Products;
 using Jinaga.Projections;
 using Jinaga.Services;
 using System;
@@ -77,10 +76,10 @@ namespace Jinaga.Managers
             }
         }
 
-        public async Task Fetch(Product givenProduct, Specification specification, CancellationToken cancellationToken)
+        public async Task Fetch(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
         {
             var reducedSpecification = specification.Reduce();
-            var feeds = await GetFeedsFromCache(givenProduct, reducedSpecification, cancellationToken);
+            var feeds = await GetFeedsFromCache(givenTuple, reducedSpecification, cancellationToken);
 
             // Fork to fetch from each feed.
             var tasks = feeds.Select(feed =>
@@ -104,7 +103,7 @@ namespace Jinaga.Managers
             catch (Exception)
             {
                 // If any feed fails, then remove the specification from the cache.
-                RemoveFeedsFromCache(givenProduct, reducedSpecification);
+                RemoveFeedsFromCache(givenTuple, reducedSpecification);
                 throw;
             }
         }
@@ -180,21 +179,21 @@ namespace Jinaga.Managers
             }
         }
 
-        private async Task<ImmutableList<string>> GetFeedsFromCache(Product givenProduct, Specification specification, CancellationToken cancellationToken)
+        private async Task<ImmutableList<string>> GetFeedsFromCache(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
         {
-            var hash = IdentityUtilities.ComputeSpecificationHash(specification, givenProduct);
+            var hash = IdentityUtilities.ComputeSpecificationHash(specification, givenTuple);
             if (feedsCache.TryGetValue(hash, out var cached))
             {
                 return cached;
             }
-            var feeds = await network.Feeds(givenProduct, specification, cancellationToken);
+            var feeds = await network.Feeds(givenTuple, specification, cancellationToken);
             feedsCache = feedsCache.Add(hash, feeds);
             return feeds;
         }
 
-        private void RemoveFeedsFromCache(Product givenProduct, Specification specification)
+        private void RemoveFeedsFromCache(FactReferenceTuple givenTuple, Specification specification)
         {
-            var hash = IdentityUtilities.ComputeSpecificationHash(specification, givenProduct);
+            var hash = IdentityUtilities.ComputeSpecificationHash(specification, givenTuple);
             feedsCache = feedsCache.Remove(hash);
         }
     }

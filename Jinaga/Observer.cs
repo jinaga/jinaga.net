@@ -18,7 +18,7 @@ namespace Jinaga
     {
         private readonly Specification specification;
         private readonly string specificationHash;
-        private readonly Product givenAnchor;
+        private readonly FactReferenceTuple givenTuple;
         private readonly Type projectionType;
         private readonly FactManager factManager;
 
@@ -36,18 +36,18 @@ namespace Jinaga
         private ImmutableHashSet<Product> notifiedTuples =
             ImmutableHashSet<Product>.Empty;
 
-        internal Observer(Specification specification, Product givenAnchor, Type projectionType, FactManager factManager, Func<object, Task<Func<Task>>> onAdded)
+        internal Observer(Specification specification, FactReferenceTuple givenTuple, Type projectionType, FactManager factManager, Func<object, Task<Func<Task>>> onAdded)
         {
             this.specification = specification;
-            this.givenAnchor = givenAnchor;
+            this.givenTuple = givenTuple;
             this.projectionType = projectionType;
             this.factManager = factManager;
 
             // Add the initial handler.
-            addedHandlers = addedHandlers.Add(new AddedHandler(givenAnchor, "", onAdded));
+            addedHandlers = addedHandlers.Add(new AddedHandler(givenTuple, "", onAdded));
 
             // Identify a specification by its hash.
-            specificationHash = IdentityUtilities.ComputeSpecificationHash(specification, givenAnchor);
+            specificationHash = IdentityUtilities.ComputeSpecificationHash(specification, givenTuple);
         }
 
         public Task Initialized => loadedTask!;
@@ -95,7 +95,7 @@ namespace Jinaga
             await factManager.SetMruDate(specificationHash, DateTime.UtcNow);
         }
 
-        public void OnAdded(Product anchor, string path, Func<object, Task<Func<Task>>> added)
+        public void OnAdded(FactReferenceTuple anchor, string path, Func<object, Task<Func<Task>>> added)
         {
             addedHandlers = addedHandlers.Add(new AddedHandler(anchor, path, added));
         }
@@ -106,7 +106,7 @@ namespace Jinaga
 
         private async Task Read(CancellationToken cancellationToken)
         {
-            var results = await factManager.Read(givenAnchor, specification, projectionType, this, cancellationToken);
+            var results = await factManager.Read(givenTuple, specification, projectionType, this, cancellationToken);
             AddSpecificationListeners();
             var givenSubset = specification.Given
                 .Select(label => label.Name)
@@ -116,7 +116,7 @@ namespace Jinaga
 
         private Task Fetch(CancellationToken cancellationToken)
         {
-            return factManager.Fetch(givenAnchor, specification, cancellationToken);
+            return factManager.Fetch(givenTuple, specification, cancellationToken);
         }
 
         private void AddSpecificationListeners()
@@ -136,7 +136,7 @@ namespace Jinaga
                 .Select(label => label.Name)
                 .Aggregate(Subset.Empty, (subset, name) => subset.Add(name));
             var matchingProducts = products
-                .Where(result => givenSubset.Of(result).Equals(givenAnchor))
+                .Where(result => givenSubset.Of(result).Equals(givenTuple))
                 .ToImmutableList();
             if (matchingProducts.IsEmpty)
             {

@@ -87,9 +87,8 @@ namespace Jinaga.Observers
                     {
                         var specification = specificationWithListeners.Specification;
                         var givenReference = fact.Reference;
-                        var element = new SimpleElement(givenReference);
                         string name = specification.Given.Single().Name;
-                        var givenProduct = Product.Empty.With(name, element);
+                        var givenProduct = FactReferenceTuple.Empty.Add(name, givenReference);
                         var products = specification.CanRunOnGraph
                             ? specification.Execute(givenProduct, graph)
                             : await store.Read(givenProduct, specification, cancellationToken);

@@ -58,28 +58,28 @@ namespace Jinaga.Storage
         {
             var start = specification.Given.Zip(givenReferences, (given, reference) =>
                 (name: given.Name, reference)
-            ).ToImmutableDictionary(pair => pair.name, pair => pair.reference);
+            ).Aggregate(
+                FactReferenceTuple.Empty,
+                (tuple, pair) => tuple.Add(pair.name, pair.reference)
+            );
             var products = ExecuteMatchesAndProjection(start, specification.Matches, specification.Projection);
             return Task.FromResult(products);
         }
 
-        public Task<ImmutableList<Product>> Read(Product givenProduct, Specification specification, CancellationToken cancellationToken)
+        public Task<ImmutableList<Product>> Read(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
         {
-            var start = specification.Given.Select(label =>
-                (name: label.Name, reference: givenProduct.GetFactReference(label.Name))
-            ).ToImmutableDictionary(pair => pair.name, pair => pair.reference);
-            var products = ExecuteMatchesAndProjection(start, specification.Matches, specification.Projection);
+            var products = ExecuteMatchesAndProjection(givenTuple, specification.Matches, specification.Projection);
             return Task.FromResult(products);
         }
 
-        private ImmutableList<Product> ExecuteMatchesAndProjection(ImmutableDictionary<string, FactReference> start, ImmutableList<Match> matches, Projection projection)
+        private ImmutableList<Product> ExecuteMatchesAndProjection(FactReferenceTuple start, ImmutableList<Match> matches, Projection projection)
         {
-            ImmutableList<ImmutableDictionary<string, FactReference>> tuples = ExecuteMatches(start, matches);
+            ImmutableList<FactReferenceTuple> tuples = ExecuteMatches(start, matches);
             var products = tuples.Select(tuple => CreateProduct(tuple, projection)).ToImmutableList();
             return products;
         }
 
-        private ImmutableList<ImmutableDictionary<string, FactReference>> ExecuteMatches(ImmutableDictionary<string, FactReference> start, ImmutableList<Match> matches)
+        private ImmutableList<FactReferenceTuple> ExecuteMatches(FactReferenceTuple start, ImmutableList<Match> matches)
         {
             return matches.Aggregate(
                 ImmutableList.Create(start),
@@ -88,9 +88,9 @@ namespace Jinaga.Storage
                     .ToImmutableList());
         }
 
-        private ImmutableList<ImmutableDictionary<string, FactReference>> ExecuteMatch(ImmutableDictionary<string, FactReference> references, Match match)
+        private ImmutableList<FactReferenceTuple> ExecuteMatch(FactReferenceTuple references, Match match)
         {
-            ImmutableList<ImmutableDictionary<string, FactReference>> resultReferences;
+            ImmutableList<FactReferenceTuple> resultReferences;
             var firstCondition = match.Conditions.First();
             if (firstCondition is PathCondition pathCondition)
             {
@@ -110,14 +110,9 @@ namespace Jinaga.Storage
             return resultReferences;
         }
 
-        private ImmutableList<FactReference> ExecutePathCondition(ImmutableDictionary<string, FactReference> start, Label unknown, PathCondition pathCondition)
+        private ImmutableList<FactReference> ExecutePathCondition(FactReferenceTuple start, Label unknown, PathCondition pathCondition)
         {
-            if (!start.ContainsKey(pathCondition.LabelRight))
-            {
-                var keys = string.Join(", ", start.Keys);
-                throw new ArgumentException($"The label {pathCondition.LabelRight} is not in the start set: {keys}.");
-            }
-            var startingFactReference = start[pathCondition.LabelRight];
+            var startingFactReference = start.Get(pathCondition.LabelRight);
             var set = new FactReference[] { startingFactReference }.ToImmutableList();
             foreach (var role in pathCondition.RolesRight)
             {
@@ -130,7 +125,7 @@ namespace Jinaga.Storage
             return set;
         }
 
-        private ImmutableList<ImmutableDictionary<string, FactReference>> FilterByCondition(ImmutableDictionary<string, FactReference> references, ImmutableList<ImmutableDictionary<string, FactReference>> resultReferences, MatchCondition condition)
+        private ImmutableList<FactReferenceTuple> FilterByCondition(FactReferenceTuple references, ImmutableList<FactReferenceTuple> resultReferences, MatchCondition condition)
         {
             if (condition is PathCondition pathCondition)
             {
@@ -161,17 +156,17 @@ namespace Jinaga.Storage
             }
         }
 
-        private Product CreateProduct(ImmutableDictionary<string, FactReference> tuple, Projection projection)
+        private Product CreateProduct(FactReferenceTuple tuple, Projection projection)
         {
-            var product = tuple.Keys.Aggregate(
+            var product = tuple.Names.Aggregate(
                 Product.Empty,
-                (product, name) => product.With(name, new SimpleElement(tuple[name]))
+                (product, name) => product.With(name, new SimpleElement(tuple.Get(name)))
             );
             product = ExecuteProjection(tuple, product, projection);
             return product;
         }
 
-        private Product ExecuteProjection(ImmutableDictionary<string, FactReference> tuple, Product product, Projection projection)
+        private Product ExecuteProjection(FactReferenceTuple tuple, Product product, Projection projection)
         {
             if (projection is CompoundProjection compoundProjection)
             {
@@ -180,7 +175,7 @@ namespace Jinaga.Storage
                     var childProjection = compoundProjection.GetProjection(name);
                     if (childProjection is SimpleProjection simpleProjection)
                     {
-                        var element = new SimpleElement(tuple[simpleProjection.Tag]);
+                        var element = new SimpleElement(tuple.Get(simpleProjection.Tag));
                         product = product.With(simpleProjection.Tag, element);
                     }
                     else if (childProjection is CollectionProjection collectionProjection)
@@ -191,7 +186,7 @@ namespace Jinaga.Storage
                     }
                     else if (childProjection is FieldProjection fieldProjection)
                     {
-                        var element = new SimpleElement(tuple[fieldProjection.Tag]);
+                        var element = new SimpleElement(tuple.Get(fieldProjection.Tag));
                         product = product.With(fieldProjection.Tag, element);
                     }
                     else

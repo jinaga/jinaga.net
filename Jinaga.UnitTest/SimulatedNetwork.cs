@@ -1,5 +1,4 @@
 ﻿using Jinaga.Facts;
-using Jinaga.Products;
 using Jinaga.Projections;
 using Jinaga.Services;
 using System;
@@ -21,7 +20,7 @@ namespace Jinaga.UnitTest
             return Task.FromResult(ImmutableList<string>.Empty);
         }
 
-        public Task<ImmutableList<string>> Feeds(Product givenProduct, Specification specification, CancellationToken cancellationToken)
+        public Task<ImmutableList<string>> Feeds(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
         {
             return Task.FromResult(ImmutableList<string>.Empty);
         }

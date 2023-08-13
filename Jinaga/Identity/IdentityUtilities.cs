@@ -1,4 +1,4 @@
-﻿using Jinaga.Products;
+﻿using Jinaga.Facts;
 using Jinaga.Projections;
 using System;
 using System.Security.Cryptography;
@@ -17,9 +17,9 @@ namespace Jinaga.Identity
             return hashString;
         }
 
-        public static string ComputeSpecificationHash(Specification specification, Product givenProduct)
+        public static string ComputeSpecificationHash(Specification specification, FactReferenceTuple givenTuple)
         {
-            string declarationString = specification.GenerateDeclarationString(givenProduct);
+            string declarationString = specification.GenerateDeclarationString(givenTuple);
             string specificationString = specification.ToDescriptiveString();
             string request = $"{declarationString}\n${specificationString}";
             string hashString = ComputeStringHash(request);

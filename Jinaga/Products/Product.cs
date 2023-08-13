@@ -63,12 +63,15 @@ namespace Jinaga.Products
             return new Product(elements.SetItem(name, element));
         }
 
-        public Product GetAnchor()
+        public FactReferenceTuple GetAnchor()
         {
-            var anchorElements = elements
-                .Where(pair => !(pair.Value is CollectionElement))
-                .ToImmutableDictionary();
-            return new Product(anchorElements);
+            var anchor = elements
+                .Where(pair => pair.Value is SimpleElement)
+                .Aggregate(
+                    FactReferenceTuple.Empty,
+                    (tuple, pair) => tuple.Add(pair.Key, ((SimpleElement)pair.Value).FactReference)
+                );
+            return anchor;
         }
 
         public override bool Equals(object obj)

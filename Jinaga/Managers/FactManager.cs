@@ -46,14 +46,14 @@ namespace Jinaga.Managers
             await networkManager.Fetch(givenReferences, specification, cancellationToken);
         }
 
-        public async Task Fetch(Product givenProduct, Specification specification, CancellationToken cancellationToken)
+        public async Task Fetch(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
         {
-            await networkManager.Fetch(givenProduct, specification, cancellationToken);
+            await networkManager.Fetch(givenTuple, specification, cancellationToken);
         }
 
-        public async Task<ImmutableList<ProjectedResult>> Read(Product givenProduct, Specification specification, Type type, IWatchContext? watchContext, CancellationToken cancellationToken)
+        public async Task<ImmutableList<ProjectedResult>> Read(FactReferenceTuple givenTuple, Specification specification, Type type, IWatchContext? watchContext, CancellationToken cancellationToken)
         {
-            var products = await store.Read(givenProduct, specification, cancellationToken);
+            var products = await store.Read(givenTuple, specification, cancellationToken);
             if (products.Count == 0)
             {
                 return ImmutableList<ProjectedResult>.Empty;
@@ -131,12 +131,9 @@ namespace Jinaga.Managers
             }
         }
 
-        public Observer StartObserver(FactGraph graph, Specification specification, Type projectionType, Func<object, Task<Func<Task>>> onAdded)
+        public Observer StartObserver(FactReferenceTuple givenTuple, Specification specification, Type projectionType, Func<object, Task<Func<Task>>> onAdded)
         {
-            var givenReference = graph.Last;
-            var projection = specification.Projection;
-            var givenAnchor = Product.Empty.With(specification.Given.First().Name, new SimpleElement(givenReference));
-            var observer = new Observer(specification, givenAnchor, projectionType, this, onAdded);
+            var observer = new Observer(specification, givenTuple, projectionType, this, onAdded);
             observer.Start();
             return observer;
         }

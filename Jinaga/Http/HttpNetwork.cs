@@ -1,6 +1,5 @@
 ﻿using Jinaga.Facts;
 using Jinaga.Pipelines;
-using Jinaga.Products;
 using Jinaga.Projections;
 using Jinaga.Records;
 using Jinaga.Services;
@@ -40,9 +39,9 @@ namespace Jinaga.Http
             return feeds;
         }
 
-        public async Task<ImmutableList<string>> Feeds(Product givenProduct, Specification specification, CancellationToken cancellationToken)
+        public async Task<ImmutableList<string>> Feeds(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
         {
-            string declarationString = specification.GenerateDeclarationString(givenProduct);
+            string declarationString = specification.GenerateDeclarationString(givenTuple);
             string specificationString = GenerateSpecificationString(specification);
             string request = $"{declarationString}\n${specificationString}";
             var response = await webClient.Feeds(request);
