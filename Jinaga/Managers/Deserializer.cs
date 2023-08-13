@@ -20,16 +20,16 @@ namespace Jinaga.Managers
             Type type,
             ImmutableList<Product> products,
             Product anchor,
-            string collectionName)
+            string path)
         {
             if (projection is SimpleProjection simpleProjection)
-                return DeserializeSimpleProjection(emitter, simpleProjection, type, products, anchor, collectionName);
+                return DeserializeSimpleProjection(emitter, simpleProjection, type, products, anchor, path);
             else if (projection is CompoundProjection compoundProjection)
-                return DeserializeCompoundProjection(emitter, compoundProjection, type, products, anchor, collectionName);
+                return DeserializeCompoundProjection(emitter, compoundProjection, type, products, anchor, path);
             else if (projection is CollectionProjection collectionProjection)
-                return DeserializeCollectionProjection(emitter, collectionProjection, type, products, anchor, collectionName);
+                return DeserializeCollectionProjection(emitter, collectionProjection, type, products, anchor, path);
             else if (projection is FieldProjection fieldProjection)
-                return DeserializeFieldProjection(emitter, fieldProjection, type, products, anchor, collectionName);
+                return DeserializeFieldProjection(emitter, fieldProjection, type, products, anchor, path);
             else
                 throw new ArgumentException($"Unknown projection type {projection.GetType().Name}");
         }
@@ -40,14 +40,14 @@ namespace Jinaga.Managers
             Type type,
             ImmutableList<Product> products,
             Product anchor,
-            string collectionName)
+            string path)
         {
             var productProjections = products
                 .Select(product => new ProductAnchorProjection(
                     product,
                     anchor,
                     emitter.DeserializeToType(product.GetFactReference(simpleProjection.Tag), type),
-                    collectionName
+                    path
                 ))
                 .ToImmutableList();
             return productProjections;
@@ -59,7 +59,7 @@ namespace Jinaga.Managers
             Type type,
             ImmutableList<Product> products,
             Product anchor,
-            string collectionName)
+            string path)
         {
             var constructorInfos = type.GetConstructors();
             if (constructorInfos.Length != 1)
@@ -75,9 +75,9 @@ namespace Jinaga.Managers
                     let result = constructor.Invoke((
                         from parameter in parameters
                         let projection = compoundProjection.GetProjection(parameter.Name)
-                        select DeserializeParameter(emitter, projection, parameter.ParameterType, parameter.Name, product)
+                        select DeserializeParameter(emitter, projection, path, parameter.ParameterType, parameter.Name, product)
                     ).ToArray())
-                    select new ProductAnchorProjection(product, anchor, result, collectionName);
+                    select new ProductAnchorProjection(product, anchor, result, path);
                 return productProjections.ToImmutableList();
             }
             else
@@ -85,7 +85,7 @@ namespace Jinaga.Managers
                 var properties = type.GetProperties();
                 var productProjections = products.Select(product =>
                 {
-                    return DeserializeProducts(emitter, compoundProjection, type, product, properties, anchor, collectionName);
+                    return DeserializeProducts(emitter, compoundProjection, type, product, properties, anchor, path);
                 });
                 var childProductProjections =
                     from product in products
@@ -102,7 +102,7 @@ namespace Jinaga.Managers
                     let element = product.GetElement(property.Name)
                     where element is CollectionElement
                     let collectionElement = (CollectionElement)element
-                    from childProductProjection in DeserializeChildParameters(emitter, collectionProjection.Projection, property.PropertyType, property.Name, collectionElement.Products, parentAnchor)
+                    from childProductProjection in DeserializeChildParameters(emitter, collectionProjection.Projection, path, property.PropertyType, property.Name, collectionElement.Products, parentAnchor)
                     select childProductProjection;
                 return productProjections.Concat(childProductProjections).ToImmutableList();
             }
@@ -115,16 +115,16 @@ namespace Jinaga.Managers
             Product product,
             PropertyInfo[] properties,
             Product anchor,
-            string collectionName)
+            string path)
         {
             var result = Activator.CreateInstance(type);
             foreach (var property in properties)
             {
                 var projection = compoundProjection.GetProjection(property.Name);
-                var value = DeserializeParameter(emitter, projection, property.PropertyType, property.Name, product);
+                var value = DeserializeParameter(emitter, projection, path, property.PropertyType, property.Name, product);
                 property.SetValue(result, value);
             }
-            return new ProductAnchorProjection(product, anchor, result, collectionName);
+            return new ProductAnchorProjection(product, anchor, result, path);
         }
 
         private static ImmutableList<ProductAnchorProjection> DeserializeCollectionProjection(Emitter emitter, CollectionProjection collectionProjection, Type type, ImmutableList<Product> products, Product anchor, string collectionName)
@@ -156,6 +156,7 @@ namespace Jinaga.Managers
         private static IEnumerable<ProductAnchorProjection> DeserializeChildParameters(
             Emitter emitter,
             Projection projection,
+            string parentPath,
             Type propertyType,
             string parameterName,
             ImmutableList<Product> products,
@@ -164,7 +165,8 @@ namespace Jinaga.Managers
             if (emitter.WatchContext != null)
             {
                 var elementType = propertyType.GetGenericArguments()[0];
-                var productProjections = Deserialize(emitter, projection, elementType, products, anchor, parameterName);
+                var path = string.IsNullOrEmpty(parentPath) ? parameterName : $"{parentPath}.{parameterName}";
+                var productProjections = Deserialize(emitter, projection, elementType, products, anchor, path);
                 return productProjections;
             }
             else
@@ -173,7 +175,7 @@ namespace Jinaga.Managers
             }
         }
 
-        private static object DeserializeParameter(Emitter emitter, Projection projection, Type parameterType, string parameterName, Product product)
+        private static object DeserializeParameter(Emitter emitter, Projection projection, string parentPath, Type parameterType, string parameterName, Product product)
         {
             if (parameterType.IsFactType())
             {
@@ -197,13 +199,14 @@ namespace Jinaga.Managers
                     {
                         var collectionProjection = (CollectionProjection)projection;
                         var collectionElement = (CollectionElement)product.GetElement(parameterName);
+                        var path = string.IsNullOrEmpty(parentPath) ? parameterName : $"{parentPath}.{parameterName}";
                         var elements = Deserialize(
                                 emitter,
                                 collectionProjection.Projection,
                                 elementType,
                                 collectionElement.Products,
                                 product.GetAnchor(),
-                                parameterName
+                                path
                             )
                             .Select(p => p.Projection)
                             .ToImmutableList();

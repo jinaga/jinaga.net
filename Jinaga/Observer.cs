@@ -14,7 +14,7 @@ using System.Threading.Tasks;
 
 namespace Jinaga
 {
-    public class Observer : IWatch
+    public class Observer : IWatch, IWatchContext
     {
         private readonly Specification specification;
         private readonly string specificationHash;
@@ -101,7 +101,7 @@ namespace Jinaga
 
         private async Task Read(CancellationToken cancellationToken)
         {
-            var results = await factManager.Read(givenAnchor, specification, projectionType, cancellationToken);
+            var results = await factManager.Read(givenAnchor, specification, projectionType, this, cancellationToken);
             AddSpecificationListeners();
             var givenSubset = specification.Given
                 .Select(label => label.Name)
@@ -162,6 +162,11 @@ namespace Jinaga
                     }
                 }
             }
+        }
+
+        public void OnAdded(Product anchor, string path, Func<object, Task<Func<Task>>> added)
+        {
+            addedHandlers = addedHandlers.Add(new AddedHandler(anchor, "", path, added));
         }
     }
 }

@@ -51,7 +51,7 @@ namespace Jinaga.Managers
             await networkManager.Fetch(givenProduct, specification, cancellationToken);
         }
 
-        public async Task<ImmutableList<ProductAnchorProjection>> Read(Product givenProduct, Specification specification, Type type, CancellationToken cancellationToken)
+        public async Task<ImmutableList<ProductAnchorProjection>> Read(Product givenProduct, Specification specification, Type type, IWatchContext? watchContext, CancellationToken cancellationToken)
         {
             var products = await store.Read(givenProduct, specification, cancellationToken);
             if (products.Count == 0)
@@ -62,7 +62,7 @@ namespace Jinaga.Managers
                 .SelectMany(product => product.GetFactReferences())
                 .ToImmutableList();
             var graph = await store.Load(references, cancellationToken);
-            return DeserializeProductsFromGraph(graph, specification.Projection, products, type, givenProduct, "", null);
+            return DeserializeProductsFromGraph(graph, specification.Projection, products, type, givenProduct, "", watchContext);
         }
 
         public async Task<ImmutableList<Product>> Query(ImmutableList<FactReference> givenReferences, Specification specification, CancellationToken cancellationToken)
@@ -121,13 +121,13 @@ namespace Jinaga.Managers
             ImmutableList<Product> products,
             Type type,
             Product anchor,
-            string collectionName,
+            string path,
             IWatchContext? watchContext)
         {
             lock (this)
             {
                 var emitter = new Emitter(graph, deserializerCache, watchContext);
-                ImmutableList<ProductAnchorProjection> results = Deserializer.Deserialize(emitter, projection, type, products, anchor, collectionName);
+                ImmutableList<ProductAnchorProjection> results = Deserializer.Deserialize(emitter, projection, type, products, anchor, path);
                 deserializerCache = emitter.DeserializerCache;
                 return results;
             }
