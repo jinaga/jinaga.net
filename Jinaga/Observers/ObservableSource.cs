@@ -43,7 +43,7 @@ namespace Jinaga.Observers
             this.store = store;
         }
 
-        public SpecificationListener AddSpecificationListener(Specification specification, Action<ImmutableList<Product>> onResult)
+        public SpecificationListener AddSpecificationListener(Specification specification, Func<ImmutableList<Product>, CancellationToken, Task> onResult)
         {
             if (specification.Given.Count != 1)
             {
@@ -95,7 +95,7 @@ namespace Jinaga.Observers
                             : await store.Read(givenProduct, specification, cancellationToken);
                         foreach (var listener in listeners)
                         {
-                            listener.OnResult(products);
+                            await listener.OnResult(products, cancellationToken);
                         }
                     }
                 }

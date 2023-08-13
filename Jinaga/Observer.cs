@@ -95,6 +95,11 @@ namespace Jinaga
             await factManager.SetMruDate(specificationHash, DateTime.UtcNow);
         }
 
+        public void OnAdded(Product anchor, string path, Func<object, Task<Func<Task>>> added)
+        {
+            addedHandlers = addedHandlers.Add(new AddedHandler(anchor, path, added));
+        }
+
         public void Stop()
         {
         }
@@ -119,17 +124,37 @@ namespace Jinaga
             var inverses = specification.ComputeInverses();
             ImmutableList<SpecificationListener> listeners = inverses.Select(inverse => factManager.AddSpecificationListener(
                 inverse.InverseSpecification,
-                (ImmutableList<Product> results) => OnResult(inverse, results)
+                async (ImmutableList<Product> results, CancellationToken cancellationToken) => await OnResult(inverse, results, cancellationToken)
             )).ToImmutableList();
             this.listeners = listeners;
         }
 
-        private void OnResult(Inverse inverse, ImmutableList<Product> results)
+        private async Task OnResult(Inverse inverse, ImmutableList<Product> products, CancellationToken cancellationToken)
         {
-            throw new NotImplementedException();
+            // Filter out results that do not match the given.
+            var givenSubset = inverse.InverseSpecification.Given
+                .Select(label => label.Name)
+                .Aggregate(Subset.Empty, (subset, name) => subset.Add(name));
+            var matchingProducts = products
+                .Where(result => givenSubset.Of(result).Equals(givenAnchor))
+                .ToImmutableList();
+            if (matchingProducts.IsEmpty)
+            {
+                return;
+            }
+
+            if (inverse.Operation == InverseOperation.Add || inverse.Operation == InverseOperation.MaybeAdd)
+            {
+                var results = await factManager.ComputeProjections(inverse.InverseSpecification.Projection, matchingProducts, projectionType, this, inverse.Path, cancellationToken);
+                await NotifyAdded(results, inverse.InverseSpecification.Projection, inverse.Path, inverse.ParentSubset);
+            }
+            else if (inverse.Operation == InverseOperation.Remove || inverse.Operation == InverseOperation.MaybeRemove)
+            {
+                await NotifyRemoved(matchingProducts, inverse.ResultSubset);
+            }
         }
 
-        private async Task NotifyAdded(ImmutableList<ProductAnchorProjection> results, Projection projection, string path, Subset parentSubset)
+        private async Task NotifyAdded(ImmutableList<ProjectedResult> results, Projection projection, string path, Subset parentSubset)
         {
             foreach (var result in results)
             {
@@ -164,9 +189,9 @@ namespace Jinaga
             }
         }
 
-        public void OnAdded(Product anchor, string path, Func<object, Task<Func<Task>>> added)
+        private Task NotifyRemoved(ImmutableList<Product> matchingProducts, Subset resultSubset)
         {
-            addedHandlers = addedHandlers.Add(new AddedHandler(anchor, path, added));
+            throw new NotImplementedException();
         }
     }
 }

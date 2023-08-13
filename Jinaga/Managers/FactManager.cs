@@ -51,18 +51,18 @@ namespace Jinaga.Managers
             await networkManager.Fetch(givenProduct, specification, cancellationToken);
         }
 
-        public async Task<ImmutableList<ProductAnchorProjection>> Read(Product givenProduct, Specification specification, Type type, IWatchContext? watchContext, CancellationToken cancellationToken)
+        public async Task<ImmutableList<ProjectedResult>> Read(Product givenProduct, Specification specification, Type type, IWatchContext? watchContext, CancellationToken cancellationToken)
         {
             var products = await store.Read(givenProduct, specification, cancellationToken);
             if (products.Count == 0)
             {
-                return ImmutableList<ProductAnchorProjection>.Empty;
+                return ImmutableList<ProjectedResult>.Empty;
             }
             var references = products
                 .SelectMany(product => product.GetFactReferences())
                 .ToImmutableList();
             var graph = await store.Load(references, cancellationToken);
-            return DeserializeProductsFromGraph(graph, specification.Projection, products, type, givenProduct, "", watchContext);
+            return DeserializeProductsFromGraph(graph, specification.Projection, products, type, "", watchContext);
         }
 
         public async Task<ImmutableList<Product>> Query(ImmutableList<FactReference> givenReferences, Specification specification, CancellationToken cancellationToken)
@@ -79,18 +79,17 @@ namespace Jinaga.Managers
             return await store.Load(references, cancellationToken);
         }
 
-        public async Task<ImmutableList<ProductAnchorProjection>> ComputeProjections(
+        public async Task<ImmutableList<ProjectedResult>> ComputeProjections(
             Projection projection,
             ImmutableList<Product> products,
             Type type,
             IWatchContext? watchContext,
-            Product anchor,
-            string collectionName,
+            string path,
             CancellationToken cancellationToken)
         {
             var references = Projector.GetFactReferences(projection, products, type);
             var graph = await store.Load(references, cancellationToken);
-            return DeserializeProductsFromGraph(graph, projection, products, type, anchor, collectionName, watchContext);
+            return DeserializeProductsFromGraph(graph, projection, products, type, path, watchContext);
         }
 
         public FactGraph Serialize(object prototype)
@@ -115,19 +114,18 @@ namespace Jinaga.Managers
             }
         }
 
-        public ImmutableList<ProductAnchorProjection> DeserializeProductsFromGraph(
+        public ImmutableList<ProjectedResult> DeserializeProductsFromGraph(
             FactGraph graph,
             Projection projection,
             ImmutableList<Product> products,
             Type type,
-            Product anchor,
             string path,
             IWatchContext? watchContext)
         {
             lock (this)
             {
                 var emitter = new Emitter(graph, deserializerCache, watchContext);
-                ImmutableList<ProductAnchorProjection> results = Deserializer.Deserialize(emitter, projection, type, products, anchor, path);
+                ImmutableList<ProjectedResult> results = Deserializer.Deserialize(emitter, projection, type, products, path);
                 deserializerCache = emitter.DeserializerCache;
                 return results;
             }
@@ -143,7 +141,7 @@ namespace Jinaga.Managers
             return observer;
         }
 
-        public SpecificationListener AddSpecificationListener(Specification specification, Action<ImmutableList<Product>> onResult)
+        public SpecificationListener AddSpecificationListener(Specification specification, Func<ImmutableList<Product>, CancellationToken, Task> onResult)
         {
             return observableSource.AddSpecificationListener(specification, onResult);
         }

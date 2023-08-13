@@ -63,14 +63,14 @@ namespace Jinaga
             {
                 var products = specification.Execute(givenReferences, graph);
                 var productAnchorProjections = factManager.DeserializeProductsFromGraph(
-                    graph, specification.Projection, products, typeof(TProjection), Product.Empty, "", null);
+                    graph, specification.Projection, products, typeof(TProjection), "", null);
                 return productAnchorProjections.Select(pap => (TProjection)pap.Projection).ToImmutableList();
             }
             else
             {
                 await factManager.Fetch(givenReferences, specification, cancellationToken);
                 var products = await factManager.Query(givenReferences, specification, cancellationToken);
-                var productProjections = await factManager.ComputeProjections(specification.Projection, products, typeof(TProjection), null, Product.Empty, string.Empty, cancellationToken);
+                var productProjections = await factManager.ComputeProjections(specification.Projection, products, typeof(TProjection), null, string.Empty, cancellationToken);
                 var projections = productProjections
                     .Select(pair => (TProjection)pair.Projection)
                     .ToImmutableList();

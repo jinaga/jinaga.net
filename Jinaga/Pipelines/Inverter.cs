@@ -8,18 +8,22 @@ namespace Jinaga.Pipelines
 {
     class InverterContext
     {
-        public InverterContext(Subset givenSubset, ImmutableList<CollectionIdentifier> collectionIdentifiers, Subset resultSubset, Projection projection)
+        public InverterContext(Subset givenSubset, ImmutableList<CollectionIdentifier> collectionIdentifiers, Subset resultSubset, Projection projection, Subset parentSubset, string path)
         {
             GivenSubset = givenSubset;
             CollectionIdentifiers = collectionIdentifiers;
             ResultSubset = resultSubset;
             Projection = projection;
+            ParentSubset = parentSubset;
+            Path = path;
         }
 
         public Subset GivenSubset { get; }
         public ImmutableList<CollectionIdentifier> CollectionIdentifiers { get; }
         public Subset ResultSubset { get; }
         public Projection Projection { get; }
+        public Subset ParentSubset { get; }
+        public string Path { get; }
     }
     class Inverter
     {
@@ -46,7 +50,9 @@ namespace Jinaga.Pipelines
                 givenSubset,
                 collectionIdentifiers,
                 resultSubset,
-                specification.Projection);
+                specification.Projection,
+                givenSubset,
+                "");
             var inverses = InvertMatches(matches, labels, context);
             inverses = inverses.AddRange(InvertProjection(matches, context));
             return inverses;
@@ -74,7 +80,8 @@ namespace Jinaga.Pipelines
                         context.GivenSubset,
                         InverseOperation.Add,
                         context.ResultSubset,
-                        context.CollectionIdentifiers
+                        context.Path,
+                        context.ParentSubset
                     );
                     inverses = inverses.Add(inverse);
                 }
@@ -111,7 +118,8 @@ namespace Jinaga.Pipelines
                             context.GivenSubset,
                             operation,
                             context.ResultSubset,
-                            ImmutableList<CollectionIdentifier>.Empty
+                            context.Path,
+                            context.ParentSubset
                         );
                         inverses = inverses.Add(inverse);
 
@@ -147,11 +155,14 @@ namespace Jinaga.Pipelines
                 var collectionLabels = collection.Matches.Select(match => match.Unknown);
                 var collectionMatches = matches.AddRange(collection.Matches);
                 var childCollectionIdentifiers = context.CollectionIdentifiers.Add(new CollectionIdentifier(name, context.ResultSubset));
+                string path = string.IsNullOrEmpty(context.Path) ? name : $"{context.Path}.{name}";
                 var childContext = new InverterContext(
                     context.GivenSubset,
                     childCollectionIdentifiers,
                     collectionSubset,
-                    collection.Projection);
+                    collection.Projection,
+                    context.ResultSubset,
+                    path);
                 inverses = inverses.AddRange(InvertMatches(collectionMatches, collectionLabels, childContext));
                 inverses = inverses.AddRange(InvertProjection(collectionMatches, childContext));
             }
