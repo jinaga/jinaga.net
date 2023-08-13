@@ -6,7 +6,6 @@ using Jinaga.Pipelines;
 using Jinaga.Products;
 using Jinaga.Projections;
 using System;
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
@@ -132,11 +131,9 @@ namespace Jinaga
         private async Task OnResult(Inverse inverse, ImmutableList<Product> products, CancellationToken cancellationToken)
         {
             // Filter out results that do not match the given.
-            var givenSubset = inverse.InverseSpecification.Given
-                .Select(label => label.Name)
-                .Aggregate(Subset.Empty, (subset, name) => subset.Add(name));
+            var givenSubset = inverse.GivenSubset;
             var matchingProducts = products
-                .Where(result => givenSubset.Of(result).Equals(givenTuple))
+                .Where(product => givenSubset.Of(product).Equals(givenTuple))
                 .ToImmutableList();
             if (matchingProducts.IsEmpty)
             {

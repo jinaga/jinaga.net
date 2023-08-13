@@ -33,7 +33,7 @@ namespace Jinaga.Pipelines
         {
             var result = names.Aggregate(
                 FactReferenceTuple.Empty,
-                (sub, name) => sub.Add(name, product.GetFactReference(name)));
+                (tuple, name) => tuple.Add(name, product.GetFactReference(name)));
             return result;
         }
 
