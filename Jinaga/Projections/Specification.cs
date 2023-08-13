@@ -46,6 +46,28 @@ namespace Jinaga.Projections
             return products;
         }
 
+        public ImmutableList<Product> Execute(Product givenProduct, FactGraph graph)
+        {
+            var start = Given.Aggregate(
+                ImmutableDictionary<string, FactReference>.Empty,
+                (dictionary, label) =>
+                {
+                    var value = givenProduct.GetElement(label.Name);
+                    if (value is SimpleElement simple)
+                    {
+                        return dictionary.Add(label.Name, simple.FactReference);
+                    }
+                    else
+                    {
+                        throw new Exception($"Unsupported element type {value.GetType().Name}.");
+                    }
+                }
+            );
+            var tuples = ExecuteMatches(start, Matches, graph);
+            var products = tuples.Select(tuple => CreateProduct(tuple, Projection, graph)).ToImmutableList();
+            return products;
+        }
+
         public ImmutableList<Inverse> ComputeInverses()
         {
             return Inverter.InvertSpecification(this);

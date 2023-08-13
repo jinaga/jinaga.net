@@ -139,7 +139,7 @@ namespace Jinaga.Managers
                         if (batch == null)
                         {
                             // Begin a new batch.
-                            batch = new LoadBatch(network, store, notifyObservers, BatchFinished);
+                            batch = new LoadBatch(network, store, notifyObservers, BatchStarted);
                             currentBatch = batch;
                         }
                         batch.Add(unknownFactReferences);
@@ -172,7 +172,7 @@ namespace Jinaga.Managers
             }
         }
 
-        private void BatchFinished(LoadBatch batch)
+        private void BatchStarted(LoadBatch batch)
         {
             if (batch == currentBatch)
             {

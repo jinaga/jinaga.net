@@ -166,12 +166,9 @@ namespace Jinaga.Managers
             }
         }
 
-        public async Task NotifyObservers(FactGraph graph, ImmutableList<Fact> added, CancellationToken cancellationToken)
+        public async Task NotifyObservers(FactGraph graph, ImmutableList<Fact> facts, CancellationToken cancellationToken)
         {
-            foreach (var observer in observers)
-            {
-                await observer.FactsAdded(added, graph, cancellationToken);
-            }
+            await observableSource.Notify(graph, facts, cancellationToken);
         }
 
         public Task<DateTime?> GetMruDate(string specificationHash)

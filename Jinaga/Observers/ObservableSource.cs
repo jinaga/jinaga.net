@@ -68,15 +68,15 @@ namespace Jinaga.Observers
             return specificationListener;
         }
 
-        public async Task Notify(FactGraph graph, ImmutableList<Fact> facts, CancellationToken cancellationToken    )
+        public async Task Notify(FactGraph graph, ImmutableList<Fact> facts, CancellationToken cancellationToken)
         {
             foreach (var fact in facts)
             {
-                await NotifyFactSaved(fact, cancellationToken);
+                await NotifyFactSaved(graph, fact, cancellationToken);
             }
         }
 
-        private async Task NotifyFactSaved(Fact fact, CancellationToken cancellationToken)
+        private async Task NotifyFactSaved(FactGraph graph, Fact fact, CancellationToken cancellationToken)
         {
             if (listenersByTypeAndHash.TryGetValue(fact.Reference.Type, out var listenersByHash))
             {
@@ -90,7 +90,9 @@ namespace Jinaga.Observers
                         var element = new SimpleElement(givenReference);
                         string name = specification.Given.Single().Name;
                         var givenProduct = Product.Empty.With(name, element);
-                        var products = await store.Read(givenProduct, specification, cancellationToken);
+                        var products = specification.CanRunOnGraph
+                            ? specification.Execute(givenProduct, graph)
+                            : await store.Read(givenProduct, specification, cancellationToken);
                         foreach (var listener in listeners)
                         {
                             listener.OnResult(products);
