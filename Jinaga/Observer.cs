@@ -28,12 +28,12 @@ namespace Jinaga
 
         private ImmutableList<SpecificationListener> listeners =
             ImmutableList<SpecificationListener>.Empty;
-        private ImmutableDictionary<Product, Func<Task>> removalsByProduct =
-            ImmutableDictionary<Product, Func<Task>>.Empty;
+        private ImmutableDictionary<FactReferenceTuple, Func<Task>> removalsByProduct =
+            ImmutableDictionary<FactReferenceTuple, Func<Task>>.Empty;
         private ImmutableList<AddedHandler> addedHandlers =
             ImmutableList<AddedHandler>.Empty;
-        private ImmutableHashSet<Product> notifiedTuples =
-            ImmutableHashSet<Product>.Empty;
+        private ImmutableHashSet<FactReferenceTuple> notifiedTuples =
+            ImmutableHashSet<FactReferenceTuple>.Empty;
 
         internal Observer(Specification specification, FactReferenceTuple givenTuple, Type projectionType, FactManager factManager, Func<object, Task<Func<Task>>> onAdded)
         {
@@ -162,11 +162,12 @@ namespace Jinaga
                 {
                     var resultAdded = addedHandler.Added;
                     // Don't call result added if we have already called it for this tuple.
-                    if (!notifiedTuples.Contains(result.Product))
+                    var resultTuple = result.Product.GetAnchor();
+                    if (!notifiedTuples.Contains(resultTuple))
                     {
                         var removal = await resultAdded(result.Projection);
-                        notifiedTuples.Add(result.Product);
-                        removalsByProduct = removalsByProduct.Add(result.Product, removal);
+                        notifiedTuples.Add(resultTuple);
+                        removalsByProduct = removalsByProduct.Add(resultTuple, removal);
                     }
                 }
 
@@ -186,9 +187,17 @@ namespace Jinaga
             }
         }
 
-        private Task NotifyRemoved(ImmutableList<Product> matchingProducts, Subset resultSubset)
+        private async Task NotifyRemoved(ImmutableList<Product> products, Subset resultSubset)
         {
-            throw new NotImplementedException();
+            foreach (var product in products)
+            {
+                var resultTuple = resultSubset.Of(product);
+                if (removalsByProduct.TryGetValue(resultTuple, out var removal))
+                {
+                    await removal();
+                    removalsByProduct = removalsByProduct.Remove(resultTuple);
+                }
+            }
         }
     }
 }
