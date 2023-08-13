@@ -1,6 +1,5 @@
 ﻿using Jinaga.Facts;
 using Jinaga.Observers;
-using Jinaga.Pipelines;
 using Jinaga.Products;
 using Jinaga.Projections;
 using Jinaga.Serialization;
@@ -34,7 +33,7 @@ namespace Jinaga.Managers
         public async Task<ImmutableList<Fact>> Save(FactGraph graph, CancellationToken cancellationToken)
         {
             var added = await store.Save(graph, cancellationToken);
-            await NotifyObservers(graph, added, cancellationToken);
+            await observableSource.Notify(graph, added, cancellationToken);
 
             var facts = graph.FactReferences
                 .Select(r => graph.GetFact(r))
@@ -146,7 +145,7 @@ namespace Jinaga.Managers
             return observer;
         }
 
-        public SpecificationListener AddSpecificationListener(Specification specification, Action<Product[]> onResult)
+        public SpecificationListener AddSpecificationListener(Specification specification, Action<ImmutableList<Product>> onResult)
         {
             return observableSource.AddSpecificationListener(specification, onResult);
         }

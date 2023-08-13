@@ -229,12 +229,12 @@ namespace Jinaga
             var inverses = specification.ComputeInverses();
             ImmutableList<SpecificationListener> listeners = inverses.Select(inverse => factManager.AddSpecificationListener(
                 inverse.InverseSpecification,
-                (Product[] results) => OnResult(inverse, results)
+                (ImmutableList<Product> results) => OnResult(inverse, results)
             )).ToImmutableList();
             this.listeners = listeners;
         }
 
-        private void OnResult(Inverse inverse, Product[] results)
+        private void OnResult(Inverse inverse, ImmutableList<Product> results)
         {
             throw new NotImplementedException();
         }

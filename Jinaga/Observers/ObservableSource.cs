@@ -1,9 +1,13 @@
-﻿using Jinaga.Identity;
+﻿using Jinaga.Facts;
+using Jinaga.Identity;
 using Jinaga.Products;
 using Jinaga.Projections;
 using Jinaga.Services;
 using System;
 using System.Collections.Immutable;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Jinaga.Observers
 {
@@ -28,7 +32,7 @@ namespace Jinaga.Observers
                 );
             }
         }
-        
+
         private readonly IStore store;
 
         private ImmutableDictionary<string, ImmutableDictionary<string, SpecificationWithListeners>> listenersByTypeAndHash =
@@ -39,7 +43,7 @@ namespace Jinaga.Observers
             this.store = store;
         }
 
-        public SpecificationListener AddSpecificationListener(Specification specification, Action<Product[]> onResult)
+        public SpecificationListener AddSpecificationListener(Specification specification, Action<ImmutableList<Product>> onResult)
         {
             if (specification.Given.Count != 1)
             {
@@ -62,6 +66,38 @@ namespace Jinaga.Observers
             listenersByTypeAndHash = listenersByTypeAndHash.SetItem(givenType, listenersByHash);
 
             return specificationListener;
+        }
+
+        public async Task Notify(FactGraph graph, ImmutableList<Fact> facts, CancellationToken cancellationToken    )
+        {
+            foreach (var fact in facts)
+            {
+                await NotifyFactSaved(fact, cancellationToken);
+            }
+        }
+
+        private async Task NotifyFactSaved(Fact fact, CancellationToken cancellationToken)
+        {
+            if (listenersByTypeAndHash.TryGetValue(fact.Reference.Type, out var listenersByHash))
+            {
+                foreach (var specificationWithListeners in listenersByHash.Values)
+                {
+                    var listeners = specificationWithListeners.Listeners;
+                    if (listeners.Any())
+                    {
+                        var specification = specificationWithListeners.Specification;
+                        var givenReference = fact.Reference;
+                        var element = new SimpleElement(givenReference);
+                        string name = specification.Given.Single().Name;
+                        var givenProduct = Product.Empty.With(name, element);
+                        var products = await store.Read(givenProduct, specification, cancellationToken);
+                        foreach (var listener in listeners)
+                        {
+                            listener.OnResult(products);
+                        }
+                    }
+                }
+            }
         }
     }
 }
