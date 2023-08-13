@@ -12,20 +12,28 @@ namespace Jinaga.Managers
         private readonly INetwork network;
         private readonly IStore store;
         private readonly Func<FactGraph, ImmutableList<Fact>, CancellationToken, Task> notifyObservers;
-        private readonly Action<LoadBatch> batchFinished;
-        
+
+        public Task Completed { get; }
+
         private ImmutableHashSet<FactReference> factReferences =
             ImmutableHashSet<FactReference>.Empty;
+        private readonly TaskCompletionSource<bool> start;
 
-        public LoadBatch(INetwork network, IStore store, Func<FactGraph, ImmutableList<Fact>, CancellationToken, Task> notifyObservers, Action<LoadBatch> batchFinished)
+        public LoadBatch(INetwork network, IStore store, Func<FactGraph, ImmutableList<Fact>, CancellationToken, Task> notifyObservers, Action<LoadBatch> batchStarted)
         {
             this.network = network;
             this.store = store;
             this.notifyObservers = notifyObservers;
-            this.batchFinished = batchFinished;
-        }
 
-        public Task Completed => Task.CompletedTask;
+            start = new TaskCompletionSource<bool>();
+            Completed = Task.Run(async () =>
+            {
+                await Task.WhenAny(start.Task, Task.Delay(100));
+                batchStarted(this);
+                var cancellationTokenSource = new CancellationTokenSource();
+                await Load(cancellationTokenSource.Token);
+            });
+        }
 
         public void Add(ImmutableList<FactReference> unknownFactReferences)
         {
@@ -34,7 +42,7 @@ namespace Jinaga.Managers
 
         public void Trigger()
         {
-            throw new NotImplementedException();
+            start.SetResult(true);
         }
 
         private async Task Load(CancellationToken cancellationToken)

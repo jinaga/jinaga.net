@@ -101,11 +101,11 @@ namespace Jinaga.Managers
             {
                 await Task.WhenAll(tasks);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 // If any feed fails, then remove the specification from the cache.
                 RemoveFeedsFromCache(givenProduct, reducedSpecification);
-                throw ex;
+                throw;
             }
         }
 
@@ -194,7 +194,8 @@ namespace Jinaga.Managers
 
         private void RemoveFeedsFromCache(Product givenProduct, Specification specification)
         {
-            throw new NotImplementedException();
+            var hash = IdentityUtilities.ComputeSpecificationHash(specification, givenProduct);
+            feedsCache = feedsCache.Remove(hash);
         }
     }
 }
