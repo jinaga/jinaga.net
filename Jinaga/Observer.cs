@@ -44,7 +44,7 @@ namespace Jinaga
             this.factManager = factManager;
 
             // Add the initial handler.
-            addedHandlers = addedHandlers.Add(new AddedHandler(givenAnchor, "", "", onAdded));
+            addedHandlers = addedHandlers.Add(new AddedHandler(givenAnchor, "", onAdded));
 
             // Identify a specification by its hash.
             specificationHash = IdentityUtilities.ComputeSpecificationHash(specification, givenAnchor);
@@ -166,7 +166,7 @@ namespace Jinaga
 
         public void OnAdded(Product anchor, string path, Func<object, Task<Func<Task>>> added)
         {
-            addedHandlers = addedHandlers.Add(new AddedHandler(anchor, "", path, added));
+            addedHandlers = addedHandlers.Add(new AddedHandler(anchor, path, added));
         }
     }
 }
