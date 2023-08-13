@@ -33,7 +33,7 @@ namespace Jinaga.Observers
 
         public void OnAdded(Product anchor, string collectionName, Func<object, Task<Func<Task>>> added)
         {
-            var handler = new AddedHandler(anchor, collectionName, added);
+            var handler = new AddedHandler(anchor, collectionName, "", added);
             addedHandlers = addedHandlers.Add(handler);
         }
 

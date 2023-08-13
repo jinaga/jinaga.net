@@ -32,6 +32,10 @@ namespace Jinaga
             ImmutableList<SpecificationListener>.Empty;
         private ImmutableDictionary<Product, Func<Task>> removalsByProduct =
             ImmutableDictionary<Product, Func<Task>>.Empty;
+        private ImmutableList<AddedHandler> addedHandlers =
+            ImmutableList<AddedHandler>.Empty;
+        private ImmutableHashSet<Product> notifiedTuples =
+            ImmutableHashSet<Product>.Empty;
 
         internal Observer(Specification specification, Product givenAnchor, FactManager factManager, FunctionObservation<TProjection> observation)
         {
@@ -96,10 +100,12 @@ namespace Jinaga
 
         private async Task Read(CancellationToken cancellationToken)
         {
-            var products = await factManager.Read(givenAnchor, specification, cancellationToken);
+            var results = await factManager.Read(givenAnchor, specification, typeof(TProjection), cancellationToken);
             AddSpecificationListeners();
-            var givenSubset = specification.Given.Select(label => label.Name).ToImmutableList();
-            await NotifyAdded(products, specification.Projection, "", givenSubset);
+            var givenSubset = specification.Given
+                .Select(label => label.Name)
+                .Aggregate(Subset.Empty, (subset, name) => subset.Add(name));
+            await NotifyAdded(results, specification.Projection, "", givenSubset);
         }
 
         private Task Fetch(CancellationToken cancellationToken)
@@ -233,9 +239,39 @@ namespace Jinaga
             throw new NotImplementedException();
         }
 
-        private Task NotifyAdded(ImmutableList<Product> products, Projection projection, string v, ImmutableList<string> givenSubset)
+        private async Task NotifyAdded(ImmutableList<ProductAnchorProjection> results, Projection projection, string path, Subset parentSubset)
         {
-            throw new NotImplementedException();
+            foreach (var result in results)
+            {
+                var parentTuple = parentSubset.Of(result.Product);
+                var matchingAddedHandlers = addedHandlers
+                    .Where(hander => hander.Anchor.Equals(parentTuple) && hander.Path == path);
+                foreach (var addedHandler in matchingAddedHandlers)
+                {
+                    var resultAdded = addedHandler.Added;
+                    // Don't call result added if we have already called it for this tuple.
+                    if (!notifiedTuples.Contains(result.Product))
+                    {
+                        var removal = await resultAdded(result);
+                        notifiedTuples.Add(result.Product);
+                        removalsByProduct = removalsByProduct.Add(result.Product, removal);
+                    }
+                }
+
+                // Recursively notify added for specification results.
+                if (result.Projection is CompoundProjection compoundProjection)
+                {
+                    foreach (var name in compoundProjection.Names)
+                    {
+                        var component = compoundProjection.GetProjection(name);
+                        if (component is CollectionProjection collectionProjection)
+                        {
+                            var childPath = path + "." + name;
+                            // TODO: await NotifyAdded(result.Result[component.Name], specificationProjection, childPath, result.Product);
+                        }
+                    }
+                }
+            }
         }
     }
 }

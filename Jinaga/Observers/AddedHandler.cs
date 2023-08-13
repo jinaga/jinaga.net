@@ -8,13 +8,15 @@ namespace Jinaga.Observers
     {
         public Product Anchor { get; }
         public string CollectionName { get; }
+        public string Path { get; }
         public Func<object, Task<Func<Task>>> Added { get; }
 
-        public AddedHandler(Product anchor, string collectionName, Func<object, Task<Func<Task>>> added)
+        public AddedHandler(Product anchor, string collectionName, string path, Func<object, Task<Func<Task>>> added)
         {
-            this.Anchor = anchor;
-            this.CollectionName = collectionName;
-            this.Added = added;
+            Anchor = anchor;
+            CollectionName = collectionName;
+            Path = path;
+            Added = added;
         }
     }
 }

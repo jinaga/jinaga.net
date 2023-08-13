@@ -53,9 +53,18 @@ namespace Jinaga.Managers
             await networkManager.Fetch(givenProduct, specification, cancellationToken);
         }
 
-        public async Task<ImmutableList<Product>> Read(Product givenProduct, Specification specification, CancellationToken cancellationToken)
+        public async Task<ImmutableList<ProductAnchorProjection>> Read(Product givenProduct, Specification specification, Type type, CancellationToken cancellationToken)
         {
-            return await store.Read(givenProduct, specification, cancellationToken);
+            var products = await store.Read(givenProduct, specification, cancellationToken);
+            if (products.Count == 0)
+            {
+                return ImmutableList<ProductAnchorProjection>.Empty;
+            }
+            var references = products
+                .SelectMany(product => product.GetFactReferences())
+                .ToImmutableList();
+            var graph = await store.Load(references, cancellationToken);
+            return DeserializeProductsFromGraph(graph, specification.Projection, products, type, givenProduct, "", null);
         }
 
         public async Task<ImmutableList<Product>> Query(ImmutableList<FactReference> givenReferences, Specification specification, CancellationToken cancellationToken)
