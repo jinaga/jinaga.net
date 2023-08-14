@@ -1,4 +1,5 @@
 using Jinaga.Visualizers;
+using System;
 using System.Collections.Immutable;
 using System.Linq;
 
@@ -6,7 +7,8 @@ namespace Jinaga.Projections
 {
     public class CollectionProjection : Projection
     {
-        public CollectionProjection(ImmutableList<Match> matches, Projection projection)
+        public CollectionProjection(ImmutableList<Match> matches, Projection projection, Type type) :
+            base(type)
         {
             Matches = matches;
             Projection = projection;
@@ -19,7 +21,8 @@ namespace Jinaga.Projections
         {
             return new CollectionProjection(
                 Matches.Select(match => match.Apply(replacements)).ToImmutableList(),
-                Projection.Apply(replacements));
+                Projection.Apply(replacements),
+                Type);
         }
 
         public override bool CanRunOnGraph => Matches.All(m => m.CanRunOnGraph) && Projection.CanRunOnGraph;

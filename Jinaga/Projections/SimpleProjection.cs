@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Immutable;
 
 namespace Jinaga.Projections
@@ -6,7 +7,8 @@ namespace Jinaga.Projections
     {
         public string Tag { get; }
 
-        public SimpleProjection(string tag)
+        public SimpleProjection(string tag, Type type) :
+            base(type)
         {
             Tag = tag;
         }
@@ -20,7 +22,7 @@ namespace Jinaga.Projections
         {
             if (replacements.TryGetValue(Tag, out var replacement))
             {
-                return new SimpleProjection(replacement);
+                return new SimpleProjection(replacement, Type);
             }
             else
             {

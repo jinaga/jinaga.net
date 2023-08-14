@@ -17,7 +17,7 @@ public class LinqProcessorTest
     [Fact]
     public void CanProcessFactSource()
     {
-        var source = FactsOfType(new Label("employee", "Employee"));
+        var source = FactsOfType(new Label("employee", "Employee"), typeof(object));
 
         TextOf(source.Matches).Should().Be(
             """
@@ -72,7 +72,7 @@ public class LinqProcessorTest
     {
         var predicate = Any(
             Where(
-                FactsOfType(new Label("terminated", "Terminated")),
+                FactsOfType(new Label("terminated", "Terminated"), typeof(object)),
                 Compare(
                     new ReferenceContext(
                         new Label("terminated", "Terminated"),
@@ -103,7 +103,7 @@ public class LinqProcessorTest
     public void CanProcessWhere()
     {
         var employees = Where(
-            FactsOfType(new Label("employee", "Employee")),
+            FactsOfType(new Label("employee", "Employee"), typeof(object)),
             Compare(
                 new ReferenceContext(
                     new Label("employee", "Employee"),
@@ -131,7 +131,7 @@ public class LinqProcessorTest
     public void ReversesPathCondition()
     {
         var employees = Where(
-            FactsOfType(new Label("employee", "Employee")),
+            FactsOfType(new Label("employee", "Employee"), typeof(object)),
             Compare(
                 new ReferenceContext(
                     new Label("company", "Company"),
@@ -157,11 +157,11 @@ public class LinqProcessorTest
     public void CanApplyNegativeExistentialCondition()
     {
         var specification = Where(
-            FactsOfType(new Label("employee", "Employee")),
+            FactsOfType(new Label("employee", "Employee"), typeof(object)),
             Not(
                 Any(
                     Where(
-                        FactsOfType(new Label("terminated", "Terminated")),
+                        FactsOfType(new Label("terminated", "Terminated"), typeof(object)),
                         Compare(
                             new ReferenceContext(
                                 new Label("terminated", "Terminated"),
@@ -196,7 +196,7 @@ public class LinqProcessorTest
     {
         var specification = SelectMany(
             Where(
-                FactsOfType(new Label("employee", "Employee")),
+                FactsOfType(new Label("employee", "Employee"), typeof(object)),
                 Compare(
                     new ReferenceContext(
                         new Label("employee", "Employee"),
@@ -208,7 +208,7 @@ public class LinqProcessorTest
                     )
                 )
             ),
-            FactsOfType(new Label("manager", "Manager"))
+            FactsOfType(new Label("manager", "Manager"), typeof(object))
         );
 
         TextOf(specification.Matches).Should().Be(
@@ -228,8 +228,8 @@ public class LinqProcessorTest
     {
         var specification = Where(
             SelectMany(
-                FactsOfType(new Label("employee", "Employee")),
-                FactsOfType(new Label("manager", "Manager"))
+                FactsOfType(new Label("employee", "Employee"), typeof(object)),
+                FactsOfType(new Label("manager", "Manager"), typeof(object))
             ),
             And(
                 Compare(
@@ -273,8 +273,8 @@ public class LinqProcessorTest
     {
         var specification = Where(
             SelectMany(
-                FactsOfType(new Label("employee", "Employee")),
-                FactsOfType(new Label("manager", "Manager"))
+                FactsOfType(new Label("employee", "Employee"), typeof(object)),
+                FactsOfType(new Label("manager", "Manager"), typeof(object))
             ),
             And(
                 And(
@@ -302,7 +302,7 @@ public class LinqProcessorTest
                 Not(
                     Any(
                         Where(
-                            FactsOfType(new Label("terminated", "Terminated")),
+                            FactsOfType(new Label("terminated", "Terminated"), typeof(object)),
                             Compare(
                                 new ReferenceContext(
                                     new Label("terminated", "Terminated"),
@@ -342,15 +342,15 @@ public class LinqProcessorTest
     {
         var specification = Where(
             SelectMany(
-                FactsOfType(new Label("employee", "Employee")),
-                FactsOfType(new Label("manager", "Manager"))
+                FactsOfType(new Label("employee", "Employee"), typeof(object)),
+                FactsOfType(new Label("manager", "Manager"), typeof(object))
             ),
             And(
                 And(
                     Not(
                         Any(
                             Where(
-                                FactsOfType(new Label("terminated", "Terminated")),
+                                FactsOfType(new Label("terminated", "Terminated"), typeof(object)),
                                 Compare(
                                     new ReferenceContext(
                                         new Label("terminated", "Terminated"),

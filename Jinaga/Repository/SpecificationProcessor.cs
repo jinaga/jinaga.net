@@ -41,7 +41,7 @@ namespace Jinaga.Repository
                 .ToImmutableList();
             var symbolTable = parameters.Aggregate(
                 SymbolTable.Empty,
-                (table, parameter) => table.Set(parameter.Name, new SimpleProjection(parameter.Name)));
+                (table, parameter) => table.Set(parameter.Name, new SimpleProjection(parameter.Name, parameter.Type)));
             return symbolTable;
         }
 
@@ -62,7 +62,7 @@ namespace Jinaga.Repository
                 var unknown = new Label(lastRole.Name, lastRole.TargetType);
                 var self = ReferenceContext.From(unknown);
                 return LinqProcessor.Where(
-                    LinqProcessor.FactsOfType(unknown),
+                    LinqProcessor.FactsOfType(unknown, expression.Type),
                     LinqProcessor.Compare(
                         reference, self
                     )
@@ -86,7 +86,7 @@ namespace Jinaga.Repository
                     .Select(arg => ProcessProjection(arg, symbolTable));
                 var fields = names.Zip(values, (name, value) => KeyValuePair.Create(name, value))
                     .ToImmutableDictionary();
-                var compoundProjection = new CompoundProjection(fields);
+                var compoundProjection = new CompoundProjection(fields, newExpression.Type);
                 return compoundProjection;
             }
             else if (expression is MemberInitExpression memberInit)
@@ -94,7 +94,7 @@ namespace Jinaga.Repository
                 var fields = memberInit.Bindings
                     .Select(binding => ProcessProjectionMember(binding, symbolTable))
                     .ToImmutableDictionary();
-                var compoundProjection = new CompoundProjection(fields);
+                var compoundProjection = new CompoundProjection(fields, memberInit.Type);
                 return compoundProjection;
             }
             else if (expression is MemberExpression memberExpression)
@@ -108,7 +108,7 @@ namespace Jinaga.Repository
                 {
                     if (!memberExpression.Type.IsFactType())
                     {
-                        return new FieldProjection(simpleProjection.Tag, memberExpression.Expression.Type, memberExpression.Member.Name);
+                        return new FieldProjection(simpleProjection.Tag, memberExpression.Expression.Type, memberExpression.Member.Name, memberExpression.Type);
                     }
                     else
                     {
@@ -130,21 +130,21 @@ namespace Jinaga.Repository
                         var specification = (Specification)lambdaExpression.Compile().Invoke();
                         var arguments = ImmutableList.Create(label);
                         specification = specification.Apply(arguments);
-                        var collectionProjection = new CollectionProjection(specification.Matches, specification.Projection);
+                        var collectionProjection = new CollectionProjection(specification.Matches, specification.Projection, methodCallExpression.Type);
                         return collectionProjection;
                     }
                     else if (methodCallExpression.Arguments.Count == 1 &&
                         typeof(IQueryable).IsAssignableFrom(methodCallExpression.Arguments[0].Type))
                     {
                         var value = ProcessSource(methodCallExpression.Arguments[0], symbolTable);
-                        var collectionProjection = new CollectionProjection(value.Matches, value.Projection);
+                        var collectionProjection = new CollectionProjection(value.Matches, value.Projection, methodCallExpression.Type);
                         return collectionProjection;
                     }
                 }
                 else if (expression.Type.IsGenericType && expression.Type.GetGenericTypeDefinition() == typeof(IQueryable<>))
                 {
                     var value = ProcessSource(expression, symbolTable);
-                    var collectionProjection = new CollectionProjection(value.Matches, value.Projection);
+                    var collectionProjection = new CollectionProjection(value.Matches, value.Projection, expression.Type);
                     return collectionProjection;
                 }
             }
@@ -218,9 +218,10 @@ namespace Jinaga.Repository
                     if (methodCallExpression.Method.Name == nameof(FactRepository.OfType) &&
                         methodCallExpression.Arguments.Count == 0)
                     {
-                        string type = methodCallExpression.Method.GetGenericArguments()[0].FactTypeName();
+                        Type factType = methodCallExpression.Method.GetGenericArguments()[0];
+                        string type = factType.FactTypeName();
                         var label = new Label(recommendedLabel, type);
-                        return LinqProcessor.FactsOfType(label);
+                        return LinqProcessor.FactsOfType(label, factType);
                     }
                     else if (methodCallExpression.Method.Name == nameof(FactRepository.OfType) &&
                         methodCallExpression.Arguments.Count == 1)
@@ -231,7 +232,7 @@ namespace Jinaga.Repository
 
                         // Produce the source of the match.
                         var genericArgument = methodCallExpression.Method.GetGenericArguments()[0];
-                        var source = LinqProcessor.FactsOfType(new Label(parameterName, genericArgument.FactTypeName()));
+                        var source = LinqProcessor.FactsOfType(new Label(parameterName, genericArgument.FactTypeName()), genericArgument);
 
                         // Process the predicate.
                         var childSymbolTable = symbolTable.Set(parameterName, source.Projection);
@@ -292,7 +293,8 @@ namespace Jinaga.Repository
                     var lambda = GetLambda(methodCallExpression.Arguments[0]);
                     var parameterName = lambda.Parameters[0].Name;
 
-                    var source = LinqProcessor.FactsOfType(new Label(parameterName, lambda.Parameters[0].Type.FactTypeName()));
+                    Type factType = lambda.Parameters[0].Type;
+                    var source = LinqProcessor.FactsOfType(new Label(parameterName, factType.FactTypeName()), factType);
                     var childSymbolTable = symbolTable.Set(parameterName, source.Projection);
                     var predicate = ProcessPredicate(lambda.Body, childSymbolTable);
                     return LinqProcessor.Any(LinqProcessor.Where(source, predicate));

@@ -8,11 +8,11 @@ namespace Jinaga.Specifications
 {
     internal class LinqProcessor
     {
-        public static SourceContext FactsOfType(Label unknown)
+        public static SourceContext FactsOfType(Label unknown, Type type)
         {
             var match = new Match(unknown, ImmutableList<MatchCondition>.Empty);
             var matches = ImmutableList.Create(match);
-            var projection = new SimpleProjection(unknown.Name);
+            var projection = new SimpleProjection(unknown.Name, type);
             return new SourceContext(matches, projection);
         }
 

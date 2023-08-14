@@ -11,7 +11,8 @@ namespace Jinaga.Projections
 
         public override bool CanRunOnGraph => true;
 
-        public FieldProjection(string tag, Type factRuntimeType, string fieldName)
+        public FieldProjection(string tag, Type factRuntimeType, string fieldName, Type type) :
+            base(type)
         {
             Tag = tag;
             FactRuntimeType = factRuntimeType;
@@ -27,7 +28,7 @@ namespace Jinaga.Projections
         {
             if (replacements.TryGetValue(Tag, out var replacement))
             {
-                return new FieldProjection(replacement, FactRuntimeType, FieldName);
+                return new FieldProjection(replacement, FactRuntimeType, FieldName, Type);
             }
             else
             {
