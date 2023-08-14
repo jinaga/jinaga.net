@@ -68,6 +68,42 @@ namespace Jinaga.Observers
             return specificationListener;
         }
 
+        public void RemoveSpecificationListener(SpecificationListener listener)
+        {
+            foreach (var type in listenersByTypeAndHash.Keys)
+            {
+                var listenersByHash = listenersByTypeAndHash[type];
+                foreach (var hash in listenersByHash.Keys)
+                {
+                    var specificationWithListeners = listenersByHash[hash];
+                    var specification = specificationWithListeners.Specification;
+                    var listeners = specificationWithListeners.Listeners;
+                    if (listeners.Contains(listener))
+                    {
+                        listeners = listeners.Remove(listener);
+
+                        if (listeners.Count == 0)
+                        {
+                            listenersByHash = listenersByHash.Remove(hash);
+                        }
+                        else
+                        {
+                            listenersByHash = listenersByHash.SetItem(hash, specificationWithListeners);
+                        }
+
+                        if (listenersByHash.Count == 0)
+                        {
+                            listenersByTypeAndHash = listenersByTypeAndHash.Remove(type);
+                        }
+                        else
+                        {
+                            listenersByTypeAndHash = listenersByTypeAndHash.SetItem(type, listenersByHash);
+                        }
+                    }
+                }
+            }
+        }
+
         public async Task Notify(FactGraph graph, ImmutableList<Fact> facts, CancellationToken cancellationToken)
         {
             foreach (var fact in facts)

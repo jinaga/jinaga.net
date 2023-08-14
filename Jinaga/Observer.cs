@@ -101,6 +101,10 @@ namespace Jinaga
 
         public void Stop()
         {
+            foreach (var listener in listeners)
+            {
+                factManager.RemoveSpecificationListener(listener);
+            }
         }
 
         private async Task Read(CancellationToken cancellationToken)

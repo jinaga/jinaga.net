@@ -143,6 +143,11 @@ namespace Jinaga.Managers
             return observableSource.AddSpecificationListener(specification, onResult);
         }
 
+        public void RemoveSpecificationListener(SpecificationListener listener)
+        {
+            observableSource.RemoveSpecificationListener(listener);
+        }
+
         public async Task NotifyObservers(FactGraph graph, ImmutableList<Fact> facts, CancellationToken cancellationToken)
         {
             await observableSource.Notify(graph, facts, cancellationToken);
