@@ -176,16 +176,17 @@ namespace Jinaga
                 }
 
                 // Recursively notify added for specification results.
-                if (result.Projection is CompoundProjection compoundProjection)
+                if (result.Collections.Any())
                 {
-                    foreach (var name in compoundProjection.Names)
+                    var subset = result.Product.Names
+                        .Where(name => result.Product.GetElement(name) is SimpleElement)
+                        .Aggregate(
+                            Subset.Empty,
+                            (sub, name) => sub.Add(name)
+                        );
+                    foreach (var collection in result.Collections)
                     {
-                        var component = compoundProjection.GetProjection(name);
-                        if (component is CollectionProjection collectionProjection)
-                        {
-                            Debugger.Break();
-                            // TODO: await NotifyAdded(result.Result[component.Name], specificationProjection, childPath, result.Product);
-                        }
+                        await NotifyAdded(collection.Results, subset);
                     }
                 }
             }

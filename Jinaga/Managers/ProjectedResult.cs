@@ -1,4 +1,5 @@
 using Jinaga.Products;
+using System.Collections.Immutable;
 
 namespace Jinaga.Managers
 {
@@ -7,12 +8,14 @@ namespace Jinaga.Managers
         public Product Product { get; }
         public object Projection { get; }
         public string Path { get; }
+        public ImmutableList<ProjectedResultChildCollection> Collections { get; }
 
-        public ProjectedResult(Product product, object projection, string path)
+        public ProjectedResult(Product product, object projection, string path, ImmutableList<ProjectedResultChildCollection> collections)
         {
-            this.Product = product;
-            this.Projection = projection;
-            this.Path = path;
+            Product = product;
+            Projection = projection;
+            Path = path;
+            Collections = collections;
         }
     }
 }
