@@ -18,7 +18,6 @@ namespace Jinaga
         private readonly Specification specification;
         private readonly string specificationHash;
         private readonly FactReferenceTuple givenTuple;
-        private readonly Type projectionType;
         private readonly FactManager factManager;
 
         private CancellationTokenSource cancelInitialize = new CancellationTokenSource();
@@ -35,11 +34,10 @@ namespace Jinaga
         private ImmutableHashSet<FactReferenceTuple> notifiedTuples =
             ImmutableHashSet<FactReferenceTuple>.Empty;
 
-        internal Observer(Specification specification, FactReferenceTuple givenTuple, Type projectionType, FactManager factManager, Func<object, Task<Func<Task>>> onAdded)
+        internal Observer(Specification specification, FactReferenceTuple givenTuple, FactManager factManager, Func<object, Task<Func<Task>>> onAdded)
         {
             this.specification = specification;
             this.givenTuple = givenTuple;
-            this.projectionType = projectionType;
             this.factManager = factManager;
 
             // Add the initial handler.
@@ -109,7 +107,7 @@ namespace Jinaga
 
         private async Task Read(CancellationToken cancellationToken)
         {
-            var results = await factManager.Read(givenTuple, specification, projectionType, this, cancellationToken);
+            var results = await factManager.Read(givenTuple, specification, specification.Projection.Type, this, cancellationToken);
             AddSpecificationListeners();
             var givenSubset = specification.Given
                 .Select(label => label.Name)
@@ -146,8 +144,9 @@ namespace Jinaga
 
             if (inverse.Operation == InverseOperation.Add || inverse.Operation == InverseOperation.MaybeAdd)
             {
-                var results = await factManager.ComputeProjections(inverse.InverseSpecification.Projection, matchingProducts, projectionType, this, inverse.Path, cancellationToken);
-                await NotifyAdded(results, inverse.InverseSpecification.Projection, inverse.Path, inverse.ParentSubset);
+                Projection projection = inverse.InverseSpecification.Projection;
+                var results = await factManager.ComputeProjections(projection, matchingProducts, projection.Type, this, inverse.Path, cancellationToken);
+                await NotifyAdded(results, projection, inverse.Path, inverse.ParentSubset);
             }
             else if (inverse.Operation == InverseOperation.Remove || inverse.Operation == InverseOperation.MaybeRemove)
             {

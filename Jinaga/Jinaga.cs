@@ -145,7 +145,7 @@ namespace Jinaga
             var givenTuple = FactReferenceTuple.Empty
                 .Add(specification.Given.Single().Name, givenReference);
             Func<object, Task<Func<Task>>> onAdded = (object obj) => added((TProjection)obj);
-            var observer = factManager.StartObserver(givenTuple, specification, typeof(TProjection), onAdded);
+            var observer = factManager.StartObserver(givenTuple, specification, onAdded);
             return observer;
         }
     }

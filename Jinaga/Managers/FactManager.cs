@@ -131,9 +131,9 @@ namespace Jinaga.Managers
             }
         }
 
-        public Observer StartObserver(FactReferenceTuple givenTuple, Specification specification, Type projectionType, Func<object, Task<Func<Task>>> onAdded)
+        public Observer StartObserver(FactReferenceTuple givenTuple, Specification specification, Func<object, Task<Func<Task>>> onAdded)
         {
-            var observer = new Observer(specification, givenTuple, projectionType, this, onAdded);
+            var observer = new Observer(specification, givenTuple, this, onAdded);
             observer.Start();
             return observer;
         }
