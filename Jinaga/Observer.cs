@@ -7,6 +7,7 @@ using Jinaga.Products;
 using Jinaga.Projections;
 using System;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -112,7 +113,7 @@ namespace Jinaga
             var givenSubset = specification.Given
                 .Select(label => label.Name)
                 .Aggregate(Subset.Empty, (subset, name) => subset.Add(name));
-            await NotifyAdded(results, specification.Projection, "", givenSubset);
+            await NotifyAdded(results, givenSubset);
         }
 
         private Task Fetch(CancellationToken cancellationToken)
@@ -146,7 +147,7 @@ namespace Jinaga
             {
                 Projection projection = inverse.InverseSpecification.Projection;
                 var results = await factManager.ComputeProjections(projection, matchingProducts, projection.Type, this, inverse.Path, cancellationToken);
-                await NotifyAdded(results, projection, inverse.Path, inverse.ParentSubset);
+                await NotifyAdded(results, inverse.ParentSubset);
             }
             else if (inverse.Operation == InverseOperation.Remove || inverse.Operation == InverseOperation.MaybeRemove)
             {
@@ -154,13 +155,13 @@ namespace Jinaga
             }
         }
 
-        private async Task NotifyAdded(ImmutableList<ProjectedResult> results, Projection projection, string path, Subset parentSubset)
+        private async Task NotifyAdded(ImmutableList<ProjectedResult> results, Subset parentSubset)
         {
             foreach (var result in results)
             {
                 var parentTuple = parentSubset.Of(result.Product);
                 var matchingAddedHandlers = addedHandlers
-                    .Where(hander => hander.Anchor.Equals(parentTuple) && hander.Path == path);
+                    .Where(hander => hander.Anchor.Equals(parentTuple) && hander.Path == result.Path);
                 foreach (var addedHandler in matchingAddedHandlers)
                 {
                     var resultAdded = addedHandler.Added;
@@ -182,7 +183,7 @@ namespace Jinaga
                         var component = compoundProjection.GetProjection(name);
                         if (component is CollectionProjection collectionProjection)
                         {
-                            var childPath = path + "." + name;
+                            Debugger.Break();
                             // TODO: await NotifyAdded(result.Result[component.Name], specificationProjection, childPath, result.Product);
                         }
                     }
