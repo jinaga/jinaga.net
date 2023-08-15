@@ -4,7 +4,8 @@ namespace Jinaga
 {
     public interface IWatch
     {
-        Task Initialized { get; }
+        Task<bool> Cached { get; }
+        Task Loaded { get; }
 
         void Stop();
     }

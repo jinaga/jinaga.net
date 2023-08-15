@@ -565,7 +565,7 @@ namespace Jinaga.Test
                         await officeRepository.DeleteOffice(officeId);
                     };
                 });
-            await officeObserver.Initialized;
+            await officeObserver.Loaded;
             return officeObserver;
         }
 
@@ -589,7 +589,7 @@ namespace Jinaga.Test
                         await officeRepository.DeleteOffice(officeId);
                     };
                 });
-            await officeObserver.Initialized;
+            await officeObserver.Loaded;
             return officeObserver;
         }
 
@@ -613,7 +613,7 @@ namespace Jinaga.Test
                         await officeRepository.DeleteOffice(officeId);
                     };
                 });
-            await officeObserver.Initialized;
+            await officeObserver.Loaded;
             return officeObserver;
         }
 
@@ -637,7 +637,7 @@ namespace Jinaga.Test
                         await officeRepository.DeleteOffice(officeId);
                     };
                 });
-            await officeObserver.Initialized;
+            await officeObserver.Loaded;
             return officeObserver;
         }
 
@@ -667,7 +667,7 @@ namespace Jinaga.Test
                     };
                 }
             );
-            await managementObserver.Initialized;
+            await managementObserver.Loaded;
             return managementObserver;
         }
 

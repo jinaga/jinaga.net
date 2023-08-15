@@ -21,7 +21,7 @@ public class WatchFromNetworkTest
 
         try
         {
-            await watch.Initialized;
+            await watch.Loaded;
             viewModel.Offices.Should().BeEmpty();
         }
         finally
@@ -49,7 +49,7 @@ public class WatchFromNetworkTest
 
         try
         {
-            await watch.Initialized;
+            await watch.Loaded;
             viewModel.Offices.Should().ContainSingle().Which
                 .Name.Should().BeNull();
         }

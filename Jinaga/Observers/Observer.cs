@@ -46,7 +46,8 @@ namespace Jinaga.Observers
             specificationHash = IdentityUtilities.ComputeSpecificationHash(specification, givenTuple);
         }
 
-        public Task Initialized => loadedTask!;
+        public Task<bool> Cached => cachedTask ?? Task.FromResult(false);
+        public Task Loaded => loadedTask ?? Task.CompletedTask;
 
         internal void Start()
         {
