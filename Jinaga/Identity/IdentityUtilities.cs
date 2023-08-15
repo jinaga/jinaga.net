@@ -21,7 +21,7 @@ namespace Jinaga.Identity
         {
             string declarationString = specification.GenerateDeclarationString(givenTuple);
             string specificationString = specification.ToDescriptiveString();
-            string request = $"{declarationString}\n${specificationString}";
+            string request = $"{declarationString}\n{specificationString}";
             string hashString = ComputeStringHash(request);
             return hashString;
         }

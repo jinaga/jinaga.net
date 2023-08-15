@@ -43,7 +43,7 @@ namespace Jinaga.Http
         {
             string declarationString = specification.GenerateDeclarationString(givenTuple);
             string specificationString = GenerateSpecificationString(specification);
-            string request = $"{declarationString}\n${specificationString}";
+            string request = $"{declarationString}\n{specificationString}";
             var response = await webClient.Feeds(request);
             var feeds = response.Feeds.ToImmutableList();
             return feeds;
