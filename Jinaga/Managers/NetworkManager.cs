@@ -91,7 +91,10 @@ namespace Jinaga.Managers
                 else
                 {
                     task = Task.Run(() => ProcessFeed(feed, cancellationToken));
-                    activeFeeds = activeFeeds.Add(feed, task);
+                    lock (this)
+                    {
+                        activeFeeds = activeFeeds.Add(feed, task);
+                    }
                     return task;
                 }
             });
@@ -115,7 +118,7 @@ namespace Jinaga.Managers
 
             while (true)
             {
-                fetchCount++;
+                Interlocked.Increment(ref fetchCount);
                 bool decremented = false;
 
                 try
@@ -134,17 +137,11 @@ namespace Jinaga.Managers
                     var unknownFactReferences = factReferences.RemoveRange(knownFactReferences);
                     if (unknownFactReferences.Any())
                     {
-                        var batch = currentBatch;
-                        if (batch == null)
-                        {
-                            // Begin a new batch.
-                            batch = new LoadBatch(network, store, notifyObservers, BatchStarted);
-                            currentBatch = batch;
-                        }
+                        var batch = GetCurrentBatch();
                         batch.Add(unknownFactReferences);
-                        fetchCount--;
+                        var finalFetchCount = Interlocked.Decrement(ref fetchCount);
                         decremented = true;
-                        if (fetchCount == 0)
+                        if (finalFetchCount == 0)
                         {
                             // This is the last fetch, so trigger the batch.
                             batch.Trigger();
@@ -160,22 +157,47 @@ namespace Jinaga.Managers
                 {
                     if (!decremented)
                     {
-                        fetchCount--;
-                        if (fetchCount == 0 && currentBatch != null)
+                        var finalFetchCount = Interlocked.Decrement(ref fetchCount);
+                        if (finalFetchCount == 0)
                         {
-                            // This is the last fetch, so trigger the batch.
-                            currentBatch.Trigger();
+                            lock (this)
+                            {
+                                if (currentBatch != null)
+                                {
+                                    // This is the last fetch, so trigger the batch.
+                                    currentBatch.Trigger();
+                                }
+                            }
                         }
                     }
                 }
             }
         }
 
+        private LoadBatch GetCurrentBatch()
+        {
+            lock (this)
+            {
+                var batch = currentBatch;
+                if (batch == null)
+                {
+                    // Begin a new batch.
+                    batch = new LoadBatch(network, store, notifyObservers, BatchStarted);
+                    currentBatch = batch;
+                }
+
+                return batch;
+            }
+        }
+
         private void BatchStarted(LoadBatch batch)
         {
-            if (batch == currentBatch)
+            lock (this)
             {
-                currentBatch = null;
+                if (batch == currentBatch)
+                {
+                    currentBatch = null;
+                }
             }
         }
 
@@ -187,14 +209,20 @@ namespace Jinaga.Managers
                 return cached;
             }
             var feeds = await network.Feeds(givenTuple, specification, cancellationToken);
-            feedsCache = feedsCache.Add(hash, feeds);
+            lock (this)
+            {
+                feedsCache = feedsCache.Add(hash, feeds);
+            }
             return feeds;
         }
 
         private void RemoveFeedsFromCache(FactReferenceTuple givenTuple, Specification specification)
         {
             var hash = IdentityUtilities.ComputeSpecificationHash(specification, givenTuple);
-            feedsCache = feedsCache.Remove(hash);
+            lock (this)
+            {
+                feedsCache = feedsCache.Remove(hash);
+            }
         }
     }
 }

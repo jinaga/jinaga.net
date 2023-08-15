@@ -53,51 +53,57 @@ namespace Jinaga.Observers
             var specificationKey = IdentityUtilities.ComputeStringHash(specification.ToDescriptiveString());
 
             var specificationListener = new SpecificationListener(onResult);
-            if (!listenersByTypeAndHash.TryGetValue(givenType, out var listenersByHash))
+            lock (this)
             {
-                listenersByHash = ImmutableDictionary<string, SpecificationWithListeners>.Empty;
+                if (!listenersByTypeAndHash.TryGetValue(givenType, out var listenersByHash))
+                {
+                    listenersByHash = ImmutableDictionary<string, SpecificationWithListeners>.Empty;
+                }
+                if (!listenersByHash.TryGetValue(specificationKey, out var specificationWithListeners))
+                {
+                    specificationWithListeners = new SpecificationWithListeners(specification, ImmutableList<SpecificationListener>.Empty);
+                }
+                specificationWithListeners = specificationWithListeners.Add(specificationListener);
+                listenersByHash = listenersByHash.SetItem(specificationKey, specificationWithListeners);
+                listenersByTypeAndHash = listenersByTypeAndHash.SetItem(givenType, listenersByHash);
             }
-            if (!listenersByHash.TryGetValue(specificationKey, out var specificationWithListeners))
-            {
-                specificationWithListeners = new SpecificationWithListeners(specification, ImmutableList<SpecificationListener>.Empty);
-            }
-            specificationWithListeners = specificationWithListeners.Add(specificationListener);
-            listenersByHash = listenersByHash.SetItem(specificationKey, specificationWithListeners);
-            listenersByTypeAndHash = listenersByTypeAndHash.SetItem(givenType, listenersByHash);
 
             return specificationListener;
         }
 
         public void RemoveSpecificationListener(SpecificationListener listener)
         {
-            foreach (var type in listenersByTypeAndHash.Keys)
+            lock (this)
             {
-                var listenersByHash = listenersByTypeAndHash[type];
-                foreach (var hash in listenersByHash.Keys)
+                foreach (var type in listenersByTypeAndHash.Keys)
                 {
-                    var specificationWithListeners = listenersByHash[hash];
-                    var specification = specificationWithListeners.Specification;
-                    var listeners = specificationWithListeners.Listeners;
-                    if (listeners.Contains(listener))
+                    var listenersByHash = listenersByTypeAndHash[type];
+                    foreach (var hash in listenersByHash.Keys)
                     {
-                        listeners = listeners.Remove(listener);
+                        var specificationWithListeners = listenersByHash[hash];
+                        var specification = specificationWithListeners.Specification;
+                        var listeners = specificationWithListeners.Listeners;
+                        if (listeners.Contains(listener))
+                        {
+                            listeners = listeners.Remove(listener);
 
-                        if (listeners.Count == 0)
-                        {
-                            listenersByHash = listenersByHash.Remove(hash);
-                        }
-                        else
-                        {
-                            listenersByHash = listenersByHash.SetItem(hash, specificationWithListeners);
-                        }
+                            if (listeners.Count == 0)
+                            {
+                                listenersByHash = listenersByHash.Remove(hash);
+                            }
+                            else
+                            {
+                                listenersByHash = listenersByHash.SetItem(hash, specificationWithListeners);
+                            }
 
-                        if (listenersByHash.Count == 0)
-                        {
-                            listenersByTypeAndHash = listenersByTypeAndHash.Remove(type);
-                        }
-                        else
-                        {
-                            listenersByTypeAndHash = listenersByTypeAndHash.SetItem(type, listenersByHash);
+                            if (listenersByHash.Count == 0)
+                            {
+                                listenersByTypeAndHash = listenersByTypeAndHash.Remove(type);
+                            }
+                            else
+                            {
+                                listenersByTypeAndHash = listenersByTypeAndHash.SetItem(type, listenersByHash);
+                            }
                         }
                     }
                 }

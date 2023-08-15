@@ -1,20 +1,18 @@
 ﻿using Jinaga.Facts;
 using Jinaga.Identity;
 using Jinaga.Managers;
-using Jinaga.Observers;
 using Jinaga.Pipelines;
 using Jinaga.Products;
 using Jinaga.Projections;
 using System;
 using System.Collections.Immutable;
-using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Jinaga
+namespace Jinaga.Observers
 {
-    public class Observer : IWatch, IWatchContext
+    class Observer : IWatch, IWatchContext
     {
         private readonly Specification specification;
         private readonly string specificationHash;
@@ -95,7 +93,10 @@ namespace Jinaga
 
         public void OnAdded(FactReferenceTuple anchor, string path, Func<object, Task<Func<Task>>> added)
         {
-            addedHandlers = addedHandlers.Add(new AddedHandler(anchor, path, added));
+            lock (this)
+            {
+                addedHandlers = addedHandlers.Add(new AddedHandler(anchor, path, added));
+            }
         }
 
         public void Stop()
@@ -170,8 +171,11 @@ namespace Jinaga
                     if (!notifiedTuples.Contains(resultTuple))
                     {
                         var removal = await resultAdded(result.Projection);
-                        notifiedTuples.Add(resultTuple);
-                        removalsByProduct = removalsByProduct.Add(resultTuple, removal);
+                        lock (this)
+                        {
+                            notifiedTuples.Add(resultTuple);
+                            removalsByProduct = removalsByProduct.Add(resultTuple, removal);
+                        }
                     }
                 }
 
@@ -200,7 +204,10 @@ namespace Jinaga
                 if (removalsByProduct.TryGetValue(resultTuple, out var removal))
                 {
                     await removal();
-                    removalsByProduct = removalsByProduct.Remove(resultTuple);
+                    lock (this)
+                    {
+                        removalsByProduct = removalsByProduct.Remove(resultTuple);
+                    }
                 }
             }
         }
