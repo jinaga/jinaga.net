@@ -1,29 +1,29 @@
+using Jinaga.Facts;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Jinaga.Products;
 
 namespace Jinaga.Observers
 {
     internal static class WatchedObservableCollection
     {
-        public static object Create(Type elementType, Product anchor, string collectionName, IWatchContext context)
+        public static object Create(Type elementType, FactReferenceTuple anchor, string path, IWatchContext context)
         {
             var type = typeof(WatchedObservableCollection<>).MakeGenericType(elementType);
-            return Activator.CreateInstance(type, anchor, collectionName, context);
+            return Activator.CreateInstance(type, anchor, path, context);
         }
     }
     internal class WatchedObservableCollection<TProjection> : IObservableCollection<TProjection>
     {
-        private readonly Product anchor;
-        private readonly string collectionName;
+        private readonly FactReferenceTuple anchor;
+        private readonly string path;
         private readonly IWatchContext context;
 
-        public WatchedObservableCollection(Product anchor, string collectionName, IWatchContext context)
+        public WatchedObservableCollection(FactReferenceTuple anchor, string path, IWatchContext context)
         {
             this.anchor = anchor;
-            this.collectionName = collectionName;
+            this.path = path;
             this.context = context;
         }
 
@@ -34,7 +34,7 @@ namespace Jinaga.Observers
 
         public void OnAdded(Func<TProjection, Task<Func<Task>>> added)
         {
-            context.OnAdded(anchor, collectionName,
+            context.OnAdded(anchor, path,
                 projection => added((TProjection)projection));
         }
 

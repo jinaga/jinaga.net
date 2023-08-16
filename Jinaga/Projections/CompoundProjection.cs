@@ -1,4 +1,5 @@
 using Jinaga.Visualizers;
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
@@ -9,7 +10,8 @@ namespace Jinaga.Projections
     {
         private ImmutableDictionary<string, Projection> projections;
 
-        public CompoundProjection(ImmutableDictionary<string, Projection> projections)
+        public CompoundProjection(ImmutableDictionary<string, Projection> projections, Type type) :
+            base(type)
         {
             this.projections = projections;
         }
@@ -22,7 +24,8 @@ namespace Jinaga.Projections
                 .ToImmutableDictionary(
                     pair => pair.Key,
                     pair => pair.Value.Apply(replacements)
-                )
+                ),
+                Type
             );
         }
 

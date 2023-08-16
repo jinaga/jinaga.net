@@ -1,7 +1,8 @@
-using System.Collections.Immutable;
-using System.Linq;
+using Jinaga.Facts;
 using Jinaga.Products;
 using Jinaga.Visualizers;
+using System.Collections.Immutable;
+using System.Linq;
 
 namespace Jinaga.Pipelines
 {
@@ -28,11 +29,11 @@ namespace Jinaga.Pipelines
             }
         }
 
-        public Product Of(Product product)
+        public FactReferenceTuple Of(Product product)
         {
             var result = names.Aggregate(
-                Product.Empty,
-                (sub, name) => sub.With(name, product.GetElement(name)));
+                FactReferenceTuple.Empty,
+                (tuple, name) => tuple.Add(name, product.GetFactReference(name)));
             return result;
         }
 

@@ -63,14 +63,14 @@ namespace Jinaga
             {
                 var products = specification.Execute(givenReferences, graph);
                 var productAnchorProjections = factManager.DeserializeProductsFromGraph(
-                    graph, specification.Projection, products, typeof(TProjection), Product.Empty, "", null);
+                    graph, specification.Projection, products, typeof(TProjection), "", null);
                 return productAnchorProjections.Select(pap => (TProjection)pap.Projection).ToImmutableList();
             }
             else
             {
                 await factManager.Fetch(givenReferences, specification, cancellationToken);
                 var products = await factManager.Query(givenReferences, specification, cancellationToken);
-                var productProjections = await factManager.ComputeProjections(specification.Projection, products, typeof(TProjection), null, Product.Empty, string.Empty, cancellationToken);
+                var productProjections = await factManager.ComputeProjections(specification.Projection, products, typeof(TProjection), null, string.Empty, cancellationToken);
                 var projections = productProjections
                     .Select(pair => (TProjection)pair.Projection)
                     .ToImmutableList();
@@ -78,7 +78,7 @@ namespace Jinaga
             }
         }
 
-        public Observer<TProjection> Watch<TFact, TProjection>(
+        public IWatch Watch<TFact, TProjection>(
             Specification<TFact, TProjection> specification,
             TFact given,
             Action<TProjection> added)
@@ -94,7 +94,7 @@ namespace Jinaga
             );
         }
 
-        public Observer<TProjection> Watch<TFact, TProjection>(
+        public IWatch Watch<TFact, TProjection>(
             Specification<TFact, TProjection> specification,
             TFact given,
             Func<TProjection, Action> added)
@@ -114,7 +114,7 @@ namespace Jinaga
             );
         }
 
-        public Observer<TProjection> Watch<TFact, TProjection>(
+        public IWatch Watch<TFact, TProjection>(
             Specification<TFact, TProjection> specification,
             TFact given,
             Func<TProjection, Task> added)
@@ -129,7 +129,7 @@ namespace Jinaga
             );
         }
 
-        public Observer<TProjection> Watch<TFact, TProjection>(
+        public IWatch Watch<TFact, TProjection>(
             Specification<TFact, TProjection> specification,
             TFact given,
             Func<TProjection, Task<Func<Task>>> added)
@@ -142,12 +142,10 @@ namespace Jinaga
 
             var graph = factManager.Serialize(given);
             var givenReference = graph.Last;
-            var projection = specification.Projection;
-            var givenAnchor = Product.Empty.With(specification.Given.First().Name, new SimpleElement(givenReference));
-            var observation = new FunctionObservation<TProjection>(givenAnchor, added);
-            var observer = new Observer<TProjection>(specification, givenAnchor, factManager, observation);
-            factManager.AddObserver(observer);
-            observer.Start();
+            var givenTuple = FactReferenceTuple.Empty
+                .Add(specification.Given.Single().Name, givenReference);
+            Func<object, Task<Func<Task>>> onAdded = (object obj) => added((TProjection)obj);
+            var observer = factManager.StartObserver(givenTuple, specification, onAdded);
             return observer;
         }
     }

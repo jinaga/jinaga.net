@@ -308,6 +308,10 @@ namespace Jinaga.Store.SQLite
             return Task.FromResult(sqlQueryTree.ResultsToProducts(resultSets, givenProduct));
         }
 
+        public Task<ImmutableList<Product>> Read(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
 
         private ResultSetTree ExecuteQueryTree(SqlQueryTree sqlQueryTree, ConnectionFactory.Conn conn)
         {
@@ -409,6 +413,16 @@ namespace Jinaga.Store.SQLite
         }
 
         public Task SaveBookmark(string feed, string bookmark)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<DateTime?> GetMruDate(string specificationHash)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task SetMruDate(string specificationHash, DateTime mruDate)
         {
             throw new NotImplementedException();
         }

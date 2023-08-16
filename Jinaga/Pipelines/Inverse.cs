@@ -9,15 +9,17 @@ namespace Jinaga.Pipelines
         public Subset GivenSubset { get; }
         public InverseOperation Operation { get; }
         public Subset ResultSubset { get; }
-        public ImmutableList<CollectionIdentifier> CollectionIdentifiers { get; }
+        public string Path { get; }
+        public Subset ParentSubset { get; }
 
-        public Inverse(Specification inverseSpecification, Subset givenSubset, InverseOperation operation, Subset resultSubset, ImmutableList<CollectionIdentifier> collectionIdentifiers)
+        public Inverse(Specification inverseSpecification, Subset givenSubset, InverseOperation operation, Subset resultSubset, string path, Subset parentSubset)
         {
             InverseSpecification = inverseSpecification;
             GivenSubset = givenSubset;
             Operation = operation;
             ResultSubset = resultSubset;
-            CollectionIdentifiers = collectionIdentifiers;
+            Path = path;
+            ParentSubset = parentSubset;
         }
     }
 }

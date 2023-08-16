@@ -39,6 +39,16 @@ namespace Jinaga.Http
             return feeds;
         }
 
+        public async Task<ImmutableList<string>> Feeds(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
+        {
+            string declarationString = specification.GenerateDeclarationString(givenTuple);
+            string specificationString = GenerateSpecificationString(specification);
+            string request = $"{declarationString}\n{specificationString}";
+            var response = await webClient.Feeds(request);
+            var feeds = response.Feeds.ToImmutableList();
+            return feeds;
+        }
+
         public async Task<(ImmutableList<Facts.FactReference> references, string bookmark)> FetchFeed(string feed, string bookmark, CancellationToken cancellationToken)
         {
             var response = await webClient.Feed(feed, bookmark, cancellationToken);
@@ -147,7 +157,7 @@ namespace Jinaga.Http
         private static Projection ProjectionWithOnlyCollections(Projection projection)
         {
             return MaybeProjectionWithOnlyCollections(projection) ??
-                new CompoundProjection(ImmutableDictionary<string, Projection>.Empty);
+                new CompoundProjection(ImmutableDictionary<string, Projection>.Empty, typeof(object));
         }
 
         private static Projection? MaybeProjectionWithOnlyCollections(Projection projection)
@@ -156,7 +166,8 @@ namespace Jinaga.Http
             {
                 return new CollectionProjection(
                     collectionProjection.Matches,
-                    ProjectionWithOnlyCollections(collectionProjection.Projection)
+                    ProjectionWithOnlyCollections(collectionProjection.Projection),
+                    projection.Type
                 );
             }
             else if (projection is CompoundProjection compoundProjection)
@@ -168,7 +179,7 @@ namespace Jinaga.Http
                         p => p.name,
                         p => p.projection!
                     );
-                return new CompoundProjection(namedProjections);
+                return new CompoundProjection(namedProjections, projection.Type);
             }
             else
             {

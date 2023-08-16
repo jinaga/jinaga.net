@@ -14,6 +14,11 @@ namespace Jinaga.DefaultImplementations
             return Task.FromResult(ImmutableList<string>.Empty);
         }
 
+        public Task<ImmutableList<string>> Feeds(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
+        {
+            return Task.FromResult(ImmutableList<string>.Empty);
+        }
+
         public Task<(ImmutableList<FactReference> references, string bookmark)> FetchFeed(string feed, string bookmark, CancellationToken cancellationToken)
         {
             return Task.FromResult((ImmutableList<FactReference>.Empty, bookmark));

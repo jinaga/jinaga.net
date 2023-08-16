@@ -1,0 +1,216 @@
+﻿using Jinaga.Facts;
+using Jinaga.Identity;
+using Jinaga.Managers;
+using Jinaga.Pipelines;
+using Jinaga.Products;
+using Jinaga.Projections;
+using System;
+using System.Collections.Immutable;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace Jinaga.Observers
+{
+    class Observer : IWatch, IWatchContext
+    {
+        private readonly Specification specification;
+        private readonly string specificationHash;
+        private readonly FactReferenceTuple givenTuple;
+        private readonly FactManager factManager;
+
+        private CancellationTokenSource cancelInitialize = new CancellationTokenSource();
+
+        private Task<bool>? cachedTask;
+        private Task? loadedTask;
+
+        private ImmutableList<SpecificationListener> listeners =
+            ImmutableList<SpecificationListener>.Empty;
+        private ImmutableDictionary<FactReferenceTuple, Func<Task>> removalsByProduct =
+            ImmutableDictionary<FactReferenceTuple, Func<Task>>.Empty;
+        private ImmutableList<AddedHandler> addedHandlers =
+            ImmutableList<AddedHandler>.Empty;
+        private ImmutableHashSet<FactReferenceTuple> notifiedTuples =
+            ImmutableHashSet<FactReferenceTuple>.Empty;
+
+        internal Observer(Specification specification, FactReferenceTuple givenTuple, FactManager factManager, Func<object, Task<Func<Task>>> onAdded)
+        {
+            this.specification = specification;
+            this.givenTuple = givenTuple;
+            this.factManager = factManager;
+
+            // Add the initial handler.
+            addedHandlers = addedHandlers.Add(new AddedHandler(givenTuple, "", onAdded));
+
+            // Identify a specification by its hash.
+            specificationHash = IdentityUtilities.ComputeSpecificationHash(specification, givenTuple);
+        }
+
+        public Task<bool> Cached => cachedTask ?? Task.FromResult(false);
+        public Task Loaded => loadedTask ?? Task.CompletedTask;
+
+        internal void Start()
+        {
+            var cancellationToken = cancelInitialize.Token;
+            cachedTask = Task.Run(async () =>
+                await ReadFromStore(cancellationToken));
+            loadedTask = Task.Run(async () =>
+            {
+                bool cached = await cachedTask;
+                await FetchFromNetwork(cached, cancellationToken);
+            });
+        }
+
+        private async Task<bool> ReadFromStore(CancellationToken cancellationToken)
+        {
+            DateTime? mruDate = await factManager.GetMruDate(specificationHash);
+            if (mruDate == null)
+            {
+                return false;
+            }
+
+            // Read from local storage.
+            await Read(cancellationToken);
+            return true;
+        }
+
+        private async Task FetchFromNetwork(bool cached, CancellationToken cancellationToken)
+        {
+            if (!cached)
+            {
+                // Fetch from the network first,
+                // then read from local storage.
+                await Fetch(cancellationToken);
+                await Read(cancellationToken);
+            }
+            else
+            {
+                // Already read from local storage.
+                // Fetch from the network to update the cache.
+                await Fetch(cancellationToken);
+            }
+            await factManager.SetMruDate(specificationHash, DateTime.UtcNow);
+        }
+
+        public void OnAdded(FactReferenceTuple anchor, string path, Func<object, Task<Func<Task>>> added)
+        {
+            lock (this)
+            {
+                addedHandlers = addedHandlers.Add(new AddedHandler(anchor, path, added));
+            }
+        }
+
+        public void Stop()
+        {
+            foreach (var listener in listeners)
+            {
+                factManager.RemoveSpecificationListener(listener);
+            }
+        }
+
+        private async Task Read(CancellationToken cancellationToken)
+        {
+            var results = await factManager.Read(givenTuple, specification, specification.Projection.Type, this, cancellationToken);
+            AddSpecificationListeners();
+            var givenSubset = specification.Given
+                .Select(label => label.Name)
+                .Aggregate(Subset.Empty, (subset, name) => subset.Add(name));
+            await NotifyAdded(results, givenSubset);
+        }
+
+        private Task Fetch(CancellationToken cancellationToken)
+        {
+            return factManager.Fetch(givenTuple, specification, cancellationToken);
+        }
+
+        private void AddSpecificationListeners()
+        {
+            var inverses = specification.ComputeInverses();
+            ImmutableList<SpecificationListener> listeners = inverses.Select(inverse => factManager.AddSpecificationListener(
+                inverse.InverseSpecification,
+                async (ImmutableList<Product> results, CancellationToken cancellationToken) => await OnResult(inverse, results, cancellationToken)
+            )).ToImmutableList();
+            this.listeners = listeners;
+        }
+
+        private async Task OnResult(Inverse inverse, ImmutableList<Product> products, CancellationToken cancellationToken)
+        {
+            // Filter out results that do not match the given.
+            var givenSubset = inverse.GivenSubset;
+            var matchingProducts = products
+                .Where(product => givenSubset.Of(product).Equals(givenTuple))
+                .ToImmutableList();
+            if (matchingProducts.IsEmpty)
+            {
+                return;
+            }
+
+            if (inverse.Operation == InverseOperation.Add || inverse.Operation == InverseOperation.MaybeAdd)
+            {
+                Projection projection = inverse.InverseSpecification.Projection;
+                var results = await factManager.ComputeProjections(projection, matchingProducts, projection.Type, this, inverse.Path, cancellationToken);
+                await NotifyAdded(results, inverse.ParentSubset);
+            }
+            else if (inverse.Operation == InverseOperation.Remove || inverse.Operation == InverseOperation.MaybeRemove)
+            {
+                await NotifyRemoved(matchingProducts, inverse.ResultSubset);
+            }
+        }
+
+        private async Task NotifyAdded(ImmutableList<ProjectedResult> results, Subset parentSubset)
+        {
+            foreach (var result in results)
+            {
+                var parentTuple = parentSubset.Of(result.Product);
+                var matchingAddedHandlers = addedHandlers
+                    .Where(hander => hander.Anchor.Equals(parentTuple) && hander.Path == result.Path);
+                foreach (var addedHandler in matchingAddedHandlers)
+                {
+                    var resultAdded = addedHandler.Added;
+                    // Don't call result added if we have already called it for this tuple.
+                    var resultTuple = result.Product.GetAnchor();
+                    if (!notifiedTuples.Contains(resultTuple))
+                    {
+                        var removal = await resultAdded(result.Projection);
+                        lock (this)
+                        {
+                            notifiedTuples.Add(resultTuple);
+                            removalsByProduct = removalsByProduct.Add(resultTuple, removal);
+                        }
+                    }
+                }
+
+                // Recursively notify added for specification results.
+                if (result.Collections.Any())
+                {
+                    var subset = result.Product.Names
+                        .Where(name => result.Product.GetElement(name) is SimpleElement)
+                        .Aggregate(
+                            Subset.Empty,
+                            (sub, name) => sub.Add(name)
+                        );
+                    foreach (var collection in result.Collections)
+                    {
+                        await NotifyAdded(collection.Results, subset);
+                    }
+                }
+            }
+        }
+
+        private async Task NotifyRemoved(ImmutableList<Product> products, Subset resultSubset)
+        {
+            foreach (var product in products)
+            {
+                var resultTuple = resultSubset.Of(product);
+                if (removalsByProduct.TryGetValue(resultTuple, out var removal))
+                {
+                    await removal();
+                    lock (this)
+                    {
+                        removalsByProduct = removalsByProduct.Remove(resultTuple);
+                    }
+                }
+            }
+        }
+    }
+}

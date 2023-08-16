@@ -14,52 +14,49 @@ namespace Jinaga.Managers
 {
     class Deserializer
     {
-        public static ImmutableList<ProductAnchorProjection> Deserialize(
+        public static ImmutableList<ProjectedResult> Deserialize(
             Emitter emitter,
             Projection projection,
             Type type,
             ImmutableList<Product> products,
-            Product anchor,
-            string collectionName)
+            string path)
         {
             if (projection is SimpleProjection simpleProjection)
-                return DeserializeSimpleProjection(emitter, simpleProjection, type, products, anchor, collectionName);
+                return DeserializeSimpleProjection(emitter, simpleProjection, type, products, path);
             else if (projection is CompoundProjection compoundProjection)
-                return DeserializeCompoundProjection(emitter, compoundProjection, type, products, anchor, collectionName);
+                return DeserializeCompoundProjection(emitter, compoundProjection, type, products, path);
             else if (projection is CollectionProjection collectionProjection)
-                return DeserializeCollectionProjection(emitter, collectionProjection, type, products, anchor, collectionName);
+                return DeserializeCollectionProjection(emitter, collectionProjection, type, products, path);
             else if (projection is FieldProjection fieldProjection)
-                return DeserializeFieldProjection(emitter, fieldProjection, type, products, anchor, collectionName);
+                return DeserializeFieldProjection(emitter, fieldProjection, type, products, path);
             else
                 throw new ArgumentException($"Unknown projection type {projection.GetType().Name}");
         }
 
-        private static ImmutableList<ProductAnchorProjection> DeserializeSimpleProjection(
+        private static ImmutableList<ProjectedResult> DeserializeSimpleProjection(
             Emitter emitter,
             SimpleProjection simpleProjection,
             Type type,
             ImmutableList<Product> products,
-            Product anchor,
-            string collectionName)
+            string path)
         {
             var productProjections = products
-                .Select(product => new ProductAnchorProjection(
+                .Select(product => new ProjectedResult(
                     product,
-                    anchor,
                     emitter.DeserializeToType(product.GetFactReference(simpleProjection.Tag), type),
-                    collectionName
+                    path,
+                    ImmutableList<ProjectedResultChildCollection>.Empty
                 ))
                 .ToImmutableList();
             return productProjections;
         }
 
-        private static ImmutableList<ProductAnchorProjection> DeserializeCompoundProjection(
+        private static ImmutableList<ProjectedResult> DeserializeCompoundProjection(
             Emitter emitter,
             CompoundProjection compoundProjection,
             Type type,
             ImmutableList<Product> products,
-            Product anchor,
-            string collectionName)
+            string path)
         {
             var constructorInfos = type.GetConstructors();
             if (constructorInfos.Length != 1)
@@ -70,26 +67,36 @@ namespace Jinaga.Managers
             var parameters = constructor.GetParameters();
             if (parameters.Any())
             {
-                var productProjections =
-                    from product in products
-                    let result = constructor.Invoke((
-                        from parameter in parameters
-                        let projection = compoundProjection.GetProjection(parameter.Name)
-                        select DeserializeParameter(emitter, projection, parameter.ParameterType, parameter.Name, product)
-                    ).ToArray())
-                    select new ProductAnchorProjection(product, anchor, result, collectionName);
-                return productProjections.ToImmutableList();
+                var productProjections = ImmutableList<ProjectedResult>.Empty;
+                foreach (var product in products)
+                {
+                    var args = new List<object>();
+                    var collections = ImmutableList<ProjectedResultChildCollection>.Empty;
+                    foreach (var parameter in parameters)
+                    {
+                        var projection = compoundProjection.GetProjection(parameter.Name);
+                        (var obj, var children) = DeserializeParameter(emitter, projection, path, parameter.ParameterType, parameter.Name, product);
+                        args.Add(obj);
+                        if (children != null)
+                        {
+                            collections = collections.Add(children);
+                        }
+                    }
+                    var result = constructor.Invoke(args.ToArray());
+                    var projectedResult = new ProjectedResult(product, result, path, collections);
+                    productProjections = productProjections.Add(projectedResult);
+                }
+                return productProjections;
             }
             else
             {
                 var properties = type.GetProperties();
                 var productProjections = products.Select(product =>
                 {
-                    return DeserializeProducts(emitter, compoundProjection, type, product, properties, anchor, collectionName);
+                    return DeserializeProducts(emitter, compoundProjection, type, product, properties, path);
                 });
                 var childProductProjections =
                     from product in products
-                    let parentAnchor = product.GetAnchor()
                     from property in properties
                     where
                         !property.PropertyType.IsFactType() &&
@@ -102,37 +109,41 @@ namespace Jinaga.Managers
                     let element = product.GetElement(property.Name)
                     where element is CollectionElement
                     let collectionElement = (CollectionElement)element
-                    from childProductProjection in DeserializeChildParameters(emitter, collectionProjection.Projection, property.PropertyType, property.Name, collectionElement.Products, parentAnchor)
+                    from childProductProjection in DeserializeChildParameters(emitter, collectionProjection.Projection, path, property.PropertyType, property.Name, collectionElement.Products)
                     select childProductProjection;
                 return productProjections.Concat(childProductProjections).ToImmutableList();
             }
         }
 
-        private static ProductAnchorProjection DeserializeProducts(
+        private static ProjectedResult DeserializeProducts(
             Emitter emitter,
             CompoundProjection compoundProjection,
             Type type,
             Product product,
             PropertyInfo[] properties,
-            Product anchor,
-            string collectionName)
+            string path)
         {
             var result = Activator.CreateInstance(type);
+            var collections = ImmutableList<ProjectedResultChildCollection>.Empty;
             foreach (var property in properties)
             {
                 var projection = compoundProjection.GetProjection(property.Name);
-                var value = DeserializeParameter(emitter, projection, property.PropertyType, property.Name, product);
-                property.SetValue(result, value);
+                (var obj, var children) = DeserializeParameter(emitter, projection, path, property.PropertyType, property.Name, product);
+                property.SetValue(result, obj);
+                if (children != null)
+                {
+                    collections = collections.Add(children);
+                }
             }
-            return new ProductAnchorProjection(product, anchor, result, collectionName);
+            return new ProjectedResult(product, result, path, collections);
         }
 
-        private static ImmutableList<ProductAnchorProjection> DeserializeCollectionProjection(Emitter emitter, CollectionProjection collectionProjection, Type type, ImmutableList<Product> products, Product anchor, string collectionName)
+        private static ImmutableList<ProjectedResult> DeserializeCollectionProjection(Emitter emitter, CollectionProjection collectionProjection, Type type, ImmutableList<Product> products, string collectionName)
         {
             throw new NotImplementedException();
         }
 
-        private static ImmutableList<ProductAnchorProjection> DeserializeFieldProjection(Emitter emitter, FieldProjection fieldProjection, Type type, ImmutableList<Product> products, Product anchor, string collectionName)
+        private static ImmutableList<ProjectedResult> DeserializeFieldProjection(Emitter emitter, FieldProjection fieldProjection, Type type, ImmutableList<Product> products, string path)
         {
             var propertyInfo = fieldProjection.FactRuntimeType.GetProperty(fieldProjection.FieldName);
             if (propertyInfo == null)
@@ -140,45 +151,48 @@ namespace Jinaga.Managers
                 throw new ArgumentException($"Field {fieldProjection.FieldName} not found on type {fieldProjection.FactRuntimeType.Name}");
             }
             var productProjections = products
-                .Select(product => new ProductAnchorProjection(
+                .Select(product => new ProjectedResult(
                     product,
-                    anchor,
                     propertyInfo.GetValue(
                         emitter.DeserializeToType(
                             product.GetFactReference(fieldProjection.Tag),
                             fieldProjection.FactRuntimeType)),
-                    collectionName
+                    path,
+                    ImmutableList<ProjectedResultChildCollection>.Empty
                 ))
                 .ToImmutableList();
             return productProjections;
         }
 
-        private static IEnumerable<ProductAnchorProjection> DeserializeChildParameters(
+        private static IEnumerable<ProjectedResult> DeserializeChildParameters(
             Emitter emitter,
             Projection projection,
+            string parentPath,
             Type propertyType,
             string parameterName,
-            ImmutableList<Product> products,
-            Product anchor)
+            ImmutableList<Product> products)
         {
             if (emitter.WatchContext != null)
             {
                 var elementType = propertyType.GetGenericArguments()[0];
-                var productProjections = Deserialize(emitter, projection, elementType, products, anchor, parameterName);
+                var path = string.IsNullOrEmpty(parentPath) ? parameterName : $"{parentPath}.{parameterName}";
+                var productProjections = Deserialize(emitter, projection, elementType, products, path);
                 return productProjections;
             }
             else
             {
-                return Enumerable.Empty<ProductAnchorProjection>();
+                return Enumerable.Empty<ProjectedResult>();
             }
         }
 
-        private static object DeserializeParameter(Emitter emitter, Projection projection, Type parameterType, string parameterName, Product product)
+        private static (object obj, ProjectedResultChildCollection? children) DeserializeParameter(Emitter emitter, Projection projection, string parentPath, Type parameterType, string parameterName, Product product)
         {
             if (parameterType.IsFactType())
             {
                 var reference = Projector.GetFactReferences(projection, product, parameterName).Single();
-                return emitter.DeserializeToType(reference, parameterType);
+                var obj = emitter.DeserializeToType(reference, parameterType);
+                return (obj, null);
+                
             }
             else if (parameterType.IsGenericType &&
                 parameterType.GetGenericTypeDefinition() == typeof(IObservableCollection<>))
@@ -191,28 +205,58 @@ namespace Jinaga.Managers
                         var elements = Projector.GetFactReferences(projection, product, parameterName)
                             .Select(reference => emitter.DeserializeToType(reference, elementType))
                             .ToImmutableList();
-                        return ImmutableObservableCollection.Create(elementType, elements);
+                        var obj = ImmutableObservableCollection.Create(elementType, elements);
+                        // TODO: Populate children
+                        var children = new ProjectedResultChildCollection(
+                            parameterName,
+                            ImmutableList<ProjectedResult>.Empty
+                        );
+                        return (obj, children);
                     }
                     else
                     {
                         var collectionProjection = (CollectionProjection)projection;
                         var collectionElement = (CollectionElement)product.GetElement(parameterName);
-                        var elements = Deserialize(
-                                emitter,
-                                collectionProjection.Projection,
-                                elementType,
-                                collectionElement.Products,
-                                product.GetAnchor(),
-                                parameterName
-                            )
+                        var path = string.IsNullOrEmpty(parentPath) ? parameterName : $"{parentPath}.{parameterName}";
+                        var projectedResults = Deserialize(
+                            emitter,
+                            collectionProjection.Projection,
+                            elementType,
+                            collectionElement.Products,
+                            path
+                        );
+                        var elements = projectedResults
                             .Select(p => p.Projection)
                             .ToImmutableList();
-                        return ImmutableObservableCollection.Create(elementType, elements);
+                        var obj = ImmutableObservableCollection.Create(elementType, elements);
+                        var children = new ProjectedResultChildCollection(
+                            parameterName,
+                            projectedResults
+                        );
+                        return (obj, children);
                     }
                 }
                 else
                 {
-                    return WatchedObservableCollection.Create(elementType, product.GetAnchor(), parameterName, emitter.WatchContext);
+                    var collectionProjection = (CollectionProjection)projection;
+                    var collectionElement = (CollectionElement)product.GetElement(parameterName);
+                    var path = string.IsNullOrEmpty(parentPath) ? parameterName : $"{parentPath}.{parameterName}";
+                    var projectedResults = Deserialize(
+                        emitter,
+                        collectionProjection.Projection,
+                        elementType,
+                        collectionElement.Products,
+                        path
+                    );
+                    var elements = projectedResults
+                        .Select(p => p.Projection)
+                        .ToImmutableList();
+                    var obj = WatchedObservableCollection.Create(elementType, product.GetAnchor(), path, emitter.WatchContext);
+                    var children = new ProjectedResultChildCollection(
+                        parameterName,
+                        projectedResults
+                    );
+                    return (obj, children);
                 }
             }
             else if (parameterType.IsGenericType &&
@@ -224,7 +268,13 @@ namespace Jinaga.Managers
                     var elements = Projector.GetFactReferences(projection, product, parameterName)
                         .Select(reference => emitter.DeserializeToType(reference, elementType))
                         .ToImmutableList();
-                    return CreateQueryable(elementType, elements);
+                    var obj = CreateQueryable(elementType, elements);
+                    // TODO: Populate children
+                    var children = new ProjectedResultChildCollection(
+                        parameterName,
+                        ImmutableList<ProjectedResult>.Empty
+                    );
+                    return (obj, children);
                 }
                 else if (product.Contains(parameterName))
                 {
@@ -235,16 +285,26 @@ namespace Jinaga.Managers
                             collectionProjection.Projection,
                             elementType,
                             collectionElement.Products,
-                            product.GetAnchor(),
                             parameterName
                         )
                         .Select(p => p.Projection)
                         .ToImmutableList();
-                    return CreateQueryable(elementType, elements);
+                    var obj = CreateQueryable(elementType, elements);
+                    // TODO: Populate children
+                    var children = new ProjectedResultChildCollection(
+                        parameterName,
+                        ImmutableList<ProjectedResult>.Empty
+                    );
+                    return (obj, children);
                 }
                 else
                 {
-                    return CreateQueryable(elementType, ImmutableList<object>.Empty);
+                    var obj = CreateQueryable(elementType, ImmutableList<object>.Empty);
+                    var children = new ProjectedResultChildCollection(
+                        parameterName,
+                        ImmutableList<ProjectedResult>.Empty
+                    );
+                    return (obj, children);
                 }
             }
             else if (projection is FieldProjection fieldProjection)
@@ -261,11 +321,13 @@ namespace Jinaga.Managers
                 {
                     if (parameterType == typeof(string))
                     {
-                        return fieldValueString.StringValue;
+                        var obj = fieldValueString.StringValue;
+                        return (obj, null);
                     }
                     else if (parameterType == typeof(DateTime))
                     {
-                        return FieldValue.FromIso8601String(fieldValueString.StringValue);
+                        var obj = FieldValue.FromIso8601String(fieldValueString.StringValue);
+                        return (obj, null);
                     }
                     else
                     {
@@ -276,15 +338,18 @@ namespace Jinaga.Managers
                 {
                     if (parameterType == typeof(int))
                     {
-                        return (int)fieldValueNumber.DoubleValue;
+                        var obj = (int)fieldValueNumber.DoubleValue;
+                        return (obj, null);
                     }
                     else if (parameterType == typeof(float))
                     {
-                        return (float)fieldValueNumber.DoubleValue;
+                        var obj = (float)fieldValueNumber.DoubleValue;
+                        return (obj, null);
                     }
                     else if (parameterType == typeof(double))
                     {
-                        return fieldValueNumber.DoubleValue;
+                        var obj = fieldValueNumber.DoubleValue;
+                        return (obj, null);
                     }
                     else
                     {
@@ -295,7 +360,8 @@ namespace Jinaga.Managers
                 {
                     if (parameterType == typeof(bool))
                     {
-                        return fieldValueBoolean.BoolValue;
+                        var obj = fieldValueBoolean.BoolValue;
+                        return (obj, null);
                     }
                     else
                     {

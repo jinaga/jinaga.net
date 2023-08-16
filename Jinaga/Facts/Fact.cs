@@ -1,9 +1,8 @@
+using Jinaga.Identity;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 
@@ -124,11 +123,7 @@ namespace Jinaga.Facts
         private static string ComputeHash(ImmutableList<Field> fields, ImmutableList<Predecessor> predecessors)
         {
             string json = Canonicalize(fields, predecessors);
-            var bytes = Encoding.UTF8.GetBytes(json);
-            using var hashAlgorithm = HashAlgorithm.Create("SHA-512");
-            var hashBytes = hashAlgorithm.ComputeHash(bytes);
-            var hashString = Convert.ToBase64String(hashBytes);
-            return hashString;
+            return IdentityUtilities.ComputeStringHash(json);
         }
 
         public static string Canonicalize(ImmutableList<Field> fields, ImmutableList<Predecessor> predecessors)

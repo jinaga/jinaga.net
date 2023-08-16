@@ -308,13 +308,11 @@ namespace Jinaga.Test.Pipelines
 
             inverses[0].GivenSubset.ToString().Should().Be("company");
             inverses[0].ResultSubset.ToString().Should().Be("company, office");
-            inverses[0].CollectionIdentifiers.Should().BeEmpty();
+            inverses[0].Path.Should().Be("");
 
             inverses[1].GivenSubset.ToString().Should().Be("company");
             inverses[1].ResultSubset.ToString().Should().Be("company, office, name");
-            var collectionIdentifier = inverses[1].CollectionIdentifiers.Should().ContainSingle().Subject;
-            collectionIdentifier.CollectionName.Should().Be("Names");
-            // collectionIdentifier.Subset.ToString().Should().Be("name");
+            var collectionIdentifier = inverses[1].Path.Should().Be("Names");
         }
     }
 }

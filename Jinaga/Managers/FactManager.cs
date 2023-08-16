@@ -1,6 +1,5 @@
 ﻿using Jinaga.Facts;
 using Jinaga.Observers;
-using Jinaga.Pipelines;
 using Jinaga.Products;
 using Jinaga.Projections;
 using Jinaga.Serialization;
@@ -17,21 +16,23 @@ namespace Jinaga.Managers
     {
         private readonly IStore store;
         private readonly NetworkManager networkManager;
+        private readonly ObservableSource observableSource;
 
         public FactManager(IStore store, NetworkManager networkManager)
         {
             this.store = store;
             this.networkManager = networkManager;
+            
+            observableSource = new ObservableSource(store);
         }
 
         private SerializerCache serializerCache = SerializerCache.Empty;
         private DeserializerCache deserializerCache = DeserializerCache.Empty;
-        private ImmutableList<IObserver> observers = ImmutableList<IObserver>.Empty;
 
         public async Task<ImmutableList<Fact>> Save(FactGraph graph, CancellationToken cancellationToken)
         {
             var added = await store.Save(graph, cancellationToken);
-            await NotifyObservers(graph, added, cancellationToken);
+            await observableSource.Notify(graph, added, cancellationToken);
 
             var facts = graph.FactReferences
                 .Select(r => graph.GetFact(r))
@@ -43,6 +44,25 @@ namespace Jinaga.Managers
         public async Task Fetch(ImmutableList<FactReference> givenReferences, Specification specification, CancellationToken cancellationToken)
         {
             await networkManager.Fetch(givenReferences, specification, cancellationToken);
+        }
+
+        public async Task Fetch(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
+        {
+            await networkManager.Fetch(givenTuple, specification, cancellationToken);
+        }
+
+        public async Task<ImmutableList<ProjectedResult>> Read(FactReferenceTuple givenTuple, Specification specification, Type type, IWatchContext? watchContext, CancellationToken cancellationToken)
+        {
+            var products = await store.Read(givenTuple, specification, cancellationToken);
+            if (products.Count == 0)
+            {
+                return ImmutableList<ProjectedResult>.Empty;
+            }
+            var references = products
+                .SelectMany(product => product.GetFactReferences())
+                .ToImmutableList();
+            var graph = await store.Load(references, cancellationToken);
+            return DeserializeProductsFromGraph(graph, specification.Projection, products, type, "", watchContext);
         }
 
         public async Task<ImmutableList<Product>> Query(ImmutableList<FactReference> givenReferences, Specification specification, CancellationToken cancellationToken)
@@ -59,18 +79,17 @@ namespace Jinaga.Managers
             return await store.Load(references, cancellationToken);
         }
 
-        public async Task<ImmutableList<ProductAnchorProjection>> ComputeProjections(
+        public async Task<ImmutableList<ProjectedResult>> ComputeProjections(
             Projection projection,
             ImmutableList<Product> products,
             Type type,
             IWatchContext? watchContext,
-            Product anchor,
-            string collectionName,
+            string path,
             CancellationToken cancellationToken)
         {
             var references = Projector.GetFactReferences(projection, products, type);
             var graph = await store.Load(references, cancellationToken);
-            return DeserializeProductsFromGraph(graph, projection, products, type, anchor, collectionName, watchContext);
+            return DeserializeProductsFromGraph(graph, projection, products, type, path, watchContext);
         }
 
         public FactGraph Serialize(object prototype)
@@ -95,46 +114,53 @@ namespace Jinaga.Managers
             }
         }
 
-        public ImmutableList<ProductAnchorProjection> DeserializeProductsFromGraph(
+        public ImmutableList<ProjectedResult> DeserializeProductsFromGraph(
             FactGraph graph,
             Projection projection,
             ImmutableList<Product> products,
             Type type,
-            Product anchor,
-            string collectionName,
+            string path,
             IWatchContext? watchContext)
         {
             lock (this)
             {
                 var emitter = new Emitter(graph, deserializerCache, watchContext);
-                ImmutableList<ProductAnchorProjection> results = Deserializer.Deserialize(emitter, projection, type, products, anchor, collectionName);
+                ImmutableList<ProjectedResult> results = Deserializer.Deserialize(emitter, projection, type, products, path);
                 deserializerCache = emitter.DeserializerCache;
                 return results;
             }
         }
 
-        public void AddObserver(IObserver observer)
+        public Observer StartObserver(FactReferenceTuple givenTuple, Specification specification, Func<object, Task<Func<Task>>> onAdded)
         {
-            lock (this)
-            {
-                observers = observers.Add(observer);
-            }
+            var observer = new Observer(specification, givenTuple, this, onAdded);
+            observer.Start();
+            return observer;
         }
 
-        public void RemoveObserver(IObserver observer)
+        public SpecificationListener AddSpecificationListener(Specification specification, Func<ImmutableList<Product>, CancellationToken, Task> onResult)
         {
-            lock (this)
-            {
-                observers = observers.Remove(observer);
-            }
+            return observableSource.AddSpecificationListener(specification, onResult);
         }
 
-        public async Task NotifyObservers(FactGraph graph, ImmutableList<Fact> added, CancellationToken cancellationToken)
+        public void RemoveSpecificationListener(SpecificationListener listener)
         {
-            foreach (var observer in observers)
-            {
-                await observer.FactsAdded(added, graph, cancellationToken);
-            }
+            observableSource.RemoveSpecificationListener(listener);
+        }
+
+        public async Task NotifyObservers(FactGraph graph, ImmutableList<Fact> facts, CancellationToken cancellationToken)
+        {
+            await observableSource.Notify(graph, facts, cancellationToken);
+        }
+
+        public Task<DateTime?> GetMruDate(string specificationHash)
+        {
+            return store.GetMruDate(specificationHash);
+        }
+
+        public Task SetMruDate(string specificationHash, DateTime mruDate)
+        {
+            return store.SetMruDate(specificationHash, mruDate);
         }
     }
 }
