@@ -11,7 +11,7 @@ namespace Jinaga.Test
 {
     public partial class WatchTest
     {
-        private readonly Jinaga j;
+        private readonly JinagaClient j;
         private readonly FakeRepository<Office> officeRepository;
 
         public WatchTest()

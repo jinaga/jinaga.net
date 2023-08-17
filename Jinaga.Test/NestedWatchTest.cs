@@ -12,7 +12,7 @@ namespace Jinaga.Test
 {
     public class NestedWatchTest
     {
-        private readonly Jinaga j;
+        private readonly JinagaClient j;
         private readonly FakeOfficeRepository officeRepository;
 
         public NestedWatchTest()

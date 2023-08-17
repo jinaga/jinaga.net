@@ -30,7 +30,7 @@ namespace Jinaga.Store.SQLite
         /// Creates a Jinaga client with no persistent storage or network connection.
         /// </summary>
         /// <returns>A Jinaga client</returns>
-        public static Jinaga Create()
+        public static JinagaClient Create()
         {
             return Create(_ => { });
         }
@@ -40,7 +40,7 @@ namespace Jinaga.Store.SQLite
         /// </summary>
         /// <param name="configure">Lambda that sets properties on the options object.</param>
         /// <returns>A Jinaga client</returns>
-        public static Jinaga Create(Action<JinagaSQLiteClientOptions> configure)
+        public static JinagaClient Create(Action<JinagaSQLiteClientOptions> configure)
         {
             var options = new JinagaSQLiteClientOptions();
             configure(options);
@@ -50,7 +50,7 @@ namespace Jinaga.Store.SQLite
             INetwork network = options.HttpEndpoint == null
                 ? (INetwork)new LocalNetwork()
                 : new HttpNetwork(options.HttpEndpoint);
-            return new Jinaga(store, network);
+            return new JinagaClient(store, network);
         }
     }
 }
