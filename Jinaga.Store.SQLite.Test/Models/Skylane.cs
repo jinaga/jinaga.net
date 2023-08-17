@@ -1,10 +1,6 @@
 ﻿namespace Jinaga.Store.SQLite.Test.Models;
 
 
-[FactType("Jinaga.User")]
-internal record User(string publicKey);
-
-
 [FactType("Skylane.Airline")]
 internal record Airline(string identifier);
 
