@@ -5,9 +5,9 @@ namespace Jinaga.UnitTest
 {
     public class JinagaTest
     {
-        public static Jinaga Create()
+        public static JinagaClient Create()
         {
-            return new Jinaga(new MemoryStore(), new SimulatedNetwork());
+            return new JinagaClient(new MemoryStore(), new SimulatedNetwork());
         }
     }
 }

@@ -7,7 +7,7 @@ namespace Jinaga.Store.SQLite.Test;
 
 public class QueryTest
 {
-    private readonly Jinaga j;
+    private readonly JinagaClient j;
     private readonly ITestOutputHelper output;
 
     private static string SQLitePath { get; } = Path.Combine(
@@ -20,7 +20,7 @@ public class QueryTest
         if (File.Exists(SQLitePath))
             File.Delete(SQLitePath);
 
-        j = new Jinaga(new SQLiteStore(SQLitePath), new LocalNetwork());
+        j = new JinagaClient(new SQLiteStore(SQLitePath), new LocalNetwork());
         this.output = output;
     }
 

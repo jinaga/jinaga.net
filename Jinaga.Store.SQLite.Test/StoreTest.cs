@@ -49,7 +49,7 @@ public class StoreTest
     public async Task CanQueryForSuccessors()
     {
 
-        var j = new Jinaga(new SQLiteStore(SQLitePath), new LocalNetwork());
+        var j = new JinagaClient(new SQLiteStore(SQLitePath), new LocalNetwork());
         //var j = new Jinaga(new SQLiteStore(), new HttpNetwork());
         //var j = new Jinaga(new MemoryStore(), new SimulatedNetwork());
 
@@ -74,7 +74,7 @@ public class StoreTest
         output.WriteLine($"{MyStopWatch.Start()}: BEGIN OF TESTS at {DateTime.Now}");
          
         DateTime now = DateTime.Parse("2021-07-04T01:39:43.241Z");
-        var j = new Jinaga(new SQLiteStore(SQLitePath), new LocalNetwork());            
+        var j = new JinagaClient(new SQLiteStore(SQLitePath), new LocalNetwork());            
         var airlineDay = await j.Fact(new AirlineDay(new Airline("Airline1"), now));
         var flight = await j.Fact(new Flight(airlineDay, 555));
         //airlineDay = await j.Fact(new AirlineDay(new Airline("Airline2"), now));
@@ -92,7 +92,7 @@ public class StoreTest
         output.WriteLine($"{MyStopWatch.Start()}: BEGIN OF TESTS at {DateTime.Now}");
 
         DateTime now = DateTime.Parse("2021-07-04T01:39:43.241Z");
-        var j = new Jinaga(new SQLiteStore(SQLitePath), new LocalNetwork());
+        var j = new JinagaClient(new SQLiteStore(SQLitePath), new LocalNetwork());
         var airline = new Airline("Airline1");            
         var user = await j.Fact(new User("fqjsdfqkfjqlm"));
         var passenger = await j.Fact(new Passenger(airline, user));
@@ -126,7 +126,7 @@ public class StoreTest
         IStore Store = new SQLiteStore(SQLitePath);
 
         DateTime now = DateTime.Parse("2021-07-04T01:39:43.241Z");
-        var j = new Jinaga(Store, new LocalNetwork());            
+        var j = new JinagaClient(Store, new LocalNetwork());            
         var airline = new Airline("Airline1");           
         var user = await j.Fact(new User("fqjsdfqkfjqlm"));
         var passenger = await j.Fact(new Passenger(airline, user));
@@ -204,7 +204,7 @@ public class StoreTest
         IStore Store = new SQLiteStore(SQLitePath);
 
         DateTime now = DateTime.Parse("2021-07-04T01:39:43.241Z");
-        var j = new Jinaga(Store, new LocalNetwork());
+        var j = new JinagaClient(Store, new LocalNetwork());
 
         var supplier = await j.Fact(new Supplier("abc-pubkey"));
         var client = await j.Fact(new Client(supplier, now));
@@ -232,7 +232,7 @@ public class StoreTest
     public async Task StoreRoundTripFromUTC()
     {
         DateTime now = DateTime.Parse("2021-07-04T01:39:43.241Z").ToUniversalTime();
-        var j = new Jinaga(new SQLiteStore(SQLitePath), new LocalNetwork());
+        var j = new JinagaClient(new SQLiteStore(SQLitePath), new LocalNetwork());
         var airlineDay = await j.Fact(new AirlineDay(new Airline("value"), now));
         airlineDay.date.Kind.Should().Be(DateTimeKind.Utc);
         airlineDay.date.Hour.Should().Be(1);

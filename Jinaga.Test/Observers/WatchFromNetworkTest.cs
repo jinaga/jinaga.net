@@ -14,7 +14,7 @@ public class WatchFromNetworkTest
     [Fact]
     public async Task Watch_EmptyUpstream()
     {
-        var j = new Jinaga(new MemoryStore(), new FakeNetwork());
+        var j = new JinagaClient(new MemoryStore(), new FakeNetwork());
 
         var viewModel = new CompanyViewModel();
         var watch = viewModel.Load(j, "contoso");
@@ -42,7 +42,7 @@ public class WatchFromNetworkTest
             dallasOffice
         });
 
-        var j = new Jinaga(new MemoryStore(), network);
+        var j = new JinagaClient(new MemoryStore(), network);
 
         var viewModel = new CompanyViewModel();
         var watch = viewModel.Load(j, "contoso");
@@ -69,7 +69,7 @@ public class WatchFromNetworkTest
     {
         public List<OfficeViewModel> Offices = new();
 
-        public IWatch Load(Jinaga j, string identifier)
+        public IWatch Load(JinagaClient j, string identifier)
         {
             var officesInCompany = Given<Company>.Match((company, facts) =>
                 from office in facts.OfType<Office>()

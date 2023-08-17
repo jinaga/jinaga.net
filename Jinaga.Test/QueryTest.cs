@@ -11,7 +11,7 @@ namespace Jinaga.Test
 {
     public class QueryTest
     {
-        private readonly Jinaga j;
+        private readonly JinagaClient j;
         
 
         public QueryTest()

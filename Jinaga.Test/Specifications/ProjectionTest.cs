@@ -11,7 +11,7 @@ namespace Jinaga.Test.Specifications.Specifications
 {
     public class ProjectionTest
     {
-        private readonly Jinaga j;
+        private readonly JinagaClient j;
 
         public ProjectionTest()
         {
