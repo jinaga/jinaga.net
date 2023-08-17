@@ -127,7 +127,7 @@ namespace Jinaga.Observers
             }
             else
             {
-                synchronizationContext.Post(async _ =>
+                synchronizationContext.Send(async _ =>
                 {
                     await NotifyAdded(results, givenSubset);
                 }, null);
@@ -171,7 +171,7 @@ namespace Jinaga.Observers
                 }
                 else
                 {
-                    synchronizationContext.Post(async _ =>
+                    synchronizationContext.Send(async _ =>
                     {
                         await NotifyAdded(results, inverse.ParentSubset);
                     }, null);
@@ -185,7 +185,7 @@ namespace Jinaga.Observers
                 }
                 else
                 {
-                    synchronizationContext.Post(async _ =>
+                    synchronizationContext.Send(async _ =>
                     {
                         await NotifyRemoved(matchingProducts, inverse.ResultSubset);
                     }, null);
