@@ -21,6 +21,7 @@ namespace Jinaga.Observers
 
         private CancellationTokenSource cancelInitialize = new CancellationTokenSource();
 
+        private SynchronizationContext? synchronizationContext;
         private Task<bool>? cachedTask;
         private Task? loadedTask;
 
@@ -51,6 +52,10 @@ namespace Jinaga.Observers
 
         internal void Start()
         {
+            // Capture the synchronization context so that notifications
+            // can be executed on the same thread.
+            synchronizationContext = SynchronizationContext.Current;
+
             var cancellationToken = cancelInitialize.Token;
             cachedTask = Task.Run(async () =>
                 await ReadFromStore(cancellationToken));
@@ -115,7 +120,18 @@ namespace Jinaga.Observers
             var givenSubset = specification.Given
                 .Select(label => label.Name)
                 .Aggregate(Subset.Empty, (subset, name) => subset.Add(name));
-            await NotifyAdded(results, givenSubset);
+
+            if (synchronizationContext == null)
+            {
+                await NotifyAdded(results, givenSubset);
+            }
+            else
+            {
+                synchronizationContext.Post(async _ =>
+                {
+                    await NotifyAdded(results, givenSubset);
+                }, null);
+            }
         }
 
         private Task Fetch(CancellationToken cancellationToken)
@@ -149,11 +165,31 @@ namespace Jinaga.Observers
             {
                 Projection projection = inverse.InverseSpecification.Projection;
                 var results = await factManager.ComputeProjections(projection, matchingProducts, projection.Type, this, inverse.Path, cancellationToken);
-                await NotifyAdded(results, inverse.ParentSubset);
+                if (synchronizationContext == null)
+                {
+                    await NotifyAdded(results, inverse.ParentSubset);
+                }
+                else
+                {
+                    synchronizationContext.Post(async _ =>
+                    {
+                        await NotifyAdded(results, inverse.ParentSubset);
+                    }, null);
+                }
             }
             else if (inverse.Operation == InverseOperation.Remove || inverse.Operation == InverseOperation.MaybeRemove)
             {
-                await NotifyRemoved(matchingProducts, inverse.ResultSubset);
+                if (synchronizationContext == null)
+                {
+                    await NotifyRemoved(matchingProducts, inverse.ResultSubset);
+                }
+                else
+                {
+                    synchronizationContext.Post(async _ =>
+                    {
+                        await NotifyRemoved(matchingProducts, inverse.ResultSubset);
+                    }, null);
+                }
             }
         }
 
