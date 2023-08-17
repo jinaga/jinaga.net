@@ -121,17 +121,7 @@ namespace Jinaga.Observers
                 .Select(label => label.Name)
                 .Aggregate(Subset.Empty, (subset, name) => subset.Add(name));
 
-            if (synchronizationContext == null)
-            {
-                await NotifyAdded(results, givenSubset);
-            }
-            else
-            {
-                synchronizationContext.Send(async _ =>
-                {
-                    await NotifyAdded(results, givenSubset);
-                }, null);
-            }
+            await SynchronizeNotifyAdded(results, givenSubset);
         }
 
         private Task Fetch(CancellationToken cancellationToken)
@@ -165,31 +155,46 @@ namespace Jinaga.Observers
             {
                 Projection projection = inverse.InverseSpecification.Projection;
                 var results = await factManager.ComputeProjections(projection, matchingProducts, projection.Type, this, inverse.Path, cancellationToken);
-                if (synchronizationContext == null)
-                {
-                    await NotifyAdded(results, inverse.ParentSubset);
-                }
-                else
-                {
-                    synchronizationContext.Send(async _ =>
-                    {
-                        await NotifyAdded(results, inverse.ParentSubset);
-                    }, null);
-                }
+                await SynchronizeNotifyAdded(results, inverse.ParentSubset);
             }
             else if (inverse.Operation == InverseOperation.Remove || inverse.Operation == InverseOperation.MaybeRemove)
             {
-                if (synchronizationContext == null)
+                await SynchronizeNotifyRemoved(inverse, matchingProducts);
+            }
+        }
+
+        private async Task SynchronizeNotifyAdded(ImmutableList<ProjectedResult> results, Subset givenSubset)
+        {
+            await SynchronizeOperaton(() => NotifyAdded(results, givenSubset));
+        }
+
+        private async Task SynchronizeNotifyRemoved(Inverse inverse, ImmutableList<Product> matchingProducts)
+        {
+            await SynchronizeOperaton(() => NotifyRemoved(matchingProducts, inverse.ResultSubset));
+        }
+
+        private async Task SynchronizeOperaton(Func<Task> operation)
+        {
+            if (synchronizationContext == null)
+            {
+                await operation();
+            }
+            else
+            {
+                var taskCompletionSource = new TaskCompletionSource<bool>();
+                synchronizationContext.Post(async _ =>
                 {
-                    await NotifyRemoved(matchingProducts, inverse.ResultSubset);
-                }
-                else
-                {
-                    synchronizationContext.Send(async _ =>
+                    try
                     {
-                        await NotifyRemoved(matchingProducts, inverse.ResultSubset);
-                    }, null);
-                }
+                        await operation();
+                        taskCompletionSource.SetResult(true);
+                    }
+                    catch (Exception ex)
+                    {
+                        taskCompletionSource.SetException(ex);
+                    }
+                }, null);
+                await taskCompletionSource.Task;
             }
         }
 
