@@ -96,18 +96,20 @@ namespace Jinaga
 
             var graph = factManager.Serialize(given);
             var givenReference = graph.Last;
+            var givenTuple = FactReferenceTuple.Empty
+                .Add(specification.Given.Single().Name, givenReference);
             var givenReferences = ImmutableList.Create(givenReference);
             if (specification.CanRunOnGraph)
             {
-                var products = specification.Execute(givenReferences, graph);
+                var products = specification.Execute(givenTuple, graph);
                 var productAnchorProjections = factManager.DeserializeProductsFromGraph(
                     graph, specification.Projection, products, typeof(TProjection), "", null);
                 return productAnchorProjections.Select(pap => (TProjection)pap.Projection).ToImmutableList();
             }
             else
             {
-                await factManager.Fetch(givenReferences, specification, cancellationToken).ConfigureAwait(false);
-                var products = await factManager.Query(givenReferences, specification, cancellationToken).ConfigureAwait(false);
+                await factManager.Fetch(givenTuple, specification, cancellationToken).ConfigureAwait(false);
+                var products = await factManager.Query(givenTuple, specification, cancellationToken).ConfigureAwait(false);
                 var productProjections = await factManager.ComputeProjections(specification.Projection, products, typeof(TProjection), null, string.Empty, cancellationToken).ConfigureAwait(false);
                 var projections = productProjections
                     .Select(pair => (TProjection)pair.Projection)

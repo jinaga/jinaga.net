@@ -262,7 +262,7 @@ namespace Jinaga.Store.SQLite
         }
 
 
-        Task<ImmutableList<Product>> IStore.Read(ImmutableList<FactReference> startReferences, Specification specification, CancellationToken cancellationToken)
+        Task<ImmutableList<Product>> IStore.Read(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
         {
             var factTypes = LoadFactTypesFromSpecification(specification);
             var factTypeMap = factTypes.Select(factType => KeyValuePair.Create(factType.name, factType.fact_type_id)).ToImmutableDictionary();
@@ -280,7 +280,7 @@ namespace Jinaga.Store.SQLite
 
             var descriptionBuilder = new ResultDescriptionBuilder(factTypeMap, roleMap);
             
-            var description = descriptionBuilder.Build(startReferences, specification);
+            var description = descriptionBuilder.Build(givenTuple, specification);
 
             var sqlQueryTree = SqlGenerator.CreateSqlQueryTree(description);
 
@@ -293,24 +293,16 @@ namespace Jinaga.Store.SQLite
             );
 
             var givenProduct = Product.Empty;
-            foreach (var pair in specification.Given
-                .Zip(startReferences, (label, reference) =>
-                    (label, reference)
-                )
-            )
+            foreach (var label in specification.Given)
             {
+                var reference = givenTuple.Get(label.Name);
                 givenProduct = givenProduct.With(
-                    pair.label.Name,
-                    new SimpleElement(pair.reference)
+                    label.Name,
+                    new SimpleElement(reference)
                 );
             }
 
             return Task.FromResult(sqlQueryTree.ResultsToProducts(resultSets, givenProduct));
-        }
-
-        public Task<ImmutableList<Product>> Read(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
-        {
-            throw new NotImplementedException();
         }
 
         private ResultSetTree ExecuteQueryTree(SqlQueryTree sqlQueryTree, ConnectionFactory.Conn conn)

@@ -45,11 +45,6 @@ internal class FakeNetwork : INetwork
         });
     }
 
-    public Task<ImmutableList<string>> Feeds(ImmutableList<FactReference> givenReferences, Specification specification, CancellationToken cancellationToken)
-    {
-        return Task.FromResult(feeds.Select(feed => feed.Name).ToImmutableList());
-    }
-
     public Task<ImmutableList<string>> Feeds(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
     {
         return Task.FromResult(feeds.Select(feed => feed.Name).ToImmutableList());

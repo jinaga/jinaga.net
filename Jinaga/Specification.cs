@@ -1,3 +1,4 @@
+using Jinaga.Facts;
 using Jinaga.Pipelines;
 using Jinaga.Projections;
 using Jinaga.Repository;
@@ -55,9 +56,10 @@ namespace Jinaga
         {
             var collector = new Collector(SerializerCache.Empty);
             var givenReference = collector.Serialize(given);
-            var givenReferences = ImmutableList.Create(givenReference);
+            var givenTuple = FactReferenceTuple.Empty
+                .Add(Given.Single().Name, givenReference);
 
-            string startString = GenerateDeclarationString(givenReferences);
+            string startString = GenerateDeclarationString(givenTuple);
             string specificationString = ToDescriptiveString();
             return startString + "\n" + specificationString;
         }
@@ -76,9 +78,11 @@ namespace Jinaga
             var collector = new Collector(SerializerCache.Empty);
             var aReference = collector.Serialize(given1);
             var bReference = collector.Serialize(given2);
-            var givenReferences = ImmutableList.Create(aReference, bReference);
+            var givenTuple = FactReferenceTuple.Empty
+                .Add(Given.ElementAt(0).Name, aReference)
+                .Add(Given.ElementAt(1).Name, bReference);
 
-            string startString = GenerateDeclarationString(givenReferences);
+            string startString = GenerateDeclarationString(givenTuple);
             string specificationString = ToDescriptiveString();
             return startString + "\n" + specificationString;
         }

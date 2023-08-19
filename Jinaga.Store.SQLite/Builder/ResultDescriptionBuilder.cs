@@ -4,6 +4,7 @@ using Jinaga.Projections;
 using Jinaga.Store.SQLite.Description;
 using System;
 using System.Collections.Immutable;
+using System.Linq;
 
 namespace Jinaga.Store.SQLite.Builder
 {
@@ -18,31 +19,30 @@ namespace Jinaga.Store.SQLite.Builder
             this.roleMap = roleMap;
         }
 
-        public ResultDescription Build(ImmutableList<FactReference> startReferences, Specification specification)
+        public ResultDescription Build(FactReferenceTuple givenTuple, Specification specification)
         {
             // Verify that the number of start references matches the number of given facts.
-            if (startReferences.Count != specification.Given.Count)
+            if (givenTuple.Names.Count() != specification.Given.Count)
             {
-                throw new ArgumentException($"The number of start facts ({startReferences.Count}) does not match the number of inputs ({specification.Given.Count}).");
+                throw new ArgumentException($"The number of start facts ({givenTuple.Names.Count()}) does not match the number of inputs ({specification.Given.Count}).");
             }
             // Verify that the start reference types match the given fact types.
-            for (var i = 0; i < startReferences.Count; i++)
+            foreach (var label in specification.Given)
             {
-                var startReference = startReferences[i];
-                var given = specification.Given[i];
-                if (startReference.Type != given.Type)
+                var reference = givenTuple.Get(label.Name);
+                if (reference.Type != label.Type)
                 {
-                    throw new ArgumentException($"The start fact type ({startReference.Type}) does not match the input type ({given.Type}).");
+                    throw new ArgumentException($"The start fact type ({reference.Type}) does not match the input type ({label.Type}).");
                 }
             }
 
             var context = ResultDescriptionBuilderContext.Empty;
-            return CreateResultDescription(context, specification.Given, startReferences, specification.Matches, specification.Projection);
+            return CreateResultDescription(context, specification.Given, givenTuple, specification.Matches, specification.Projection);
         }
 
-        private ResultDescription CreateResultDescription(ResultDescriptionBuilderContext context, ImmutableList<Label> given, ImmutableList<FactReference> startReferences, ImmutableList<Match> matches, Projection projection)
+        private ResultDescription CreateResultDescription(ResultDescriptionBuilderContext context, ImmutableList<Label> given, FactReferenceTuple givenTuple, ImmutableList<Match> matches, Projection projection)
         {
-            context = AddEdges(context, given, startReferences, matches);
+            context = AddEdges(context, given, givenTuple, matches);
 
             var childResultDescriptions = ImmutableDictionary<string, ResultDescription>.Empty;
             if (projection is CompoundProjection compoundProjection)
@@ -55,7 +55,7 @@ namespace Jinaga.Store.SQLite.Builder
                         var resultDescription = CreateResultDescription(
                             context,
                             given,
-                            startReferences,
+                            givenTuple,
                             collectionProjection.Matches,
                             collectionProjection.Projection);
                         childResultDescriptions = childResultDescriptions.Add(name, resultDescription);
@@ -69,7 +69,7 @@ namespace Jinaga.Store.SQLite.Builder
             );
         }
 
-        private ResultDescriptionBuilderContext AddEdges(ResultDescriptionBuilderContext context, ImmutableList<Label> given, ImmutableList<FactReference> startReferences, ImmutableList<Match> matches)
+        private ResultDescriptionBuilderContext AddEdges(ResultDescriptionBuilderContext context, ImmutableList<Label> given, FactReferenceTuple givenTuple, ImmutableList<Match> matches)
         {
             foreach (var match in matches)
             {
@@ -77,7 +77,7 @@ namespace Jinaga.Store.SQLite.Builder
                 {
                     if (condition is PathCondition pathCondition)
                     {
-                        context = AddPathCondition(context, pathCondition, given, startReferences, match.Unknown, "");
+                        context = AddPathCondition(context, pathCondition, given, givenTuple, match.Unknown, "");
                     }
                     else if (condition is ExistentialCondition existentialCondition)
                     {
@@ -85,7 +85,7 @@ namespace Jinaga.Store.SQLite.Builder
                         // The path describes which not-exists condition we are currently building on.
                         // Because the path is not empty, labeled facts will be included in the output.
                         var contextWithCondition = context.WithExistentialCondition(existentialCondition.Exists);
-                        var contextConditional = AddEdges(contextWithCondition, given, startReferences, existentialCondition.Matches);
+                        var contextConditional = AddEdges(contextWithCondition, given, givenTuple, existentialCondition.Matches);
 
                         // If the negative existential condition is not satisfiable, then
                         // that means that the condition will always be true.
@@ -108,7 +108,7 @@ namespace Jinaga.Store.SQLite.Builder
             return context;
         }
 
-        private ResultDescriptionBuilderContext AddPathCondition(ResultDescriptionBuilderContext context, PathCondition pathCondition, ImmutableList<Label> given, ImmutableList<FactReference> startReferences, Label unknown, string v)
+        private ResultDescriptionBuilderContext AddPathCondition(ResultDescriptionBuilderContext context, PathCondition pathCondition, ImmutableList<Label> given, FactReferenceTuple givenTuple, Label unknown, string v)
         {
             // If no input parameter has been allocated, allocate one now.
             if (!context.KnownFacts.ContainsKey(pathCondition.LabelRight))
@@ -118,11 +118,13 @@ namespace Jinaga.Store.SQLite.Builder
                 {
                     throw new ArgumentException($"No input parameter found for label {pathCondition.LabelRight}");
                 }
-                int factTypeId = EnsureGetFactTypeId(startReferences[givenIndex].Type);
+
+                var factReference = givenTuple.Get(pathCondition.LabelRight);
+                int factTypeId = EnsureGetFactTypeId(factReference.Type);
                 context = context.WithInputParameter(
                     given[givenIndex],
                     factTypeId,
-                    startReferences[givenIndex].Hash
+                    factReference.Hash
                 );
             }
 

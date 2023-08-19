@@ -30,15 +30,6 @@ namespace Jinaga.Http
             return webClient.Save(saveRequest);
         }
 
-        public async Task<ImmutableList<string>> Feeds(ImmutableList<Facts.FactReference> givenReferences, Specification specification, CancellationToken cancellationToken)
-        {
-            string startString = GenerateDeclarationString(specification.Given, givenReferences);
-            string specificationString = GenerateSpecificationString(specification);
-            var response = await webClient.Feeds(startString + specificationString).ConfigureAwait(false);
-            var feeds = response.Feeds.ToImmutableList();
-            return feeds;
-        }
-
         public async Task<ImmutableList<string>> Feeds(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
         {
             string declarationString = specification.GenerateDeclarationString(givenTuple);

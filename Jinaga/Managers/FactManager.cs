@@ -41,11 +41,6 @@ namespace Jinaga.Managers
             return added;
         }
 
-        public async Task Fetch(ImmutableList<FactReference> givenReferences, Specification specification, CancellationToken cancellationToken)
-        {
-            await networkManager.Fetch(givenReferences, specification, cancellationToken).ConfigureAwait(false);
-        }
-
         public async Task Fetch(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
         {
             await networkManager.Fetch(givenTuple, specification, cancellationToken).ConfigureAwait(false);
@@ -65,10 +60,10 @@ namespace Jinaga.Managers
             return DeserializeProductsFromGraph(graph, specification.Projection, products, type, "", watchContext);
         }
 
-        public async Task<ImmutableList<Product>> Query(ImmutableList<FactReference> givenReferences, Specification specification, CancellationToken cancellationToken)
+        public async Task<ImmutableList<Product>> Query(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
         {
-            await networkManager.Fetch(givenReferences, specification, cancellationToken).ConfigureAwait(false);
-            return await store.Read(givenReferences, specification, cancellationToken).ConfigureAwait(false);
+            await networkManager.Fetch(givenTuple, specification, cancellationToken).ConfigureAwait(false);
+            return await store.Read(givenTuple, specification, cancellationToken).ConfigureAwait(false);
         }
 
         public async Task<FactGraph> LoadProducts(ImmutableList<Product> products, CancellationToken cancellationToken)

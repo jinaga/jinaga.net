@@ -34,19 +34,6 @@ namespace Jinaga.Projections
             return new Specification(ImmutableList<Label>.Empty, newMatches, newProjection);
         }
 
-        public ImmutableList<Product> Execute(ImmutableList<FactReference> givenReferences, FactGraph graph)
-        {
-            var start = Given.Zip(givenReferences, (given, reference) =>
-                (name: given.Name, reference)
-            ).Aggregate(
-                FactReferenceTuple.Empty,
-                (tuple, pair) => tuple.Add(pair.name, pair.reference)
-            );
-            var tuples = ExecuteMatches(start, Matches, graph);
-            var products = tuples.Select(tuple => CreateProduct(tuple, Projection, graph)).ToImmutableList();
-            return products;
-        }
-
         public ImmutableList<Product> Execute(FactReferenceTuple givenTuple, FactGraph graph)
         {
             var tuples = ExecuteMatches(givenTuple, Matches, graph);
@@ -75,14 +62,6 @@ namespace Jinaga.Projections
                 var reference = given.Get(label.Name);
                 return $"let {label.Name}: {label.Type} = #{reference.Hash}\n";
             });
-            return string.Join("", startStrings);
-        }
-            
-
-        protected string GenerateDeclarationString(ImmutableList<Facts.FactReference> givenReferences)
-        {
-            var startStrings = Given.Zip(givenReferences, (label, reference) =>
-                $"let {label.Name}: {reference.Type} = #{reference.Hash}\n");
             return string.Join("", startStrings);
         }
 
