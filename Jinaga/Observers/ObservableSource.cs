@@ -114,7 +114,7 @@ namespace Jinaga.Observers
         {
             foreach (var fact in facts)
             {
-                await NotifyFactSaved(graph, fact, cancellationToken);
+                await NotifyFactSaved(graph, fact, cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -133,10 +133,10 @@ namespace Jinaga.Observers
                         var givenTuple = FactReferenceTuple.Empty.Add(name, givenReference);
                         var products = specification.CanRunOnGraph
                             ? specification.Execute(givenTuple, graph)
-                            : await store.Read(givenTuple, specification, cancellationToken);
+                            : await store.Read(givenTuple, specification, cancellationToken).ConfigureAwait(false);
                         foreach (var listener in listeners)
                         {
-                            await listener.OnResult(products, cancellationToken);
+                            await listener.OnResult(products, cancellationToken).ConfigureAwait(false);
                         }
                     }
                 }

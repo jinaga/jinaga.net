@@ -58,24 +58,24 @@ namespace Jinaga.Observers
 
             var cancellationToken = cancelInitialize.Token;
             cachedTask = Task.Run(async () =>
-                await ReadFromStore(cancellationToken));
+                await ReadFromStore(cancellationToken).ConfigureAwait(false));
             loadedTask = Task.Run(async () =>
             {
-                bool cached = await cachedTask;
-                await FetchFromNetwork(cached, cancellationToken);
+                bool cached = await cachedTask.ConfigureAwait(false);
+                await FetchFromNetwork(cached, cancellationToken).ConfigureAwait(false);
             });
         }
 
         private async Task<bool> ReadFromStore(CancellationToken cancellationToken)
         {
-            DateTime? mruDate = await factManager.GetMruDate(specificationHash);
+            DateTime? mruDate = await factManager.GetMruDate(specificationHash).ConfigureAwait(false);
             if (mruDate == null)
             {
                 return false;
             }
 
             // Read from local storage.
-            await Read(cancellationToken);
+            await Read(cancellationToken).ConfigureAwait(false);
             return true;
         }
 
@@ -85,16 +85,16 @@ namespace Jinaga.Observers
             {
                 // Fetch from the network first,
                 // then read from local storage.
-                await Fetch(cancellationToken);
-                await Read(cancellationToken);
+                await Fetch(cancellationToken).ConfigureAwait(false);
+                await Read(cancellationToken).ConfigureAwait(false);
             }
             else
             {
                 // Already read from local storage.
                 // Fetch from the network to update the cache.
-                await Fetch(cancellationToken);
+                await Fetch(cancellationToken).ConfigureAwait(false);
             }
-            await factManager.SetMruDate(specificationHash, DateTime.UtcNow);
+            await factManager.SetMruDate(specificationHash, DateTime.UtcNow).ConfigureAwait(false);
         }
 
         public void OnAdded(FactReferenceTuple anchor, string path, Func<object, Task<Func<Task>>> added)
@@ -115,13 +115,13 @@ namespace Jinaga.Observers
 
         private async Task Read(CancellationToken cancellationToken)
         {
-            var results = await factManager.Read(givenTuple, specification, specification.Projection.Type, this, cancellationToken);
+            var results = await factManager.Read(givenTuple, specification, specification.Projection.Type, this, cancellationToken).ConfigureAwait(false);
             AddSpecificationListeners();
             var givenSubset = specification.Given
                 .Select(label => label.Name)
                 .Aggregate(Subset.Empty, (subset, name) => subset.Add(name));
 
-            await SynchronizeNotifyAdded(results, givenSubset);
+            await SynchronizeNotifyAdded(results, givenSubset).ConfigureAwait(false);
         }
 
         private Task Fetch(CancellationToken cancellationToken)
@@ -134,7 +134,7 @@ namespace Jinaga.Observers
             var inverses = specification.ComputeInverses();
             ImmutableList<SpecificationListener> listeners = inverses.Select(inverse => factManager.AddSpecificationListener(
                 inverse.InverseSpecification,
-                async (ImmutableList<Product> results, CancellationToken cancellationToken) => await OnResult(inverse, results, cancellationToken)
+                async (ImmutableList<Product> results, CancellationToken cancellationToken) => await OnResult(inverse, results, cancellationToken).ConfigureAwait(false)
             )).ToImmutableList();
             this.listeners = listeners;
         }
@@ -154,30 +154,30 @@ namespace Jinaga.Observers
             if (inverse.Operation == InverseOperation.Add || inverse.Operation == InverseOperation.MaybeAdd)
             {
                 Projection projection = inverse.InverseSpecification.Projection;
-                var results = await factManager.ComputeProjections(projection, matchingProducts, projection.Type, this, inverse.Path, cancellationToken);
-                await SynchronizeNotifyAdded(results, inverse.ParentSubset);
+                var results = await factManager.ComputeProjections(projection, matchingProducts, projection.Type, this, inverse.Path, cancellationToken).ConfigureAwait(false);
+                await SynchronizeNotifyAdded(results, inverse.ParentSubset).ConfigureAwait(false);
             }
             else if (inverse.Operation == InverseOperation.Remove || inverse.Operation == InverseOperation.MaybeRemove)
             {
-                await SynchronizeNotifyRemoved(inverse, matchingProducts);
+                await SynchronizeNotifyRemoved(inverse, matchingProducts).ConfigureAwait(false);
             }
         }
 
         private async Task SynchronizeNotifyAdded(ImmutableList<ProjectedResult> results, Subset givenSubset)
         {
-            await SynchronizeOperaton(() => NotifyAdded(results, givenSubset));
+            await SynchronizeOperaton(() => NotifyAdded(results, givenSubset)).ConfigureAwait(false);
         }
 
         private async Task SynchronizeNotifyRemoved(Inverse inverse, ImmutableList<Product> matchingProducts)
         {
-            await SynchronizeOperaton(() => NotifyRemoved(matchingProducts, inverse.ResultSubset));
+            await SynchronizeOperaton(() => NotifyRemoved(matchingProducts, inverse.ResultSubset)).ConfigureAwait(false);
         }
 
         private async Task SynchronizeOperaton(Func<Task> operation)
         {
             if (synchronizationContext == null)
             {
-                await operation();
+                await operation().ConfigureAwait(false);
             }
             else
             {
@@ -186,7 +186,7 @@ namespace Jinaga.Observers
                 {
                     try
                     {
-                        await operation();
+                        await operation().ConfigureAwait(false);
                         taskCompletionSource.SetResult(true);
                     }
                     catch (Exception ex)
@@ -194,7 +194,7 @@ namespace Jinaga.Observers
                         taskCompletionSource.SetException(ex);
                     }
                 }, null);
-                await taskCompletionSource.Task;
+                await taskCompletionSource.Task.ConfigureAwait(false);
             }
         }
 
@@ -212,7 +212,7 @@ namespace Jinaga.Observers
                     var resultTuple = result.Product.GetAnchor();
                     if (!notifiedTuples.Contains(resultTuple))
                     {
-                        var removal = await resultAdded(result.Projection);
+                        var removal = await resultAdded(result.Projection).ConfigureAwait(false);
                         lock (this)
                         {
                             notifiedTuples.Add(resultTuple);
@@ -232,7 +232,7 @@ namespace Jinaga.Observers
                         );
                     foreach (var collection in result.Collections)
                     {
-                        await NotifyAdded(collection.Results, subset);
+                        await NotifyAdded(collection.Results, subset).ConfigureAwait(false);
                     }
                 }
             }
@@ -245,7 +245,7 @@ namespace Jinaga.Observers
                 var resultTuple = resultSubset.Of(product);
                 if (removalsByProduct.TryGetValue(resultTuple, out var removal))
                 {
-                    await removal();
+                    await removal().ConfigureAwait(false);
                     lock (this)
                     {
                         removalsByProduct = removalsByProduct.Remove(resultTuple);

@@ -31,29 +31,29 @@ namespace Jinaga.Managers
 
         public async Task<ImmutableList<Fact>> Save(FactGraph graph, CancellationToken cancellationToken)
         {
-            var added = await store.Save(graph, cancellationToken);
-            await observableSource.Notify(graph, added, cancellationToken);
+            var added = await store.Save(graph, cancellationToken).ConfigureAwait(false);
+            await observableSource.Notify(graph, added, cancellationToken).ConfigureAwait(false);
 
             var facts = graph.FactReferences
                 .Select(r => graph.GetFact(r))
                 .ToImmutableList();
-            await networkManager.Save(facts, cancellationToken);
+            await networkManager.Save(facts, cancellationToken).ConfigureAwait(false);
             return added;
         }
 
         public async Task Fetch(ImmutableList<FactReference> givenReferences, Specification specification, CancellationToken cancellationToken)
         {
-            await networkManager.Fetch(givenReferences, specification, cancellationToken);
+            await networkManager.Fetch(givenReferences, specification, cancellationToken).ConfigureAwait(false);
         }
 
         public async Task Fetch(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
         {
-            await networkManager.Fetch(givenTuple, specification, cancellationToken);
+            await networkManager.Fetch(givenTuple, specification, cancellationToken).ConfigureAwait(false);
         }
 
         public async Task<ImmutableList<ProjectedResult>> Read(FactReferenceTuple givenTuple, Specification specification, Type type, IWatchContext? watchContext, CancellationToken cancellationToken)
         {
-            var products = await store.Read(givenTuple, specification, cancellationToken);
+            var products = await store.Read(givenTuple, specification, cancellationToken).ConfigureAwait(false);
             if (products.Count == 0)
             {
                 return ImmutableList<ProjectedResult>.Empty;
@@ -61,14 +61,14 @@ namespace Jinaga.Managers
             var references = products
                 .SelectMany(product => product.GetFactReferences())
                 .ToImmutableList();
-            var graph = await store.Load(references, cancellationToken);
+            var graph = await store.Load(references, cancellationToken).ConfigureAwait(false);
             return DeserializeProductsFromGraph(graph, specification.Projection, products, type, "", watchContext);
         }
 
         public async Task<ImmutableList<Product>> Query(ImmutableList<FactReference> givenReferences, Specification specification, CancellationToken cancellationToken)
         {
-            await networkManager.Fetch(givenReferences, specification, cancellationToken);
-            return await store.Read(givenReferences, specification, cancellationToken);
+            await networkManager.Fetch(givenReferences, specification, cancellationToken).ConfigureAwait(false);
+            return await store.Read(givenReferences, specification, cancellationToken).ConfigureAwait(false);
         }
 
         public async Task<FactGraph> LoadProducts(ImmutableList<Product> products, CancellationToken cancellationToken)
@@ -76,7 +76,7 @@ namespace Jinaga.Managers
             var references = products
                 .SelectMany(product => product.GetFactReferences())
                 .ToImmutableList();
-            return await store.Load(references, cancellationToken);
+            return await store.Load(references, cancellationToken).ConfigureAwait(false);
         }
 
         public async Task<ImmutableList<ProjectedResult>> ComputeProjections(
@@ -88,7 +88,7 @@ namespace Jinaga.Managers
             CancellationToken cancellationToken)
         {
             var references = Projector.GetFactReferences(projection, products, type);
-            var graph = await store.Load(references, cancellationToken);
+            var graph = await store.Load(references, cancellationToken).ConfigureAwait(false);
             return DeserializeProductsFromGraph(graph, projection, products, type, path, watchContext);
         }
 
@@ -150,7 +150,7 @@ namespace Jinaga.Managers
 
         public async Task NotifyObservers(FactGraph graph, ImmutableList<Fact> facts, CancellationToken cancellationToken)
         {
-            await observableSource.Notify(graph, facts, cancellationToken);
+            await observableSource.Notify(graph, facts, cancellationToken).ConfigureAwait(false);
         }
 
         public Task<DateTime?> GetMruDate(string specificationHash)
