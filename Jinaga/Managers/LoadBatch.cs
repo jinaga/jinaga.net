@@ -30,7 +30,7 @@ namespace Jinaga.Managers
             {
                 await Task.WhenAny(start.Task, Task.Delay(100)).ConfigureAwait(false);
                 batchStarted(this);
-                var cancellationTokenSource = new CancellationTokenSource();
+                using var cancellationTokenSource = new CancellationTokenSource();
                 await Load(cancellationTokenSource.Token).ConfigureAwait(false);
             });
         }

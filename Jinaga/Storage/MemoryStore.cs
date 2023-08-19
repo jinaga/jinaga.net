@@ -54,18 +54,6 @@ namespace Jinaga.Storage
             return Task.FromResult(newFacts);
         }
 
-        public Task<ImmutableList<Product>> Read(ImmutableList<FactReference> givenReferences, Specification specification, CancellationToken cancellationToken)
-        {
-            var start = specification.Given.Zip(givenReferences, (given, reference) =>
-                (name: given.Name, reference)
-            ).Aggregate(
-                FactReferenceTuple.Empty,
-                (tuple, pair) => tuple.Add(pair.name, pair.reference)
-            );
-            var products = ExecuteMatchesAndProjection(start, specification.Matches, specification.Projection);
-            return Task.FromResult(products);
-        }
-
         public Task<ImmutableList<Product>> Read(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
         {
             var products = ExecuteMatchesAndProjection(givenTuple, specification.Matches, specification.Projection);

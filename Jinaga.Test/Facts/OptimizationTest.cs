@@ -96,9 +96,11 @@ namespace Jinaga.Test.Facts
             var collector = new Collector(SerializerCache.Empty);
             var reference = collector.Serialize(passengerName);
             var graph = collector.Graph;
+            var tuple = FactReferenceTuple.Empty
+                .Add(userWithName.Given.Single().Name, reference);
 
             var references = userWithName
-                .Execute(ImmutableList.Create(reference), graph)
+                .Execute(tuple, graph)
                 .Select(p => p.GetElement("user"))
                 .OfType<SimpleElement>()
                 .Select(e => e.FactReference)

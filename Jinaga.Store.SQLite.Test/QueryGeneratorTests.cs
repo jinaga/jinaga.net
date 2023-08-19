@@ -258,13 +258,16 @@ public class QueryGeneratorTests
         var factTypes = GetAllFactTypes(specification);
         var roleMap = GetAllRoles(specification, factTypes);
 
-        var startReferences = specification.Given
-            .Select((label, index) => new FactReference(label.Type, $"{index+1001}"))
-            .ToImmutableList();
+        var givenTuple = specification.Given
+            .Select((label, index) => (
+                name: label.Name,
+                reference: new FactReference(label.Type, $"{index + 1001}")
+            ))
+            .Aggregate(FactReferenceTuple.Empty, (tuple, item) => tuple.Add(item.name, item.reference));
 
         var descriptionBuilder = new ResultDescriptionBuilder(factTypes, roleMap);
         string str = specification.ToString();
-        var description = descriptionBuilder.Build(startReferences, specification);
+        var description = descriptionBuilder.Build(givenTuple, specification);
 
         var sqlQueryTree = SqlGenerator.CreateSqlQueryTree(description);
         return sqlQueryTree;

@@ -37,45 +37,6 @@ namespace Jinaga.Managers
             await network.Save(facts, cancellationToken).ConfigureAwait(false);
         }
 
-        public async Task Fetch(ImmutableList<FactReference> givenReferences, Specification specification, CancellationToken cancellationToken)
-        {
-            // Get the feeds from the source.
-            var feeds = await network.Feeds(givenReferences, specification, cancellationToken).ConfigureAwait(false);
-
-            // TODO: Fork to fetch from each feed.
-            foreach (var feed in feeds)
-            {
-                // Load the bookmark.
-                string bookmark = await store.LoadBookmark(feed).ConfigureAwait(false);
-
-                while (true)
-                {
-                    // Fetch facts from the feed starting at the bookmark.
-                    (var factReferences, var nextBookmark) = await network.FetchFeed(feed, bookmark, cancellationToken).ConfigureAwait(false);
-                    
-                    // If there are no facts, end.
-                    if (factReferences.Count == 0)
-                    {
-                        break;
-                    }
-
-                    // Load the facts that I don't already have.
-                    var knownFactReferences = await store.ListKnown(factReferences).ConfigureAwait(false);
-                    var graph = await network.Load(factReferences.RemoveRange(knownFactReferences), cancellationToken).ConfigureAwait(false);
-
-                    // Save the facts.
-                    var added = await store.Save(graph, cancellationToken).ConfigureAwait(false);
-
-                    // Notify observers.
-                    await notifyObservers(graph, added, cancellationToken).ConfigureAwait(false);
-
-                    // Update the bookmark.
-                    bookmark = nextBookmark;
-                    await store.SaveBookmark(feed, bookmark).ConfigureAwait(false);
-                }
-            }
-        }
-
         public async Task Fetch(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
         {
             var reducedSpecification = specification.Reduce();
@@ -129,6 +90,10 @@ namespace Jinaga.Managers
                     // If there are no facts, end.
                     if (factReferences.Count == 0)
                     {
+                        lock (this)
+                        {
+                            activeFeeds = activeFeeds.Remove(feed);
+                        }
                         break;
                     }
 
