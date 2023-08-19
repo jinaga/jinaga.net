@@ -34,24 +34,24 @@ namespace Jinaga.Managers
         {
             // TODO: Queue the facts for sending.
             // Send the facts using the network provider.
-            await network.Save(facts, cancellationToken);
+            await network.Save(facts, cancellationToken).ConfigureAwait(false);
         }
 
         public async Task Fetch(ImmutableList<FactReference> givenReferences, Specification specification, CancellationToken cancellationToken)
         {
             // Get the feeds from the source.
-            var feeds = await network.Feeds(givenReferences, specification, cancellationToken);
+            var feeds = await network.Feeds(givenReferences, specification, cancellationToken).ConfigureAwait(false);
 
             // TODO: Fork to fetch from each feed.
             foreach (var feed in feeds)
             {
                 // Load the bookmark.
-                string bookmark = await store.LoadBookmark(feed);
+                string bookmark = await store.LoadBookmark(feed).ConfigureAwait(false);
 
                 while (true)
                 {
                     // Fetch facts from the feed starting at the bookmark.
-                    (var factReferences, var nextBookmark) = await network.FetchFeed(feed, bookmark, cancellationToken);
+                    (var factReferences, var nextBookmark) = await network.FetchFeed(feed, bookmark, cancellationToken).ConfigureAwait(false);
                     
                     // If there are no facts, end.
                     if (factReferences.Count == 0)
@@ -60,18 +60,18 @@ namespace Jinaga.Managers
                     }
 
                     // Load the facts that I don't already have.
-                    var knownFactReferences = await store.ListKnown(factReferences);
-                    var graph = await network.Load(factReferences.RemoveRange(knownFactReferences), cancellationToken);
+                    var knownFactReferences = await store.ListKnown(factReferences).ConfigureAwait(false);
+                    var graph = await network.Load(factReferences.RemoveRange(knownFactReferences), cancellationToken).ConfigureAwait(false);
 
                     // Save the facts.
-                    var added = await store.Save(graph, cancellationToken);
+                    var added = await store.Save(graph, cancellationToken).ConfigureAwait(false);
 
                     // Notify observers.
-                    await notifyObservers(graph, added, cancellationToken);
+                    await notifyObservers(graph, added, cancellationToken).ConfigureAwait(false);
 
                     // Update the bookmark.
                     bookmark = nextBookmark;
-                    await store.SaveBookmark(feed, bookmark);
+                    await store.SaveBookmark(feed, bookmark).ConfigureAwait(false);
                 }
             }
         }
@@ -79,7 +79,7 @@ namespace Jinaga.Managers
         public async Task Fetch(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
         {
             var reducedSpecification = specification.Reduce();
-            var feeds = await GetFeedsFromCache(givenTuple, reducedSpecification, cancellationToken);
+            var feeds = await GetFeedsFromCache(givenTuple, reducedSpecification, cancellationToken).ConfigureAwait(false);
 
             // Fork to fetch from each feed.
             var tasks = feeds.Select(feed =>
@@ -101,7 +101,7 @@ namespace Jinaga.Managers
 
             try
             {
-                await Task.WhenAll(tasks);
+                await Task.WhenAll(tasks).ConfigureAwait(false);
             }
             catch (Exception)
             {
@@ -114,7 +114,7 @@ namespace Jinaga.Managers
         private async Task ProcessFeed(string feed, CancellationToken cancellationToken)
         {
             // Load the bookmark.
-            string bookmark = await store.LoadBookmark(feed);
+            string bookmark = await store.LoadBookmark(feed).ConfigureAwait(false);
 
             while (true)
             {
@@ -124,7 +124,7 @@ namespace Jinaga.Managers
                 try
                 {
                     // Fetch facts from the feed starting at the bookmark.
-                    (var factReferences, var nextBookmark) = await network.FetchFeed(feed, bookmark, cancellationToken);
+                    (var factReferences, var nextBookmark) = await network.FetchFeed(feed, bookmark, cancellationToken).ConfigureAwait(false);
 
                     // If there are no facts, end.
                     if (factReferences.Count == 0)
@@ -133,7 +133,7 @@ namespace Jinaga.Managers
                     }
 
                     // Load the facts that I don't already have.
-                    var knownFactReferences = await store.ListKnown(factReferences);
+                    var knownFactReferences = await store.ListKnown(factReferences).ConfigureAwait(false);
                     var unknownFactReferences = factReferences.RemoveRange(knownFactReferences);
                     if (unknownFactReferences.Any())
                     {
@@ -146,12 +146,12 @@ namespace Jinaga.Managers
                             // This is the last fetch, so trigger the batch.
                             batch.Trigger();
                         }
-                        await batch.Completed;
+                        await batch.Completed.ConfigureAwait(false);
                     }
 
                     // Update the bookmark.
                     bookmark = nextBookmark;
-                    await store.SaveBookmark(feed, bookmark);
+                    await store.SaveBookmark(feed, bookmark).ConfigureAwait(false);
                 }
                 finally
                 {
@@ -208,7 +208,7 @@ namespace Jinaga.Managers
             {
                 return cached;
             }
-            var feeds = await network.Feeds(givenTuple, specification, cancellationToken);
+            var feeds = await network.Feeds(givenTuple, specification, cancellationToken).ConfigureAwait(false);
             lock (this)
             {
                 feedsCache = feedsCache.Add(hash, feeds);

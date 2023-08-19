@@ -61,7 +61,7 @@ namespace Jinaga
             {
                 if (factManager != null)
                 {
-                    await factManager.NotifyObservers(graph, added, cancellationToken);
+                    await factManager.NotifyObservers(graph, added, cancellationToken).ConfigureAwait(false);
                 }
             });
             factManager = new FactManager(store, networkManager);
@@ -78,7 +78,7 @@ namespace Jinaga
             using (var source = new CancellationTokenSource())
             {
                 var token = source.Token;
-                await factManager.Save(graph, token);
+                await factManager.Save(graph, token).ConfigureAwait(false);
             }
 
             return factManager.Deserialize<TFact>(graph, graph.Last);
@@ -106,9 +106,9 @@ namespace Jinaga
             }
             else
             {
-                await factManager.Fetch(givenReferences, specification, cancellationToken);
-                var products = await factManager.Query(givenReferences, specification, cancellationToken);
-                var productProjections = await factManager.ComputeProjections(specification.Projection, products, typeof(TProjection), null, string.Empty, cancellationToken);
+                await factManager.Fetch(givenReferences, specification, cancellationToken).ConfigureAwait(false);
+                var products = await factManager.Query(givenReferences, specification, cancellationToken).ConfigureAwait(false);
+                var productProjections = await factManager.ComputeProjections(specification.Projection, products, typeof(TProjection), null, string.Empty, cancellationToken).ConfigureAwait(false);
                 var projections = productProjections
                     .Select(pair => (TProjection)pair.Projection)
                     .ToImmutableList();
@@ -161,7 +161,7 @@ namespace Jinaga
             return Watch<TFact, TProjection>(specification, given,
                 async projection =>
                 {
-                    await added(projection);
+                    await added(projection).ConfigureAwait(false);
                     return () => Task.CompletedTask;
                 }
             );

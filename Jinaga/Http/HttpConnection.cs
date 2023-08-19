@@ -31,9 +31,9 @@ namespace Jinaga.Http
         {
             return WithHttpClient(async httpClient =>
             {
-                using var httpResponse = await httpClient.GetAsync(path);
+                using var httpResponse = await httpClient.GetAsync(path).ConfigureAwait(false);
                 httpResponse.EnsureSuccessStatusCode();
-                string body = await httpResponse.Content.ReadAsStringAsync();
+                string body = await httpResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
                 var response = MessageSerializer.Deserialize<TResponse>(body);
                 return response;
             });
@@ -44,7 +44,7 @@ namespace Jinaga.Http
             return WithHttpClient(async httpClient =>
             {
                 var body = MessageSerializer.Serialize(request);
-                using var httpResponse = await httpClient.PostAsync(path, new StringContent(body, Encoding.UTF8, "application/json"));
+                using var httpResponse = await httpClient.PostAsync(path, new StringContent(body, Encoding.UTF8, "application/json")).ConfigureAwait(false);
                 return httpResponse.EnsureSuccessStatusCode();
             });
         }
@@ -56,8 +56,8 @@ namespace Jinaga.Http
                 string json = MessageSerializer.Serialize(request);
                 using var content = new ByteArrayContent(Encoding.UTF8.GetBytes(json));
                 content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
-                using var httpResponse = await httpClient.PostAsync(path, content);
-                string body = await httpResponse.Content.ReadAsStringAsync();
+                using var httpResponse = await httpClient.PostAsync(path, content).ConfigureAwait(false);
+                string body = await httpResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
                 var response = MessageSerializer.Deserialize<TResponse>(body);
                 return response;
             });
@@ -67,9 +67,9 @@ namespace Jinaga.Http
         {
             return WithHttpClient(async httpClient =>
             {
-                using var httpResponse = await httpClient.PostAsync(path, new StringContent(request));
+                using var httpResponse = await httpClient.PostAsync(path, new StringContent(request)).ConfigureAwait(false);
                 httpResponse.EnsureSuccessStatusCode();
-                string body = await httpResponse.Content.ReadAsStringAsync();
+                string body = await httpResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
                 var response = MessageSerializer.Deserialize<TResponse>(body);
                 return response;
             });
@@ -79,7 +79,7 @@ namespace Jinaga.Http
         {
             try
             {
-                return await func(httpClient);
+                return await func(httpClient).ConfigureAwait(false);
             }
             catch (Exception ex)
             {

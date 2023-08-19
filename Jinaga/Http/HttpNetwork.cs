@@ -34,7 +34,7 @@ namespace Jinaga.Http
         {
             string startString = GenerateDeclarationString(specification.Given, givenReferences);
             string specificationString = GenerateSpecificationString(specification);
-            var response = await webClient.Feeds(startString + specificationString);
+            var response = await webClient.Feeds(startString + specificationString).ConfigureAwait(false);
             var feeds = response.Feeds.ToImmutableList();
             return feeds;
         }
@@ -44,14 +44,14 @@ namespace Jinaga.Http
             string declarationString = specification.GenerateDeclarationString(givenTuple);
             string specificationString = GenerateSpecificationString(specification);
             string request = $"{declarationString}\n{specificationString}";
-            var response = await webClient.Feeds(request);
+            var response = await webClient.Feeds(request).ConfigureAwait(false);
             var feeds = response.Feeds.ToImmutableList();
             return feeds;
         }
 
         public async Task<(ImmutableList<Facts.FactReference> references, string bookmark)> FetchFeed(string feed, string bookmark, CancellationToken cancellationToken)
         {
-            var response = await webClient.Feed(feed, bookmark, cancellationToken);
+            var response = await webClient.Feed(feed, bookmark, cancellationToken).ConfigureAwait(false);
             bookmark = response.bookmark;
             var references = response.references
                 .Select(r => ReadFactReference(r))
@@ -65,7 +65,7 @@ namespace Jinaga.Http
             {
                 References = factReferences.Select(r => CreateFactReference(r)).ToList()
             };
-            LoadResponse response = await webClient.Load(request, cancellationToken);
+            LoadResponse response = await webClient.Load(request, cancellationToken).ConfigureAwait(false);
             var builder = new FactGraphBuilder();
             foreach (var factRecord in response.Facts)
             {

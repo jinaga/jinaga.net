@@ -12,7 +12,7 @@ namespace Jinaga.Observers
         {
             this.OnAdded(async projection =>
             {
-                await added(projection);
+                await added(projection).ConfigureAwait(false);
                 return () => Task.CompletedTask;
             });
         }

@@ -263,13 +263,13 @@ namespace Jinaga.Store.SQLite
                 var result = WithTxn(callback, enableBackoff, id);
                 return result;
             };
-            return await Task<T>.Run(dbOp);
-            //return await new TaskFactory().StartNew(dbOp);
-            //return await new TaskFactory().StartNew(dbOp,TaskCreationOptions.LongRunning );
+            return await Task<T>.Run(dbOp).ConfigureAwait(false);
+            //return await new TaskFactory().StartNew(dbOp).ConfigureAwait(false);
+            //return await new TaskFactory().StartNew(dbOp,TaskCreationOptions.LongRunning ).ConfigureAwait(false);
         }
 
 
-        
+
         public T WithTxn<T>(Func<Conn, int, T> callback, bool enableBackoff = true, int id = 0)
         {
             Func<Conn, int, T> dbOp = (conn, id2) =>
