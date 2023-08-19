@@ -116,7 +116,7 @@ namespace Jinaga
             }
         }
 
-        public IWatch Watch<TFact, TProjection>(
+        public IObserver Watch<TFact, TProjection>(
             Specification<TFact, TProjection> specification,
             TFact given,
             Action<TProjection> added)
@@ -132,7 +132,7 @@ namespace Jinaga
             );
         }
 
-        public IWatch Watch<TFact, TProjection>(
+        public IObserver Watch<TFact, TProjection>(
             Specification<TFact, TProjection> specification,
             TFact given,
             Func<TProjection, Action> added)
@@ -152,7 +152,7 @@ namespace Jinaga
             );
         }
 
-        public IWatch Watch<TFact, TProjection>(
+        public IObserver Watch<TFact, TProjection>(
             Specification<TFact, TProjection> specification,
             TFact given,
             Func<TProjection, Task> added)
@@ -167,7 +167,7 @@ namespace Jinaga
             );
         }
 
-        public IWatch Watch<TFact, TProjection>(
+        public IObserver Watch<TFact, TProjection>(
             Specification<TFact, TProjection> specification,
             TFact given,
             Func<TProjection, Task<Func<Task>>> added)

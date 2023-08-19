@@ -129,6 +129,10 @@ namespace Jinaga.Managers
                     // If there are no facts, end.
                     if (factReferences.Count == 0)
                     {
+                        lock (this)
+                        {
+                            activeFeeds = activeFeeds.Remove(feed);
+                        }
                         break;
                     }
 

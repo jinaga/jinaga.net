@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 
 namespace Jinaga.Observers
 {
-    class Observer : IWatch, IWatchContext
+    class Observer : IObserver, IWatchContext
     {
         private readonly Specification specification;
         private readonly string specificationHash;
@@ -66,6 +66,24 @@ namespace Jinaga.Observers
             });
         }
 
+        public async Task Refresh(CancellationToken? cancellationToken = null)
+        {
+            if (!loadedTask?.IsCompleted ?? false)
+            {
+                return;
+            }
+            
+            if (cancellationToken != null)
+            {
+                await FetchFromNetwork(true, cancellationToken.Value).ConfigureAwait(false);
+            }
+            else
+            {
+                using var source = new CancellationTokenSource();
+                await FetchFromNetwork(true, source.Token).ConfigureAwait(false);
+            }
+        }
+
         private async Task<bool> ReadFromStore(CancellationToken cancellationToken)
         {
             DateTime? mruDate = await factManager.GetMruDate(specificationHash).ConfigureAwait(false);
@@ -107,10 +125,12 @@ namespace Jinaga.Observers
 
         public void Stop()
         {
+            cancelInitialize.Cancel();
             foreach (var listener in listeners)
             {
                 factManager.RemoveSpecificationListener(listener);
             }
+            cancelInitialize.Dispose();
         }
 
         private async Task Read(CancellationToken cancellationToken)

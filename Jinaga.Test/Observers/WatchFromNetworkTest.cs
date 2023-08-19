@@ -69,7 +69,7 @@ public class WatchFromNetworkTest
     {
         public List<OfficeViewModel> Offices = new();
 
-        public IWatch Load(JinagaClient j, string identifier)
+        public IObserver Load(JinagaClient j, string identifier)
         {
             var officesInCompany = Given<Company>.Match((company, facts) =>
                 from office in facts.OfType<Office>()
