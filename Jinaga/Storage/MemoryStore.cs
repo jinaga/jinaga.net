@@ -22,42 +22,48 @@ namespace Jinaga.Storage
 
         public Task<ImmutableList<Fact>> Save(FactGraph graph, CancellationToken cancellationToken)
         {
-            var newFacts = graph.FactReferences
-                .Where(reference => !factsByReference.ContainsKey(reference))
-                .Select(reference => graph.GetFact(reference))
-                .ToImmutableList();
-            factsByReference = factsByReference.AddRange(newFacts
-                .Select(fact => new KeyValuePair<FactReference, Fact>(fact.Reference, fact))
-            );
-            var newPredecessors = newFacts
-                .Select(fact => (
-                    factReference: fact.Reference,
-                    edges: fact.Predecessors
-                        .SelectMany(predecessor => CreateEdges(fact, predecessor))
-                        .ToImmutableList()
-                ))
-                .ToImmutableList();
-            edges = edges.AddRange(newPredecessors
-                .SelectMany(pair => pair.edges)
-            );
-            foreach (var (factReference, edges) in newPredecessors)
+            lock (this)
             {
-                ancestors = ancestors.Add(
-                    factReference,
-                    edges
-                        .SelectMany(edge => ancestors[edge.Predecessor])
-                        .Append(factReference)
-                        .Distinct()
-                        .ToImmutableList()
+                var newFacts = graph.FactReferences
+                    .Where(reference => !factsByReference.ContainsKey(reference))
+                    .Select(reference => graph.GetFact(reference))
+                    .ToImmutableList();
+                factsByReference = factsByReference.AddRange(newFacts
+                    .Select(fact => new KeyValuePair<FactReference, Fact>(fact.Reference, fact))
                 );
+                var newPredecessors = newFacts
+                    .Select(fact => (
+                        factReference: fact.Reference,
+                        edges: fact.Predecessors
+                            .SelectMany(predecessor => CreateEdges(fact, predecessor))
+                            .ToImmutableList()
+                    ))
+                    .ToImmutableList();
+                edges = edges.AddRange(newPredecessors
+                    .SelectMany(pair => pair.edges)
+                );
+                foreach (var (factReference, edges) in newPredecessors)
+                {
+                    ancestors = ancestors.Add(
+                        factReference,
+                        edges
+                            .SelectMany(edge => ancestors[edge.Predecessor])
+                            .Append(factReference)
+                            .Distinct()
+                            .ToImmutableList()
+                    );
+                }
+                return Task.FromResult(newFacts);
             }
-            return Task.FromResult(newFacts);
         }
 
         public Task<ImmutableList<Product>> Read(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
         {
-            var products = ExecuteMatchesAndProjection(givenTuple, specification.Matches, specification.Projection);
-            return Task.FromResult(products);
+            lock (this)
+            {
+                var products = ExecuteMatchesAndProjection(givenTuple, specification.Matches, specification.Projection);
+                return Task.FromResult(products);
+            }
         }
 
         private ImmutableList<Product> ExecuteMatchesAndProjection(FactReferenceTuple start, ImmutableList<Match> matches, Projection projection)
@@ -269,8 +275,11 @@ namespace Jinaga.Storage
 
         public Task SaveBookmark(string feed, string bookmark)
         {
-            bookmarks = bookmarks.SetItem(feed, bookmark);
-            return Task.CompletedTask;
+            lock (this)
+            {
+                bookmarks = bookmarks.SetItem(feed, bookmark);
+                return Task.CompletedTask;
+            }
         }
 
         public Task<DateTime?> GetMruDate(string specificationHash)
@@ -287,8 +296,11 @@ namespace Jinaga.Storage
 
         public Task SetMruDate(string specificationHash, DateTime mruDate)
         {
-            mruDates = mruDates.SetItem(specificationHash, mruDate);
-            return Task.CompletedTask;
+            lock (this)
+            {
+                mruDates = mruDates.SetItem(specificationHash, mruDate);
+                return Task.CompletedTask;
+            }
         }
     }
 }
