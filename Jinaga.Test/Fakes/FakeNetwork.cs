@@ -8,6 +8,7 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Xunit.Abstractions;
 
 namespace Jinaga.Test.Fakes;
 internal class FakeFeed
@@ -19,9 +20,14 @@ internal class FakeFeed
 internal class FakeNetwork : INetwork
 {
     private SerializerCache serializerCache = SerializerCache.Empty;
-
+    private ITestOutputHelper output;
     private readonly List<FakeFeed> feeds = new();
     private readonly Dictionary<FactReference, Fact> factByFactReference = new();
+
+    public FakeNetwork(ITestOutputHelper output)
+    {
+        this.output = output;
+    }
 
     public void AddFeed(string name, object[] facts, int delay = 0)
     {
@@ -74,6 +80,8 @@ internal class FakeNetwork : INetwork
 
     public Task<FactGraph> Load(ImmutableList<FactReference> factReferences, CancellationToken cancellationToken)
     {
+        string references = string.Join(",\n", factReferences.Select(r => $"  {r}"));
+        output.WriteLine($"Load {factReferences.Count} facts:\n{references}");
         var graph = FactGraph.Empty;
 
         foreach (var factReference in factReferences)
