@@ -14,11 +14,11 @@ namespace Jinaga.Storage
 {
     public class MemoryStore : IStore
     {
-        private ImmutableDictionary<FactReference, Fact> factsByReference = ImmutableDictionary<FactReference, Fact>.Empty;
+        private volatile ImmutableDictionary<FactReference, Fact> factsByReference = ImmutableDictionary<FactReference, Fact>.Empty;
         private ImmutableList<Edge> edges = ImmutableList<Edge>.Empty;
-        private ImmutableDictionary<FactReference, ImmutableList<FactReference>> ancestors = ImmutableDictionary<FactReference, ImmutableList<FactReference>>.Empty;
-        private ImmutableDictionary<string, string> bookmarks = ImmutableDictionary<string, string>.Empty;
-        private ImmutableDictionary<string, DateTime> mruDates = ImmutableDictionary<string, DateTime>.Empty;
+        private volatile ImmutableDictionary<FactReference, ImmutableList<FactReference>> ancestors = ImmutableDictionary<FactReference, ImmutableList<FactReference>>.Empty;
+        private volatile ImmutableDictionary<string, string> bookmarks = ImmutableDictionary<string, string>.Empty;
+        private volatile ImmutableDictionary<string, DateTime> mruDates = ImmutableDictionary<string, DateTime>.Empty;
 
         public Task<ImmutableList<Fact>> Save(FactGraph graph, CancellationToken cancellationToken)
         {

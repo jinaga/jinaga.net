@@ -15,7 +15,7 @@ namespace Jinaga.Managers
 
         public Task Completed { get; }
 
-        private ImmutableHashSet<FactReference> factReferences =
+        private ImmutableHashSet<FactReference>? factReferences =
             ImmutableHashSet<FactReference>.Empty;
         private readonly TaskCompletionSource<bool> start;
 
@@ -37,7 +37,14 @@ namespace Jinaga.Managers
 
         public void Add(ImmutableList<FactReference> unknownFactReferences)
         {
-            factReferences = factReferences.Union(unknownFactReferences);
+            lock (this)
+            {
+                if (factReferences == null)
+                {
+                    throw new InvalidOperationException("Cannot add fact references to a batch that has already started.");
+                }
+                factReferences = factReferences.Union(unknownFactReferences);
+            }
         }
 
         public void Trigger()
@@ -47,6 +54,16 @@ namespace Jinaga.Managers
 
         private async Task Load(CancellationToken cancellationToken)
         {
+            ImmutableHashSet<FactReference>? factReferences;
+            lock (this)
+            {
+                factReferences = this.factReferences;
+                this.factReferences = null;
+            }
+            if (factReferences == null)
+            {
+                throw new InvalidOperationException("Cannot start a batch multiple times.");
+            }
             var graph = await network.Load(factReferences.ToImmutableList(), cancellationToken).ConfigureAwait(false);
 
             // Save the facts.
