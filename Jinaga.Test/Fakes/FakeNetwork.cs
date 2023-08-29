@@ -8,21 +8,28 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Xunit.Abstractions;
 
 namespace Jinaga.Test.Fakes;
 internal class FakeFeed
 {
     public string Name { get; set; }
     public Fact[] Facts { get; set; }
+    public int Delay { get; set; }
 }
 internal class FakeNetwork : INetwork
 {
     private SerializerCache serializerCache = SerializerCache.Empty;
-
+    private ITestOutputHelper output;
     private readonly List<FakeFeed> feeds = new();
     private readonly Dictionary<FactReference, Fact> factByFactReference = new();
 
-    public void AddFeed(string name, object[] facts)
+    public FakeNetwork(ITestOutputHelper output)
+    {
+        this.output = output;
+    }
+
+    public void AddFeed(string name, object[] facts, int delay = 0)
     {
         var collector = new Collector(serializerCache);
         foreach (var fact in facts)
@@ -36,12 +43,16 @@ internal class FakeNetwork : INetwork
             .ToArray();
         foreach (var fact in serializedFacts)
         {
-            factByFactReference.Add(fact.Reference, fact);
+            if (!factByFactReference.ContainsKey(fact.Reference))
+            {
+                factByFactReference.Add(fact.Reference, fact);
+            }
         }
         feeds.Add(new FakeFeed
         {
             Name = name,
-            Facts = serializedFacts
+            Facts = serializedFacts,
+            Delay = delay
         });
     }
 
@@ -50,21 +61,27 @@ internal class FakeNetwork : INetwork
         return Task.FromResult(feeds.Select(feed => feed.Name).ToImmutableList());
     }
 
-    public Task<(ImmutableList<FactReference> references, string bookmark)> FetchFeed(string feed, string bookmark, CancellationToken cancellationToken)
+    public async Task<(ImmutableList<FactReference> references, string bookmark)> FetchFeed(string feed, string bookmark, CancellationToken cancellationToken)
     {
         if (bookmark == "done")
         {
-            return Task.FromResult((ImmutableList<FactReference>.Empty, "done"));
+            return (ImmutableList<FactReference>.Empty, "done");
         }
         var fakeFeed = feeds.Single(f => f.Name == feed);
         var references = fakeFeed.Facts
             .Select(fact => fact.Reference)
             .ToImmutableList();
-        return Task.FromResult((references, "done"));
+        if (fakeFeed.Delay > 0)
+        {
+            await Task.Delay(fakeFeed.Delay);
+        }
+        return (references, "done");
     }
 
     public Task<FactGraph> Load(ImmutableList<FactReference> factReferences, CancellationToken cancellationToken)
     {
+        string references = string.Join(",\n", factReferences.Select(r => $"  {r}"));
+        output.WriteLine($"Load {factReferences.Count} facts:\n{references}");
         var graph = FactGraph.Empty;
 
         foreach (var factReference in factReferences)

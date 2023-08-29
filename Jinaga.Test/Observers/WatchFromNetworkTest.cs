@@ -7,14 +7,22 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace Jinaga.Test.Observers;
 public class WatchFromNetworkTest
 {
+    private ITestOutputHelper output;
+
+    public WatchFromNetworkTest(ITestOutputHelper output)
+    {
+        this.output = output;
+    }
+
     [Fact]
     public async Task Watch_EmptyUpstream()
     {
-        var j = new JinagaClient(new MemoryStore(), new FakeNetwork());
+        var j = new JinagaClient(new MemoryStore(), new FakeNetwork(output));
 
         var viewModel = new CompanyViewModel();
         var watch = viewModel.Load(j, "contoso");
@@ -33,7 +41,7 @@ public class WatchFromNetworkTest
     [Fact]
     public async Task Watch_SingleUnnamedOffice()
     {
-        var network = new FakeNetwork();
+        var network = new FakeNetwork(output);
         var contoso = new Company("contoso");
         var dallas = new City("Dallas");
         var dallasOffice = new Office(contoso, dallas);
@@ -52,6 +60,40 @@ public class WatchFromNetworkTest
             await watch.Loaded;
             viewModel.Offices.Should().ContainSingle().Which
                 .Name.Should().BeNull();
+        }
+        finally
+        {
+            watch.Stop();
+        }
+    }
+
+    [Fact]
+    public async Task Watch_SingleNamedOffice()
+    {
+        var network = new FakeNetwork(output);
+        var contoso = new Company("contoso");
+        var dallas = new City("Dallas");
+        var dallasOffice = new Office(contoso, dallas);
+        var dallasOfficeName = new OfficeName(dallasOffice, "Dallas", new OfficeName[0]);
+        network.AddFeed("offices", new object[]
+        {
+            dallasOffice
+        }, 1);
+        network.AddFeed("officeNames", new object[]
+        {
+            dallasOfficeName
+        }, 1);
+
+        var j = new JinagaClient(new MemoryStore(), network);
+
+        var viewModel = new CompanyViewModel();
+        var watch = viewModel.Load(j, "contoso");
+
+        try
+        {
+            await watch.Loaded;
+            viewModel.Offices.Should().ContainSingle().Which
+                .Name.Should().Be("Dallas");
         }
         finally
         {

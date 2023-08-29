@@ -16,8 +16,8 @@ namespace Jinaga.Managers
         private readonly IStore store;
         private readonly Func<FactGraph, ImmutableList<Fact>, CancellationToken, Task> notifyObservers;
 
-        private ImmutableDictionary<string, ImmutableList<string>> feedsCache =
-            ImmutableDictionary<string, ImmutableList<string>>.Empty;
+        private ImmutableDictionary<string, Task<ImmutableList<string>>> feedsCache =
+            ImmutableDictionary<string, Task<ImmutableList<string>>>.Empty;
         private ImmutableDictionary<string, Task> activeFeeds =
             ImmutableDictionary<string, Task>.Empty;
         private int fetchCount = 0;
@@ -45,18 +45,18 @@ namespace Jinaga.Managers
             // Fork to fetch from each feed.
             var tasks = feeds.Select(feed =>
             {
-                if (activeFeeds.TryGetValue(feed, out var task))
+                lock (this)
                 {
-                    return task;
-                }
-                else
-                {
-                    task = Task.Run(() => ProcessFeed(feed, cancellationToken));
-                    lock (this)
+                    if (activeFeeds.TryGetValue(feed, out var task))
                     {
-                        activeFeeds = activeFeeds.Add(feed, task);
+                        return task;
                     }
-                    return task;
+                    else
+                    {
+                        task = Task.Run(() => ProcessFeed(feed, cancellationToken));
+                        activeFeeds = activeFeeds.Add(feed, task);
+                        return task;
+                    }
                 }
             });
 
@@ -166,19 +166,23 @@ namespace Jinaga.Managers
             }
         }
 
-        private async Task<ImmutableList<string>> GetFeedsFromCache(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
+        private Task<ImmutableList<string>> GetFeedsFromCache(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
         {
-            var hash = IdentityUtilities.ComputeSpecificationHash(specification, givenTuple);
-            if (feedsCache.TryGetValue(hash, out var cached))
-            {
-                return cached;
-            }
-            var feeds = await network.Feeds(givenTuple, specification, cancellationToken).ConfigureAwait(false);
             lock (this)
             {
+                var hash = IdentityUtilities.ComputeSpecificationHash(specification, givenTuple);
+                if (feedsCache.TryGetValue(hash, out var cached))
+                {
+                    if (!cached.IsFaulted)
+                    {
+                        return cached;
+                    }
+                    feedsCache = feedsCache.Remove(hash);
+                }
+                var feeds = network.Feeds(givenTuple, specification, cancellationToken);
                 feedsCache = feedsCache.Add(hash, feeds);
+                return feeds;
             }
-            return feeds;
         }
 
         private void RemoveFeedsFromCache(FactReferenceTuple givenTuple, Specification specification)
