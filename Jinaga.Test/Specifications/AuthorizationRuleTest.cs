@@ -53,13 +53,13 @@ public class AuthorizationRuleTest
             .Type<Model.Site>(site => site.creator)
             .Type<Model.GuestBlogger>(guestBlogger => guestBlogger.site.creator)
             .Type<Model.Content>(content => content.site.creator)
-            .Type<Model.Content>(content => Given<Model.Content>.Match((content, facts) =>
+            .Type<Model.Content>((content, facts) =>
                 from guestBlogger in facts.OfType<Model.GuestBlogger>()
                 where guestBlogger.site == content.site
                 from user in facts.OfType<User>()
                 where user == guestBlogger.guest
                 select user
-            ))
+            )
             .Type<Model.Comment>(comment => comment.author)
             ;
     }
