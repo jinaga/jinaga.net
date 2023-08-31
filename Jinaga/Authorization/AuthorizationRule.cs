@@ -1,6 +1,7 @@
 ﻿namespace Jinaga
 {
-    public class AuthorizationRule
+    public abstract class AuthorizationRule
     {
+        public abstract string Describe(string type);
     }
 }

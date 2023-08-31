@@ -4,6 +4,7 @@ using System;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Text;
 
 namespace Jinaga
 {
@@ -50,13 +51,25 @@ namespace Jinaga
                 rules = ImmutableList<AuthorizationRule>.Empty;
             }
             rules = rules.Add(authorizationRule);
-            rulesByType.SetItem(type, rules);
-            return new AuthorizationRules(rulesByType);
+            var newRulesByType = rulesByType.SetItem(type, rules);
+            return new AuthorizationRules(newRulesByType);
         }
 
         private string SaveToDescription()
         {
-            throw new NotImplementedException();
+            var description = new StringBuilder();
+            description.Append("authorization {\n");
+            foreach (var pair in rulesByType)
+            {
+                foreach (var rule in pair.Value)
+                {
+                    string type = pair.Key;
+                    string ruleDescription = rule.Describe(type);
+                    description.Append(ruleDescription);
+                }
+            }
+            description.Append("}\n");
+            return description.ToString();
         }
     }
 }

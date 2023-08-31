@@ -10,5 +10,10 @@ namespace Jinaga
         {
             this.specification = specification;
         }
+
+        public override string Describe(string type)
+        {
+            return specification.ToDescriptiveString(1);
+        }
     }
 }
