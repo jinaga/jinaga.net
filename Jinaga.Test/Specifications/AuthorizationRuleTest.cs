@@ -13,22 +13,16 @@ public class AuthorizationRuleTest
         description.Should().Be(
         """
         authorization {
-            any Jinaga.User
-            (site: Blog.Site) {
-                user: Jinaga.User [
-                    user = site->creator: Jinaga.User
+            (comment: Blog.Comment) {
+                author: Jinaga.User [
+                    author = comment->author: Jinaga.User
                 ]
-            } => user
-            (guestBlogger: Blog.GuestBlogger) {
-                user: Jinaga.User [
-                    user = guestBlogger->site: Blog.Site->creator: Jinaga.User
-                ]
-            } => user
+            } => author
             (content: Blog.Content) {
-                user: Jinaga.User [
-                    user = content->site: Blog.Site->creator: Jinaga.User
+                creator: Jinaga.User [
+                    creator = content->site: Blog.Site->creator: Jinaga.User
                 ]
-            } => user
+            } => creator
             (content: Blog.Content) {
                 guestBlogger: Blog.GuestBlogger [
                     guestBlogger->site: Blog.Site = content->site: Blog.Site
@@ -37,13 +31,20 @@ public class AuthorizationRuleTest
                     user = guestBlogger->guest: Jinaga.User
                 ]
             } => user
-            (comment: Blog.Comment) {
-                user: Jinaga.User [
-                    user = comment->author: Jinaga.User
+            (guestBlogger: Blog.GuestBlogger) {
+                creator: Jinaga.User [
+                    creator = guestBlogger->site: Blog.Site->creator: Jinaga.User
                 ]
-            } => user
+            } => creator
+            (site: Blog.Site) {
+                creator: Jinaga.User [
+                    creator = site->creator: Jinaga.User
+                ]
+            } => creator
+            any Jinaga.User
         }
-        """);
+
+        """.Replace("\r\n", "\n"));
     }
 
     private AuthorizationRules Authorization(AuthorizationRules r)

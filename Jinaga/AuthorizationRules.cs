@@ -59,7 +59,7 @@ namespace Jinaga
         {
             var description = new StringBuilder();
             description.Append("authorization {\n");
-            foreach (var pair in rulesByType)
+            foreach (var pair in rulesByType.OrderBy(p => p.Key))
             {
                 foreach (var rule in pair.Value)
                 {
