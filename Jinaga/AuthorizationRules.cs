@@ -23,6 +23,12 @@ namespace Jinaga
             return WithRule(typeof(T).FactTypeName(), new AuthorizationRuleAny());
         }
 
+        public AuthorizationRules No<T>()
+            where T : class
+        {
+            return WithRule(typeof(T).FactTypeName(), new AuthorizationRuleNone());
+        }
+
         public AuthorizationRules Type<T>(Expression<Func<T, User>> predecessorSelector)
             where T : class
         {
@@ -35,6 +41,11 @@ namespace Jinaga
         {
             Specification specification = Given<T>.Match(specExpression);
             return WithRule(typeof(T).FactTypeName(), new AuthorizationRuleSpecification(specification));
+        }
+
+        public AuthorizationRules With(Func<AuthorizationRules, AuthorizationRules> rules)
+        {
+            return rules(this);
         }
 
         public static string Describe(Func<AuthorizationRules, AuthorizationRules> authorization)
