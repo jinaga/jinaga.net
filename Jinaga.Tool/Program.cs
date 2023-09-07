@@ -75,12 +75,21 @@ internal class Program
             throw new ArgumentException($"Could not load {path}");
         }
 
+        // Get all public classes
+        var types = assembly.GetTypes();
+        var publicClasses = types.Where(t => t.IsPublic);
+
         // Find the type JinagaConfig
-        var type = assembly.GetType("JinagaConfig");
-        if (type == null)
+        var configTypes = publicClasses.Where(t => t.Name == "JinagaConfig");
+        if (!configTypes.Any())
         {
             throw new ArgumentException($"Expected type JinagaConfig in {path}");
         }
+        if (configTypes.Count() > 1)
+        {
+            throw new ArgumentException($"Expected only one type JinagaConfig in {path}");
+        }
+        var type = configTypes.Single();
 
         // Find the method Authorization
         var method = type.GetMethod("Authorization", BindingFlags.Static | BindingFlags.Public);
