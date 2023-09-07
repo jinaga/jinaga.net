@@ -62,6 +62,8 @@ internal class Program
             var message = await result.Content.ReadAsStringAsync();
             throw new ArgumentException($"Authorization deployment failed with status code {result.StatusCode}: {message}");
         }
+
+        Console.WriteLine("Authorization deployed");
     }
 
     private static Task DeployDistribution(CommandLineArguments arguments)
