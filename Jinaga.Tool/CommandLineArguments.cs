@@ -41,7 +41,7 @@ internal class CommandLineArguments
     {
         if (args.Any())
         {
-            throw new ArgumentException($"Unexpected arguments {args}");
+            throw new ArgumentException($"Unexpected arguments {string.Join(" ", args)}");
         }
     }
 }

@@ -24,7 +24,6 @@ internal class Program
         catch (Exception ex)
         {
             WriteMessage(ex);
-            Usage();
         }
     }
 
