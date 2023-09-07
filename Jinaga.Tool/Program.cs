@@ -1,4 +1,5 @@
 ﻿using System.Collections.Immutable;
+using System.Net.Http.Headers;
 using System.Reflection;
 
 namespace Jinaga.Tool;
@@ -51,9 +52,11 @@ internal class Program
 
         using var httpClient = new HttpClient();
         string authorization = GetAuthorizationFromAssembly(assembly);
+        HttpRequestMessage request = new(HttpMethod.Post, endpoint);
+        request.Headers.Add("Authorization", $"Bearer {secret}");
         HttpContent content = new StringContent(authorization);
-        content.Headers.Add("Authorization", $"Bearer {secret}");
-        var result = await httpClient.PostAsync(endpoint, content);
+        request.Content = content;
+        var result = await httpClient.SendAsync(request);
         if (!result.IsSuccessStatusCode)
         {
             var message = await result.Content.ReadAsStringAsync();
