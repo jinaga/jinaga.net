@@ -9,6 +9,7 @@ using System.Diagnostics;
 
 using Xunit.Abstractions;
 using Jinaga.Storage;
+using System.Globalization;
 
 namespace Jinaga.Store.SQLite.Test;
 
@@ -43,6 +44,71 @@ public class StoreTest
             return $"{fact_type_id}-{name}";
         }
     }
+
+
+    [Fact]
+    public async Task SaveAndLoadBookmark()
+    {
+        IStore sqliteStore = new SQLiteStore(SQLitePath);
+        await sqliteStore.SaveBookmark("myFeedHashA","bookmarkA_1");
+        var bmA1 = await sqliteStore.LoadBookmark("myFeedHashA");
+
+        await sqliteStore.SaveBookmark("myFeedHashB", "bookmarkB_1");
+        var bmB1 = await sqliteStore.LoadBookmark("myFeedHashB");
+        
+        await sqliteStore.SaveBookmark("myFeedHashA", "bookmarkA_2");
+        var bmA2 = await sqliteStore.LoadBookmark("myFeedHashA");
+
+        var bmU1 = await sqliteStore.LoadBookmark("unknownFeed");
+
+        bmA1.Should().Be("bookmarkA_1");
+        bmB1.Should().Be("bookmarkB_1");
+        bmA2.Should().Be("bookmarkA_2");
+        bmU1.Should().Be("");
+    }
+
+
+
+    [Fact]
+    public async Task SaveAndLoadMru()
+    {
+        IStore sqliteStore = new SQLiteStore(SQLitePath);
+        
+        DateTime nowA1 = DateTime.Parse("2023-08-23T18:39:43");
+        await sqliteStore.SetMruDate("mySpecificationHashA", nowA1);
+        var mruA1 = await sqliteStore.GetMruDate("mySpecificationHashA");
+        mruA1.Should().Be(nowA1);
+
+        DateTime nowB1 = DateTime.Parse("2023-08-20T10:39:43");
+        await sqliteStore.SetMruDate("mySpecificationHashB", nowB1);
+        var mruB1 = await sqliteStore.GetMruDate("mySpecificationHashB");
+        mruB1.Should().Be(nowB1);
+
+        DateTime nowA2 = DateTime.Parse("2023-08-21T07:39:01");
+        await sqliteStore.SetMruDate("mySpecificationHashA", nowA2);
+        var mruA2 = await sqliteStore.GetMruDate("mySpecificationHashA");
+        mruA2.Should().Be(nowA2);
+
+        var mruU = await sqliteStore.GetMruDate("UnknownSpecificationHash");
+        mruU.Should().BeNull();
+    }
+
+
+
+
+    [Fact]
+    public async Task MruRespectUTC()
+    {
+        IStore sqliteStore = new SQLiteStore(SQLitePath);
+
+        DateTime nowC1 = DateTime.Parse("2023-08-23T18:39:43Z",null, DateTimeStyles.AdjustToUniversal);
+        await sqliteStore.SetMruDate("mySpecificationHashC", nowC1);
+        var mruC1 = await sqliteStore.GetMruDate("mySpecificationHashC");
+        nowC1.Kind.Should().Be(DateTimeKind.Utc);
+        mruC1.Should().Be(nowC1);
+        mruC1?.Kind.Should().Be(DateTimeKind.Utc);       
+    }
+
 
 
     [Fact]
