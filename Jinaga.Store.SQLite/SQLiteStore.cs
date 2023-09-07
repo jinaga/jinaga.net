@@ -7,11 +7,13 @@ using Jinaga.Store.SQLite.Generation;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using static Jinaga.Store.SQLite.ConnectionFactory;
 using static Jinaga.Store.SQLite.SQLiteStore;
 
 namespace Jinaga.Store.SQLite
@@ -143,7 +145,7 @@ namespace Jinaga.Store.SQLite
                                 }
                                 return 0;
                             },
-                        false
+                        true
                     );
 
                 }
@@ -392,38 +394,109 @@ namespace Jinaga.Store.SQLite
         }
 
 
+        public Task SaveBookmark(string feed, string bookmark)
+        {
+            connFactory.WithTxn(
+                 (conn, id) =>
+                 {
+                     {
+                         string sql;
+                         sql = $@"
+                            INSERT OR REPLACE INTO bookmark (feed_hash, bookmark)                        
+                            VALUES  ('{feed}', '{bookmark}' )
+                        ";
+                         return conn.ExecuteNonQuery(sql);
+                     }
+                 },
+                 true
+             );
+            return Task.FromResult("");
+        }
 
 
         public Task<string> LoadBookmark(string feed)
         {
-            throw new NotImplementedException();
+            var bookMark = connFactory.WithTxn(
+                (conn, id) =>
+                {                   
+                    {
+                        string sql;
+                        sql = $@"
+                            SELECT bookmark
+                            FROM bookmark
+                            WHERE feed_hash = '{feed}'
+                        ";
+                        return conn.ExecuteScalar<String>(sql);
+                    }                   
+                },
+                true
+            );
+            return Task.FromResult(bookMark);
         }
 
-        public Task<ImmutableList<FactReference>> ListKnown(ImmutableList<FactReference> factReferences)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task SaveBookmark(string feed, string bookmark)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task<DateTime?> GetMruDate(string specificationHash)
-        {
-            throw new NotImplementedException();
-        }
 
         public Task SetMruDate(string specificationHash, DateTime mruDate)
         {
-            throw new NotImplementedException();
+            connFactory.WithTxn(
+                (conn, id) =>
+                {
+                    {
+                        string sql;
+                        sql = $@"
+                            INSERT OR REPLACE INTO mru (specification_hash, mru_date)                        
+                            VALUES  ('{specificationHash}', '{mruDate.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss")}')
+                        ";
+                        return conn.ExecuteNonQuery(sql);
+                    }
+                },
+                true
+            );
+            return Task.FromResult("");
         }
+
+
+        public Task<DateTime?> GetMruDate(string specificationHash)
+        {
+
+            //TODO: Use UTC to store date
+            string mruDateString = connFactory.WithTxn(
+               (conn, id) =>
+               {
+                   {
+                       string sql;
+                       sql = $@"
+                            SELECT mru_date
+                            FROM mru
+                            WHERE specification_hash = '{specificationHash}'
+                        ";
+                       return conn.ExecuteScalar<String>(sql);
+                   }
+               },
+               true
+            );
+            DateTime mruDate;
+            if (DateTime.TryParseExact(mruDateString, "yyyy-MM-dd HH:mm:ss", null, DateTimeStyles.AssumeUniversal, out mruDate))
+            {
+                return Task.FromResult((DateTime?)mruDate);
+            }
+            else
+            {
+                return Task.FromResult((DateTime?)null);
+            }
+            
+        }
+
 
         public class FactFromDb
         {
             public string hash { get; set; }
             public string data { get; set; }
             public string name { get; set; }
+        }
+
+        public Task<ImmutableList<FactReference>> ListKnown(ImmutableList<FactReference> factReferences)
+        {
+            throw new NotImplementedException();
         }
 
     }

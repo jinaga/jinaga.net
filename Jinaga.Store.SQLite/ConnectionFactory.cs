@@ -444,6 +444,24 @@ namespace Jinaga.Store.SQLite
             conn.ExecuteNonQuery(table);
             conn.ExecuteNonQuery(ux_user);
             conn.ExecuteNonQuery(ux_user_public_key);
+
+
+            //Bookmark
+            table = @"CREATE TABLE IF NOT EXISTS main.bookmark (
+                                feed_hash TEXT NOT NULL PRIMARY KEY,
+                                bookmark TEXT                           
+                            )";            
+            conn.ExecuteNonQuery(table);
+
+
+            //MruDate
+            table = @"CREATE TABLE IF NOT EXISTS main.mru (
+                                specification_hash TEXT NOT NULL PRIMARY KEY,
+                                mru_date TEXT NOT NULL              
+                            )";
+            conn.ExecuteNonQuery(table);
+
+
         }
 
     }
