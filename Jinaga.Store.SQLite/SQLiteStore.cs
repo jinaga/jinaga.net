@@ -437,6 +437,8 @@ namespace Jinaga.Store.SQLite
 
         public Task SetMruDate(string specificationHash, DateTime mruDate)
         {
+
+            //Accepts UTC and local time
             connFactory.WithTxn(
                 (conn, id) =>
                 {
@@ -458,7 +460,8 @@ namespace Jinaga.Store.SQLite
         public Task<DateTime?> GetMruDate(string specificationHash)
         {
 
-            //TODO: Use UTC to store date
+            //Has to return UTC time !!!
+
             string mruDateString = connFactory.WithTxn(
                (conn, id) =>
                {
@@ -477,7 +480,7 @@ namespace Jinaga.Store.SQLite
             DateTime mruDate;
             if (DateTime.TryParseExact(mruDateString, "yyyy-MM-dd HH:mm:ss", null, DateTimeStyles.AssumeUniversal, out mruDate))
             {
-                return Task.FromResult((DateTime?)mruDate);
+                return Task.FromResult((DateTime?)mruDate.ToUniversalTime());
             }
             else
             {

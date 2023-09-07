@@ -9,6 +9,7 @@ using System.Diagnostics;
 
 using Xunit.Abstractions;
 using Jinaga.Storage;
+using System.Globalization;
 
 namespace Jinaga.Store.SQLite.Test;
 
@@ -100,11 +101,12 @@ public class StoreTest
     {
         IStore sqliteStore = new SQLiteStore(SQLitePath);
 
-        DateTime nowC1 = DateTime.Parse("2023-08-23T18:39:43Z");
+        DateTime nowC1 = DateTime.Parse("2023-08-23T18:39:43Z",null, DateTimeStyles.AdjustToUniversal);
         await sqliteStore.SetMruDate("mySpecificationHashC", nowC1);
         var mruC1 = await sqliteStore.GetMruDate("mySpecificationHashC");
+        nowC1.Kind.Should().Be(DateTimeKind.Utc);
         mruC1.Should().Be(nowC1);
-        mruC1?.Kind.Should().Be(DateTimeKind.Local);       
+        mruC1?.Kind.Should().Be(DateTimeKind.Utc);       
     }
 
 
