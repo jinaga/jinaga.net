@@ -13,3 +13,6 @@ public record Content(Site site, string path) { }
 
 [FactType("Blog.Comment")]
 public record Comment(Content content, Guid uniqueId, User author) { }
+
+[FactType("Blog.Content.Publish")]
+public record Publish(Content content, DateTime date) { }

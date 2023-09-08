@@ -32,11 +32,11 @@ internal class Program
     {
         if (arguments.Consume("authorization"))
         {
-            await DeployAuthorization(arguments);
+            await DeployRules(arguments, "Authorization");
         }
         else if (arguments.Consume("distribution"))
         {
-            await DeployDistribution(arguments);
+            await DeployRules(arguments, "Distribution");
         }
         else
         {
@@ -44,34 +44,30 @@ internal class Program
         }
     }
 
-    private static async Task DeployAuthorization(CommandLineArguments arguments)
+    private static async Task<HttpClient> DeployRules(CommandLineArguments arguments, string methodName)
     {
         var assembly = arguments.Next();
         var endpoint = arguments.Next();
         var secret = arguments.Next();
 
-        using var httpClient = new HttpClient();
-        string authorization = GetAuthorizationFromAssembly(assembly);
-        HttpRequestMessage request = new(HttpMethod.Post, endpoint);
+        var httpClient = new HttpClient();
+        string rules = GetRulesFromAssembly(assembly, methodName);
+        var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
         request.Headers.Add("Authorization", $"Bearer {secret}");
-        HttpContent content = new StringContent(authorization);
+        var content = new StringContent(rules);
         request.Content = content;
         var result = await httpClient.SendAsync(request);
         if (!result.IsSuccessStatusCode)
         {
             var message = await result.Content.ReadAsStringAsync();
-            throw new ArgumentException($"Authorization deployment failed with status code {result.StatusCode}: {message}");
+            throw new ArgumentException($"{methodName} deployment failed with status code {result.StatusCode}: {message}");
         }
 
-        Console.WriteLine("Authorization deployed");
+        Console.WriteLine(@"{methodName} deployed");
+        return httpClient;
     }
 
-    private static Task DeployDistribution(CommandLineArguments arguments)
-    {
-        throw new NotImplementedException();
-    }
-
-    private static string GetAuthorizationFromAssembly(string path)
+    private static string GetRulesFromAssembly(string path, string methodName)
     {
         // Load the assembly
         var assembly = Assembly.LoadFrom(path);
@@ -97,29 +93,29 @@ internal class Program
         var type = configTypes.Single();
 
         // Find the method Authorization
-        var method = type.GetMethod("Authorization", BindingFlags.Static | BindingFlags.Public);
+        var method = type.GetMethod(methodName, BindingFlags.Static | BindingFlags.Public);
         if (method == null)
         {
-            throw new ArgumentException($"Expected method JinagaConfig.Authorization in {path}");
+            throw new ArgumentException($"Expected method JinagaConfig.{methodName} in {path}");
         }
         if (method.GetParameters().Length != 0)
         {
-            throw new ArgumentException($"Expected method JinagaConfig.Authorization in {path} to have no parameters");
+            throw new ArgumentException($"Expected method JinagaConfig.{methodName} in {path} to have no parameters");
         }
         if (method.ReturnType != typeof(string))
         {
-            throw new ArgumentException($"Expected method JinagaConfig.Authorization in {path} to return a string");
+            throw new ArgumentException($"Expected method JinagaConfig.{methodName} in {path} to return a string");
         }
 
         // Invoke the method
         var authorization = method.Invoke(null, new object[] { });
         if (authorization == null)
         {
-            throw new ArgumentException($"JinagaConfig.Authorization in {path} returned null");
+            throw new ArgumentException($"JinagaConfig.{methodName} in {path} returned null");
         }
         if (!(authorization is string))
         {
-            throw new ArgumentException($"JinagaConfig.Authorization in {path} returned a non-string");
+            throw new ArgumentException($"JinagaConfig.{methodName} in {path} returned a non-string");
         }
 
         return (string)authorization;
