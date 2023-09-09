@@ -34,86 +34,41 @@ public class DistributionRuleTest
                         creator = site->creator: Jinaga.User
                     ]
                 } => creator
-                share (p1: Blog) {
-                    u1: Post [
-                        u1->blog: Blog = p1
+                share (site: Blog.Site) {
+                    content: Blog.Content [
+                        content->site: Blog.Site = site
                     ]
-                    u2: Comment [
-                        u2->post: Post = u1
+                    comment: Blog.Comment [
+                        comment->content: Blog.Content = content
                     ]
-                } => u2
-                with (p1: Blog) {
-                    u1: Jinaga.User [
-                        u1 = p1->creator: Jinaga.User
+                } => comment
+                with (site: Blog.Site) {
+                    creator: Jinaga.User [
+                        creator = site->creator: Jinaga.User
                     ]
-                } => u1
-                share (p1: Blog, p2: Jinaga.User) {
-                    u1: Post [
-                        u1->blog: Blog = p1
+                } => creator
+                share (site: Blog.Site, author: Jinaga.User) {
+                    content: Blog.Content [
+                        content->site: Blog.Site = site
                         E {
-                            u2: Publish [
-                                u2->post: Post = u1
+                            publish: Blog.Content.Publish [
+                                publish->content: Blog.Content = content
                             ]
                         }
                     ]
-                    u3: Comment [
-                        u3->post: Post = u1
-                        u3->author: Jinaga.User = p2
+                    comment: Blog.Comment [
+                        comment->content: Blog.Content = content
+                        comment->author: Jinaga.User = author
                     ]
-                } => u3
-                with (p1: Blog, p2: Jinaga.User) {
-                    u1: Jinaga.User [
-                        u1 = p2
+                } => comment
+                with (site: Blog.Site, author: Jinaga.User) {
+                    user: Jinaga.User [
+                        user = author
                     ]
-                } => u1
+                } => user
             }
             """.Replace("\r\n", "\n"));
     }
-
-    /*
-  // Everyone can see published posts
-  .share(model.given(Blog).match((blog, facts) =>
-    facts.ofType(Post)
-      .join(post => post.blog, blog)
-      .exists(post => facts.ofType(Publish)
-        .join(publish => publish.post, post)
-      )
-  )).withEveryone()
-  // The creator can see all posts
-  .share(model.given(Blog).match((blog, facts) =>
-    facts.ofType(Post)
-      .join(post => post.blog, blog)
-  )).with(model.given(Blog).match((blog, facts) =>
-      facts.ofType(User)
-        .join(user => user, blog.creator)
-  ))
-  // The creator can see all comments
-  .share(model.given(Blog).match((blog, facts) =>
-    facts.ofType(Post)
-      .join(post => post.blog, blog)
-      .selectMany(post => facts.ofType(Comment)
-        .join(comment => comment.post, post)
-      )
-  )).with(model.given(Blog).match((blog, facts) =>
-    facts.ofType(User)
-      .join(user => user, blog.creator)
-  ))
-  // A comment author can see their own comments on published posts
-  .share(model.given(Blog, User).match((blog, author, facts) =>
-    facts.ofType(Post)
-      .join(post => post.blog, blog)
-      .exists(post => facts.ofType(Publish)
-        .join(publish => publish.post, post)
-      )
-      .selectMany(post => facts.ofType(Comment)
-        .join(comment => comment.post, post)
-        .join(comment => comment.author, author)
-      )
-  )).with(model.given(Blog, User).match((blog, author, facts) =>
-    facts.ofType(User)
-      .join(user => user, author)
-  ))
-     */
 
     private DistributionRules Distribution(DistributionRules r) => r
         // Everyone can see published posts
@@ -122,12 +77,38 @@ public class DistributionRuleTest
             where content.site == site &&
                 facts.Any<Model.Publish>(publish => publish.content == content)
             select content
-        )).WithEveryone()
+        ))
+        .WithEveryone()
         // The creator can see all posts
         .Share(Given<Model.Site>.Match((site, facts) =>
             from content in facts.OfType<Model.Content>()
             where content.site == site
             select content
-        )).With(site => site.creator)
+        ))
+        .With(site => site.creator)
+        // The creator can see all comments
+        .Share(Given<Model.Site>.Match((site, facts) =>
+        from content in facts.OfType<Model.Content>()
+            where content.site == site
+            from comment in facts.OfType<Model.Comment>()
+            where comment.content == content
+            select comment
+        ))
+        .With(site => site.creator)
+        // A comment author can see their own comments on published posts
+        .Share(Given<Model.Site, User>.Match((site, author, facts) =>
+            from content in facts.OfType<Model.Content>()
+            where content.site == site &&
+                facts.Any<Model.Publish>(publish => publish.content == content)
+            from comment in facts.OfType<Model.Comment>()
+            where comment.content == content &&
+                comment.author == author
+            select comment
+        ))
+        .With(Given<Model.Site, User>.Match((site, author, facts) =>
+            from user in facts.OfType<User>()
+            where user == author
+            select user
+        ))
         ;
 }

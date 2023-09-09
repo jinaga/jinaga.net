@@ -1,5 +1,4 @@
-﻿using Jinaga.Projections;
-using System;
+﻿using System;
 using System.Collections.Immutable;
 using System.Text;
 
@@ -18,6 +17,13 @@ namespace Jinaga
             where T : class
         {
             return new ShareTarget<T>(specification, distributionRules);
+        }
+
+        public ShareTarget<T, U> Share<T, U, V>(Specification<T, U, V> specification)
+            where T : class
+            where U : class
+        {
+            return new ShareTarget<T, U>(specification, distributionRules);
         }
 
         public static string Describe(Func<DistributionRules, DistributionRules> distribution)
