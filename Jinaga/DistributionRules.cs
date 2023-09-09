@@ -14,9 +14,10 @@ namespace Jinaga
             this.distributionRules = distributionRules;
         }
 
-        public ShareTarget Share(Specification specification)
+        public ShareTarget<T> Share<T, U>(Specification<T, U> specification)
+            where T : class
         {
-            return new ShareTarget(specification, distributionRules);
+            return new ShareTarget<T>(specification, distributionRules);
         }
 
         public static string Describe(Func<DistributionRules, DistributionRules> distribution)

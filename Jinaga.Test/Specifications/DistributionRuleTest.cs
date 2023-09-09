@@ -30,10 +30,10 @@ public class DistributionRuleTest
                     ]
                 } => content
                 with (site: Blog.Site) {
-                    user: Jinaga.User [
-                        user = site->creator: Jinaga.User
+                    creator: Jinaga.User [
+                        creator = site->creator: Jinaga.User
                     ]
-                } => user
+                } => creator
                 share (p1: Blog) {
                     u1: Post [
                         u1->blog: Blog = p1
@@ -128,10 +128,6 @@ public class DistributionRuleTest
             from content in facts.OfType<Model.Content>()
             where content.site == site
             select content
-        )).With(Given<Model.Site>.Match((site, facts) =>
-            from user in facts.OfType<User>()
-            where user == site.creator
-            select user
-        ))
+        )).With(site => site.creator)
         ;
 }
