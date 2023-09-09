@@ -24,16 +24,16 @@ public class DistributionRuleTest
                     ]
                 } => content
                 with everyone
-                share (p1: Blog) {
-                    u1: Post [
-                        u1->blog: Blog = p1
+                share (site: Blog.Site) {
+                    content: Blog.Content [
+                        content->site: Blog.Site = site
                     ]
-                } => u1
-                with (p1: Blog) {
-                    u1: Jinaga.User [
-                        u1 = p1->creator: Jinaga.User
+                } => content
+                with (site: Blog.Site) {
+                    user: Jinaga.User [
+                        user = site->creator: Jinaga.User
                     ]
-                } => u1
+                } => user
                 share (p1: Blog) {
                     u1: Post [
                         u1->blog: Blog = p1
@@ -116,11 +116,22 @@ public class DistributionRuleTest
      */
 
     private DistributionRules Distribution(DistributionRules r) => r
+        // Everyone can see published posts
         .Share(Given<Model.Site>.Match((site, facts) =>
             from content in facts.OfType<Model.Content>()
             where content.site == site &&
                 facts.Any<Model.Publish>(publish => publish.content == content)
             select content
         )).WithEveryone()
+        // The creator can see all posts
+        .Share(Given<Model.Site>.Match((site, facts) =>
+            from content in facts.OfType<Model.Content>()
+            where content.site == site
+            select content
+        )).With(Given<Model.Site>.Match((site, facts) =>
+            from user in facts.OfType<User>()
+            where user == site.creator
+            select user
+        ))
         ;
 }

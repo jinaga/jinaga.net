@@ -19,5 +19,11 @@ namespace Jinaga
             return new DistributionRules(distributionRules.Add(
                 new DistributionRule(specification, null)));
         }
+
+        public DistributionRules With(Specification userSpecification)
+        {
+            return new DistributionRules(distributionRules.Add(
+                new DistributionRule(specification, userSpecification)));
+        }
     }
 }
