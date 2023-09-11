@@ -14,6 +14,7 @@
     <PackageId>Jinaga.Tool</PackageId>
     <Authors>Michael L Perry</Authors>
     <Company>Jinaga LLC</Company>
+    <Icon>../JinagaIcon.png</Icon>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <Copyright>Copyright (c) 2023 Michael L Perry</Copyright>
     <ProjectUrl>https://jinaga.net</ProjectUrl>
