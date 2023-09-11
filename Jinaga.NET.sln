@@ -35,7 +35,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Jinaga.Store.SQLite", "Jina
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Jinaga.Store.SQLite.Test", "Jinaga.Store.SQLite.Test\Jinaga.Store.SQLite.Test.csproj", "{6BBBF44F-9758-4F76-8B09-F3734A3C46F5}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Jinaga.Tool", "Jinaga.Tool\Jinaga.Tool.csproj", "{78AAF24A-FD1E-4716-9722-6799D562A88B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Jinaga.Tool", "Jinaga.Tool\Jinaga.Tool.csproj", "{78AAF24A-FD1E-4716-9722-6799D562A88B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

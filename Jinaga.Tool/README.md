@@ -107,3 +107,17 @@ For example:
 
 Run the tool to deploy the rules to the replicator.
 The replicator will then enforce the rules.
+
+## Build and Test
+
+```powershell
+dotnet build .\Jinaga.Tool -c Release
+dotnet pack .\Jinaga.Tool -c Release
+dotnet tool install --global --add-source .\Jinaga.Tool\bin\Release Jinaga.Tool
+```
+
+After testing, uninstall the tool
+
+```powershell
+dotnet tool uninstall --global Jinaga.Tool
+```
