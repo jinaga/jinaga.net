@@ -25,6 +25,7 @@
     <PackageId>Jinaga.UnitTest</PackageId>
     <Authors>Michael L Perry</Authors>
     <Company>Jinaga LLC</Company>
+    <PackageIcon>JinagaIcon.png</PackageIcon>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <Copyright>Copyright (c) 2023 Michael L Perry</Copyright>
     <ProjectUrl>https://jinaga.net</ProjectUrl>
@@ -39,6 +40,10 @@
       Jinaga supports occasionally connected clients with local storage in SQLite.
     </Description>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\JinagaIcon.png"  Pack="True" PackagePath="\" />
+  </ItemGroup>
 
   <PropertyGroup>
     <Deterministic>true</Deterministic>

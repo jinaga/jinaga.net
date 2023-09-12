@@ -1,0 +1,36 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net7.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyVersion>0.6.0.0</AssemblyVersion>
+    <FileVersion>0.6.0.0</FileVersion>
+
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>dotnet-jinaga</ToolCommandName>
+
+    <PackageId>Jinaga.Tool</PackageId>
+    <Authors>Michael L Perry</Authors>
+    <Company>Jinaga LLC</Company>
+    <PackageIcon>JinagaIcon.png</PackageIcon>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <Copyright>Copyright (c) 2023 Michael L Perry</Copyright>
+    <ProjectUrl>https://jinaga.net</ProjectUrl>
+    <RepositoryUrl>https://github.com/jinaga/jinaga.net</RepositoryUrl>
+    <PackageTags>Data;Synchronization;Offline;Occasionally connected</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Description>
+      Manage Jinaga replicators.
+      Deploy authorization and distribution rules.
+    </Description>
+    <PackageVersion>0.6.0.0</PackageVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+      <None Include="README.md" Pack="true" PackagePath="" />
+    <None Include="..\JinagaIcon.png"  Pack="True" PackagePath="\" />
+  </ItemGroup>
+
+</Project>
