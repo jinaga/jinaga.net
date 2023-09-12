@@ -63,7 +63,7 @@ internal class Program
             throw new ArgumentException($"{methodName} deployment failed with status code {result.StatusCode}: {message}");
         }
 
-        Console.WriteLine(@"{methodName} deployed");
+        Console.WriteLine($"{methodName} deployed");
         return httpClient;
     }
 
