@@ -8,7 +8,7 @@
     <PackageId>Jinaga</PackageId>
     <Authors>Michael L Perry</Authors>
     <Company>Jinaga LLC</Company>
-    <Icon>../JinagaIcon.png</Icon>
+    <PackageIcon>JinagaIcon.png</PackageIcon>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <Copyright>Copyright (c) 2023 Michael L Perry</Copyright>
     <ProjectUrl>https://jinaga.net</ProjectUrl>
@@ -28,6 +28,7 @@
 
   <ItemGroup>
     <None Include="..\README.md" Pack="true" PackagePath="\" />
+    <None Include="..\JinagaIcon.png"  Pack="True" PackagePath="\" />
   </ItemGroup>
 
   <ItemGroup>
