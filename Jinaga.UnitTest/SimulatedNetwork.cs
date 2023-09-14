@@ -10,6 +10,28 @@ namespace Jinaga.UnitTest
 {
     public class SimulatedNetwork : INetwork
     {
+        private readonly string publicKey;
+
+        public SimulatedNetwork(string publicKey)
+        {
+            this.publicKey = publicKey;
+        }
+
+        public Task<(FactGraph graph, UserProfile profile)> Login(CancellationToken cancellationToken)
+        {
+            if (publicKey == null)
+            {
+                throw new Exception("No logged in user");
+            }
+            var userFact = Fact.Create("Jinaga.User",
+                ImmutableList.Create(new Field("publicKey", new FieldValueString(publicKey))),
+                ImmutableList<Predecessor>.Empty);
+            var graph = FactGraph.Empty
+                .Add(userFact);
+            var profile = new UserProfile("Simulated user");
+            return Task.FromResult((graph, profile));
+        }
+
         public Task Save(ImmutableList<Fact> facts, CancellationToken cancellationToken)
         {
             return Task.CompletedTask;

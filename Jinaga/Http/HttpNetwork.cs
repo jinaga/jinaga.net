@@ -21,6 +21,15 @@ namespace Jinaga.Http
             webClient = new WebClient(new HttpConnection(baseUrl, ""));
         }
 
+        public async Task<(FactGraph graph, UserProfile profile)> Login(CancellationToken cancellationToken)
+        {
+            var response = await webClient.Login(cancellationToken).ConfigureAwait(false);
+            var graph = FactGraph.Empty
+                .Add(ReadFact(response.UserFact));
+            var profile = new UserProfile(response.Profile.DisplayName);
+            return (graph, profile);
+        }
+
         public Task Save(ImmutableList<Fact> facts, CancellationToken cancellationToken)
         {
             var saveRequest = new SaveRequest

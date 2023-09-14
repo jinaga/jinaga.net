@@ -67,6 +67,13 @@ namespace Jinaga
             factManager = new FactManager(store, networkManager);
         }
 
+        public async Task<(User user, UserProfile profile)> Login(CancellationToken cancellationToken = default)
+        {
+            var (graph, profile) = await factManager.Login(cancellationToken);
+            var user = factManager.Deserialize<User>(graph, graph.Last);
+            return (user, profile);
+        }
+
         public async Task<TFact> Fact<TFact>(TFact prototype) where TFact: class
         {
             if (prototype == null)

@@ -12,7 +12,7 @@ namespace Jinaga.Http
             this.httpConnection = httpConnection;
         }
 
-        public Task<LoginResponse> Login()
+        public Task<LoginResponse> Login(CancellationToken cancellationToken)
         {
             return httpConnection.Get<LoginResponse>("login");
         }
