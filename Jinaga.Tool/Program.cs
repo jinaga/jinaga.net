@@ -1,6 +1,6 @@
 ﻿using System.Collections.Immutable;
-using System.Net.Http.Headers;
 using System.Reflection;
+using System.Text;
 
 namespace Jinaga.Tool;
 
@@ -54,7 +54,7 @@ internal class Program
         string rules = GetRulesFromAssembly(assembly, methodName);
         var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
         request.Headers.Add("Authorization", $"Bearer {secret}");
-        var content = new StringContent(rules);
+        var content = new StringContent(rules, Encoding.UTF8, "text/plain");
         request.Content = content;
         var result = await httpClient.SendAsync(request);
         if (!result.IsSuccessStatusCode)
