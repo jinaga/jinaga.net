@@ -5,8 +5,8 @@
     <TargetFramework>net7.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <AssemblyVersion>0.6.0.0</AssemblyVersion>
-    <FileVersion>0.6.0.0</FileVersion>
+    <AssemblyVersion>0.6.1.0</AssemblyVersion>
+    <FileVersion>0.6.1.0</FileVersion>
 
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>dotnet-jinaga</ToolCommandName>
@@ -30,7 +30,7 @@
 
   <ItemGroup>
       <None Include="README.md" Pack="true" PackagePath="" />
-    <None Include="..\JinagaIcon.png"  Pack="True" PackagePath="\" />
+    <None Include="..\JinagaIcon.png" Pack="True" PackagePath="\" />
   </ItemGroup>
 
 </Project>
