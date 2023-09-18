@@ -18,7 +18,9 @@ namespace Jinaga.Http
 
         public HttpNetwork(Uri baseUrl)
         {
-            webClient = new WebClient(new HttpConnection(baseUrl, ""));
+            webClient = new WebClient(new HttpConnection(baseUrl,
+                headers => Task.CompletedTask,
+                () => Task.FromResult(false)));
         }
 
         public async Task<(FactGraph graph, UserProfile profile)> Login(CancellationToken cancellationToken)

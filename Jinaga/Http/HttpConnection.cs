@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
@@ -9,9 +10,11 @@ namespace Jinaga.Http
 {
     public class HttpConnection : IHttpConnection
     {
-        private HttpClient httpClient;
+        private readonly HttpClient httpClient;
+        private readonly Func<HttpRequestHeaders, Task> setRequestHeaders;
+        private readonly Func<Task<bool>> reauthenticate;
 
-        public HttpConnection(Uri baseUrl, string token)
+        public HttpConnection(Uri baseUrl, Func<HttpRequestHeaders, Task> setRequestHeaders, Func<Task<bool>> reauthenticate)
         {
             this.httpClient = new HttpClient();
 
@@ -20,66 +23,101 @@ namespace Jinaga.Http
                 baseUrl = new Uri(baseUrl.AbsoluteUri + "/");
             }
             httpClient.BaseAddress = baseUrl;
-            if (!string.IsNullOrEmpty(token))
-            {
-                httpClient.DefaultRequestHeaders.Authorization =
-                    new AuthenticationHeaderValue("Bearer", token);
-            }
+
+            this.setRequestHeaders = setRequestHeaders;
+            this.reauthenticate = reauthenticate;
         }
 
         public Task<TResponse> Get<TResponse>(string path)
         {
-            return WithHttpClient(async httpClient =>
-            {
-                using var httpResponse = await httpClient.GetAsync(path).ConfigureAwait(false);
-                httpResponse.EnsureSuccessStatusCode();
-                string body = await httpResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
-                var response = MessageSerializer.Deserialize<TResponse>(body);
-                return response;
-            });
+            return WithHttpClient(() =>
+                new HttpRequestMessage(HttpMethod.Get, path),
+                async httpResponse =>
+                {
+                    string body = await httpResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
+                    var response = MessageSerializer.Deserialize<TResponse>(body);
+                    return response;
+                });
         }
 
         public Task PostJson<TRequest>(string path, TRequest request)
         {
-            return WithHttpClient(async httpClient =>
-            {
-                var body = MessageSerializer.Serialize(request);
-                using var httpResponse = await httpClient.PostAsync(path, new StringContent(body, Encoding.UTF8, "application/json")).ConfigureAwait(false);
-                return httpResponse.EnsureSuccessStatusCode();
-            });
+            return WithHttpClient(() =>
+                {
+                    var httpRequest = new HttpRequestMessage(HttpMethod.Post, path);
+                    string body = MessageSerializer.Serialize(request);
+                    httpRequest.Content = new StringContent(body, Encoding.UTF8, "application/json");
+                    return httpRequest;
+                },
+                httpResponse => Task.FromResult(true));
         }
 
         public Task<TResponse> PostJsonExpectingJson<TRequest, TResponse>(string path, TRequest request)
         {
-            return WithHttpClient(async httpClient =>
-            {
-                string json = MessageSerializer.Serialize(request);
-                using var content = new ByteArrayContent(Encoding.UTF8.GetBytes(json));
-                content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
-                using var httpResponse = await httpClient.PostAsync(path, content).ConfigureAwait(false);
-                string body = await httpResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
-                var response = MessageSerializer.Deserialize<TResponse>(body);
-                return response;
-            });
+            return WithHttpClient(() =>
+                {
+                    var httpRequest = new HttpRequestMessage(HttpMethod.Post, path);
+                    string json = MessageSerializer.Serialize(request);
+                    httpRequest.Content = new ByteArrayContent(Encoding.UTF8.GetBytes(json));
+                    httpRequest.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+                    return httpRequest;
+                },
+                async httpResponse =>
+                {
+                    string body = await httpResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
+                    var response = MessageSerializer.Deserialize<TResponse>(body);
+                    return response;
+                });
         }
 
         public Task<TResponse> PostStringExpectingJson<TResponse>(string path, string request)
         {
-            return WithHttpClient(async httpClient =>
+            return WithHttpClient(() =>
             {
-                using var httpResponse = await httpClient.PostAsync(path, new StringContent(request)).ConfigureAwait(false);
-                httpResponse.EnsureSuccessStatusCode();
+                using var httpRequest = new HttpRequestMessage(HttpMethod.Post, path);
+                httpRequest.Content = new StringContent(request);
+                return httpRequest;
+            },
+            async httpResponse =>
+            {
                 string body = await httpResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
                 var response = MessageSerializer.Deserialize<TResponse>(body);
                 return response;
             });
         }
 
-        private async Task<T> WithHttpClient<T>(Func<HttpClient, Task<T>> func)
+        private async Task<T> WithHttpClient<T>(
+            Func<HttpRequestMessage> createRequest,
+            Func<HttpResponseMessage, Task<T>> processResponse)
         {
             try
             {
-                return await func(httpClient).ConfigureAwait(false);
+                using var request = createRequest();
+                await setRequestHeaders(request.Headers).ConfigureAwait(false);
+                using var response = await httpClient.SendAsync(request).ConfigureAwait(false);
+                if (response.StatusCode == HttpStatusCode.Unauthorized ||
+                    response.StatusCode == HttpStatusCode.ProxyAuthenticationRequired)
+                {
+                    if (await reauthenticate().ConfigureAwait(false))
+                    {
+                        using var retryRequest = createRequest();
+                        await setRequestHeaders(retryRequest.Headers).ConfigureAwait(false);
+                        using var retryResponse = await httpClient.SendAsync(retryRequest).ConfigureAwait(false);
+                        retryResponse.EnsureSuccessStatusCode();
+                        var retryResult = await processResponse(retryResponse).ConfigureAwait(false);
+                        return retryResult;
+                    }
+                    else
+                    {
+                        throw new UnauthorizedAccessException();
+                    }
+                }
+                else
+                {
+                    response.EnsureSuccessStatusCode();
+                    var result = await processResponse(response).ConfigureAwait(false);
+                    return result;
+                }
             }
             catch (Exception ex)
             {
