@@ -16,11 +16,15 @@ namespace Jinaga.Http
     {
         private readonly WebClient webClient;
 
-        public HttpNetwork(Uri baseUrl)
+        public HttpNetwork(Uri baseUrl, IHttpAuthenticationProvider? authenticationProvider)
         {
             webClient = new WebClient(new HttpConnection(baseUrl,
-                headers => Task.CompletedTask,
-                () => Task.FromResult(false)));
+                headers => authenticationProvider != null
+                    ? authenticationProvider.SetRequestHeaders(headers)
+                    : Task.CompletedTask,
+                () => authenticationProvider != null
+                    ? authenticationProvider.Reauthenticate()
+                    : Task.FromResult(false)));
         }
 
         public async Task<(FactGraph graph, UserProfile profile)> Login(CancellationToken cancellationToken)

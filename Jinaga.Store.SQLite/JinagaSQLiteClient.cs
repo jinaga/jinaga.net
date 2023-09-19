@@ -14,9 +14,14 @@ namespace Jinaga.Store.SQLite
         public static Uri DefaultReplicatorEndpoint = new Uri("http://localhost:8080/jinaga/");
 
         /// <summary>
-        /// The endpoint of the Jinaga server, or null for local operation.
+        /// The endpoint of the Jinaga replicator, or null for local operation.
         /// </summary>
         public Uri HttpEndpoint { get; set; }
+
+        /// <summary>
+        /// The strategy to use for authenticating with the Jinaga replicator.
+        /// </summary>
+        public IHttpAuthenticationProvider? HttpAuthenticationProvider { get; set; }
 
         /// <summary>
         /// The path to the SQLite database, or null for in-memory operation.
@@ -49,7 +54,7 @@ namespace Jinaga.Store.SQLite
                 : new SQLiteStore(options.SQLitePath);
             INetwork network = options.HttpEndpoint == null
                 ? (INetwork)new LocalNetwork()
-                : new HttpNetwork(options.HttpEndpoint);
+                : new HttpNetwork(options.HttpEndpoint, options.HttpAuthenticationProvider);
             return new JinagaClient(store, network);
         }
     }
