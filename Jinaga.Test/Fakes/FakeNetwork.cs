@@ -56,6 +56,11 @@ internal class FakeNetwork : INetwork
         });
     }
 
+    public Task<(FactGraph graph, UserProfile profile)> Login(CancellationToken cancellationToken)
+    {
+        throw new NotImplementedException();
+    }
+
     public Task<ImmutableList<string>> Feeds(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
     {
         return Task.FromResult(feeds.Select(feed => feed.Name).ToImmutableList());

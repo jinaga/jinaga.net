@@ -30,6 +30,11 @@ namespace Jinaga.Managers
             this.notifyObservers = notifyObservers;
         }
 
+        public async Task<(FactGraph graph, UserProfile profile)> Login(CancellationToken cancellationToken)
+        {
+            return await network.Login(cancellationToken).ConfigureAwait(false);
+        }
+
         public async Task Save(ImmutableList<Fact> facts, CancellationToken cancellationToken)
         {
             // TODO: Queue the facts for sending.

@@ -29,6 +29,13 @@ namespace Jinaga.Managers
         private SerializerCache serializerCache = SerializerCache.Empty;
         private DeserializerCache deserializerCache = DeserializerCache.Empty;
 
+        public async Task<(FactGraph graph, UserProfile profile)> Login(CancellationToken cancellationToken)
+        {
+            var (graph, profile) = await networkManager.Login(cancellationToken).ConfigureAwait(false);
+            await store.Save(graph, cancellationToken).ConfigureAwait(false);
+            return (graph, profile);
+        }
+
         public async Task<ImmutableList<Fact>> Save(FactGraph graph, CancellationToken cancellationToken)
         {
             var added = await store.Save(graph, cancellationToken).ConfigureAwait(false);
