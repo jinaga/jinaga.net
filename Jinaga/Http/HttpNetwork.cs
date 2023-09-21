@@ -19,9 +19,11 @@ namespace Jinaga.Http
         public HttpNetwork(Uri baseUrl, IHttpAuthenticationProvider? authenticationProvider)
         {
             webClient = new WebClient(new HttpConnection(baseUrl,
-                headers => authenticationProvider != null
-                    ? authenticationProvider.SetRequestHeaders(headers)
-                    : Task.CompletedTask,
+                headers =>
+                {
+                    if (authenticationProvider != null)
+                        authenticationProvider.SetRequestHeaders(headers);
+                },
                 () => authenticationProvider != null
                     ? authenticationProvider.Reauthenticate()
                     : Task.FromResult(false)));

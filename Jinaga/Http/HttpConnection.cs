@@ -11,10 +11,10 @@ namespace Jinaga.Http
     public class HttpConnection : IHttpConnection
     {
         private readonly HttpClient httpClient;
-        private readonly Func<HttpRequestHeaders, Task> setRequestHeaders;
+        private readonly Action<HttpRequestHeaders> setRequestHeaders;
         private readonly Func<Task<bool>> reauthenticate;
 
-        public HttpConnection(Uri baseUrl, Func<HttpRequestHeaders, Task> setRequestHeaders, Func<Task<bool>> reauthenticate)
+        public HttpConnection(Uri baseUrl, Action<HttpRequestHeaders> setRequestHeaders, Func<Task<bool>> reauthenticate)
         {
             this.httpClient = new HttpClient();
 
@@ -93,7 +93,7 @@ namespace Jinaga.Http
             try
             {
                 using var request = createRequest();
-                await setRequestHeaders(request.Headers).ConfigureAwait(false);
+                setRequestHeaders(request.Headers);
                 using var response = await httpClient.SendAsync(request).ConfigureAwait(false);
                 if (response.StatusCode == HttpStatusCode.Unauthorized ||
                     response.StatusCode == HttpStatusCode.ProxyAuthenticationRequired)
@@ -101,7 +101,7 @@ namespace Jinaga.Http
                     if (await reauthenticate().ConfigureAwait(false))
                     {
                         using var retryRequest = createRequest();
-                        await setRequestHeaders(retryRequest.Headers).ConfigureAwait(false);
+                        setRequestHeaders(retryRequest.Headers);
                         using var retryResponse = await httpClient.SendAsync(retryRequest).ConfigureAwait(false);
                         retryResponse.EnsureSuccessStatusCode();
                         var retryResult = await processResponse(retryResponse).ConfigureAwait(false);
