@@ -74,7 +74,7 @@ namespace Jinaga.Http
         {
             return WithHttpClient(() =>
             {
-                using var httpRequest = new HttpRequestMessage(HttpMethod.Post, path);
+                var httpRequest = new HttpRequestMessage(HttpMethod.Post, path);
                 httpRequest.Content = new StringContent(request);
                 return httpRequest;
             },
