@@ -77,17 +77,17 @@ public class StoreTest
         DateTime nowA1 = DateTime.Parse("2023-08-23T18:39:43");
         await sqliteStore.SetMruDate("mySpecificationHashA", nowA1);
         var mruA1 = await sqliteStore.GetMruDate("mySpecificationHashA");
-        mruA1.Should().Be(nowA1);
+        mruA1.Should().Be(nowA1.ToUniversalTime());
 
         DateTime nowB1 = DateTime.Parse("2023-08-20T10:39:43");
         await sqliteStore.SetMruDate("mySpecificationHashB", nowB1);
         var mruB1 = await sqliteStore.GetMruDate("mySpecificationHashB");
-        mruB1.Should().Be(nowB1);
+        mruB1.Should().Be(nowB1.ToUniversalTime());
 
         DateTime nowA2 = DateTime.Parse("2023-08-21T07:39:01");
         await sqliteStore.SetMruDate("mySpecificationHashA", nowA2);
         var mruA2 = await sqliteStore.GetMruDate("mySpecificationHashA");
-        mruA2.Should().Be(nowA2);
+        mruA2.Should().Be(nowA2.ToUniversalTime());
 
         var mruU = await sqliteStore.GetMruDate("UnknownSpecificationHash");
         mruU.Should().BeNull();
