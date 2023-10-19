@@ -51,7 +51,7 @@ namespace Jinaga.Managers
                         path,
                         ImmutableList<ProjectedResultChildCollection>.Empty
                     );
-                    productProjections.Add(projectedResult);
+                    productProjections = productProjections.Add(projectedResult);
                 }
                 catch
                 {
@@ -187,7 +187,7 @@ namespace Jinaga.Managers
                         path,
                         ImmutableList<ProjectedResultChildCollection>.Empty
                     );
-                    productProjections.Add(projectedResult);
+                    productProjections = productProjections.Add(projectedResult);
                 }
                 catch
                 {
