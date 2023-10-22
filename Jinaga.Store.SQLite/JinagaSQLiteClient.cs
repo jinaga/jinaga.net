@@ -6,23 +6,8 @@ using System;
 
 namespace Jinaga.Store.SQLite
 {
-    public class JinagaSQLiteClientOptions
+    public class JinagaSQLiteClientOptions : JinagaClientOptions
     {
-        /// <summary>
-        /// http://localhost:8080/jinaga/
-        /// </summary>
-        public static Uri DefaultReplicatorEndpoint = new Uri("http://localhost:8080/jinaga/");
-
-        /// <summary>
-        /// The endpoint of the Jinaga replicator, or null for local operation.
-        /// </summary>
-        public Uri HttpEndpoint { get; set; }
-
-        /// <summary>
-        /// The strategy to use for authenticating with the Jinaga replicator.
-        /// </summary>
-        public IHttpAuthenticationProvider? HttpAuthenticationProvider { get; set; }
-
         /// <summary>
         /// The path to the SQLite database, or null for in-memory operation.
         /// </summary>
