@@ -13,7 +13,6 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using static Jinaga.Store.SQLite.ConnectionFactory;
 using static Jinaga.Store.SQLite.SQLiteStore;
 
 namespace Jinaga.Store.SQLite
@@ -264,6 +263,44 @@ namespace Jinaga.Store.SQLite
         }
 
 
+        public Task<ImmutableList<FactReference>> ListKnown(ImmutableList<FactReference> factReferences)
+        {
+
+            if (factReferences.IsEmpty)
+            {
+                return Task.FromResult(ImmutableList<FactReference>.Empty);
+            }
+            else
+            {
+                var referencesFromDb = connFactory.WithConn(
+                    (conn, id) =>
+                    {
+                        string[] referenceValues = factReferences.Select((f) => "('" + f.Hash + "', '" + f.Type + "')").ToArray();
+                        string sql;
+                        sql = $@"
+                                SELECT f.hash, 
+                                       t.name
+                                FROM fact f 
+                                JOIN fact_type t 
+                                    ON f.fact_type_id = t.fact_type_id    
+                                WHERE (f.hash,t.name) 
+                                    IN (VALUES {String.Join(",", referenceValues)} )
+                            ";
+
+                        return conn.ExecuteQuery<ReferenceFromDb>(sql);
+                    },
+                    true   //exponentional backoff
+                );
+
+                var knownReferences = referencesFromDb
+                    .Select(r => new FactReference(r.name, r.hash))
+                    .ToImmutableList();
+
+                return Task.FromResult(knownReferences);
+            }
+        }
+
+
         Task<ImmutableList<Product>> IStore.Read(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
         {
             var factTypes = LoadFactTypesFromSpecification(specification);
@@ -497,9 +534,10 @@ namespace Jinaga.Store.SQLite
             public string name { get; set; }
         }
 
-        public Task<ImmutableList<FactReference>> ListKnown(ImmutableList<FactReference> factReferences)
+        public class ReferenceFromDb
         {
-            throw new NotImplementedException();
+            public string hash { get; set; }
+            public string name { get; set; }
         }
 
     }
@@ -568,7 +606,5 @@ namespace Jinaga.Store.SQLite
             }            
         }
     }
-
-
 
 }
