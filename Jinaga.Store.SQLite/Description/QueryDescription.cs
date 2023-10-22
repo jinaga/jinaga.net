@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Immutable;
+using System.Linq;
 
 namespace Jinaga.Store.SQLite.Description
 {
@@ -32,7 +33,7 @@ namespace Jinaga.Store.SQLite.Description
         
         public bool IsSatisfiable()
         {
-            return true;
+            return Inputs.Any();
         }
 
         public int OutputLength()

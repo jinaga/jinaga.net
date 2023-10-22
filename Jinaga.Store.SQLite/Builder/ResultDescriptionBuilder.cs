@@ -44,6 +44,15 @@ namespace Jinaga.Store.SQLite.Builder
         {
             context = AddEdges(context, given, givenTuple, matches);
 
+            if (!context.QueryDescription.IsSatisfiable())
+            {
+                // Abort the branch if the query is not satisfiable
+                return new ResultDescription(
+                    context.QueryDescription,
+                    ImmutableDictionary<string, ResultDescription>.Empty
+                );
+            }
+
             var childResultDescriptions = ImmutableDictionary<string, ResultDescription>.Empty;
             if (projection is CompoundProjection compoundProjection)
             {
@@ -140,7 +149,16 @@ namespace Jinaga.Store.SQLite.Builder
                 var role = pathCondition.RolesRight[i];
                 // If the type or role is not known, then no facts matching the condition can
                 // exist. The query is unsatisfiable.
+                if (!factTypes.ContainsKey(type))
+                {
+                    return context.WithQueryDescription(QueryDescription.Empty);
+                }
                 var typeId = factTypes[type];
+
+                if (!roleMap.ContainsKey(typeId) || !roleMap[typeId].ContainsKey(role.Name))
+                {
+                    return context.WithQueryDescription(QueryDescription.Empty);
+                }
                 var roleId = roleMap[typeId][role.Name];
 
                 var successorFactIndex = factIndex;
@@ -160,8 +178,18 @@ namespace Jinaga.Store.SQLite.Builder
             {
                 // If the type or role is not known, then no facts matching the condition can
                 // exist. The query is unsatisfiable.
+                if (!factTypes.ContainsKey(type))
+                {
+                    return context.WithQueryDescription(QueryDescription.Empty);
+                }
                 var typeId = factTypes[type];
+
+                if (!roleMap.ContainsKey(typeId) || !roleMap[typeId].ContainsKey(role.Name))
+                {
+                    return context.WithQueryDescription(QueryDescription.Empty);
+                }
                 var roleId = roleMap[typeId][role.Name];
+
                 newEdges = newEdges.Add((roleId, type));
                 type = role.TargetType;
             }
