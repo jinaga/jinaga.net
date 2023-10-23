@@ -18,5 +18,7 @@ namespace Jinaga.Services
         Task SaveBookmark(string feed, string bookmark);
         Task<DateTime?> GetMruDate(string specificationHash);
         Task SetMruDate(string specificationHash, DateTime mruDate);
+        Task<ImmutableList<Fact>> AddToQueue(ImmutableList<Fact> facts);
+        Task RemoveFromQueue(ImmutableList<Fact> facts);
     }
 }

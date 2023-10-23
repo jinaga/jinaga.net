@@ -19,6 +19,7 @@ namespace Jinaga.Storage
         private volatile ImmutableDictionary<FactReference, ImmutableList<FactReference>> ancestors = ImmutableDictionary<FactReference, ImmutableList<FactReference>>.Empty;
         private volatile ImmutableDictionary<string, string> bookmarks = ImmutableDictionary<string, string>.Empty;
         private volatile ImmutableDictionary<string, DateTime> mruDates = ImmutableDictionary<string, DateTime>.Empty;
+        private volatile ImmutableList<Fact> queue = ImmutableList<Fact>.Empty;
 
         public Task<ImmutableList<Fact>> Save(FactGraph graph, CancellationToken cancellationToken)
         {
@@ -299,6 +300,26 @@ namespace Jinaga.Storage
             lock (this)
             {
                 mruDates = mruDates.SetItem(specificationHash, mruDate);
+                return Task.CompletedTask;
+            }
+        }
+
+        public Task<ImmutableList<Fact>> AddToQueue(ImmutableList<Fact> facts)
+        {
+            lock (this)
+            {
+                var newQueue = queue.AddRange(facts);
+                queue = newQueue;
+                return Task.FromResult(newQueue);
+            }
+        }
+
+        public Task RemoveFromQueue(ImmutableList<Fact> facts)
+        {
+            lock (this)
+            {
+                var newQueue = queue.RemoveAll(fact => facts.Contains(fact));
+                queue = newQueue;
                 return Task.CompletedTask;
             }
         }

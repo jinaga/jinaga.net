@@ -526,6 +526,95 @@ namespace Jinaga.Store.SQLite
             
         }
 
+        public Task<ImmutableList<Fact>> AddToQueue(ImmutableList<Fact> facts)
+        {
+            // Insert records into queue table of fact IDs from the fact table
+            // that match the given facts.
+            var newFacts = ImmutableList<Fact>.Empty;
+            foreach (var fact in facts)
+            {
+                var factReference = fact.Reference;
+                var factType = factReference.Type;
+                var factHash = factReference.Hash;
+
+                connFactory.WithTxn(
+                    (conn, id) =>
+                    {
+                        {
+                            string sql;
+                            sql = $@"
+                                INSERT OR IGNORE INTO queue (fact_id) 
+                                SELECT fact_id 
+                                FROM fact
+                                JOIN fact_type
+                                    ON fact.fact_type_id = fact_type.fact_type_id
+                                WHERE hash = '{factHash}'
+                                    AND fact_type.name = '{factType}'
+                            ";
+                            return conn.ExecuteNonQuery(sql);
+                        }
+                    },
+                    true
+                );
+            }
+
+            // Return all of the facts in the queue.
+            var factsFromDb = connFactory.WithConn(
+                (conn, id) =>
+                {
+                    string sql;
+                    sql = $@"
+                        SELECT f.hash, 
+                               f.data,
+                               t.name
+                        FROM queue q
+                        JOIN fact f
+                            ON q.fact_id = f.fact_id
+                        JOIN fact_type t
+                            ON f.fact_type_id = t.fact_type_id
+                    ";
+                    return conn.ExecuteQuery<FactFromDb>(sql);
+                },
+                true   //exponentional backoff
+            );
+
+            var queue = factsFromDb.Deserialise().ToImmutableList();
+            return Task.FromResult(queue);
+        }
+
+        public Task RemoveFromQueue(ImmutableList<Fact> facts)
+        {
+            // Remove the fact IDs from the queue that match the given facts.
+            foreach (var fact in facts)
+            {
+                var factReference = fact.Reference;
+                var factType = factReference.Type;
+                var factHash = factReference.Hash;
+                connFactory.WithTxn(
+                    (conn, id) =>
+                    {
+                        {
+                            string sql;
+                            sql = $@"
+                                DELETE FROM queue 
+                                WHERE fact_id IN (
+                                    SELECT fact.fact_id
+                                    FROM fact
+                                    JOIN fact_type
+                                        ON fact.fact_type_id = fact_type.fact_type_id
+                                    WHERE hash = '{factHash}'
+                                        AND fact_type.name = '{factType}'
+                                )
+                            ";
+                            return conn.ExecuteNonQuery(sql);
+                        }
+                    },
+                    true
+                );
+            }
+
+            return Task.CompletedTask;
+        }
 
         public class FactFromDb
         {

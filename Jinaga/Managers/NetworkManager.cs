@@ -40,18 +40,21 @@ namespace Jinaga.Managers
 
         public async Task Save(ImmutableList<Fact> facts, CancellationToken cancellationToken)
         {
-            SetSaveStatus(true, null, facts.Count);
+            // Queue the facts for sending.
+            var queuedFacts = await store.AddToQueue(facts).ConfigureAwait(false);
+            SetSaveStatus(true, null, queuedFacts.Count);
 
             try
             {
-                // TODO: Queue the facts for sending.
                 // Send the facts using the network provider.
-                await network.Save(facts, cancellationToken).ConfigureAwait(false);
+                await network.Save(queuedFacts, cancellationToken).ConfigureAwait(false);
+                // Remove the facts from the queue.
+                await store.RemoveFromQueue(queuedFacts).ConfigureAwait(false);
                 SetSaveStatus(false, null, 0);
             }
             catch (Exception ex)
             {
-                SetSaveStatus(false, ex, facts.Count);
+                SetSaveStatus(false, ex, queuedFacts.Count);
                 throw;
             }
         }
