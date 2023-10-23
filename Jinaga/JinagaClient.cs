@@ -30,6 +30,54 @@ namespace Jinaga
         public IHttpAuthenticationProvider? HttpAuthenticationProvider { get; set; }
     }
 
+    public class JinagaStatus
+    {
+        public static readonly JinagaStatus Default = new JinagaStatus(false, null, false, null, 0);
+
+        public JinagaStatus(bool isLoading, Exception? lastLoadError, bool isSaving, Exception? lastSaveError, int queueLength)
+        {
+            IsLoading = isLoading;
+            LastLoadError = lastLoadError;
+            IsSaving = isSaving;
+            LastSaveError = lastSaveError;
+            QueueLength = queueLength;
+        }
+
+        /// <summary>
+        /// True if the client is currently loading facts from the remote replicator.
+        /// </summary>
+        public bool IsLoading { get; }
+        /// <summary>
+        /// The last error that occurred while loading facts from the remote replicator.
+        /// </summary>
+        public Exception? LastLoadError { get; }
+
+        /// <summary>
+        /// True if the client is currently saving facts to the remote replicator.
+        /// </summary>
+        public bool IsSaving { get; }
+        /// <summary>
+        /// The last error that occurred while saving facts to the remote replicator.
+        /// </summary>
+        public Exception? LastSaveError { get; }
+        /// <summary>
+        /// The number of facts that are currently queued to be saved to the remote replicator.
+        /// </summary>
+        public int QueueLength { get; }
+
+        public JinagaStatus WithLoadStatus(bool isLoading, Exception? lastLoadError)
+        {
+            return new JinagaStatus(isLoading, lastLoadError, IsSaving, LastSaveError, QueueLength);
+        }
+
+        public JinagaStatus WithSaveStatus(bool isSaving, Exception? lastSaveError, int queueLength)
+        {
+            return new JinagaStatus(IsLoading, LastLoadError, isSaving, lastSaveError, queueLength);
+        }
+    }
+
+    public delegate void JinagaStatusChanged(JinagaStatus status);
+
     public class JinagaClient
     {
         /// <summary>
@@ -59,6 +107,21 @@ namespace Jinaga
 
         private readonly FactManager factManager;
         private readonly NetworkManager networkManager;
+
+        /// <summary>
+        /// Event that fires when the status of the client changes.
+        /// </summary>
+        public event JinagaStatusChanged OnStatusChanged
+        {
+            add
+            {
+                networkManager.OnStatusChanged += value;
+            }
+            remove
+            {
+                networkManager.OnStatusChanged -= value;
+            }
+        }
 
         public JinagaClient(IStore store, INetwork network)
         {

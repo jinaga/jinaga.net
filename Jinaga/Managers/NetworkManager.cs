@@ -22,6 +22,9 @@ namespace Jinaga.Managers
             ImmutableDictionary<string, Task>.Empty;
         private int fetchCount = 0;
         private LoadBatch? currentBatch = null;
+        private JinagaStatus status = JinagaStatus.Default;
+
+        public event JinagaStatusChanged? OnStatusChanged;
 
         public NetworkManager(INetwork network, IStore store, Func<FactGraph, ImmutableList<Fact>, CancellationToken, Task> notifyObservers)
         {
@@ -37,42 +40,67 @@ namespace Jinaga.Managers
 
         public async Task Save(ImmutableList<Fact> facts, CancellationToken cancellationToken)
         {
-            // TODO: Queue the facts for sending.
-            // Send the facts using the network provider.
-            await network.Save(facts, cancellationToken).ConfigureAwait(false);
+            // Queue the facts for sending.
+            var queuedFacts = await store.AddToQueue(facts).ConfigureAwait(false);
+            SetSaveStatus(true, null, queuedFacts.Count);
+
+            try
+            {
+                // Send the facts using the network provider.
+                await network.Save(queuedFacts, cancellationToken).ConfigureAwait(false);
+                // Remove the facts from the queue.
+                await store.RemoveFromQueue(queuedFacts).ConfigureAwait(false);
+                SetSaveStatus(false, null, 0);
+            }
+            catch (Exception ex)
+            {
+                SetSaveStatus(false, ex, queuedFacts.Count);
+                throw;
+            }
         }
 
         public async Task Fetch(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
         {
-            var reducedSpecification = specification.Reduce();
-            var feeds = await GetFeedsFromCache(givenTuple, reducedSpecification, cancellationToken).ConfigureAwait(false);
-
-            // Fork to fetch from each feed.
-            var tasks = feeds.Select(feed =>
-            {
-                lock (this)
-                {
-                    if (activeFeeds.TryGetValue(feed, out var task))
-                    {
-                        return task;
-                    }
-                    else
-                    {
-                        task = Task.Run(() => ProcessFeed(feed, cancellationToken));
-                        activeFeeds = activeFeeds.Add(feed, task);
-                        return task;
-                    }
-                }
-            });
+            SetLoadStatus(true, null);
 
             try
             {
-                await Task.WhenAll(tasks).ConfigureAwait(false);
+                var reducedSpecification = specification.Reduce();
+                var feeds = await GetFeedsFromCache(givenTuple, reducedSpecification, cancellationToken).ConfigureAwait(false);
+
+                // Fork to fetch from each feed.
+                var tasks = feeds.Select(feed =>
+                {
+                    lock (this)
+                    {
+                        if (activeFeeds.TryGetValue(feed, out var task))
+                        {
+                            return task;
+                        }
+                        else
+                        {
+                            task = Task.Run(() => ProcessFeed(feed, cancellationToken));
+                            activeFeeds = activeFeeds.Add(feed, task);
+                            return task;
+                        }
+                    }
+                });
+
+                try
+                {
+                    await Task.WhenAll(tasks).ConfigureAwait(false);
+                    SetLoadStatus(false, null);
+                }
+                catch
+                {
+                    // If any feed fails, then remove the specification from the cache.
+                    RemoveFeedsFromCache(givenTuple, reducedSpecification);
+                    throw;
+                }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // If any feed fails, then remove the specification from the cache.
-                RemoveFeedsFromCache(givenTuple, reducedSpecification);
+                SetLoadStatus(false, ex);
                 throw;
             }
         }
@@ -196,6 +224,24 @@ namespace Jinaga.Managers
             lock (this)
             {
                 feedsCache = feedsCache.Remove(hash);
+            }
+        }
+
+        private void SetLoadStatus(bool isLoading, Exception? lastLoadError)
+        {
+            lock (this)
+            {
+                status = status.WithLoadStatus(isLoading, lastLoadError);
+                OnStatusChanged?.Invoke(status);
+            }
+        }
+
+        private void SetSaveStatus(bool isSaving, Exception? lastSaveError, int queueLength)
+        {
+            lock (this)
+            {
+                status = status.WithSaveStatus(isSaving, lastSaveError, queueLength);
+                OnStatusChanged?.Invoke(status);
             }
         }
     }

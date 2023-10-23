@@ -13,7 +13,6 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using static Jinaga.Store.SQLite.ConnectionFactory;
 using static Jinaga.Store.SQLite.SQLiteStore;
 
 namespace Jinaga.Store.SQLite
@@ -264,6 +263,44 @@ namespace Jinaga.Store.SQLite
         }
 
 
+        public Task<ImmutableList<FactReference>> ListKnown(ImmutableList<FactReference> factReferences)
+        {
+
+            if (factReferences.IsEmpty)
+            {
+                return Task.FromResult(ImmutableList<FactReference>.Empty);
+            }
+            else
+            {
+                var referencesFromDb = connFactory.WithConn(
+                    (conn, id) =>
+                    {
+                        string[] referenceValues = factReferences.Select((f) => "('" + f.Hash + "', '" + f.Type + "')").ToArray();
+                        string sql;
+                        sql = $@"
+                                SELECT f.hash, 
+                                       t.name
+                                FROM fact f 
+                                JOIN fact_type t 
+                                    ON f.fact_type_id = t.fact_type_id    
+                                WHERE (f.hash,t.name) 
+                                    IN (VALUES {String.Join(",", referenceValues)} )
+                            ";
+
+                        return conn.ExecuteQuery<ReferenceFromDb>(sql);
+                    },
+                    true   //exponentional backoff
+                );
+
+                var knownReferences = referencesFromDb
+                    .Select(r => new FactReference(r.name, r.hash))
+                    .ToImmutableList();
+
+                return Task.FromResult(knownReferences);
+            }
+        }
+
+
         Task<ImmutableList<Product>> IStore.Read(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
         {
             var factTypes = LoadFactTypesFromSpecification(specification);
@@ -489,6 +526,95 @@ namespace Jinaga.Store.SQLite
             
         }
 
+        public Task<ImmutableList<Fact>> AddToQueue(ImmutableList<Fact> facts)
+        {
+            // Insert records into queue table of fact IDs from the fact table
+            // that match the given facts.
+            var newFacts = ImmutableList<Fact>.Empty;
+            foreach (var fact in facts)
+            {
+                var factReference = fact.Reference;
+                var factType = factReference.Type;
+                var factHash = factReference.Hash;
+
+                connFactory.WithTxn(
+                    (conn, id) =>
+                    {
+                        {
+                            string sql;
+                            sql = $@"
+                                INSERT OR IGNORE INTO queue (fact_id) 
+                                SELECT fact_id 
+                                FROM fact
+                                JOIN fact_type
+                                    ON fact.fact_type_id = fact_type.fact_type_id
+                                WHERE hash = '{factHash}'
+                                    AND fact_type.name = '{factType}'
+                            ";
+                            return conn.ExecuteNonQuery(sql);
+                        }
+                    },
+                    true
+                );
+            }
+
+            // Return all of the facts in the queue.
+            var factsFromDb = connFactory.WithConn(
+                (conn, id) =>
+                {
+                    string sql;
+                    sql = $@"
+                        SELECT f.hash, 
+                               f.data,
+                               t.name
+                        FROM queue q
+                        JOIN fact f
+                            ON q.fact_id = f.fact_id
+                        JOIN fact_type t
+                            ON f.fact_type_id = t.fact_type_id
+                    ";
+                    return conn.ExecuteQuery<FactFromDb>(sql);
+                },
+                true   //exponentional backoff
+            );
+
+            var queue = factsFromDb.Deserialise().ToImmutableList();
+            return Task.FromResult(queue);
+        }
+
+        public Task RemoveFromQueue(ImmutableList<Fact> facts)
+        {
+            // Remove the fact IDs from the queue that match the given facts.
+            foreach (var fact in facts)
+            {
+                var factReference = fact.Reference;
+                var factType = factReference.Type;
+                var factHash = factReference.Hash;
+                connFactory.WithTxn(
+                    (conn, id) =>
+                    {
+                        {
+                            string sql;
+                            sql = $@"
+                                DELETE FROM queue 
+                                WHERE fact_id IN (
+                                    SELECT fact.fact_id
+                                    FROM fact
+                                    JOIN fact_type
+                                        ON fact.fact_type_id = fact_type.fact_type_id
+                                    WHERE hash = '{factHash}'
+                                        AND fact_type.name = '{factType}'
+                                )
+                            ";
+                            return conn.ExecuteNonQuery(sql);
+                        }
+                    },
+                    true
+                );
+            }
+
+            return Task.CompletedTask;
+        }
 
         public class FactFromDb
         {
@@ -497,9 +623,10 @@ namespace Jinaga.Store.SQLite
             public string name { get; set; }
         }
 
-        public Task<ImmutableList<FactReference>> ListKnown(ImmutableList<FactReference> factReferences)
+        public class ReferenceFromDb
         {
-            throw new NotImplementedException();
+            public string hash { get; set; }
+            public string name { get; set; }
         }
 
     }
@@ -568,7 +695,5 @@ namespace Jinaga.Store.SQLite
             }            
         }
     }
-
-
 
 }

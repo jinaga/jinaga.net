@@ -28,5 +28,6 @@ jobs:
         dotnet build Jinaga.Test --no-restore
         dotnet build Jinaga.Graphviz --no-restore
         dotnet build Jinaga.Tool --no-restore
+        dotnet build Jinaga.Store.SQLite --no-restore
     - name: Test
       run: dotnet test Jinaga.Test --no-build --verbosity normal
