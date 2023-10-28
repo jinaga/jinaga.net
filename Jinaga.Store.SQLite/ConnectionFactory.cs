@@ -461,14 +461,12 @@ namespace Jinaga.Store.SQLite
                             )";
             conn.ExecuteNonQuery(table);
 
-            //Queue
-            table = @"CREATE TABLE IF NOT EXISTS main.queue (
-                                fact_id INTEGER NOT NULL,
-                                date_added TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP              
+            //QueueBookmark
+            table = @"CREATE TABLE IF NOT EXISTS main.queue_bookmark (
+                                replicator TEXT NOT NULL PRIMARY KEY,
+                                bookmark TEXT                           
                             )";
-            string ux_queue = @"CREATE UNIQUE INDEX IF NOT EXISTS ux_queue ON queue (fact_id)";
             conn.ExecuteNonQuery(table);
-            conn.ExecuteNonQuery(ux_queue);
 
 
         }

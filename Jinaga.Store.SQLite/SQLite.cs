@@ -152,7 +152,7 @@ namespace Jinaga.Store.SQLite
 			for (int i = 0; i < ColumnCount(stmt); i++)
 			{
 				string colname = ColumnName(stmt,i);
-				var prop = typ.GetTypeInfo().GetDeclaredProperty(colname);
+				var prop = typ.GetTypeInfo().GetProperty(colname);
 
 				if (
 						(null != prop)
@@ -163,7 +163,7 @@ namespace Jinaga.Store.SQLite
 				}
 				else
 				{
-					throw new NotSupportedException("property not found");
+					throw new NotSupportedException($"property {colname} not found on type {typ.Name}");
 				}
 
 			}

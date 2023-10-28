@@ -41,10 +41,8 @@ namespace Jinaga.Managers
             var added = await store.Save(graph, cancellationToken).ConfigureAwait(false);
             await observableSource.Notify(graph, added, cancellationToken).ConfigureAwait(false);
 
-            var facts = graph.FactReferences
-                .Select(r => graph.GetFact(r))
-                .ToImmutableList();
-            await networkManager.Save(facts, cancellationToken).ConfigureAwait(false);
+            // TODO: Don't wait on the network manager if we have persistent storage.
+            await networkManager.Save(cancellationToken).ConfigureAwait(false);
             return added;
         }
 

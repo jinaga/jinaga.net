@@ -38,23 +38,23 @@ namespace Jinaga.Managers
             return await network.Login(cancellationToken).ConfigureAwait(false);
         }
 
-        public async Task Save(ImmutableList<Fact> facts, CancellationToken cancellationToken)
+        public async Task Save(CancellationToken cancellationToken)
         {
-            // Queue the facts for sending.
-            var queuedFacts = await store.AddToQueue(facts).ConfigureAwait(false);
-            SetSaveStatus(true, null, queuedFacts.Count);
+            // Get the queued facts.
+            var queue = await store.GetQueue().ConfigureAwait(false);
+            SetSaveStatus(true, null, queue.Facts.Count);
 
             try
             {
                 // Send the facts using the network provider.
-                await network.Save(queuedFacts, cancellationToken).ConfigureAwait(false);
-                // Remove the facts from the queue.
-                await store.RemoveFromQueue(queuedFacts).ConfigureAwait(false);
+                await network.Save(queue.Facts, cancellationToken).ConfigureAwait(false);
+                // Update the queue.
+                await store.SetQueueBookmark(queue.NextBookmark).ConfigureAwait(false);
                 SetSaveStatus(false, null, 0);
             }
             catch (Exception ex)
             {
-                SetSaveStatus(false, ex, queuedFacts.Count);
+                SetSaveStatus(false, ex, queue.Facts.Count);
                 throw;
             }
         }
