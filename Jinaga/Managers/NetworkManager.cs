@@ -42,6 +42,11 @@ namespace Jinaga.Managers
         {
             // Get the queued facts.
             var queue = await store.GetQueue().ConfigureAwait(false);
+            if (queue.Facts.Count == 0)
+            {
+                SetSaveStatus(false, null, 0);
+                return;
+            }
             SetSaveStatus(true, null, queue.Facts.Count);
 
             try

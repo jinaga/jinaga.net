@@ -142,6 +142,11 @@ namespace Jinaga
             return (user, profile);
         }
 
+        public async Task Push(CancellationToken cancellationToken = default)
+        {
+            await factManager.Push(cancellationToken).ConfigureAwait(false);
+        }
+
         public async Task<TFact> Fact<TFact>(TFact prototype) where TFact: class
         {
             if (prototype == null)

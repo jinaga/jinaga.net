@@ -36,6 +36,11 @@ namespace Jinaga.Managers
             return (graph, profile);
         }
 
+        public async Task Push(CancellationToken cancellationToken)
+        {
+            await networkManager.Save(cancellationToken).ConfigureAwait(false);
+        }
+
         public async Task<ImmutableList<Fact>> Save(FactGraph graph, CancellationToken cancellationToken)
         {
             var added = await store.Save(graph, cancellationToken).ConfigureAwait(false);
