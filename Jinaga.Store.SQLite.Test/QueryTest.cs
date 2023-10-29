@@ -36,6 +36,8 @@ public class QueryTest
         var flights = await j.Query(specification, cancellation);
 
         flights.Should().ContainSingle().Which.Should().BeEquivalentTo(flight);
+
+        await j.Unload();
     }
 
     [Fact]
@@ -52,6 +54,8 @@ public class QueryTest
         var flights = await j.Query(specification, airlineDay);
 
         flights.Should().ContainSingle().Which.Should().BeEquivalentTo(flight);
+
+        await j.Unload();
     }
 
     [Fact]
@@ -73,6 +77,8 @@ public class QueryTest
 
         var passengers = await j.Query(passengersForAirline, airline);
         passengers.Should().BeEquivalentTo(expectedPassengers);
+
+        await j.Unload();
     }
 
     private async Task<Passenger> BookPassenger(Flight flight)
@@ -104,6 +110,8 @@ public class QueryTest
         flights.Should().ContainSingle().Which
             .Should().BeEquivalentTo(flight);
         output.WriteLine($"Flight = {flight}\n\r");
+
+        await j.Unload();
     }
 
     [Fact]
@@ -129,6 +137,8 @@ public class QueryTest
 
         currentNames.Should().ContainSingle().Which
             .value.Should().Be("Joseph");
+
+        await j.Unload();
     }
 
     [Fact]
@@ -158,6 +168,8 @@ public class QueryTest
         var pair = bookingCancellations.Should().ContainSingle().Subject;
         pair.booking.Should().BeEquivalentTo(booking);
         pair.cancellation.Should().BeEquivalentTo(cancellation);
+
+        await j.Unload();
     }
 
     [Fact]
@@ -189,6 +201,8 @@ public class QueryTest
         posts.Should().ContainSingle().Which
             .titles.Should().ContainSingle().Which
                 .Should().Be("Introduction to Jinaga Replicator");
+
+        await j.Unload();
     }
 
     [Fact]
@@ -207,8 +221,10 @@ public class QueryTest
 
         result.Should().ContainSingle().Which
             .Should().Be("michaelperry.net");
+
+        await j.Unload();
     }
-    
+
     [Fact]
     public async Task Query_CompositeProjectionOnPredecessor()
     {
@@ -230,6 +246,8 @@ public class QueryTest
         var subject = result.Should().ContainSingle().Subject;
         subject.siteName.Should().Be("michaelperry.net");
         subject.postCreatedAt.Should().Be("2022-09-30T13:40:00Z");
+
+        await j.Unload();
     }
 
     [Fact]
@@ -258,6 +276,8 @@ public class QueryTest
         posts.Should().ContainSingle().Which
             .titles.Should().ContainSingle().Which
                 .Should().Be("Introduction to Jinaga Replicator");
+
+        await j.Unload();
     }
 
     [Fact]
@@ -285,6 +305,8 @@ public class QueryTest
         posts.Should().ContainSingle().Which
             .titles.Should().ContainSingle().Which
                 .value.Should().Be("Introduction to Jinaga Replicator");
+
+        await j.Unload();
     }
 
     [Fact]
@@ -312,5 +334,7 @@ public class QueryTest
         posts.Should().ContainSingle().Which
             .titles.Should().ContainSingle().Which
                 .Should().Be("Introduction to Jinaga Replicator");
+
+        await j.Unload();
     }
 }

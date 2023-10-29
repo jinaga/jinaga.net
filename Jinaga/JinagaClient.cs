@@ -268,5 +268,10 @@ namespace Jinaga
             var observer = factManager.StartObserver(givenTuple, specification, onAdded);
             return observer;
         }
+
+        public async Task Unload()
+        {
+            await factManager.Unload().ConfigureAwait(false);
+        }
     }
 }
