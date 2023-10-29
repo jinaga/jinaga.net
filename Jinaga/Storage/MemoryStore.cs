@@ -22,6 +22,8 @@ namespace Jinaga.Storage
         private volatile ImmutableList<FactReference> feed = ImmutableList<FactReference>.Empty;
         private volatile int bookmark = 0;
 
+        public bool IsPersistent => false;
+
         public Task<ImmutableList<Fact>> Save(FactGraph graph, CancellationToken cancellationToken)
         {
             lock (this)

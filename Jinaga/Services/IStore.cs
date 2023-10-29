@@ -10,6 +10,8 @@ namespace Jinaga.Services
 {
     public interface IStore
     {
+        bool IsPersistent { get; }
+
         Task<ImmutableList<Fact>> Save(FactGraph graph, CancellationToken cancellationToken);
         Task<ImmutableList<Product>> Read(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken);
         Task<FactGraph> Load(ImmutableList<FactReference> references, CancellationToken cancellationToken);

@@ -31,6 +31,7 @@ namespace Jinaga.Store.SQLite
             this.connFactory = new ConnectionFactory(dbFullPath);
         }
 
+        public bool IsPersistent => true;
 
         Task<ImmutableList<Fact>> IStore.Save(FactGraph graph, CancellationToken cancellationToken)
         {

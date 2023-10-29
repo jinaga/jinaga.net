@@ -41,8 +41,25 @@ namespace Jinaga.Managers
             var added = await store.Save(graph, cancellationToken).ConfigureAwait(false);
             await observableSource.Notify(graph, added, cancellationToken).ConfigureAwait(false);
 
-            // TODO: Don't wait on the network manager if we have persistent storage.
-            await networkManager.Save(cancellationToken).ConfigureAwait(false);
+            // Don't wait on the network manager if we have persistent storage.
+            if (store.IsPersistent)
+            {
+                var background = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await networkManager.Save(default).ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                        // Trust that the network manager raised the OnStatusChanged event.
+                    }
+                });
+            }
+            else
+            {
+                await networkManager.Save(cancellationToken).ConfigureAwait(false);
+            }
             return added;
         }
 
