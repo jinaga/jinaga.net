@@ -12,6 +12,9 @@ using System.Threading.Tasks;
 
 namespace Jinaga
 {
+    /// <summary>
+    /// Options for creating a Jinaga client.
+    /// </summary>
     public class JinagaClientOptions
     {
         /// <summary>
@@ -30,6 +33,9 @@ namespace Jinaga
         public IHttpAuthenticationProvider? HttpAuthenticationProvider { get; set; }
     }
 
+    /// <summary>
+    /// Information about Jinaga background processes.
+    /// </summary>
     public class JinagaStatus
     {
         public static readonly JinagaStatus Default = new JinagaStatus(false, null, false, null, 0);
@@ -78,6 +84,10 @@ namespace Jinaga
 
     public delegate void JinagaStatusChanged(JinagaStatus status);
 
+    /// <summary>
+    /// Provides access to Jinaga facts and results.
+    /// Treat this object as a singleton.
+    /// </summary>
     public class JinagaClient
     {
         /// <summary>
@@ -123,6 +133,12 @@ namespace Jinaga
             }
         }
 
+        /// <summary>
+        /// Use factory methods such as JinagaClient.Create or
+        /// JinagaSQLiteClient.Create instead of this constructor.
+        /// </summary>
+        /// <param name="store">A strategy to store facts locally</param>
+        /// <param name="network">A strategy to communicate with a remote replicator</param>
         public JinagaClient(IStore store, INetwork network)
         {
             networkManager = new NetworkManager(network, store, async (graph, added, cancellationToken) =>
@@ -135,6 +151,11 @@ namespace Jinaga
             factManager = new FactManager(store, networkManager);
         }
 
+        /// <summary>
+        /// Get information about the logged in user.
+        /// </summary>
+        /// <param name="cancellationToken">To cancel the operation</param>
+        /// <returns>The user fact and profile information from the identity provider</returns>
         public async Task<(User user, UserProfile profile)> Login(CancellationToken cancellationToken = default)
         {
             var (graph, profile) = await factManager.Login(cancellationToken);
@@ -142,6 +163,25 @@ namespace Jinaga
             return (user, profile);
         }
 
+        /// <summary>
+        /// If any facts are in the queue, send them to the replicator.
+        /// </summary>
+        /// <param name="cancellationToken">To cancel the operation</param>
+        /// <returns>Resolved when the queue has been emptied</returns>
+        public async Task Push(CancellationToken cancellationToken = default)
+        {
+            await factManager.Push(cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Process a new fact.
+        /// The fact is stored locally and queued for sending upstream.
+        /// Active observers are notified to update the user interface.
+        /// </summary>
+        /// <typeparam name="TFact">The type of the new fact</typeparam>
+        /// <param name="prototype">The new fact</param>
+        /// <returns>A copy of the fact as saved</returns>
+        /// <exception cref="ArgumentNullException">If the fact is null</exception>
         public async Task<TFact> Fact<TFact>(TFact prototype) where TFact: class
         {
             if (prototype == null)
@@ -159,6 +199,17 @@ namespace Jinaga
             return factManager.Deserialize<TFact>(graph, graph.Last);
         }
 
+        /// <summary>
+        /// Retrieve results of a specification.
+        /// Unlike Watch, results of Query are not updated with new facts.
+        /// </summary>
+        /// <typeparam name="TFact">The type of the starting point</typeparam>
+        /// <typeparam name="TProjection">The type of the results</typeparam>
+        /// <param name="specification">Defines which facts to match and how to project them</param>
+        /// <param name="given">The starting point for the query</param>
+        /// <param name="cancellationToken">To cancel the operation</param>
+        /// <returns>The results</returns>
+        /// <exception cref="ArgumentNullException">If the given is null</exception>
         public async Task<ImmutableList<TProjection>> Query<TFact, TProjection>(
             Specification<TFact, TProjection> specification,
             TFact given,
@@ -193,6 +244,16 @@ namespace Jinaga
             }
         }
 
+        /// <summary>
+        /// Observe the results of a specification, including changes.
+        /// Unlike Query, Watch sets up an observer which responds to new facts.
+        /// </summary>
+        /// <typeparam name="TFact">The type of the starting point</typeparam>
+        /// <typeparam name="TProjection">The type of the results</typeparam>
+        /// <param name="specification">Defines which facts to match and how to project them</param>
+        /// <param name="given">The starting point for the query</param>
+        /// <param name="added">Called when a result is added. Optionally return a function to be called when it is removed.</param>
+        /// <returns>To control the observer</returns>
         public IObserver Watch<TFact, TProjection>(
             Specification<TFact, TProjection> specification,
             TFact given,
@@ -209,6 +270,16 @@ namespace Jinaga
             );
         }
 
+        /// <summary>
+        /// Observe the results of a specification, including changes.
+        /// Unlike Query, Watch sets up an observer which responds to new facts.
+        /// </summary>
+        /// <typeparam name="TFact">The type of the starting point</typeparam>
+        /// <typeparam name="TProjection">The type of the results</typeparam>
+        /// <param name="specification">Defines which facts to match and how to project them</param>
+        /// <param name="given">The starting point for the query</param>
+        /// <param name="added">Called when a result is added. Optionally return a function to be called when it is removed.</param>
+        /// <returns>To control the observer</returns>
         public IObserver Watch<TFact, TProjection>(
             Specification<TFact, TProjection> specification,
             TFact given,
@@ -229,6 +300,16 @@ namespace Jinaga
             );
         }
 
+        /// <summary>
+        /// Observe the results of a specification, including changes.
+        /// Unlike Query, Watch sets up an observer which responds to new facts.
+        /// </summary>
+        /// <typeparam name="TFact">The type of the starting point</typeparam>
+        /// <typeparam name="TProjection">The type of the results</typeparam>
+        /// <param name="specification">Defines which facts to match and how to project them</param>
+        /// <param name="given">The starting point for the query</param>
+        /// <param name="added">Called when a result is added. Optionally return a function to be called when it is removed.</param>
+        /// <returns>To control the observer</returns>
         public IObserver Watch<TFact, TProjection>(
             Specification<TFact, TProjection> specification,
             TFact given,
@@ -244,6 +325,16 @@ namespace Jinaga
             );
         }
 
+        /// <summary>
+        /// Observe the results of a specification, including changes.
+        /// Unlike Query, Watch sets up an observer which responds to new facts.
+        /// </summary>
+        /// <typeparam name="TFact">The type of the starting point</typeparam>
+        /// <typeparam name="TProjection">The type of the results</typeparam>
+        /// <param name="specification">Defines which facts to match and how to project them</param>
+        /// <param name="given">The starting point for the query</param>
+        /// <param name="added">Called when a result is added. Optionally return a function to be called when it is removed.</param>
+        /// <returns>To control the observer</returns>
         public IObserver Watch<TFact, TProjection>(
             Specification<TFact, TProjection> specification,
             TFact given,
@@ -262,6 +353,15 @@ namespace Jinaga
             Func<object, Task<Func<Task>>> onAdded = (object obj) => added((TProjection)obj);
             var observer = factManager.StartObserver(givenTuple, specification, onAdded);
             return observer;
+        }
+
+        /// <summary>
+        /// Wait for any background processes to stop.
+        /// </summary>
+        /// <returns>Resolved when background processes are finished</returns>
+        public async Task Unload()
+        {
+            await factManager.Unload().ConfigureAwait(false);
         }
     }
 }

@@ -18,6 +18,8 @@ namespace Jinaga.Managers
         private readonly NetworkManager networkManager;
         private readonly ObservableSource observableSource;
 
+        private ImmutableList<TaskHandle> pendingTasks = ImmutableList<TaskHandle>.Empty;
+
         public FactManager(IStore store, NetworkManager networkManager)
         {
             this.store = store;
@@ -36,15 +38,42 @@ namespace Jinaga.Managers
             return (graph, profile);
         }
 
+        public async Task Push(CancellationToken cancellationToken)
+        {
+            await networkManager.Save(cancellationToken).ConfigureAwait(false);
+        }
+
         public async Task<ImmutableList<Fact>> Save(FactGraph graph, CancellationToken cancellationToken)
         {
             var added = await store.Save(graph, cancellationToken).ConfigureAwait(false);
             await observableSource.Notify(graph, added, cancellationToken).ConfigureAwait(false);
 
-            var facts = graph.FactReferences
-                .Select(r => graph.GetFact(r))
-                .ToImmutableList();
-            await networkManager.Save(facts, cancellationToken).ConfigureAwait(false);
+            // Don't wait on the network manager if we have persistent storage.
+            if (store.IsPersistent)
+            {
+                var handle = new TaskHandle();
+                AddBackgroundTask(handle);
+                var background = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await networkManager.Save(default).ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                        // Trust that the network manager raised the OnStatusChanged event.
+                    }
+                    finally
+                    {
+                        RemoveBackgroundTask(handle);
+                    }
+                });
+                handle.Task = background;
+            }
+            else
+            {
+                await networkManager.Save(cancellationToken).ConfigureAwait(false);
+            }
             return added;
         }
 
@@ -163,6 +192,33 @@ namespace Jinaga.Managers
         public Task SetMruDate(string specificationHash, DateTime mruDate)
         {
             return store.SetMruDate(specificationHash, mruDate);
+        }
+
+        public async Task Unload()
+        {
+            var freezePendingTasks = pendingTasks;
+            if (freezePendingTasks.Count > 0)
+            {
+                await Task.WhenAll(freezePendingTasks
+                    .Select(handle => handle.Task)
+                );
+            }
+        }
+
+        private void AddBackgroundTask(TaskHandle handle)
+        {
+            lock (this)
+            {
+                pendingTasks = pendingTasks.Add(handle);
+            }
+        }
+
+        private void RemoveBackgroundTask(TaskHandle handle)
+        {
+            lock (this)
+            {
+                pendingTasks = pendingTasks.Remove(handle);
+            }
         }
     }
 }

@@ -31,6 +31,7 @@ namespace Jinaga.Store.SQLite
             this.connFactory = new ConnectionFactory(dbFullPath);
         }
 
+        public bool IsPersistent => true;
 
         Task<ImmutableList<Fact>> IStore.Save(FactGraph graph, CancellationToken cancellationToken)
         {
@@ -526,92 +527,73 @@ namespace Jinaga.Store.SQLite
             
         }
 
-        public Task<ImmutableList<Fact>> AddToQueue(ImmutableList<Fact> facts)
+        public Task<QueuedFacts> GetQueue()
         {
-            // Insert records into queue table of fact IDs from the fact table
-            // that match the given facts.
-            var newFacts = ImmutableList<Fact>.Empty;
-            foreach (var fact in facts)
-            {
-                var factReference = fact.Reference;
-                var factType = factReference.Type;
-                var factHash = factReference.Hash;
+            // Load the current bookmark from the bookmark table.
+            string bookmark = connFactory.WithConn(
+                (conn, id) =>
+                {
+                    string sql;
+                    sql = $@"
+                        SELECT bookmark
+                        FROM queue_bookmark
+                        WHERE replicator = 'primary'
+                    ";
+                    return conn.ExecuteScalar<String>(sql);
+                },
+                true
+            );
 
-                connFactory.WithTxn(
-                    (conn, id) =>
-                    {
-                        {
-                            string sql;
-                            sql = $@"
-                                INSERT OR IGNORE INTO queue (fact_id) 
-                                SELECT fact_id 
-                                FROM fact
-                                JOIN fact_type
-                                    ON fact.fact_type_id = fact_type.fact_type_id
-                                WHERE hash = '{factHash}'
-                                    AND fact_type.name = '{factType}'
-                            ";
-                            return conn.ExecuteNonQuery(sql);
-                        }
-                    },
-                    true
-                );
-            }
+            // Interpret the bookmark as a fact ID.
+            if (!int.TryParse(bookmark, out int lastFactId))
+                lastFactId = 0;
 
-            // Return all of the facts in the queue.
+            // Load the facts from the fact table.
             var factsFromDb = connFactory.WithConn(
                 (conn, id) =>
                 {
                     string sql;
                     sql = $@"
-                        SELECT f.hash, 
-                               f.data,
-                               t.name
-                        FROM queue q
-                        JOIN fact f
-                            ON q.fact_id = f.fact_id
+                        SELECT f.fact_id, f.hash, f.data, t.name
+                        FROM fact f
                         JOIN fact_type t
                             ON f.fact_type_id = t.fact_type_id
+                        WHERE fact_id > {lastFactId}
+                        ORDER BY fact_id
                     ";
-                    return conn.ExecuteQuery<FactFromDb>(sql);
+                    return conn.ExecuteQuery<FactWithIdFromDb>(sql);
                 },
-                true   //exponentional backoff
+                true
             );
 
-            var queue = factsFromDb.Deserialise().ToImmutableList();
-            return Task.FromResult(queue);
+            // Convert the fact records to facts.
+            var facts = factsFromDb.Deserialise().ToImmutableList();
+
+            // If there are facts, then the next bookmark is the largest fact ID.
+            if (facts.Count > 0)
+            {
+                lastFactId = factsFromDb.Max(f => f.fact_id);
+            }
+
+            // Return the facts and the next bookmark.
+            return Task.FromResult(new QueuedFacts(facts, lastFactId.ToString()));
         }
 
-        public Task RemoveFromQueue(ImmutableList<Fact> facts)
+        public Task SetQueueBookmark(string bookmark)
         {
-            // Remove the fact IDs from the queue that match the given facts.
-            foreach (var fact in facts)
-            {
-                var factReference = fact.Reference;
-                var factType = factReference.Type;
-                var factHash = factReference.Hash;
-                connFactory.WithTxn(
-                    (conn, id) =>
-                    {
-                        {
-                            string sql;
-                            sql = $@"
-                                DELETE FROM queue 
-                                WHERE fact_id IN (
-                                    SELECT fact.fact_id
-                                    FROM fact
-                                    JOIN fact_type
-                                        ON fact.fact_type_id = fact_type.fact_type_id
-                                    WHERE hash = '{factHash}'
-                                        AND fact_type.name = '{factType}'
-                                )
-                            ";
-                            return conn.ExecuteNonQuery(sql);
-                        }
-                    },
-                    true
-                );
-            }
+            // Save the bookmark to the bookmark table.
+            connFactory.WithTxn(
+                (conn, id) =>
+                {
+                    string sql;
+                    sql = $@"
+                        INSERT OR REPLACE INTO queue_bookmark (replicator, bookmark)                        
+                        VALUES  ('primary', '{bookmark}' )
+                    ";
+                    return conn.ExecuteNonQuery(sql);
+                },
+                true
+            );
 
             return Task.CompletedTask;
         }
@@ -621,6 +603,11 @@ namespace Jinaga.Store.SQLite
             public string hash { get; set; }
             public string data { get; set; }
             public string name { get; set; }
+        }
+
+        public class FactWithIdFromDb : FactFromDb
+        {
+            public int fact_id { get; set; }
         }
 
         public class ReferenceFromDb

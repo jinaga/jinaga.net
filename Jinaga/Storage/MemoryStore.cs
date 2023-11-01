@@ -19,7 +19,10 @@ namespace Jinaga.Storage
         private volatile ImmutableDictionary<FactReference, ImmutableList<FactReference>> ancestors = ImmutableDictionary<FactReference, ImmutableList<FactReference>>.Empty;
         private volatile ImmutableDictionary<string, string> bookmarks = ImmutableDictionary<string, string>.Empty;
         private volatile ImmutableDictionary<string, DateTime> mruDates = ImmutableDictionary<string, DateTime>.Empty;
-        private volatile ImmutableList<Fact> queue = ImmutableList<Fact>.Empty;
+        private volatile ImmutableList<FactReference> feed = ImmutableList<FactReference>.Empty;
+        private volatile int bookmark = 0;
+
+        public bool IsPersistent => false;
 
         public Task<ImmutableList<Fact>> Save(FactGraph graph, CancellationToken cancellationToken)
         {
@@ -31,6 +34,9 @@ namespace Jinaga.Storage
                     .ToImmutableList();
                 factsByReference = factsByReference.AddRange(newFacts
                     .Select(fact => new KeyValuePair<FactReference, Fact>(fact.Reference, fact))
+                );
+                feed = feed.AddRange(newFacts
+                    .Select(fact => fact.Reference)
                 );
                 var newPredecessors = newFacts
                     .Select(fact => (
@@ -304,22 +310,27 @@ namespace Jinaga.Storage
             }
         }
 
-        public Task<ImmutableList<Fact>> AddToQueue(ImmutableList<Fact> facts)
+        public Task<QueuedFacts> GetQueue()
         {
             lock (this)
             {
-                var newQueue = queue.AddRange(facts);
-                queue = newQueue;
-                return Task.FromResult(newQueue);
+                var facts = feed.Skip(bookmark).Select(reference =>
+                    factsByReference[reference]
+                ).ToImmutableList();
+
+                return Task.FromResult(new QueuedFacts(
+                    facts, feed.Count.ToString()
+                ));
             }
         }
 
-        public Task RemoveFromQueue(ImmutableList<Fact> facts)
+        public Task SetQueueBookmark(string bookmark)
         {
             lock (this)
             {
-                var newQueue = queue.RemoveAll(fact => facts.Contains(fact));
-                queue = newQueue;
+                int nextBookmark = int.Parse(bookmark);
+                if (nextBookmark > this.bookmark)
+                    this.bookmark = nextBookmark;
                 return Task.CompletedTask;
             }
         }

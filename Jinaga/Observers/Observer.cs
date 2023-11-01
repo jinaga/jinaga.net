@@ -86,11 +86,19 @@ namespace Jinaga.Observers
 
         private async Task<bool> ReadFromStore(CancellationToken cancellationToken)
         {
-            DateTime? mruDate = await factManager.GetMruDate(specificationHash).ConfigureAwait(false);
-            if (mruDate == null)
-            {
-                return false;
-            }
+            // Always read from local store first.
+            // This has the positive effect of presenting local data quickly
+            // even when the specification is different.
+
+            // Perhaps we can search the MRU for related specifications.
+            // Or perhaps we can apply a timeout downstream to load from
+            // local storage after expired or error.
+
+            //DateTime? mruDate = await factManager.GetMruDate(specificationHash).ConfigureAwait(false);
+            //if (mruDate == null)
+            //{
+            //    return false;
+            //}
 
             // Read from local storage.
             await Read(cancellationToken).ConfigureAwait(false);
