@@ -103,7 +103,7 @@ namespace Jinaga.Http
                         using var retryRequest = createRequest();
                         setRequestHeaders(retryRequest.Headers);
                         using var retryResponse = await httpClient.SendAsync(retryRequest).ConfigureAwait(false);
-                        retryResponse.EnsureSuccessStatusCode();
+                        await CheckForError(response).ConfigureAwait(false);
                         var retryResult = await processResponse(retryResponse).ConfigureAwait(false);
                         return retryResult;
                     }
@@ -114,7 +114,7 @@ namespace Jinaga.Http
                 }
                 else
                 {
-                    response.EnsureSuccessStatusCode();
+                    await CheckForError(response).ConfigureAwait(false);
                     var result = await processResponse(response).ConfigureAwait(false);
                     return result;
                 }
@@ -123,6 +123,25 @@ namespace Jinaga.Http
             {
                 Debug.WriteLine(@"\tERROR {0}", ex.Message);
                 throw;
+            }
+        }
+
+        private async Task CheckForError(HttpResponseMessage response)
+        {
+            if (!response.IsSuccessStatusCode)
+            {
+                string body = string.Empty;
+                try
+                {
+                    // Read the content of the error from the response.
+                    body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                }
+                catch
+                {
+                    // Fall back on the default behavior.
+                    response.EnsureSuccessStatusCode();
+                }
+                throw new HttpRequestException($"Error {response.StatusCode}: {body}");
             }
         }
     }
