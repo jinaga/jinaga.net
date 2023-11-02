@@ -559,6 +559,19 @@ namespace Jinaga.Store.SQLite
                         JOIN fact_type t
                             ON f.fact_type_id = t.fact_type_id
                         WHERE fact_id > {lastFactId}
+
+                        UNION
+
+                        SELECT f2.fact_id, f2.hash, f2.data, t2.name
+                        FROM fact f1
+                        JOIN ancestor a 
+                            ON a.fact_id = f1.fact_id 
+                        JOIN fact f2 
+                            ON f2.fact_id = a.ancestor_fact_id 
+                        JOIN fact_type t2 
+                            ON t2.fact_type_id = f2.fact_type_id
+                        WHERE f1.fact_id > {lastFactId}
+
                         ORDER BY fact_id
                     ";
                     return conn.ExecuteQuery<FactWithIdFromDb>(sql);
