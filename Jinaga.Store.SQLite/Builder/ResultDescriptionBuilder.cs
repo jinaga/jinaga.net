@@ -129,6 +129,12 @@ namespace Jinaga.Store.SQLite.Builder
                 }
 
                 var factReference = givenTuple.Get(pathCondition.LabelRight);
+                // If the type is not known, then no facts matching the condition can
+                // exist. The query is unsatisfiable.
+                if (!factTypes.ContainsKey(factReference.Type))
+                {
+                    return context.WithQueryDescription(QueryDescription.Empty);
+                }
                 int factTypeId = EnsureGetFactTypeId(factReference.Type);
                 context = context.WithInputParameter(
                     given[givenIndex],
