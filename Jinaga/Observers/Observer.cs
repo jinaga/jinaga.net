@@ -238,12 +238,11 @@ namespace Jinaga.Observers
                     var resultAdded = addedHandler.Added;
                     // Don't call result added if we have already called it for this tuple.
                     var resultTuple = result.Product.GetAnchor();
-                    if (!notifiedTuples.Contains(resultTuple))
+                    if (FirstTimeNotified(resultTuple))
                     {
                         var removal = await resultAdded(result.Projection).ConfigureAwait(false);
                         lock (this)
                         {
-                            notifiedTuples.Add(resultTuple);
                             removalsByProduct = removalsByProduct.Add(resultTuple, removal);
                         }
                     }
@@ -263,6 +262,20 @@ namespace Jinaga.Observers
                         await NotifyAdded(collection.Results, subset).ConfigureAwait(false);
                     }
                 }
+            }
+        }
+
+        private bool FirstTimeNotified(FactReferenceTuple resultTuple)
+        {
+            lock (this)
+            {
+                if (!notifiedTuples.Contains(resultTuple))
+                {
+                    notifiedTuples = notifiedTuples.Add(resultTuple);
+                    return true;
+                }
+
+                return false;
             }
         }
 
