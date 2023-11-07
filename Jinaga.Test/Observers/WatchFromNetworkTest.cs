@@ -101,6 +101,44 @@ public class WatchFromNetworkTest
         }
     }
 
+    [Fact]
+    public async Task Watch_SingleOfficeThreeNames()
+    {
+        var network = new FakeNetwork(output);
+        var contoso = new Company("contoso");
+        var dallas = new City("Dallas");
+        var dallasOffice = new Office(contoso, dallas);
+        var dallasOfficeName1 = new OfficeName(dallasOffice, "Dallas One", new OfficeName[0]);
+        var dallasOfficeName2 = new OfficeName(dallasOffice, "Dallas Two", new OfficeName[] { dallasOfficeName1 });
+        var dallasOfficeName3 = new OfficeName(dallasOffice, "Dallas Three", new OfficeName[] { dallasOfficeName2 });
+        network.AddFeed("offices", new object[]
+        {
+            dallasOffice
+        }, 1);
+        network.AddFeed("officeNames", new object[]
+        {
+            dallasOfficeName1,
+            dallasOfficeName2,
+            dallasOfficeName3
+        }, 1);
+
+        var j = new JinagaClient(new MemoryStore(), network);
+
+        var viewModel = new CompanyViewModel();
+        var watch = viewModel.Load(j, "contoso");
+
+        try
+        {
+            await watch.Loaded;
+            viewModel.Offices.Should().ContainSingle().Which
+                .Name.Should().Be("Dallas Three");
+        }
+        finally
+        {
+            watch.Stop();
+        }
+    }
+
     private class OfficeViewModel
     {
         public Office Office;
