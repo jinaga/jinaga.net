@@ -13,6 +13,7 @@ namespace Jinaga.Store.SQLite.Generation
         {
             var sqlQuery = GenerateResultSqlQuery(description.QueryDescription);
             var childQueries = description.ChildResultDescriptions
+                .Where(child => child.Value.QueryDescription.IsSatisfiable())
                 .Select(child => KeyValuePair.Create(
                     child.Key,
                     CreateSqlQueryTree(child.Value, description.QueryDescription.OutputLength())))

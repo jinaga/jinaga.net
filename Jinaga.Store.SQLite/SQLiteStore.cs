@@ -322,6 +322,10 @@ namespace Jinaga.Store.SQLite
             
             var description = descriptionBuilder.Build(givenTuple, specification);
 
+            if (!description.QueryDescription.IsSatisfiable())
+            {
+                return Task.FromResult(ImmutableList<Product>.Empty);
+            }
             var sqlQueryTree = SqlGenerator.CreateSqlQueryTree(description);
 
             ResultSetTree resultSets = connFactory.WithConn(
