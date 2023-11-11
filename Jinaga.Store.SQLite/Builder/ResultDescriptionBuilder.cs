@@ -105,6 +105,12 @@ namespace Jinaga.Store.SQLite.Builder
                     {
                         context = context.WithQueryDescription(contextConditional.QueryDescription);
                     }
+                    else if (existentialCondition.Exists)
+                    {
+                        // If a positive existential condition is not satisfiable,
+                        // then the whole expression is not satisfiable.
+                        return ResultDescriptionBuilderContext.Empty;
+                    }
                 }
             }
             return context;
