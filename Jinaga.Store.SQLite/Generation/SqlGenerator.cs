@@ -13,7 +13,6 @@ namespace Jinaga.Store.SQLite.Generation
         {
             var sqlQuery = GenerateResultSqlQuery(description.QueryDescription);
             var childQueries = description.ChildResultDescriptions
-                .Where(child => child.Value.QueryDescription.IsSatisfiable())
                 .Select(child => KeyValuePair.Create(
                     child.Key,
                     CreateSqlQueryTree(child.Value, description.QueryDescription.OutputLength())))
@@ -23,6 +22,10 @@ namespace Jinaga.Store.SQLite.Generation
 
         private static SpecificationSqlQuery GenerateResultSqlQuery(QueryDescription queryDescription)
         {
+            if (!queryDescription.IsSatisfiable())
+            {
+                return SpecificationSqlQuery.Empty;
+            }
             var allLabels = queryDescription.Inputs
                 .Select(input => new SpecificationLabel(input.Label, input.FactIndex, input.Type))
                 .Concat(queryDescription.Outputs

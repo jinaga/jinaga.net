@@ -351,7 +351,25 @@ namespace Jinaga.Store.SQLite
 
         private ResultSetTree ExecuteQueryTree(SqlQueryTree sqlQueryTree, ConnectionFactory.Conn conn)
         {
+            var resultSetTree = ExecuteQuery(sqlQueryTree, conn);
+
+            foreach (var childQuery in sqlQueryTree.ChildQueries)
+            {
+                var childResultSet = ExecuteQueryTree(childQuery.Value, conn);
+                resultSetTree.ChildResultSets = resultSetTree.ChildResultSets.Add(childQuery.Key, childResultSet);
+            };
+
+            return resultSetTree;
+        }
+
+        private static ResultSetTree ExecuteQuery(SqlQueryTree sqlQueryTree, ConnectionFactory.Conn conn)
+        {
             var sqlQuery = sqlQueryTree.SqlQuery;
+            if (string.IsNullOrEmpty(sqlQuery.Sql))
+            {
+                return new ResultSetTree();
+            }
+
             var dataRows = conn.ExecuteQueryRaw(sqlQueryTree.SqlQuery.Sql, sqlQueryTree.SqlQuery.Parameters.ToArray());
             var resultSet = dataRows.Select(dataRow =>
             {
@@ -373,17 +391,8 @@ namespace Jinaga.Store.SQLite
             var resultSetTree = new ResultSetTree();
 
             resultSetTree.ResultSet = resultSet.ToImmutableList();
-
-            foreach (var childQuery in sqlQueryTree.ChildQueries)
-            {
-                var childResultSet = ExecuteQueryTree(childQuery.Value, conn);
-                resultSetTree.ChildResultSets = resultSetTree.ChildResultSets.Add(childQuery.Key, childResultSet);
-            };           
-
             return resultSetTree;
         }
-
-
 
         private IEnumerable<FactTypeFromDb> LoadFactTypesFromSpecification(Specification specification)
         {

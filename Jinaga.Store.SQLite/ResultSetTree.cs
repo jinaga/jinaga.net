@@ -17,9 +17,9 @@ namespace Jinaga.Store.SQLite
         public ResultSetTree()
         {
             ChildResultSets =  ImmutableDictionary<string, ResultSetTree>.Empty;            
-        } 
+        }
 
-        public ImmutableList<ImmutableDictionary<int, ResultSetFact>> ResultSet { get; set; }
+        public ImmutableList<ImmutableDictionary<int, ResultSetFact>> ResultSet { get; set; } = ImmutableList<ImmutableDictionary<int, ResultSetFact>>.Empty;
         public ImmutableDictionary<string, ResultSetTree> ChildResultSets { get; set; } = ImmutableDictionary<string, ResultSetTree>.Empty;
     }
 }
