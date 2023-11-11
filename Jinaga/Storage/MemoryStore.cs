@@ -68,9 +68,28 @@ namespace Jinaga.Storage
         {
             lock (this)
             {
-                var products = ExecuteMatchesAndProjection(givenTuple, specification.Matches, specification.Projection);
+                var products = ExecuteSpecification(givenTuple, specification);
                 return Task.FromResult(products);
             }
+        }
+
+        private ImmutableList<Product> ExecuteSpecification(FactReferenceTuple givenTuple, Specification specification)
+        {
+            // If any given does not match its existential conditions,
+            // then return nothing.
+            var factReferences = ImmutableList.Create(givenTuple);
+            foreach (var given in specification.Givens)
+            {
+                foreach (var existentialCondition in given.ExistentialConditions)
+                {
+                    var result = FilterByExistentialCondition(factReferences, existentialCondition);
+                    if (result.IsEmpty)
+                    {
+                        return ImmutableList<Product>.Empty;
+                    }
+                }
+            }
+            return ExecuteMatchesAndProjection(givenTuple, specification.Matches, specification.Projection);
         }
 
         private ImmutableList<Product> ExecuteMatchesAndProjection(FactReferenceTuple start, ImmutableList<Match> matches, Projection projection)
