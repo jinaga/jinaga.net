@@ -82,31 +82,24 @@ namespace Jinaga.Store.SQLite.Builder
         {
             foreach (var match in matches)
             {
-                foreach (var condition in match.Conditions)
+                foreach (var pathCondition in match.PathConditions)
                 {
-                    if (condition is PathCondition pathCondition)
-                    {
-                        context = AddPathCondition(context, pathCondition, given, givenTuple, match.Unknown, "");
-                    }
-                    else if (condition is ExistentialCondition existentialCondition)
-                    {
-                        // Apply the where clause and continue with the tuple where it is true.
-                        // The path describes which not-exists condition we are currently building on.
-                        // Because the path is not empty, labeled facts will be included in the output.
-                        var contextWithCondition = context.WithExistentialCondition(existentialCondition.Exists);
-                        var contextConditional = AddEdges(contextWithCondition, given, givenTuple, existentialCondition.Matches);
+                    context = AddPathCondition(context, pathCondition, given, givenTuple, match.Unknown, "");
+                }
+                foreach (var existentialCondition in match.ExistentialConditions)
+                {
+                    // Apply the where clause and continue with the tuple where it is true.
+                    // The path describes which not-exists condition we are currently building on.
+                    // Because the path is not empty, labeled facts will be included in the output.
+                    var contextWithCondition = context.WithExistentialCondition(existentialCondition.Exists);
+                    var contextConditional = AddEdges(contextWithCondition, given, givenTuple, existentialCondition.Matches);
 
-                        // If the negative existential condition is not satisfiable, then
-                        // that means that the condition will always be true.
-                        // We can therefore skip the branch for the negative existential condition.
-                        if (contextConditional.QueryDescription.IsSatisfiable())
-                        {
-                            context = context.WithQueryDescription(contextConditional.QueryDescription);
-                        }
-                    }
-                    if (!context.QueryDescription.IsSatisfiable())
+                    // If the negative existential condition is not satisfiable, then
+                    // that means that the condition will always be true.
+                    // We can therefore skip the branch for the negative existential condition.
+                    if (contextConditional.QueryDescription.IsSatisfiable())
                     {
-                        break;
+                        context = context.WithQueryDescription(contextConditional.QueryDescription);
                     }
                 }
                 if (!context.QueryDescription.IsSatisfiable())

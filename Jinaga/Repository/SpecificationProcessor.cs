@@ -381,7 +381,7 @@ namespace Jinaga.Repository
             Match? priorMatch = null;
             foreach (var match in matches)
             {
-                if (!match.Conditions.OfType<PathCondition>().Any())
+                if (!match.PathConditions.Any())
                 {
                     var unknown = match.Unknown.Name;
                     var prior = priorMatch != null

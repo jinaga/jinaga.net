@@ -299,22 +299,19 @@ public class QueryGeneratorTests
         foreach (var match in matches)
         {
             factTypeNames = factTypeNames.Add(match.Unknown.Type);
-            foreach (var condition in match.Conditions)
+            foreach (var pathCondition in match.PathConditions)
             {
-                if (condition is PathCondition pathCondition)
-                {
-                    factTypeNames = factTypeNames.AddRange(
-                        pathCondition.RolesLeft.Select(role =>
-                            role.TargetType));
-                    factTypeNames = factTypeNames.AddRange(
-                        pathCondition.RolesRight.Select(role =>
-                            role.TargetType));
-                }
-                else if (condition is ExistentialCondition existentialCondition)
-                {
-                    factTypeNames = factTypeNames.AddRange(
-                        GetAllFactTypesFromMatches(existentialCondition.Matches));
-                }
+                factTypeNames = factTypeNames.AddRange(
+                    pathCondition.RolesLeft.Select(role =>
+                        role.TargetType));
+                factTypeNames = factTypeNames.AddRange(
+                    pathCondition.RolesRight.Select(role =>
+                        role.TargetType));
+            }
+            foreach (var existentialCondition in match.ExistentialConditions)
+            {
+                factTypeNames = factTypeNames.AddRange(
+                    GetAllFactTypesFromMatches(existentialCondition.Matches));
             }
         }
         return factTypeNames.Distinct();
@@ -387,29 +384,26 @@ public class QueryGeneratorTests
         var roles = ImmutableList<(string factType, string roleName)>.Empty;
         foreach (var match in matches)
         {
-            foreach (var condition in match.Conditions)
+            foreach (var pathCondition in match.PathConditions)
             {
-                if (condition is PathCondition pathCondition)
+                var type = match.Unknown.Type;
+                foreach (var role in pathCondition.RolesLeft)
                 {
-                    var type = match.Unknown.Type;
-                    foreach (var role in pathCondition.RolesLeft)
-                    {
-                        roles = roles.Add((type, role.Name));
-                        type = role.TargetType;
-                    }
-                    type = typesByLabel[pathCondition.LabelRight];
-                    foreach (var role in pathCondition.RolesRight)
-                    {
-                        roles = roles.Add((type, role.Name));
-                        type = role.TargetType;
-                    }
+                    roles = roles.Add((type, role.Name));
+                    type = role.TargetType;
                 }
-                else if (condition is ExistentialCondition existentialCondition)
+                type = typesByLabel[pathCondition.LabelRight];
+                foreach (var role in pathCondition.RolesRight)
                 {
-                    typesByLabel = typesByLabel.AddRange(existentialCondition.Matches
-                        .Select(match => KeyValuePair.Create(match.Unknown.Name, match.Unknown.Type)));
-                    roles = roles.AddRange(GetAllRolesFromMatches(typesByLabel, existentialCondition.Matches));
+                    roles = roles.Add((type, role.Name));
+                    type = role.TargetType;
                 }
+            }
+            foreach (var existentialCondition in match.ExistentialConditions)
+            {
+                typesByLabel = typesByLabel.AddRange(existentialCondition.Matches
+                    .Select(match => KeyValuePair.Create(match.Unknown.Name, match.Unknown.Type)));
+                roles = roles.AddRange(GetAllRolesFromMatches(typesByLabel, existentialCondition.Matches));
             }
         }
         return roles;

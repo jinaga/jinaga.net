@@ -92,21 +92,18 @@ namespace Jinaga.Storage
         private ImmutableList<FactReferenceTuple> ExecuteMatch(FactReferenceTuple references, Match match)
         {
             ImmutableList<FactReferenceTuple> resultReferences;
-            var firstCondition = match.Conditions.First();
-            if (firstCondition is PathCondition pathCondition)
-            {
-                var result = ExecutePathCondition(references, match.Unknown, pathCondition);
-                resultReferences = result.Select(reference =>
-                    references.Add(match.Unknown.Name, reference)).ToImmutableList();
-            }
-            else
-            {
-                throw new ArgumentException("The first condition must be a path condition.");
-            }
+            var pathCondition = match.PathConditions.First();
+            var result = ExecutePathCondition(references, match.Unknown, pathCondition);
+            resultReferences = result.Select(reference =>
+                references.Add(match.Unknown.Name, reference)).ToImmutableList();
 
-            foreach (var condition in match.Conditions.Skip(1))
+            if (match.PathConditions.Count > 1)
             {
-                resultReferences = FilterByCondition(references, resultReferences, condition);
+                throw new NotImplementedException();
+            }
+            foreach (var condition in match.ExistentialConditions)
+            {
+                resultReferences = FilterByExistentialCondition(resultReferences, condition);
             }
             return resultReferences;
         }
@@ -126,25 +123,13 @@ namespace Jinaga.Storage
             return set;
         }
 
-        private ImmutableList<FactReferenceTuple> FilterByCondition(FactReferenceTuple references, ImmutableList<FactReferenceTuple> resultReferences, MatchCondition condition)
+        private ImmutableList<FactReferenceTuple> FilterByExistentialCondition(ImmutableList<FactReferenceTuple> resultReferences, ExistentialCondition existentialCondition)
         {
-            if (condition is PathCondition pathCondition)
-            {
-                throw new NotImplementedException();
-            }
-            else if (condition is ExistentialCondition existentialCondition)
-            {
-                var matchingResultReferences = resultReferences
-                    .Where(resultReference =>
-                        ExecuteMatches(resultReference, existentialCondition.Matches).Any() ^
-                        !existentialCondition.Exists)
-                    .ToImmutableList();
-                return matchingResultReferences;
-            }
-            else
-            {
-                throw new NotImplementedException();
-            }
+            return resultReferences
+                .Where(resultReference =>
+                    ExecuteMatches(resultReference, existentialCondition.Matches).Any() ^
+                    !existentialCondition.Exists)
+                .ToImmutableList();
         }
 
         private IEnumerable<(string name, string declaringType)> EnumerateRoles(IEnumerable<Role> roles, string startingType)

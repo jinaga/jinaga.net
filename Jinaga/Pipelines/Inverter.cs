@@ -31,7 +31,7 @@ namespace Jinaga.Pipelines
         {
             // Turn each given into a match.
             var emptyMatches = specification.Given.Select(given =>
-                new Match(given, ImmutableList<MatchCondition>.Empty)
+                new Match(given, ImmutableList<PathCondition>.Empty, ImmutableList<ExistentialCondition>.Empty)
             ).ToImmutableList();
             var matches = emptyMatches.AddRange(specification.Matches).ToImmutableList();
 
@@ -86,46 +86,43 @@ namespace Jinaga.Pipelines
                     inverses = inverses.Add(inverse);
                 }
 
-                inverses = inverses.AddRange(InvertExistentialConditions(matches, matches[0].Conditions, InverseOperation.Add, context));
+                inverses = inverses.AddRange(InvertExistentialConditions(matches, matches[0].ExistentialConditions, InverseOperation.Add, context));
             }
 
             return inverses;
         }
 
-        private static ImmutableList<Inverse> InvertExistentialConditions(ImmutableList<Match> outerMatches, ImmutableList<MatchCondition> conditions, InverseOperation parentOperation, InverterContext context)
+        private static ImmutableList<Inverse> InvertExistentialConditions(ImmutableList<Match> outerMatches, ImmutableList<ExistentialCondition> existentialConditions, InverseOperation parentOperation, InverterContext context)
         {
             ImmutableList<Inverse> inverses = ImmutableList<Inverse>.Empty;
 
             // Produce inverses for each existential condition in the match.
-            foreach (var condition in conditions)
+            foreach (var existentialCondition in existentialConditions)
             {
-                if (condition is ExistentialCondition existentialCondition)
+                var matches = outerMatches.AddRange(existentialCondition.Matches);
+                foreach (var match in existentialCondition.Matches)
                 {
-                    var matches = outerMatches.AddRange(existentialCondition.Matches);
-                    foreach (var match in existentialCondition.Matches)
-                    {
-                        matches = ShakeTree(matches, match.Unknown.Name);
+                    matches = ShakeTree(matches, match.Unknown.Name);
 
-                        var inverseSpecification = new Specification(
-                            ImmutableList.Create(match.Unknown),
-                            RemoveCondition(matches.RemoveAt(0), condition),
-                            context.Projection
-                        );
-                        bool exists = existentialCondition.Exists;
-                        var operation = InferOperation(parentOperation, exists);
-                        var inverse = new Inverse(
-                            inverseSpecification,
-                            context.GivenSubset,
-                            operation,
-                            context.ResultSubset,
-                            context.Path,
-                            context.ParentSubset
-                        );
-                        inverses = inverses.Add(inverse);
+                    var inverseSpecification = new Specification(
+                        ImmutableList.Create(match.Unknown),
+                        RemoveExistentialCondition(matches.RemoveAt(0), existentialCondition),
+                        context.Projection
+                    );
+                    bool exists = existentialCondition.Exists;
+                    var operation = InferOperation(parentOperation, exists);
+                    var inverse = new Inverse(
+                        inverseSpecification,
+                        context.GivenSubset,
+                        operation,
+                        context.ResultSubset,
+                        context.Path,
+                        context.ParentSubset
+                    );
+                    inverses = inverses.Add(inverse);
 
-                        var existentialInverses = InvertExistentialConditions(matches, match.Conditions, operation, context);
-                        inverses = inverses.AddRange(existentialInverses);
-                    }
+                    var existentialInverses = InvertExistentialConditions(matches, match.ExistentialConditions, operation, context);
+                    inverses = inverses.AddRange(existentialInverses);
                 }
             }
 
@@ -179,26 +176,23 @@ namespace Jinaga.Pipelines
             matches = matches.Remove(match).Insert(0, match);
 
             // Invert all path conditions in the match and move them to the tagged match.
-            foreach (var condition in match.Conditions)
+            foreach (var pathCondition in match.PathConditions)
             {
-                if (condition is PathCondition pathCondition)
-                {
-                    matches = InvertAndMovePathCondition(matches, label, pathCondition);
-                }
+                matches = InvertAndMovePathCondition(matches, label, pathCondition);
             }
 
             // Move any other matches with no paths down.
             for (int i = 1; i < matches.Count; i++)
             {
                 var otherMatch = matches[i];
-                while (otherMatch.Conditions.All(condition => !(condition is PathCondition)))
+                while (!otherMatch.PathConditions.Any())
                 {
                     // Find all matches beyond this point that tag this one.
                     for (int j = i + 1; j < matches.Count; j++)
                     {
                         var taggedMatch = matches[j];
                         // Move their path conditions to the other match.
-                        var taggedConditions = taggedMatch.Conditions.OfType<PathCondition>()
+                        var taggedConditions = taggedMatch.PathConditions
                             .Where(c => c.LabelRight == otherMatch.Unknown.Name)
                             .ToImmutableList();
                         foreach (var pathCondition in taggedConditions)
@@ -234,25 +228,27 @@ namespace Jinaga.Pipelines
             // Remove the path condition from the match.
             var newMatch = new Match(
                 match.Unknown,
-                match.Conditions.Remove(pathCondition)
+                match.PathConditions.Remove(pathCondition),
+                match.ExistentialConditions
             );
             matches = matches.Replace(match, newMatch);
 
             // Add the inverted path condition to the tagged match.
             var newTaggedMatch = new Match(
                 taggedMatch.Unknown,
-                taggedMatch.Conditions.Insert(0, invertedPathCondition)
+                taggedMatch.PathConditions.Insert(0, invertedPathCondition),
+                taggedMatch.ExistentialConditions
             );
             matches = matches.Replace(taggedMatch, newTaggedMatch);
 
             return matches;
         }
 
-        private static ImmutableList<Match> RemoveCondition(ImmutableList<Match> matches, MatchCondition condition)
+        private static ImmutableList<Match> RemoveExistentialCondition(ImmutableList<Match> matches, ExistentialCondition existentialCondition)
         {
             return matches.Select(match =>
-                match.Conditions.Contains(condition)
-                    ? new Match(match.Unknown, match.Conditions.Remove(condition))
+                match.ExistentialConditions.Contains(existentialCondition)
+                    ? new Match(match.Unknown, match.PathConditions, match.ExistentialConditions.Remove(existentialCondition))
                     : match
             ).ToImmutableList();
         }
@@ -315,39 +311,41 @@ namespace Jinaga.Pipelines
 
         private static Match? SimplifyMatch(Match match, string given)
         {
-            var simplifiedConditions = ImmutableList<MatchCondition>.Empty;
+            var simplifiedPathConditions = ImmutableList<PathCondition>.Empty;
+            var simplifiedExistentialConditions = ImmutableList<ExistentialCondition>.Empty;
 
-            foreach (var condition in match.Conditions)
+            foreach (var pathCondition in match.PathConditions)
             {
-                if (ExpectsSuccessor(given, condition))
+                if (ExpectsSuccessor(given, pathCondition))
                 {
                     // This path condition matches successors of the given.
                     // There are no successors yet, so the condition is unsatisfiable.
                     return null;
                 }
 
-                if (condition is ExistentialCondition existentialCondition)
+                simplifiedPathConditions = simplifiedPathConditions.Add(pathCondition);
+            }
+            foreach (var existentialCondition in match.ExistentialConditions)
+            {
+                var anyExpectsSuccessor = existentialCondition.Matches.Any(m =>
+                    m.PathConditions.Any(c =>
+                        ExpectsSuccessor(given, c)));
+                if (anyExpectsSuccessor && existentialCondition.Exists)
                 {
-                    var anyExpectsSuccessor = existentialCondition.Matches.Any(m =>
-                        m.Conditions.Any(c =>
-                            ExpectsSuccessor(given, c)));
-                    if (anyExpectsSuccessor && existentialCondition.Exists)
-                    {
-                        // This existential condition expects successors of the given.
-                        // There are no successors yet, so the condition is unsatisfiable.
-                        return null;
-                    }
+                    // This existential condition expects successors of the given.
+                    // There are no successors yet, so the condition is unsatisfiable.
+                    return null;
                 }
 
-                simplifiedConditions = simplifiedConditions.Add(condition);
+                simplifiedExistentialConditions = simplifiedExistentialConditions.Add(existentialCondition);
             }
 
-            return new Match(match.Unknown, simplifiedConditions);
+            return new Match(match.Unknown, simplifiedPathConditions, simplifiedExistentialConditions);
         }
 
-        private static bool ExpectsSuccessor(string given, MatchCondition condition)
+        private static bool ExpectsSuccessor(string given, PathCondition pathCondition)
         {
-            return condition is PathCondition pathCondition &&
+            return
                 pathCondition.LabelRight == given &&
                 pathCondition.RolesRight.Count == 0 &&
                 pathCondition.RolesLeft.Count > 0;

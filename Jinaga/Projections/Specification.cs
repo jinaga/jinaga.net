@@ -124,18 +124,11 @@ namespace Jinaga.Projections
 
         private static ImmutableList<FactReferenceTuple> ExecuteMatch(FactReferenceTuple references, Match match, FactGraph graph)
         {
-            var condition = match.Conditions.Single();
-            if (condition is PathCondition pathCondition)
-            {
-                var result = ExecutePathCondition(references, match.Unknown, pathCondition, graph);
-                var resultReferences = result.Select(reference =>
-                    references.Add(match.Unknown.Name, reference)).ToImmutableList();
-                return resultReferences;
-            }
-            else
-            {
-                throw new ArgumentException("The first condition must be a path condition.");
-            }
+            var pathCondition = match.PathConditions.Single();
+            var result = ExecutePathCondition(references, match.Unknown, pathCondition, graph);
+            var resultReferences = result.Select(reference =>
+                references.Add(match.Unknown.Name, reference)).ToImmutableList();
+            return resultReferences;
         }
 
         private static ImmutableList<FactReference> ExecutePathCondition(FactReferenceTuple start, Label unknown, PathCondition pathCondition, FactGraph graph)

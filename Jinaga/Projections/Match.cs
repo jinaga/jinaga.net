@@ -7,20 +7,25 @@ namespace Jinaga.Projections
 {
     public class Match
     {
-        public Match(Label unknown, ImmutableList<MatchCondition> conditions)
+        public Match(Label unknown, ImmutableList<PathCondition> pathConditions, ImmutableList<ExistentialCondition> existentialConditions)
         {
             Unknown = unknown;
-            Conditions = conditions;
+            PathConditions = pathConditions;
+            ExistentialConditions = existentialConditions;
         }
 
         public Label Unknown { get; }
-        public ImmutableList<MatchCondition> Conditions { get; }
-        public bool CanRunOnGraph => Conditions.Count == 1 && Conditions.Single().CanRunOnGraph;
+        public ImmutableList<PathCondition> PathConditions { get; }
+        public ImmutableList<ExistentialCondition> ExistentialConditions { get; }
+        public bool CanRunOnGraph => PathConditions.Count == 1 && PathConditions.Single().CanRunOnGraph && ExistentialConditions.Count == 0;
 
         public string ToDescriptiveString(int depth)
         {
             var indent = new string(' ', depth * 4);
-            var conditions = String.Join("", Conditions.Select(c => c.ToDescriptiveString(Unknown.Name, depth + 1)));
+            var conditions = String.Join("", PathConditions
+                .Select(c => c.ToDescriptiveString(Unknown.Name, depth + 1))
+            .Union(ExistentialConditions
+                .Select(c => c.ToDescriptiveString(Unknown.Name, depth + 1))));
             return $"{indent}{Unknown.Name}: {Unknown.Type} [\n{conditions}{indent}]\n";
         }
 
@@ -36,7 +41,11 @@ namespace Jinaga.Projections
             {
                 unknown = new Label(replacement, unknown.Type);
             }
-            return new Match(unknown, Conditions.Select(c => c.Apply(replacements)).ToImmutableList());
+            return new Match(
+                unknown,
+                PathConditions.Select(c => c.Apply(replacements)).ToImmutableList(),
+                ExistentialConditions.Select(c => c.Apply(replacements)).ToImmutableList()
+            );
         }
     }
 }
