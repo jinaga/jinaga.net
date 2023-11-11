@@ -22,27 +22,27 @@ namespace Jinaga.Store.SQLite.Builder
         public ResultDescription Build(FactReferenceTuple givenTuple, Specification specification)
         {
             // Verify that the number of start references matches the number of given facts.
-            if (givenTuple.Names.Count() != specification.Given.Count)
+            if (givenTuple.Names.Count() != specification.Givens.Count)
             {
-                throw new ArgumentException($"The number of start facts ({givenTuple.Names.Count()}) does not match the number of inputs ({specification.Given.Count}).");
+                throw new ArgumentException($"The number of start facts ({givenTuple.Names.Count()}) does not match the number of inputs ({specification.Givens.Count}).");
             }
             // Verify that the start reference types match the given fact types.
-            foreach (var label in specification.Given)
+            foreach (var given in specification.Givens)
             {
-                var reference = givenTuple.Get(label.Name);
-                if (reference.Type != label.Type)
+                var reference = givenTuple.Get(given.Label.Name);
+                if (reference.Type != given.Label.Type)
                 {
-                    throw new ArgumentException($"The start fact type ({reference.Type}) does not match the input type ({label.Type}).");
+                    throw new ArgumentException($"The start fact type ({reference.Type}) does not match the input type ({given.Label.Type}).");
                 }
             }
 
             var context = ResultDescriptionBuilderContext.Empty;
-            return CreateResultDescription(context, specification.Given, givenTuple, specification.Matches, specification.Projection);
+            return CreateResultDescription(context, specification.Givens, givenTuple, specification.Matches, specification.Projection);
         }
 
-        private ResultDescription CreateResultDescription(ResultDescriptionBuilderContext context, ImmutableList<Label> given, FactReferenceTuple givenTuple, ImmutableList<Match> matches, Projection projection)
+        private ResultDescription CreateResultDescription(ResultDescriptionBuilderContext context, ImmutableList<SpecificationGiven> givens, FactReferenceTuple givenTuple, ImmutableList<Match> matches, Projection projection)
         {
-            context = AddEdges(context, given, givenTuple, matches);
+            context = AddEdges(context, givens, givenTuple, matches);
 
             if (!context.QueryDescription.IsSatisfiable())
             {
@@ -63,7 +63,7 @@ namespace Jinaga.Store.SQLite.Builder
                     {
                         var resultDescription = CreateResultDescription(
                             context,
-                            given,
+                            givens,
                             givenTuple,
                             collectionProjection.Matches,
                             collectionProjection.Projection);
@@ -78,51 +78,50 @@ namespace Jinaga.Store.SQLite.Builder
             );
         }
 
-        private ResultDescriptionBuilderContext AddEdges(ResultDescriptionBuilderContext context, ImmutableList<Label> given, FactReferenceTuple givenTuple, ImmutableList<Match> matches)
+        private ResultDescriptionBuilderContext AddEdges(ResultDescriptionBuilderContext context, ImmutableList<SpecificationGiven> givens, FactReferenceTuple givenTuple, ImmutableList<Match> matches)
         {
             foreach (var match in matches)
             {
-                foreach (var condition in match.Conditions)
+                foreach (var pathCondition in match.PathConditions)
                 {
-                    if (condition is PathCondition pathCondition)
-                    {
-                        context = AddPathCondition(context, pathCondition, given, givenTuple, match.Unknown, "");
-                    }
-                    else if (condition is ExistentialCondition existentialCondition)
-                    {
-                        // Apply the where clause and continue with the tuple where it is true.
-                        // The path describes which not-exists condition we are currently building on.
-                        // Because the path is not empty, labeled facts will be included in the output.
-                        var contextWithCondition = context.WithExistentialCondition(existentialCondition.Exists);
-                        var contextConditional = AddEdges(contextWithCondition, given, givenTuple, existentialCondition.Matches);
-
-                        // If the negative existential condition is not satisfiable, then
-                        // that means that the condition will always be true.
-                        // We can therefore skip the branch for the negative existential condition.
-                        if (contextConditional.QueryDescription.IsSatisfiable())
-                        {
-                            context = context.WithQueryDescription(contextConditional.QueryDescription);
-                        }
-                    }
+                    context = AddPathCondition(context, pathCondition, givens, givenTuple, match.Unknown, "");
                     if (!context.QueryDescription.IsSatisfiable())
                     {
-                        break;
+                        return context;
                     }
                 }
-                if (!context.QueryDescription.IsSatisfiable())
+                foreach (var existentialCondition in match.ExistentialConditions)
                 {
-                    break;
+                    // Apply the where clause and continue with the tuple where it is true.
+                    // The path describes which not-exists condition we are currently building on.
+                    // Because the path is not empty, labeled facts will be included in the output.
+                    var contextWithCondition = context.WithExistentialCondition(existentialCondition.Exists);
+                    var contextConditional = AddEdges(contextWithCondition, givens, givenTuple, existentialCondition.Matches);
+
+                    // If the negative existential condition is not satisfiable, then
+                    // that means that the condition will always be true.
+                    // We can therefore skip the branch for the negative existential condition.
+                    if (contextConditional.QueryDescription.IsSatisfiable())
+                    {
+                        context = context.WithQueryDescription(contextConditional.QueryDescription);
+                    }
+                    else if (existentialCondition.Exists)
+                    {
+                        // If a positive existential condition is not satisfiable,
+                        // then the whole expression is not satisfiable.
+                        return ResultDescriptionBuilderContext.Empty;
+                    }
                 }
             }
             return context;
         }
 
-        private ResultDescriptionBuilderContext AddPathCondition(ResultDescriptionBuilderContext context, PathCondition pathCondition, ImmutableList<Label> given, FactReferenceTuple givenTuple, Label unknown, string v)
+        private ResultDescriptionBuilderContext AddPathCondition(ResultDescriptionBuilderContext context, PathCondition pathCondition, ImmutableList<SpecificationGiven> givens, FactReferenceTuple givenTuple, Label unknown, string v)
         {
             // If no input parameter has been allocated, allocate one now.
             if (!context.KnownFacts.ContainsKey(pathCondition.LabelRight))
             {
-                var givenIndex = given.FindIndex(given => given.Name == pathCondition.LabelRight);
+                var givenIndex = givens.FindIndex(given => given.Label.Name == pathCondition.LabelRight);
                 if (givenIndex < 0)
                 {
                     throw new ArgumentException($"No input parameter found for label {pathCondition.LabelRight}");
@@ -137,10 +136,26 @@ namespace Jinaga.Store.SQLite.Builder
                 }
                 int factTypeId = EnsureGetFactTypeId(factReference.Type);
                 context = context.WithInputParameter(
-                    given[givenIndex],
+                    givens[givenIndex].Label,
                     factTypeId,
                     factReference.Hash
                 );
+                foreach (var existentialCondition in givens[givenIndex].ExistentialConditions)
+                {
+                    var contextWithExistentialCondition = context.WithExistentialCondition(existentialCondition.Exists);
+                    contextWithExistentialCondition = AddEdges(contextWithExistentialCondition, givens, givenTuple, existentialCondition.Matches);
+
+                    if (contextWithExistentialCondition.QueryDescription.IsSatisfiable())
+                    {
+                        context = context.WithQueryDescription(contextWithExistentialCondition.QueryDescription);
+                    }
+                    else if (existentialCondition.Exists)
+                    {
+                        // If an existential condition is not satisfiable,
+                        // then the whole query is not satisfiable.
+                        return context.WithQueryDescription(QueryDescription.Empty);
+                    }
+                }
             }
 
             var roleCount = pathCondition.RolesLeft.Count + pathCondition.RolesRight.Count;

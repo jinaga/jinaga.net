@@ -45,11 +45,11 @@ namespace Jinaga.Observers
 
         public SpecificationListener AddSpecificationListener(Specification specification, Func<ImmutableList<Product>, CancellationToken, Task> onResult)
         {
-            if (specification.Given.Count != 1)
+            if (specification.Givens.Count != 1)
             {
                 throw new ArgumentException("The specification must have exactly one given.");
             }
-            var givenType = specification.Given[0].Type;
+            var givenType = specification.Givens[0].Label.Type;
             var specificationKey = IdentityUtilities.ComputeStringHash(specification.ToDescriptiveString());
 
             var specificationListener = new SpecificationListener(onResult);
@@ -129,7 +129,7 @@ namespace Jinaga.Observers
                     {
                         var specification = specificationWithListeners.Specification;
                         var givenReference = fact.Reference;
-                        string name = specification.Given.Single().Name;
+                        string name = specification.Givens.Single().Label.Name;
                         var givenTuple = FactReferenceTuple.Empty.Add(name, givenReference);
                         var products = specification.CanRunOnGraph
                             ? specification.Execute(givenTuple, graph)

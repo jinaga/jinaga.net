@@ -97,7 +97,7 @@ namespace Jinaga.Test.Facts
             var reference = collector.Serialize(passengerName);
             var graph = collector.Graph;
             var tuple = FactReferenceTuple.Empty
-                .Add(userWithName.Given.Single().Name, reference);
+                .Add(userWithName.Givens.Single().Label.Name, reference);
 
             var references = userWithName
                 .Execute(tuple, graph)

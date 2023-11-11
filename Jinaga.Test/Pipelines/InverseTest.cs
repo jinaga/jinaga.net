@@ -94,7 +94,13 @@ namespace Jinaga.Test.Pipelines
             inverses.Select(i => i.InverseSpecification.ToString().ReplaceLineEndings())
                 .Should().BeEquivalentTo(new [] {
                     """
-                    (office: Corporate.Office) {
+                    (office: Corporate.Office [
+                        !E {
+                            officeClosure: Corporate.Office.Closure [
+                                officeClosure->office: Corporate.Office = office
+                            ]
+                        }
+                    ]) {
                         company: Corporate.Company [
                             company = office->company: Corporate.Company
                         ]
@@ -182,7 +188,18 @@ namespace Jinaga.Test.Pipelines
             inverses.Select(i => i.InverseSpecification.ToString().ReplaceLineEndings())
                 .Should().BeEquivalentTo(new[] {
                     """
-                    (office: Corporate.Office) {
+                    (office: Corporate.Office [
+                        !E {
+                            officeClosure: Corporate.Office.Closure [
+                                officeClosure->office: Corporate.Office = office
+                                !E {
+                                    officeReopening: Corporate.Office.Reopening [
+                                        officeReopening->officeClosure: Corporate.Office.Closure = officeClosure
+                                    ]
+                                }
+                            ]
+                        }
+                    ]) {
                         company: Corporate.Company [
                             company = office->company: Corporate.Company
                         ]
@@ -190,7 +207,13 @@ namespace Jinaga.Test.Pipelines
 
                     """,
                     """
-                    (officeClosure: Corporate.Office.Closure) {
+                    (officeClosure: Corporate.Office.Closure [
+                        !E {
+                            officeReopening: Corporate.Office.Reopening [
+                                officeReopening->officeClosure: Corporate.Office.Closure = officeClosure
+                            ]
+                        }
+                    ]) {
                         office: Corporate.Office [
                             office = officeClosure->office: Corporate.Office
                         ]

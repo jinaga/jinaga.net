@@ -10,28 +10,35 @@ namespace Jinaga.Projections
     public class Specification
     {
         public Specification(
-            ImmutableList<Label> given,
+            ImmutableList<SpecificationGiven> givens,
             ImmutableList<Match> matches,
             Projection projection)
         {
-            Given = given;
+            Givens = givens;
             Matches = matches;
             Projection = projection;
         }
 
-        public ImmutableList<Label> Given { get; }
+        public ImmutableList<SpecificationGiven> Givens { get; }
         public ImmutableList<Match> Matches { get; }
         public Projection Projection { get; }
 
-        public bool CanRunOnGraph => Matches.All(m => m.CanRunOnGraph) && Projection.CanRunOnGraph;
+        public bool CanRunOnGraph =>
+            Givens.All(g => g.CanRunOnGraph) &&
+            Matches.All(m => m.CanRunOnGraph) &&
+            Projection.CanRunOnGraph;
 
         public Specification Apply(ImmutableList<string> arguments)
         {
-            var replacements = Given.Zip(arguments, (parameter, argument) => (parameter, argument))
-                .ToImmutableDictionary(pair => pair.parameter.Name, pair => pair.argument);
-            var newMatches = Matches.Select(match => match.Apply(replacements)).ToImmutableList();
+            var replacements = Givens.Zip(arguments, (parameter, argument) => (parameter.Label, argument))
+                .ToImmutableDictionary(pair => pair.Label.Name, pair => pair.argument);
+            var newMatches = Matches
+                .Select(match =>
+                    match.Apply(replacements)
+                )
+                .ToImmutableList();
             var newProjection = Projection.Apply(replacements);
-            return new Specification(ImmutableList<Label>.Empty, newMatches, newProjection);
+            return new Specification(ImmutableList<SpecificationGiven>.Empty, newMatches, newProjection);
         }
 
         public ImmutableList<Product> Execute(FactReferenceTuple givenTuple, FactGraph graph)
@@ -49,18 +56,29 @@ namespace Jinaga.Projections
         public string ToDescriptiveString(int depth = 0)
         {
             var indent = new string(' ', depth * 4);
-            var given = string.Join(", ", this.Given.Select(g => $"{g.Name}: {g.Type}"));
+            var given = string.Join(", ", this.Givens.Select(g => $"{g.Label.Name}: {g.Label.Type}{Conditions(g.ExistentialConditions, depth)}"));
             var matches = string.Join("", this.Matches.Select(m => m.ToDescriptiveString(depth + 1)));
             var projection = this.Projection == null ? "" : " => " + this.Projection.ToDescriptiveString(depth);
             return $"{indent}({given}) {{\n{matches}{indent}}}{projection}\n";
         }
 
+        private string Conditions(ImmutableList<ExistentialCondition> existentialConditions, int depth)
+        {
+            if (existentialConditions.Count == 0)
+            {
+                return string.Empty;
+            }
+            var indent = new string(' ', depth * 4);
+            var conditions = string.Join("", existentialConditions.Select(c => c.ToDescriptiveString(this.Givens.First().Label.Name, depth + 1)));
+            return $" [\n{conditions}{indent}]";
+        }
+
         internal string GenerateDeclarationString(FactReferenceTuple given)
         {
-            var startStrings = Given.Select(label =>
+            var startStrings = Givens.Select(g =>
             {
-                var reference = given.Get(label.Name);
-                return $"let {label.Name}: {label.Type} = #{reference.Hash}\n";
+                var reference = given.Get(g.Label.Name);
+                return $"let {g.Label.Name}: {g.Label.Type} = #{reference.Hash}\n";
             });
             return string.Join("", startStrings);
         }
@@ -124,18 +142,11 @@ namespace Jinaga.Projections
 
         private static ImmutableList<FactReferenceTuple> ExecuteMatch(FactReferenceTuple references, Match match, FactGraph graph)
         {
-            var condition = match.Conditions.Single();
-            if (condition is PathCondition pathCondition)
-            {
-                var result = ExecutePathCondition(references, match.Unknown, pathCondition, graph);
-                var resultReferences = result.Select(reference =>
-                    references.Add(match.Unknown.Name, reference)).ToImmutableList();
-                return resultReferences;
-            }
-            else
-            {
-                throw new ArgumentException("The first condition must be a path condition.");
-            }
+            var pathCondition = match.PathConditions.Single();
+            var result = ExecutePathCondition(references, match.Unknown, pathCondition, graph);
+            var resultReferences = result.Select(reference =>
+                references.Add(match.Unknown.Name, reference)).ToImmutableList();
+            return resultReferences;
         }
 
         private static ImmutableList<FactReference> ExecutePathCondition(FactReferenceTuple start, Label unknown, PathCondition pathCondition, FactGraph graph)

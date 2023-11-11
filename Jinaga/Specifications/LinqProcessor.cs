@@ -10,7 +10,7 @@ namespace Jinaga.Specifications
     {
         public static SourceContext FactsOfType(Label unknown, Type type)
         {
-            var match = new Match(unknown, ImmutableList<MatchCondition>.Empty);
+            var match = new Match(unknown, ImmutableList<PathCondition>.Empty, ImmutableList<ExistentialCondition>.Empty);
             var matches = ImmutableList.Create(match);
             var projection = new SimpleProjection(unknown.Name, type);
             return new SourceContext(matches, projection);
@@ -87,8 +87,8 @@ namespace Jinaga.Specifications
                 }
                 
                 var match = matches[matchIndex];
-                var conditions = match.Conditions;
-                MatchCondition newCondition =
+                var conditions = match.PathConditions;
+                var newCondition =
                     pathCondition.Left.Label == match.Unknown
                         ? new PathCondition(
                             pathCondition.Left.Roles,
@@ -102,7 +102,7 @@ namespace Jinaga.Specifications
                     throw new ArgumentException("The path condition does not match the unknown");
                 int insertionIndex = conditions.TakeWhile(condition => condition is PathCondition).Count();
                 conditions = conditions.Insert(insertionIndex, newCondition);
-                match = new Match(match.Unknown, conditions);
+                match = new Match(match.Unknown, conditions, match.ExistentialConditions);
                 return matches
                     .RemoveAt(matchIndex)
                     .Insert(matchIndex, match);
@@ -111,8 +111,7 @@ namespace Jinaga.Specifications
             {
                 // Find all of the labels in the existential condition.
                 var labels = existentialCondition.Matches
-                    .SelectMany(match => match.Conditions)
-                    .OfType<PathCondition>()
+                    .SelectMany(match => match.PathConditions)
                     .Select(pathCondition => pathCondition.LabelRight);
 
                 // Exclude the unknowns that are in the existential condition.
@@ -129,10 +128,10 @@ namespace Jinaga.Specifications
 
                 int matchIndex = matches.FindIndex(match => match.Unknown.Name == unsatisfiedLabel);
                 var match = matches[matchIndex];
-                var conditions = match.Conditions;
-                MatchCondition newCondition = new ExistentialCondition(existentialCondition.Exists, existentialCondition.Matches);
+                var conditions = match.ExistentialConditions;
+                var newCondition = new ExistentialCondition(existentialCondition.Exists, existentialCondition.Matches);
                 conditions = conditions.Add(newCondition);
-                match = new Match(match.Unknown, conditions);
+                match = new Match(match.Unknown, match.PathConditions, conditions);
                 return matches
                     .RemoveAt(matchIndex)
                     .Insert(matchIndex, match);

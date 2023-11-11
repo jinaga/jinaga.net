@@ -22,6 +22,8 @@ namespace Jinaga.Store.SQLite
 
     internal class SpecificationSqlQuery
     {
+        public static SpecificationSqlQuery Empty = new SpecificationSqlQuery(string.Empty, ImmutableList<object>.Empty, ImmutableList<SpecificationLabel>.Empty);
+
         public SpecificationSqlQuery(string sql, ImmutableList<object> parameters, ImmutableList<SpecificationLabel> labels)
         {
             Sql = sql;

@@ -1,5 +1,4 @@
 using Jinaga.Facts;
-using Jinaga.Pipelines;
 using Jinaga.Projections;
 using Jinaga.Repository;
 using Jinaga.Serialization;
@@ -16,14 +15,20 @@ namespace Jinaga
     {
         public static Specification<TFact, TProjection> Match<TProjection>(Expression<Func<TFact, FactRepository, IQueryable<TProjection>>> specExpression)
         {
-            (var given, var matches, var projection) = SpecificationProcessor.Queryable<TProjection>(specExpression);
-            return new Specification<TFact, TProjection>(given, matches, projection);
+            (var givens, var matches, var projection) = SpecificationProcessor.Queryable<TProjection>(specExpression);
+            var specificationGivens = givens
+                .Select(g => new SpecificationGiven(g, ImmutableList<ExistentialCondition>.Empty))
+                .ToImmutableList();
+            return new Specification<TFact, TProjection>(specificationGivens, matches, projection);
         }
 
         public static Specification<TFact, TProjection> Match<TProjection>(Expression<Func<TFact, TProjection>> specExpression)
         {
-            (var given, var matches, var projection) = SpecificationProcessor.Scalar<TProjection>(specExpression);
-            return new Specification<TFact, TProjection>(given, matches, projection);
+            (var givens, var matches, var projection) = SpecificationProcessor.Scalar<TProjection>(specExpression);
+            var specificationGivens = givens
+                .Select(g => new SpecificationGiven(g, ImmutableList<ExistentialCondition>.Empty))
+                .ToImmutableList();
+            return new Specification<TFact, TProjection>(specificationGivens, matches, projection);
         }
     }
 
@@ -33,21 +38,27 @@ namespace Jinaga
     {
         public static Specification<TFact1, TFact2, TProjection> Match<TProjection>(Expression<Func<TFact1, TFact2, FactRepository, IQueryable<TProjection>>> specExpression)
         {
-            (var given, var matches, var projection) = SpecificationProcessor.Queryable<TProjection>((LambdaExpression)specExpression);
-            return new Specification<TFact1, TFact2, TProjection>(given, matches, projection);
+            (var givens, var matches, var projection) = SpecificationProcessor.Queryable<TProjection>((LambdaExpression)specExpression);
+            var specificationGivens = givens
+                .Select(g => new SpecificationGiven(g, ImmutableList<ExistentialCondition>.Empty))
+                .ToImmutableList();
+            return new Specification<TFact1, TFact2, TProjection>(specificationGivens, matches, projection);
         }
 
         public static Specification<TFact1, TFact2, TProjection> Match<TProjection>(Expression<Func<TFact1, TFact2, TProjection>> specExpression)
         {
-            (var given, var matches, var projection) = SpecificationProcessor.Scalar<TProjection>((LambdaExpression)specExpression);
-            return new Specification<TFact1, TFact2, TProjection>(given, matches, projection);
+            (var givens, var matches, var projection) = SpecificationProcessor.Scalar<TProjection>((LambdaExpression)specExpression);
+            var specificationGivens = givens
+                .Select(g => new SpecificationGiven(g, ImmutableList<ExistentialCondition>.Empty))
+                .ToImmutableList();
+            return new Specification<TFact1, TFact2, TProjection>(specificationGivens, matches, projection);
         }
     }
 
     public class Specification<TFact, TProjection> : Specification
         where TFact : class
     {
-        public Specification(ImmutableList<Label> given, ImmutableList<Match> matches, Projections.Projection projection)
+        public Specification(ImmutableList<SpecificationGiven> given, ImmutableList<Match> matches, Projections.Projection projection)
             : base(given, matches, projection)
         {
         }
@@ -57,7 +68,7 @@ namespace Jinaga
             var collector = new Collector(SerializerCache.Empty);
             var givenReference = collector.Serialize(given);
             var givenTuple = FactReferenceTuple.Empty
-                .Add(Given.Single().Name, givenReference);
+                .Add(Givens.Single().Label.Name, givenReference);
 
             string startString = GenerateDeclarationString(givenTuple);
             string specificationString = ToDescriptiveString();
@@ -69,7 +80,7 @@ namespace Jinaga
         where TFact1: class
         where TFact2 : class
     {
-        public Specification(ImmutableList<Label> given, ImmutableList<Match> matches, Projections.Projection projection)
+        public Specification(ImmutableList<SpecificationGiven> given, ImmutableList<Match> matches, Projections.Projection projection)
             : base(given, matches, projection)
         {
         }
@@ -79,8 +90,8 @@ namespace Jinaga
             var aReference = collector.Serialize(given1);
             var bReference = collector.Serialize(given2);
             var givenTuple = FactReferenceTuple.Empty
-                .Add(Given.ElementAt(0).Name, aReference)
-                .Add(Given.ElementAt(1).Name, bReference);
+                .Add(Givens.ElementAt(0).Label.Name, aReference)
+                .Add(Givens.ElementAt(1).Label.Name, bReference);
 
             string startString = GenerateDeclarationString(givenTuple);
             string specificationString = ToDescriptiveString();

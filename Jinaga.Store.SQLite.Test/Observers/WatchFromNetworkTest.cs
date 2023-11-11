@@ -1,28 +1,31 @@
 ﻿using FluentAssertions;
 using Jinaga.Storage;
-using Jinaga.Test.Fakes;
-using Jinaga.Test.Model;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Xunit;
+using Jinaga.Store.SQLite.Test.Fakes;
+using Jinaga.Store.SQLite.Test.Model;
 using Xunit.Abstractions;
 
-namespace Jinaga.Test.Observers;
+namespace Jinaga.Store.SQLite.Test.Observers;
 public class WatchFromNetworkTest
 {
+    private static string SQLitePath { get; } = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "JinagaSQLiteTest",
+        "WatchFromNetworkTest.db");
+
     private ITestOutputHelper output;
 
     public WatchFromNetworkTest(ITestOutputHelper output)
     {
+        if (File.Exists(SQLitePath))
+            File.Delete(SQLitePath);
+
         this.output = output;
     }
 
     [Fact]
     public async Task Watch_EmptyUpstream()
     {
-        var j = new JinagaClient(new MemoryStore(), new FakeNetwork(output));
+        var j = GivenJinagaClient(new FakeNetwork(output));
 
         var viewModel = new CompanyViewModel();
         var watch = viewModel.Load(j, "contoso");
@@ -50,7 +53,7 @@ public class WatchFromNetworkTest
             dallasOffice
         });
 
-        var j = new JinagaClient(new MemoryStore(), network);
+        var j = GivenJinagaClient(network);
 
         var viewModel = new CompanyViewModel();
         var watch = viewModel.Load(j, "contoso");
@@ -84,7 +87,7 @@ public class WatchFromNetworkTest
             dallasOfficeName
         }, 1);
 
-        var j = new JinagaClient(new MemoryStore(), network);
+        var j = GivenJinagaClient(network);
 
         var viewModel = new CompanyViewModel();
         var watch = viewModel.Load(j, "contoso");
@@ -122,7 +125,7 @@ public class WatchFromNetworkTest
             dallasOfficeName3
         }, 1);
 
-        var j = new JinagaClient(new MemoryStore(), network);
+        var j = GivenJinagaClient(network);
 
         var viewModel = new CompanyViewModel();
         var watch = viewModel.Load(j, "contoso");
@@ -137,6 +140,11 @@ public class WatchFromNetworkTest
         {
             watch.Stop();
         }
+    }
+
+    private static JinagaClient GivenJinagaClient(FakeNetwork network)
+    {
+        return new JinagaClient(new SQLiteStore(SQLitePath), network);
     }
 
     private class OfficeViewModel
