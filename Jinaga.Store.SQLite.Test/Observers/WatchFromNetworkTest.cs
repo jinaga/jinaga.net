@@ -16,6 +16,9 @@ public class WatchFromNetworkTest
 
     public WatchFromNetworkTest(ITestOutputHelper output)
     {
+        if (File.Exists(SQLitePath))
+            File.Delete(SQLitePath);
+
         this.output = output;
     }
 

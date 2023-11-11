@@ -37,13 +37,12 @@ namespace Jinaga.Store.SQLite.Builder
             }
 
             var context = ResultDescriptionBuilderContext.Empty;
-            var givenLabels = specification.Givens.Select(g => g.Label).ToImmutableList();
-            return CreateResultDescription(context, givenLabels, givenTuple, specification.Matches, specification.Projection);
+            return CreateResultDescription(context, specification.Givens, givenTuple, specification.Matches, specification.Projection);
         }
 
-        private ResultDescription CreateResultDescription(ResultDescriptionBuilderContext context, ImmutableList<Label> given, FactReferenceTuple givenTuple, ImmutableList<Match> matches, Projection projection)
+        private ResultDescription CreateResultDescription(ResultDescriptionBuilderContext context, ImmutableList<SpecificationGiven> givens, FactReferenceTuple givenTuple, ImmutableList<Match> matches, Projection projection)
         {
-            context = AddEdges(context, given, givenTuple, matches);
+            context = AddEdges(context, givens, givenTuple, matches);
 
             if (!context.QueryDescription.IsSatisfiable())
             {
@@ -64,7 +63,7 @@ namespace Jinaga.Store.SQLite.Builder
                     {
                         var resultDescription = CreateResultDescription(
                             context,
-                            given,
+                            givens,
                             givenTuple,
                             collectionProjection.Matches,
                             collectionProjection.Projection);
@@ -79,13 +78,13 @@ namespace Jinaga.Store.SQLite.Builder
             );
         }
 
-        private ResultDescriptionBuilderContext AddEdges(ResultDescriptionBuilderContext context, ImmutableList<Label> given, FactReferenceTuple givenTuple, ImmutableList<Match> matches)
+        private ResultDescriptionBuilderContext AddEdges(ResultDescriptionBuilderContext context, ImmutableList<SpecificationGiven> givens, FactReferenceTuple givenTuple, ImmutableList<Match> matches)
         {
             foreach (var match in matches)
             {
                 foreach (var pathCondition in match.PathConditions)
                 {
-                    context = AddPathCondition(context, pathCondition, given, givenTuple, match.Unknown, "");
+                    context = AddPathCondition(context, pathCondition, givens, givenTuple, match.Unknown, "");
                     if (!context.QueryDescription.IsSatisfiable())
                     {
                         return context;
@@ -97,7 +96,7 @@ namespace Jinaga.Store.SQLite.Builder
                     // The path describes which not-exists condition we are currently building on.
                     // Because the path is not empty, labeled facts will be included in the output.
                     var contextWithCondition = context.WithExistentialCondition(existentialCondition.Exists);
-                    var contextConditional = AddEdges(contextWithCondition, given, givenTuple, existentialCondition.Matches);
+                    var contextConditional = AddEdges(contextWithCondition, givens, givenTuple, existentialCondition.Matches);
 
                     // If the negative existential condition is not satisfiable, then
                     // that means that the condition will always be true.
@@ -111,12 +110,12 @@ namespace Jinaga.Store.SQLite.Builder
             return context;
         }
 
-        private ResultDescriptionBuilderContext AddPathCondition(ResultDescriptionBuilderContext context, PathCondition pathCondition, ImmutableList<Label> given, FactReferenceTuple givenTuple, Label unknown, string v)
+        private ResultDescriptionBuilderContext AddPathCondition(ResultDescriptionBuilderContext context, PathCondition pathCondition, ImmutableList<SpecificationGiven> givens, FactReferenceTuple givenTuple, Label unknown, string v)
         {
             // If no input parameter has been allocated, allocate one now.
             if (!context.KnownFacts.ContainsKey(pathCondition.LabelRight))
             {
-                var givenIndex = given.FindIndex(given => given.Name == pathCondition.LabelRight);
+                var givenIndex = givens.FindIndex(given => given.Label.Name == pathCondition.LabelRight);
                 if (givenIndex < 0)
                 {
                     throw new ArgumentException($"No input parameter found for label {pathCondition.LabelRight}");
@@ -131,10 +130,26 @@ namespace Jinaga.Store.SQLite.Builder
                 }
                 int factTypeId = EnsureGetFactTypeId(factReference.Type);
                 context = context.WithInputParameter(
-                    given[givenIndex],
+                    givens[givenIndex].Label,
                     factTypeId,
                     factReference.Hash
                 );
+                foreach (var existentialCondition in givens[givenIndex].ExistentialConditions)
+                {
+                    var contextWithExistentialCondition = context.WithExistentialCondition(existentialCondition.Exists);
+                    contextWithExistentialCondition = AddEdges(contextWithExistentialCondition, givens, givenTuple, existentialCondition.Matches);
+
+                    if (contextWithExistentialCondition.QueryDescription.IsSatisfiable())
+                    {
+                        context = context.WithQueryDescription(contextWithExistentialCondition.QueryDescription);
+                    }
+                    else if (existentialCondition.Exists)
+                    {
+                        // If an existential condition is not satisfiable,
+                        // then the whole query is not satisfiable.
+                        return context.WithQueryDescription(QueryDescription.Empty);
+                    }
+                }
             }
 
             var roleCount = pathCondition.RolesLeft.Count + pathCondition.RolesRight.Count;

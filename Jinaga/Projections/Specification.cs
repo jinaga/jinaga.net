@@ -23,7 +23,10 @@ namespace Jinaga.Projections
         public ImmutableList<Match> Matches { get; }
         public Projection Projection { get; }
 
-        public bool CanRunOnGraph => Matches.All(m => m.CanRunOnGraph) && Projection.CanRunOnGraph;
+        public bool CanRunOnGraph =>
+            Givens.All(g => g.CanRunOnGraph) &&
+            Matches.All(m => m.CanRunOnGraph) &&
+            Projection.CanRunOnGraph;
 
         public Specification Apply(ImmutableList<string> arguments)
         {
