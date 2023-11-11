@@ -94,7 +94,13 @@ namespace Jinaga.Test.Pipelines
             inverses.Select(i => i.InverseSpecification.ToString().ReplaceLineEndings())
                 .Should().BeEquivalentTo(new [] {
                     """
-                    (office: Corporate.Office) {
+                    (office: Corporate.Office [
+                        !E {
+                            officeClosure: Corporate.Office.Closure [
+                                officeClosure->office: Corporate.Office = office
+                            ]
+                        }
+                    ]) {
                         company: Corporate.Company [
                             company = office->company: Corporate.Company
                         ]

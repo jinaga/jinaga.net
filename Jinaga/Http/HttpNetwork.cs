@@ -156,7 +156,7 @@ namespace Jinaga.Http
         private static string GenerateSpecificationString(Specification specification)
         {
             var specificationWithOnlyCollections = new Specification(
-                specification.Given,
+                specification.Givens,
                 specification.Matches,
                 ProjectionWithOnlyCollections(specification.Projection));
             return specificationWithOnlyCollections.ToDescriptiveString();

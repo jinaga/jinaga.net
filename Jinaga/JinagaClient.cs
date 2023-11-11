@@ -223,7 +223,7 @@ namespace Jinaga
             var graph = factManager.Serialize(given);
             var givenReference = graph.Last;
             var givenTuple = FactReferenceTuple.Empty
-                .Add(specification.Given.Single().Name, givenReference);
+                .Add(specification.Givens.Single().Label.Name, givenReference);
             var givenReferences = ImmutableList.Create(givenReference);
             if (specification.CanRunOnGraph)
             {
@@ -349,7 +349,7 @@ namespace Jinaga
             var graph = factManager.Serialize(given);
             var givenReference = graph.Last;
             var givenTuple = FactReferenceTuple.Empty
-                .Add(specification.Given.Single().Name, givenReference);
+                .Add(specification.Givens.Single().Label.Name, givenReference);
             Func<object, Task<Func<Task>>> onAdded = (object obj) => added((TProjection)obj);
             var observer = factManager.StartObserver(givenTuple, specification, onAdded);
             return observer;

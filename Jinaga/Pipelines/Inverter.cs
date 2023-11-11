@@ -30,15 +30,18 @@ namespace Jinaga.Pipelines
         public static ImmutableList<Inverse> InvertSpecification(Specification specification)
         {
             // Turn each given into a match.
-            var emptyMatches = specification.Given.Select(given =>
-                new Match(given, ImmutableList<PathCondition>.Empty, ImmutableList<ExistentialCondition>.Empty)
+            var emptyMatches = specification.Givens.Select(g =>
+                new Match(
+                    g.Label,
+                    ImmutableList<PathCondition>.Empty,
+                    ImmutableList<ExistentialCondition>.Empty)
             ).ToImmutableList();
             var matches = emptyMatches.AddRange(specification.Matches).ToImmutableList();
 
             // The initial subset corresponds to the given labels.
-            var givenSubset = specification.Given.Aggregate(
+            var givenSubset = specification.Givens.Aggregate(
                 Subset.Empty,
-                (subset, given) => subset.Add(given.Name)
+                (subset, given) => subset.Add(given.Label.Name)
             );
 
             // The final subset includes all unknowns.
@@ -71,7 +74,9 @@ namespace Jinaga.Pipelines
                 if (simplifiedMatches != null)
                 {
                     var inverseSpecification = new Specification(
-                        ImmutableList.Create(label),
+                        ImmutableList.Create(
+                            new SpecificationGiven(label, simplifiedMatches.First().ExistentialConditions)
+                        ),
                         simplifiedMatches.RemoveAt(0),
                         context.Projection
                     );
@@ -105,7 +110,9 @@ namespace Jinaga.Pipelines
                     matches = ShakeTree(matches, match.Unknown.Name);
 
                     var inverseSpecification = new Specification(
-                        ImmutableList.Create(match.Unknown),
+                        ImmutableList.Create(
+                            new SpecificationGiven(match.Unknown, matches.First().ExistentialConditions)
+                        ),
                         RemoveExistentialCondition(matches.RemoveAt(0), existentialCondition),
                         context.Projection
                     );

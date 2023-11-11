@@ -337,11 +337,11 @@ namespace Jinaga.Store.SQLite
             );
 
             var givenProduct = Product.Empty;
-            foreach (var label in specification.Given)
+            foreach (var given in specification.Givens)
             {
-                var reference = givenTuple.Get(label.Name);
+                var reference = givenTuple.Get(given.Label.Name);
                 givenProduct = givenProduct.With(
-                    label.Name,
+                    given.Label.Name,
                     new SimpleElement(reference)
                 );
             }

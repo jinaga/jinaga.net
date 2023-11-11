@@ -145,8 +145,8 @@ namespace Jinaga.Observers
         {
             var results = await factManager.Read(givenTuple, specification, specification.Projection.Type, this, cancellationToken).ConfigureAwait(false);
             AddSpecificationListeners();
-            var givenSubset = specification.Given
-                .Select(label => label.Name)
+            var givenSubset = specification.Givens
+                .Select(g => g.Label.Name)
                 .Aggregate(Subset.Empty, (subset, name) => subset.Add(name));
 
             await SynchronizeNotifyAdded(results, givenSubset).ConfigureAwait(false);

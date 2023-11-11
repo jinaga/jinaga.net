@@ -22,22 +22,23 @@ namespace Jinaga.Store.SQLite.Builder
         public ResultDescription Build(FactReferenceTuple givenTuple, Specification specification)
         {
             // Verify that the number of start references matches the number of given facts.
-            if (givenTuple.Names.Count() != specification.Given.Count)
+            if (givenTuple.Names.Count() != specification.Givens.Count)
             {
-                throw new ArgumentException($"The number of start facts ({givenTuple.Names.Count()}) does not match the number of inputs ({specification.Given.Count}).");
+                throw new ArgumentException($"The number of start facts ({givenTuple.Names.Count()}) does not match the number of inputs ({specification.Givens.Count}).");
             }
             // Verify that the start reference types match the given fact types.
-            foreach (var label in specification.Given)
+            foreach (var given in specification.Givens)
             {
-                var reference = givenTuple.Get(label.Name);
-                if (reference.Type != label.Type)
+                var reference = givenTuple.Get(given.Label.Name);
+                if (reference.Type != given.Label.Type)
                 {
-                    throw new ArgumentException($"The start fact type ({reference.Type}) does not match the input type ({label.Type}).");
+                    throw new ArgumentException($"The start fact type ({reference.Type}) does not match the input type ({given.Label.Type}).");
                 }
             }
 
             var context = ResultDescriptionBuilderContext.Empty;
-            return CreateResultDescription(context, specification.Given, givenTuple, specification.Matches, specification.Projection);
+            var givenLabels = specification.Givens.Select(g => g.Label).ToImmutableList();
+            return CreateResultDescription(context, givenLabels, givenTuple, specification.Matches, specification.Projection);
         }
 
         private ResultDescription CreateResultDescription(ResultDescriptionBuilderContext context, ImmutableList<Label> given, FactReferenceTuple givenTuple, ImmutableList<Match> matches, Projection projection)

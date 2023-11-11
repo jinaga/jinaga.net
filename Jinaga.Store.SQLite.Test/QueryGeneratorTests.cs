@@ -258,10 +258,10 @@ public class QueryGeneratorTests
         var factTypes = GetAllFactTypes(specification);
         var roleMap = GetAllRoles(specification, factTypes);
 
-        var givenTuple = specification.Given
-            .Select((label, index) => (
-                name: label.Name,
-                reference: new FactReference(label.Type, $"{index + 1001}")
+        var givenTuple = specification.Givens
+            .Select((given, index) => (
+                name: given.Label.Name,
+                reference: new FactReference(given.Label.Type, $"{index + 1001}")
             ))
             .Aggregate(FactReferenceTuple.Empty, (tuple, item) => tuple.Add(item.name, item.reference));
 
@@ -282,8 +282,8 @@ public class QueryGeneratorTests
 
     private IEnumerable<string> GetAllFactTypesFromSpecification(Specification specification)
     {
-        var factTypeNames = specification.Given
-            .Select(label => label.Type)
+        var factTypeNames = specification.Givens
+            .Select(g => g.Label.Type)
             .ToImmutableList();
         factTypeNames = factTypeNames.AddRange(GetAllFactTypesFromMatches(specification.Matches));
         if (specification.Projection is CompoundProjection compoundProjection)
@@ -369,8 +369,8 @@ public class QueryGeneratorTests
 
     private IEnumerable<(string factType, string roleName)> GetAllRolesFromSpecification(Specification specification)
     {
-        var typesByLabel = specification.Given
-            .Select(label => KeyValuePair.Create(label.Name, label.Type))
+        var typesByLabel = specification.Givens
+            .Select(g => KeyValuePair.Create(g.Label.Name, g.Label.Type))
             .ToImmutableDictionary();
         typesByLabel = typesByLabel.AddRange(specification.Matches
             .Select(match => KeyValuePair.Create(match.Unknown.Name, match.Unknown.Type)));
