@@ -86,6 +86,10 @@ namespace Jinaga.Store.SQLite.Builder
                 foreach (var pathCondition in match.PathConditions)
                 {
                     context = AddPathCondition(context, pathCondition, given, givenTuple, match.Unknown, "");
+                    if (!context.QueryDescription.IsSatisfiable())
+                    {
+                        return context;
+                    }
                 }
                 foreach (var existentialCondition in match.ExistentialConditions)
                 {
@@ -102,10 +106,6 @@ namespace Jinaga.Store.SQLite.Builder
                     {
                         context = context.WithQueryDescription(contextConditional.QueryDescription);
                     }
-                }
-                if (!context.QueryDescription.IsSatisfiable())
-                {
-                    break;
                 }
             }
             return context;
