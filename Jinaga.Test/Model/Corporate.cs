@@ -12,7 +12,12 @@ namespace Jinaga.Test.Model
     record Office(Company company, City city)
     {
         public Condition IsClosed => new Condition(facts =>
-            facts.Any<OfficeClosure>(closure => closure.office == this)
+            facts.Any<OfficeClosure>(closure =>
+                closure.office == this &&
+                !facts.Any<OfficeReopening>(reopening =>
+                    reopening.officeClosure == closure
+                )
+            )
         );
     }
 

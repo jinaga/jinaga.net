@@ -664,6 +664,11 @@ namespace Jinaga.Test.Specifications.Specifications
                         !E {
                             closure: Corporate.Office.Closure [
                                 closure->office: Corporate.Office = office
+                                !E {
+                                    reopening: Corporate.Office.Reopening [
+                                        reopening->officeClosure: Corporate.Office.Closure = closure
+                                    ]
+                                }
                             ]
                         }
                     ]
@@ -711,6 +716,11 @@ namespace Jinaga.Test.Specifications.Specifications
                         !E {
                             closure: Corporate.Office.Closure [
                                 closure->office: Corporate.Office = office
+                                !E {
+                                    reopening: Corporate.Office.Reopening [
+                                        reopening->officeClosure: Corporate.Office.Closure = closure
+                                    ]
+                                }
                             ]
                         }
                     ]
@@ -770,6 +780,11 @@ namespace Jinaga.Test.Specifications.Specifications
                         !E {
                             closure: Corporate.Office.Closure [
                                 closure->office: Corporate.Office = office
+                                !E {
+                                    reopening: Corporate.Office.Reopening [
+                                        reopening->officeClosure: Corporate.Office.Closure = closure
+                                    ]
+                                }
                             ]
                         }
                     ]
