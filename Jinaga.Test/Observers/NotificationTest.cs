@@ -141,6 +141,34 @@ public class NotificationTest
         }
     }
 
+    [Fact]
+    public async Task NotifyOfficeReopenedAllAtOnce()
+    {
+        var jinagaClient = GivenJinagaClient();
+
+        var company = await jinagaClient.Fact(new Company("contoso"));
+        var dallas = await jinagaClient.Fact(new City("Dallas"));
+
+        var viewModel = new CompanyViewModel();
+        var observer = viewModel.Start(jinagaClient, company);
+        await observer.Loaded;
+
+        try
+        {
+            var office = await jinagaClient.Fact(new Office(company, dallas));
+            await jinagaClient.Fact(new OfficeName(office, "Dallas", new OfficeName[0]));
+            var closure = await jinagaClient.Fact(new OfficeClosure(office, DateTime.Now));
+            await jinagaClient.Fact(new OfficeReopening(closure, DateTime.Now));
+
+            viewModel.Offices.Should().ContainSingle().Which
+                .Name.Should().Be("Dallas");
+        }
+        finally
+        {
+            observer.Stop();
+        }
+    }
+
     private JinagaClient GivenJinagaClient()
     {
         return JinagaTest.Create();
