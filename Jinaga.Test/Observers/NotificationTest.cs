@@ -18,6 +18,7 @@ public class NotificationTest
 
         var company = await jinagaClient.Fact(new Company("contoso"));
         var dallas = await jinagaClient.Fact(new City("Dallas"));
+
         var viewModel = new CompanyViewModel();
         var observer = viewModel.Start(jinagaClient, company);
         await observer.Loaded;
@@ -26,6 +27,31 @@ public class NotificationTest
         {
             var office = await jinagaClient.Fact(new Office(company, dallas));
             await jinagaClient.Fact(new OfficeName(office, "Dallas", new OfficeName[0]));
+
+            viewModel.Offices.Should().ContainSingle().Which
+                .Name.Should().Be("Dallas");
+        }
+        finally
+        {
+            observer.Stop();
+        }
+    }
+    [Fact]
+    public async Task NotifyExistingOffice()
+    {
+        var jinagaClient = GivenJinagaClient();
+
+        var company = await jinagaClient.Fact(new Company("contoso"));
+        var dallas = await jinagaClient.Fact(new City("Dallas"));
+        var office = await jinagaClient.Fact(new Office(company, dallas));
+        await jinagaClient.Fact(new OfficeName(office, "Dallas", new OfficeName[0]));
+
+        var viewModel = new CompanyViewModel();
+        var observer = viewModel.Start(jinagaClient, company);
+        await observer.Loaded;
+
+        try
+        {
 
             viewModel.Offices.Should().ContainSingle().Which
                 .Name.Should().Be("Dallas");
