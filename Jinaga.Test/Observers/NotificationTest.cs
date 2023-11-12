@@ -88,6 +88,31 @@ public class NotificationTest
         }
     }
 
+    [Fact]
+    public async Task NotifyOfficeAlreadyClosed()
+    {
+        var jinagaClient = GivenJinagaClient();
+
+        var company = await jinagaClient.Fact(new Company("contoso"));
+        var dallas = await jinagaClient.Fact(new City("Dallas"));
+        var office = await jinagaClient.Fact(new Office(company, dallas));
+        await jinagaClient.Fact(new OfficeName(office, "Dallas", new OfficeName[0]));
+        await jinagaClient.Fact(new OfficeClosure(office, DateTime.Now));
+
+        var viewModel = new CompanyViewModel();
+        var observer = viewModel.Start(jinagaClient, company);
+        await observer.Loaded;
+
+        try
+        {
+            viewModel.Offices.Should().BeEmpty();
+        }
+        finally
+        {
+            observer.Stop();
+        }
+    }
+
     private JinagaClient GivenJinagaClient()
     {
         return JinagaTest.Create();
