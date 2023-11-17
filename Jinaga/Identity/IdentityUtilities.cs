@@ -11,7 +11,7 @@ namespace Jinaga.Identity
         public static string ComputeStringHash(string str)
         {
             var bytes = Encoding.UTF8.GetBytes(str);
-            using var hashAlgorithm = HashAlgorithm.Create("SHA-512");
+            using var hashAlgorithm = new SHA512Managed();
             var hashBytes = hashAlgorithm.ComputeHash(bytes);
             var hashString = Convert.ToBase64String(hashBytes);
             return hashString;
