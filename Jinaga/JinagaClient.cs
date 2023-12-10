@@ -297,6 +297,49 @@ namespace Jinaga
         }
 
         /// <summary>
+        /// Retrieve results of a specification from the local cache.
+        /// Unlike Query, QueryLocal does not fetch new facts from the remote replicator.
+        /// </summary>
+        /// <typeparam name="TFact">The type of the starting point</typeparam>
+        /// <typeparam name="TProjection">The type of the results</typeparam>
+        /// <param name="specification">Defines which facts to match and how to project them</param>
+        /// <param name="given">The starting point for the query</param>
+        /// <param name="cancellationToken">To cancel the operation</param>
+        /// <returns>The results</returns>
+        /// <exception cref="ArgumentNullException">If the given is null</exception>
+        public async Task<ImmutableList<TProjection>> QueryLocal<TFact, TProjection>(
+            Specification<TFact, TProjection> specification,
+            TFact given,
+            CancellationToken cancellationToken = default) where TFact : class
+        {
+            if (given == null)
+            {
+                throw new ArgumentNullException(nameof(given));
+            }
+
+            var graph = factManager.Serialize(given);
+            var givenReference = graph.Last;
+            var givenTuple = FactReferenceTuple.Empty
+                .Add(specification.Givens.Single().Label.Name, givenReference);
+            if (specification.CanRunOnGraph)
+            {
+                var products = specification.Execute(givenTuple, graph);
+                var productAnchorProjections = factManager.DeserializeProductsFromGraph(
+                    graph, specification.Projection, products, typeof(TProjection), "", null);
+                return productAnchorProjections.Select(pap => (TProjection)pap.Projection).ToImmutableList();
+            }
+            else
+            {
+                var products = await factManager.QueryLocal(givenTuple, specification, cancellationToken).ConfigureAwait(false);
+                var productProjections = await factManager.ComputeProjections(specification.Projection, products, typeof(TProjection), null, string.Empty, cancellationToken).ConfigureAwait(false);
+                var projections = productProjections
+                    .Select(pair => (TProjection)pair.Projection)
+                    .ToImmutableList();
+                return projections;
+            }
+        }
+
+        /// <summary>
         /// Observe the results of a specification, including changes.
         /// Unlike Query, Watch sets up an observer which responds to new facts.
         /// </summary>

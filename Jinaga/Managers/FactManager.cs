@@ -104,6 +104,11 @@ namespace Jinaga.Managers
             return await store.Read(givenTuple, specification, cancellationToken).ConfigureAwait(false);
         }
 
+        public async Task<ImmutableList<Product>> QueryLocal(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
+        {
+            return await store.Read(givenTuple, specification, cancellationToken).ConfigureAwait(false);
+        }
+
         public async Task<FactGraph> LoadProducts(ImmutableList<Product> products, CancellationToken cancellationToken)
         {
             var references = products
