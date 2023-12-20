@@ -9,6 +9,7 @@ using System;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -41,6 +42,35 @@ namespace Jinaga.Managers
             var (graph, profile) = await networkManager.Login(cancellationToken).ConfigureAwait(false);
             await store.Save(graph, false, cancellationToken).ConfigureAwait(false);
             return (graph, profile);
+        }
+
+        public async Task<FactGraph> BeginSingleUse()
+        {
+            // Generate a new key pair.
+            RSA rsa = RSA.Create();
+            var publicKey = rsa.ExportRSAPublicKey();
+            var privateKey = rsa.ExportRSAPrivateKey();
+
+            // Write the public key in PEM format.
+            var prefix = "-----BEGIN PUBLIC KEY-----\r\n";
+            var suffix = "\r\n-----END PUBLIC KEY-----\r\n";
+            var segments = Convert.ToBase64String(publicKey)
+                .Select((c, i) => (c, i))
+                .GroupBy(ci => ci.i / 64)
+                .Select(g => new string(g.Select(ci => ci.c).ToArray()))
+                .ToArray();
+            var pem = prefix + string.Join("\r\n", segments) + suffix;
+            
+            // Generate a User fact.
+            var field = new Field("publicKey", new Facts.FieldValueString(pem));
+            var user = Fact.Create("Jinaga.User", ImmutableList.Create(field), ImmutableList<Predecessor>.Empty);
+            var graph = FactGraph.Empty.Add(user);
+            await store.Save(graph, default).ConfigureAwait(false);
+            return graph;
+        }
+
+        public void EndSingleUse()
+        {
         }
 
         public async Task Push(CancellationToken cancellationToken)
