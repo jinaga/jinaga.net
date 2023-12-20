@@ -40,6 +40,20 @@ namespace Jinaga.Http
                 });
         }
 
+        public Task<ObservableStream<TResponse>> GetStream<TResponse>(string path, string contentType)
+        {
+            return WithHttpClient(() =>
+            {
+                var request = new HttpRequestMessage(HttpMethod.Get, path);
+                request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue(contentType));
+                return request;
+            }, async httpResponse =>
+            {
+                var stream = await httpResponse.Content.ReadAsStreamAsync().ConfigureAwait(false);
+                return new ObservableStream<TResponse>(stream);
+            });
+        }
+
         public Task PostJson<TRequest>(string path, TRequest request)
         {
             return WithHttpClient(() =>
