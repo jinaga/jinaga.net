@@ -85,7 +85,7 @@ namespace Jinaga.Managers
                 {
                     try
                     {
-                        var args = new List<object>();
+                        var args = new List<object?>();
                         var collections = ImmutableList<ProjectedResultChildCollection>.Empty;
                         foreach (var parameter in parameters)
                         {
@@ -221,7 +221,7 @@ namespace Jinaga.Managers
             }
         }
 
-        private static (object obj, ProjectedResultChildCollection? children) DeserializeParameter(Emitter emitter, Projection projection, string parentPath, Type parameterType, string parameterName, Product product)
+        private static (object? obj, ProjectedResultChildCollection? children) DeserializeParameter(Emitter emitter, Projection projection, string parentPath, Type parameterType, string parameterName, Product product)
         {
             if (parameterType.IsFactType())
             {
@@ -348,65 +348,45 @@ namespace Jinaga.Managers
                 var reference = product.GetFactReference(fieldProjection.Tag);
                 var fact = emitter.Graph.GetFact(reference);
                 var field = fact.Fields.FirstOrDefault(f => f.Name == fieldProjection.FieldName);
-                if (field == null)
+                var value = field?.Value ?? FieldValue.Undefined;
+                if (parameterType == typeof(string))
                 {
-                    throw new ArgumentException($"Unknown field {fieldProjection.FieldName} in fact {reference.Type}");
+                    var obj = value.StringValue;
+                    return (obj, null);
                 }
-                var value = field.Value;
-                if (value is FieldValueString fieldValueString)
+                else if (parameterType == typeof(DateTime))
                 {
-                    if (parameterType == typeof(string))
-                    {
-                        var obj = fieldValueString.StringValue;
-                        return (obj, null);
-                    }
-                    else if (parameterType == typeof(DateTime))
-                    {
-                        var obj = FieldValue.FromIso8601String(fieldValueString.StringValue);
-                        return (obj, null);
-                    }
-                    else
-                    {
-                        throw new ArgumentException($"Cannot convert string to {parameterType.Name}, reading field {parameterName} of {reference.Type}.");
-                    }
+                    var obj = FieldValue.FromIso8601String(value.StringValue);
+                    return (obj, null);
                 }
-                else if (value is FieldValueNumber fieldValueNumber)
+                else if (parameterType == typeof(DateTime?))
                 {
-                    if (parameterType == typeof(int))
-                    {
-                        var obj = (int)fieldValueNumber.DoubleValue;
-                        return (obj, null);
-                    }
-                    else if (parameterType == typeof(float))
-                    {
-                        var obj = (float)fieldValueNumber.DoubleValue;
-                        return (obj, null);
-                    }
-                    else if (parameterType == typeof(double))
-                    {
-                        var obj = fieldValueNumber.DoubleValue;
-                        return (obj, null);
-                    }
-                    else
-                    {
-                        throw new ArgumentException($"Cannot convert number to {parameterType.Name}, reading field {parameterName} of {reference.Type}.");
-                    }
+                    var obj = FieldValue.FromNullableIso8601String(value.StringValue);
+                    return (obj, null);
                 }
-                else if (value is FieldValueBoolean fieldValueBoolean)
+                else if (parameterType == typeof(int))
                 {
-                    if (parameterType == typeof(bool))
-                    {
-                        var obj = fieldValueBoolean.BoolValue;
-                        return (obj, null);
-                    }
-                    else
-                    {
-                        throw new ArgumentException($"Cannot convert boolean to {parameterType.Name}, reading field {parameterName} of {reference.Type}.");
-                    }
+                    var obj = (int)value.DoubleValue;
+                    return (obj, null);
+                }
+                else if (parameterType == typeof(float))
+                {
+                    var obj = (float)value.DoubleValue;
+                    return (obj, null);
+                }
+                else if (parameterType == typeof(double))
+                {
+                    var obj = value.DoubleValue;
+                    return (obj, null);
+                }
+                else if (parameterType == typeof(bool))
+                {
+                    var obj = value.BoolValue;
+                    return (obj, null);
                 }
                 else
                 {
-                    throw new ArgumentException($"Unknown field type {value.GetType().Name}, reading field {parameterName} of {reference.Type}.");
+                    throw new ArgumentException($"Unknown field type {parameterType.Name}, reading field {parameterName} of {reference.Type}.");
                 }
             }
             else

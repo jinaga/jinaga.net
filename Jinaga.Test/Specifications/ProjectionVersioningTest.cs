@@ -10,6 +10,26 @@ namespace Jinaga.Test.Specifications;
 public class ProjectionVersioningTest
 {
     [Fact]
+    public async Task CanReadVersionOneFieldFromVersionOneFact()
+    {
+        var jinagaClient = JinagaTest.Create();
+        var site = await jinagaClient.Fact(new Model.Site(new User("Michael"), "michaelperry.net"));
+        var content = await jinagaClient.Fact(new Model.Content(site, "index.html"));
+
+        var contentPathForSite = Given<Model.Site>.Match((site, facts) =>
+            from content in facts.OfType<Model.Content>()
+            where content.site == site
+            select new
+            {
+                content.path
+            }
+        );
+        var contentPath = await jinagaClient.Query(contentPathForSite, site);
+
+        contentPath.Should().ContainSingle().Which.path.Should().Be("index.html");
+    }
+
+    [Fact]
     public async Task CanReadVersionTwoFieldFromVersionOneFact()
     {
         var jinagaClient = JinagaTest.Create();
