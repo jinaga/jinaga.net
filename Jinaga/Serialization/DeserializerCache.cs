@@ -78,11 +78,8 @@ namespace Jinaga.Serialization
             if (parameterType == typeof(string))
             {
                 return Expression.Property(
-                    Expression.Convert(
-                        getFieldValue,
-                        typeof(FieldValueString)
-                    ),
-                    nameof(FieldValueString.StringValue)
+                    getFieldValue,
+                    nameof(FieldValue.StringValue)
                 );
             }
             else if (parameterType == typeof(DateTime))
@@ -90,11 +87,8 @@ namespace Jinaga.Serialization
                 return Expression.Call(
                     typeof(FieldValue).GetMethod(nameof(FieldValue.FromIso8601String)),
                     Expression.Property(
-                        Expression.Convert(
-                            getFieldValue,
-                            typeof(FieldValueString)
-                        ),
-                        nameof(FieldValueString.StringValue)
+                        getFieldValue,
+                        nameof(FieldValue.StringValue)
                     )
                 );
             }
@@ -102,11 +96,8 @@ namespace Jinaga.Serialization
             {
                 return Expression.Convert(
                     Expression.Property(
-                        Expression.Convert(
-                            getFieldValue,
-                            typeof(FieldValueNumber)
-                        ),
-                        nameof(FieldValueNumber.DoubleValue)
+                        getFieldValue,
+                        nameof(FieldValue.DoubleValue)
                     ),
                     typeof(int)
                 );
@@ -115,11 +106,8 @@ namespace Jinaga.Serialization
             {
                 return Expression.Convert(
                     Expression.Property(
-                        Expression.Convert(
-                            getFieldValue,
-                            typeof(FieldValueNumber)
-                        ),
-                        nameof(FieldValueNumber.DoubleValue)
+                        getFieldValue,
+                        nameof(FieldValue.DoubleValue)
                     ),
                     typeof(float)
                 );
@@ -127,26 +115,20 @@ namespace Jinaga.Serialization
             else if (parameterType == typeof(double))
             {
                 return Expression.Property(
-                    Expression.Convert(
-                        getFieldValue,
-                        typeof(FieldValueNumber)
-                    ),
-                    nameof(FieldValueNumber.DoubleValue)
+                    getFieldValue,
+                    nameof(FieldValue.DoubleValue)
                 );
             }
             else if (parameterType == typeof(bool))
             {
                 return Expression.Property(
-                    Expression.Convert(
-                        getFieldValue,
-                        typeof(FieldValueBoolean)
-                    ),
-                    nameof(FieldValueBoolean.BoolValue)
+                    getFieldValue,
+                    nameof(FieldValue.BoolValue)
                 );
             }
             else
             {
-                throw new NotImplementedException();
+                throw new ArgumentException($"Unknown field type {parameterType.Name}");
             }
         }
 

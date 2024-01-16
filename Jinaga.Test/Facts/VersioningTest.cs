@@ -17,6 +17,17 @@ public class VersioningTest
         deserialized.domain.Should().Be("michaelperry.net");
     }
 
+    [Fact]
+    public void CanUpgradeWithStringField()
+    {
+        var original = new BlogV1("michaelperry.net");
+        var factGraph = Serialize(original);
+        var deserialized = Deserialize<BlogV2>(factGraph, factGraph.Last);
+
+        deserialized.domain.Should().Be("michaelperry.net");
+        deserialized.title.Should().Be("");
+    }
+
     private static FactGraph Serialize(object fact)
     {
         var serializerCache = SerializerCache.Empty;
@@ -36,3 +47,6 @@ public class VersioningTest
 
 [FactType("Blog")]
 internal record BlogV1(string domain) {}
+
+[FactType("Blog")]
+internal record BlogV2(string domain, string title) {}
