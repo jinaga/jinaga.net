@@ -19,11 +19,14 @@ public class ProjectionVersioningTest
         var contentCreatedAtForSite = Given<Model.Site>.Match((site, facts) =>
             from content in facts.OfType<Model.ContentV2>()
             where content.site == site
-            select content.createdAt
+            select new
+            {
+                content.createdAt
+            }
         );
         var contentCreatedAt = await jinagaClient.Query(contentCreatedAtForSite, site);
 
-        contentCreatedAt.Should().ContainSingle().Which.Should().BeNull();
+        contentCreatedAt.Should().ContainSingle().Which.createdAt.Should().BeNull();
     }
 
     [Fact]
@@ -36,11 +39,14 @@ public class ProjectionVersioningTest
         var contentCreatedAtForSite = Given<Model.Site>.Match((site, facts) =>
             from content in facts.OfType<Model.ContentV2>()
             where content.site == site
-            select content.createdAt
+            select new
+            {
+                content.createdAt
+            }
         );
         var contentCreatedAt = await jinagaClient.Query(contentCreatedAtForSite, site);
 
-        contentCreatedAt.Should().ContainSingle().Which.Should().Be(new DateTime(2021, 1, 1).ToUniversalTime());
+        contentCreatedAt.Should().ContainSingle().Which.createdAt.Should().Be(new DateTime(2021, 1, 1).ToUniversalTime());
     }
 
     [Fact]
@@ -53,10 +59,13 @@ public class ProjectionVersioningTest
         var contentPathForSite = Given<Model.Site>.Match((site, facts) =>
             from content in facts.OfType<Model.Content>()
             where content.site == site
-            select content.path
+            select new
+            {
+                content.path
+            }
         );
         var contentPath = await jinagaClient.Query(contentPathForSite, site);
 
-        contentPath.Should().ContainSingle().Which.Should().Be("");
+        contentPath.Should().ContainSingle().Which.path.Should().Be("");
     }
 }
