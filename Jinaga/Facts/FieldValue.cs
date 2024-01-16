@@ -14,6 +14,13 @@ namespace Jinaga.Facts
             return utcDateTime.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
         }
 
+        public static string ToNullableIso8601String(DateTime? dateTime)
+        {
+            return dateTime.HasValue
+                ? ToIso8601String(dateTime.Value)
+                : string.Empty;
+        }
+
         public static DateTime FromIso8601String(string str)
         {
             return DateTime.Parse(str).ToUniversalTime();
