@@ -92,6 +92,29 @@ namespace Jinaga.Serialization
                     )
                 );
             }
+            else if (parameterType.IsGenericType &&
+                parameterType.GetGenericTypeDefinition() == typeof(Nullable<>) &&
+                parameterType.GetGenericArguments()[0] == typeof(DateTime))
+            {
+                var fromNullableIso8601String = typeof(FieldValue).GetMethod(nameof(FieldValue.FromNullableIso8601String));
+                return Expression.Call(
+                    fromNullableIso8601String,
+                    Expression.Property(
+                        getFieldValue,
+                        nameof(FieldValue.StringValue)
+                    )
+                );
+            }
+            else if (parameterType == typeof(DateTimeOffset))
+            {
+                return Expression.Call(
+                    typeof(FieldValue).GetMethod(nameof(FieldValue.FromIso8601String)),
+                    Expression.Property(
+                        getFieldValue,
+                        nameof(FieldValue.StringValue)
+                    )
+                );
+            }
             else if (parameterType == typeof(int))
             {
                 return Expression.Convert(

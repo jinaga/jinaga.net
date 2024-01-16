@@ -19,6 +19,13 @@ namespace Jinaga.Facts
             return DateTime.Parse(str).ToUniversalTime();
         }
 
+        public static DateTime? FromNullableIso8601String(string str)
+        {
+            return string.IsNullOrEmpty(str)
+                ? (DateTime?)null
+                : FromIso8601String(str);
+        }
+
         public abstract string StringValue { get; }
         public abstract double DoubleValue { get; }
         public abstract bool BoolValue { get; }
