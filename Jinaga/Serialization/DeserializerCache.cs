@@ -58,7 +58,7 @@ namespace Jinaga.Serialization
                         ? GetPredecessor(parameter.Name, parameter.ParameterType, factParameter, emitterParameter) :
                     Interrogate.IsArrayOfFactType(parameter.ParameterType)
                         ? GetPredecessorArray(parameter.Name, parameter.ParameterType.GetElementType(), factParameter, emitterParameter) :
-                    throw new NotImplementedException()
+                    throw new ArgumentException($"Unknown parameter type {parameter.ParameterType.Name} for {type.Name} constructor, parameter {parameter.Name}")
                 )
                 .ToArray();
             return Expression.New(
