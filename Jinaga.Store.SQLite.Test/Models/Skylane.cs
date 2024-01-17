@@ -2,16 +2,16 @@
 
 
 [FactType("Skylane.Airline")]
-internal record Airline(string identifier);
+public record Airline(string identifier);
 
 
 
 [FactType("Skylane.Airline.Day")]
-internal record AirlineDay(Airline airline, DateTime date);
+public record AirlineDay(Airline airline, DateTime date);
 
 
 [FactType("Skylane.Flight")]
-internal record Flight(AirlineDay airlineDay, int flightNumber)
+public record Flight(AirlineDay airlineDay, int flightNumber)
 {
     public Condition IsCancelled => new Condition(facts =>
         (
@@ -28,20 +28,20 @@ internal record Flight(AirlineDay airlineDay, int flightNumber)
 
 
 [FactType("Skylane.Flight.Cancellation")]
-internal record FlightCancellation(Flight flight, DateTime dateCancelled);
+public record FlightCancellation(Flight flight, DateTime dateCancelled);
 
 
 [FactType("Skylane.Passenger")]
-internal record Passenger(Airline airline, User user);
+public record Passenger(Airline airline, User user);
 
 
 [FactType("Skylane.Passenger.Name")]
-internal record PassengerName(Passenger passenger, string value, PassengerName[] prior);
+public record PassengerName(Passenger passenger, string value, PassengerName[] prior);
 
 
 [FactType("Skylane.Booking")]
-internal record Booking(Flight flight, Passenger passenger, DateTime dateBooked);
+public record Booking(Flight flight, Passenger passenger, DateTime dateBooked);
 
 
 [FactType("Skylane.Refund")]
-internal record Refund(Booking booking, DateTime dateRefunded);
+public record Refund(Booking booking, DateTime dateRefunded);
