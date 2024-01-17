@@ -91,13 +91,13 @@ public class VersioningTest
 }
 
 [FactType("Blog")]
-internal record BlogV1(string domain) {}
+public record BlogV1(string domain) {}
 
 [FactType("Blog")]
-internal record BlogV2(string domain, string title) {}
+public record BlogV2(string domain, string title) {}
 
 [FactType("Blog")]
-internal record BlogV3(string domain, string title, int stars) {}
+public record BlogV3(string domain, string title, int stars) {}
 
 [FactType("Blog")]
-internal record BlogV4(DateTime? createdAt) {}
+public record BlogV4(DateTime? createdAt) {}
