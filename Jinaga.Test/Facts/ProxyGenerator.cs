@@ -12,41 +12,34 @@ public class ProxyGenerator
 {
     public static T CreateProxy<T>(T instance)
     {
-        var proxyType = CreateProxyType<T>();
+        Type type = typeof(T);
+        var proxyType = CreateProxyType(type);
         // Get all of the properties of the instance
-        var properties = typeof(T).GetProperties(BindingFlags.Public | BindingFlags.Instance);
+        var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
         // Get the constructor for the proxy
         var constructor = proxyType.GetConstructors().Single();
         // Get the constructor parameters for the proxy
         var parameters = constructor.GetParameters();
         // TODO: Generate the fact
-        Fact factReference = Fact.Create("TODO", ImmutableList<Field>.Empty, ImmutableList<Predecessor>.Empty);
+        Fact fact = Fact.Create("TODO", ImmutableList<Field>.Empty, ImmutableList<Predecessor>.Empty);
         // Create an array of arguments for the proxy constructor
         var arguments = properties
             .Select(property => property.GetValue(instance))
-            .Concat(new object[] { factReference })
+            .Concat(new object[] { fact })
             .ToArray();
         // Create the proxy
         var proxy = constructor.Invoke(arguments);
         return (T)proxy;
     }
 
-    private static Type CreateProxyType<T>()
+    private static Type CreateProxyType(Type type)
     {
-        var typeBuilder = GetTypeBuilder(typeof(T));
-        var proxyType = typeBuilder.CreateType();
-        return proxyType;
-    }
-
-    private static TypeBuilder GetTypeBuilder(Type type)
-    {
-        // Define a record named {type.Name}Proxy
         var typeSignature = $"{type.Name}Proxy";
-        var an = new AssemblyName(typeSignature);
-        var assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(an, AssemblyBuilderAccess.Run);
+        var assemblyName = new AssemblyName(typeSignature);
+        var assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
         var moduleBuilder = assemblyBuilder.DefineDynamicModule("MainModule");
         // Inherit from T
-        var tb = moduleBuilder.DefineType(typeSignature,
+        var typeBuilder = moduleBuilder.DefineType(typeSignature,
                 TypeAttributes.Public |
                 TypeAttributes.Class |
                 TypeAttributes.AutoClass |
@@ -55,22 +48,22 @@ public class ProxyGenerator
                 TypeAttributes.AutoLayout,
                 type);
         // Implement IFactProxy
-        tb.AddInterfaceImplementation(typeof(IFactProxy));
+        typeBuilder.AddInterfaceImplementation(typeof(IFactProxy));
         // Define a backing field for the fact
-        var fieldBuilder = tb.DefineField(
+        var fieldBuilder = typeBuilder.DefineField(
             "fact",
             typeof(Fact),
             FieldAttributes.Private
         );
         // Define a property for the Fact
-        var propertyBuilder = tb.DefineProperty(
+        var propertyBuilder = typeBuilder.DefineProperty(
             nameof(IFactProxy.Fact),
             PropertyAttributes.None,
             typeof(Fact),
             Type.EmptyTypes
         );
         // Define the getter for the FactReference
-        var getterBuilder = tb.DefineMethod(
+        var getterBuilder = typeBuilder.DefineMethod(
             "get_Fact",
             MethodAttributes.Public |
             MethodAttributes.SpecialName |
@@ -91,7 +84,7 @@ public class ProxyGenerator
         // Get the constructor parameters for T
         var parameters = constructor.GetParameters();
         // Define a constructor for the proxy that takes all of the parameters for T plus a Fact
-        var constructorBuilder = tb.DefineConstructor(
+        var constructorBuilder = typeBuilder.DefineConstructor(
             MethodAttributes.Public,
             CallingConventions.Standard,
             parameters.Select(p => p.ParameterType).Append(typeof(Fact)).ToArray()
@@ -109,6 +102,7 @@ public class ProxyGenerator
         cil.Emit(OpCodes.Ldarg, parameters.Length + 1);
         cil.Emit(OpCodes.Stfld, fieldBuilder);
         cil.Emit(OpCodes.Ret);
-        return tb;
+        var proxyType = typeBuilder.CreateType();
+        return proxyType;
     }
 }
