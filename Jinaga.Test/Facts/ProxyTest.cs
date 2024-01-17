@@ -1,7 +1,6 @@
-using System.Linq;
-using System.Reflection;
 using FluentAssertions;
 using Jinaga.Facts;
+using Jinaga.Serialization;
 using Xunit;
 
 namespace Jinaga.Test.Facts;
@@ -15,14 +14,8 @@ public class ProxyTest
         var proxy = ProxyGenerator.CreateProxy(original);
         var proxyType = proxy.GetType();
         proxyType.Should().BeAssignableTo<IFactProxy>();
-        var proxyProperties = proxyType.GetProperties(BindingFlags.Public | BindingFlags.Instance);
-        proxyProperties.Should().HaveCount(2);
-        var proxyReference = proxyProperties.Single(p => p.Name == nameof(IFactProxy.Reference));
-        proxyReference.PropertyType.Should().BeAssignableTo<FactReference>();
-        var proxyReferenceValue = proxyReference.GetValue(proxy);
-        proxyReferenceValue.Should().BeAssignableTo<FactReference>();
-        var proxyReferenceFactReference = (FactReference)proxyReferenceValue;
-        proxyReferenceFactReference.Type.Should().Be("TODO");
-        proxyReferenceFactReference.Hash.Should().Be("hash");
+        IFactProxy proxyFactProxy = (IFactProxy)proxy;
+        proxyFactProxy.Fact.Reference.Type.Should().Be("TODO");
+        proxyFactProxy.Fact.Reference.Hash.Should().Be("fSS1hK7OGAeSX4ocN3acuFF87jvzCdPN3vLFUtcej0lOAsVV859UIYZLRcHUoMbyd/J31TdVn5QuE7094oqUPg==");
     }
 }

@@ -7,6 +7,11 @@ using System.Reflection;
 
 namespace Jinaga.Serialization
 {
+    public interface IFactProxy
+    {
+        Fact Fact { get; }
+    }
+
     class Emitter
     {
         public FactGraph Graph { get; }
