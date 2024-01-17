@@ -64,11 +64,19 @@ namespace Jinaga.Serialization
                 )
                 .ToArray();
 
+            // Get the subgraph for the fact
+            var getSubgraphMethod = typeof(Emitter).GetMethod(nameof(Emitter.GetSubgraph));
+            var getSubgraph = Expression.Call(
+                emitterParameter,
+                getSubgraphMethod,
+                factParameter
+            );
+
             var proxyType = CreateProxyType(type);
             var proxyConstructor = proxyType.GetConstructors().Single();
             var newExpression = Expression.New(
                 proxyConstructor,
-                parameterExpressions.Concat(new Expression[] { factParameter })
+                parameterExpressions.Concat(new Expression[] { getSubgraph })
             );
             var cast = Expression.Convert(
                 newExpression,
@@ -212,27 +220,27 @@ namespace Jinaga.Serialization
                     type);
             // Implement IFactProxy
             typeBuilder.AddInterfaceImplementation(typeof(IFactProxy));
-            // Define a backing field for the fact
+            // Define a backing field for the fact graph
             var fieldBuilder = typeBuilder.DefineField(
-                "fact",
-                typeof(Fact),
+                "graph",
+                typeof(FactGraph),
                 FieldAttributes.Private
             );
-            // Define a property for the Fact
+            // Define a property for the fact graph
             var propertyBuilder = typeBuilder.DefineProperty(
-                nameof(IFactProxy.Fact),
+                nameof(IFactProxy.Graph),
                 PropertyAttributes.None,
-                typeof(Fact),
+                typeof(FactGraph),
                 Type.EmptyTypes
             );
             // Define the getter for the FactReference
             var getterBuilder = typeBuilder.DefineMethod(
-                "get_Fact",
+                "get_Graph",
                 MethodAttributes.Public |
                 MethodAttributes.SpecialName |
                 MethodAttributes.HideBySig |
                 MethodAttributes.Virtual,
-                typeof(Fact),
+                typeof(FactGraph),
                 Type.EmptyTypes
             );
             // Implement the getter for the Fact
@@ -246,11 +254,11 @@ namespace Jinaga.Serialization
             var constructor = type.GetConstructors().Single();
             // Get the constructor parameters for T
             var parameters = constructor.GetParameters();
-            // Define a constructor for the proxy that takes all of the parameters for T plus a Fact
+            // Define a constructor for the proxy that takes all of the parameters for T plus a fact graph
             var constructorBuilder = typeBuilder.DefineConstructor(
                 MethodAttributes.Public,
                 CallingConventions.Standard,
-                parameters.Select(p => p.ParameterType).Append(typeof(Fact)).ToArray()
+                parameters.Select(p => p.ParameterType).Append(typeof(FactGraph)).ToArray()
             );
             // Call the base constructor for T
             var cil = constructorBuilder.GetILGenerator();

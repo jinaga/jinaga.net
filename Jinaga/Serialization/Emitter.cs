@@ -9,7 +9,7 @@ namespace Jinaga.Serialization
 {
     public interface IFactProxy
     {
-        Fact Fact { get; }
+        FactGraph Graph { get; }
     }
 
     class Emitter
@@ -63,6 +63,11 @@ namespace Jinaga.Serialization
             return references
                 .Select(reference => Deserialize<TFact>(reference))
                 .ToArray();
+        }
+
+        public FactGraph GetSubgraph(Fact fact)
+        {
+            return Graph.GetSubgraph(fact.Reference);
         }
     }
 }
