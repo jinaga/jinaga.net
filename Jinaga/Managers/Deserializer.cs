@@ -43,23 +43,13 @@ namespace Jinaga.Managers
             var productProjections = ImmutableList<ProjectedResult>.Empty;
             foreach (var product in products)
             {
-                try
-                {
-                    var projectedResult = new ProjectedResult(
-                        product,
-                        emitter.DeserializeToType(product.GetFactReference(simpleProjection.Tag), type),
-                        path,
-                        ImmutableList<ProjectedResultChildCollection>.Empty
-                    );
-                    productProjections = productProjections.Add(projectedResult);
-                }
-                catch
-                {
-                    // If the emitter throws an exception, then the
-                    // fact does not match the target type. Perhaps
-                    // the fields or predecessors have changed. We
-                    // must tolerate these changes and ignore the error.
-                }
+                var projectedResult = new ProjectedResult(
+                    product,
+                    emitter.DeserializeToType(product.GetFactReference(simpleProjection.Tag), type),
+                    path,
+                    ImmutableList<ProjectedResultChildCollection>.Empty
+                );
+                productProjections = productProjections.Add(projectedResult);
             }
             return productProjections;
         }
@@ -83,31 +73,21 @@ namespace Jinaga.Managers
                 var productProjections = ImmutableList<ProjectedResult>.Empty;
                 foreach (var product in products)
                 {
-                    try
+                    var args = new List<object?>();
+                    var collections = ImmutableList<ProjectedResultChildCollection>.Empty;
+                    foreach (var parameter in parameters)
                     {
-                        var args = new List<object?>();
-                        var collections = ImmutableList<ProjectedResultChildCollection>.Empty;
-                        foreach (var parameter in parameters)
+                        var projection = compoundProjection.GetProjection(parameter.Name);
+                        (var obj, var children) = DeserializeParameter(emitter, projection, path, parameter.ParameterType, parameter.Name, product);
+                        args.Add(obj);
+                        if (children != null)
                         {
-                            var projection = compoundProjection.GetProjection(parameter.Name);
-                            (var obj, var children) = DeserializeParameter(emitter, projection, path, parameter.ParameterType, parameter.Name, product);
-                            args.Add(obj);
-                            if (children != null)
-                            {
-                                collections = collections.Add(children);
-                            }
+                            collections = collections.Add(children);
                         }
-                        var result = constructor.Invoke(args.ToArray());
-                        var projectedResult = new ProjectedResult(product, result, path, collections);
-                        productProjections = productProjections.Add(projectedResult);
                     }
-                    catch
-                    {
-                        // If the emitter throws an exception, then the
-                        // fact does not match the target type. Perhaps
-                        // the fields or predecessors have changed. We
-                        // must tolerate these changes and ignore the error.
-                    }
+                    var result = constructor.Invoke(args.ToArray());
+                    var projectedResult = new ProjectedResult(product, result, path, collections);
+                    productProjections = productProjections.Add(projectedResult);
                 }
                 return productProjections;
             }
@@ -176,26 +156,16 @@ namespace Jinaga.Managers
             var productProjections = ImmutableList<ProjectedResult>.Empty;
             foreach (var product in products)
             {
-                try
-                {
-                    var projectedResult = new ProjectedResult(
-                        product,
-                        propertyInfo.GetValue(
-                            emitter.DeserializeToType(
-                                product.GetFactReference(fieldProjection.Tag),
-                                fieldProjection.FactRuntimeType)),
-                        path,
-                        ImmutableList<ProjectedResultChildCollection>.Empty
-                    );
-                    productProjections = productProjections.Add(projectedResult);
-                }
-                catch
-                {
-                    // If the emitter throws an exception, then the
-                    // fact does not match the target type. Perhaps
-                    // the fields or predecessors have changed. We
-                    // must tolerate these changes and ignore the error.
-                }
+                var projectedResult = new ProjectedResult(
+                    product,
+                    propertyInfo.GetValue(
+                        emitter.DeserializeToType(
+                            product.GetFactReference(fieldProjection.Tag),
+                            fieldProjection.FactRuntimeType)),
+                    path,
+                    ImmutableList<ProjectedResultChildCollection>.Empty
+                );
+                productProjections = productProjections.Add(projectedResult);
             }
             return productProjections;
         }
