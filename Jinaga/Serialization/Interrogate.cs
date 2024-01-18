@@ -13,7 +13,16 @@ namespace Jinaga.Serialization
                 type == typeof(int) ||
                 type == typeof(float) ||
                 type == typeof(double) ||
-                type == typeof(bool);
+                type == typeof(bool) ||
+                IsNullableField(type);
+        }
+
+        public static bool IsNullableField(Type type)
+        {
+            return
+                type.IsGenericType &&
+                type.GetGenericTypeDefinition() == typeof(Nullable<>) &&
+                IsField(type.GetGenericArguments()[0]);
         }
 
         public static bool IsPredecessor(Type type)

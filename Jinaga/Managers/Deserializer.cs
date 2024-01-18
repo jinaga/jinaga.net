@@ -43,23 +43,13 @@ namespace Jinaga.Managers
             var productProjections = ImmutableList<ProjectedResult>.Empty;
             foreach (var product in products)
             {
-                try
-                {
-                    var projectedResult = new ProjectedResult(
-                        product,
-                        emitter.DeserializeToType(product.GetFactReference(simpleProjection.Tag), type),
-                        path,
-                        ImmutableList<ProjectedResultChildCollection>.Empty
-                    );
-                    productProjections = productProjections.Add(projectedResult);
-                }
-                catch
-                {
-                    // If the emitter throws an exception, then the
-                    // fact does not match the target type. Perhaps
-                    // the fields or predecessors have changed. We
-                    // must tolerate these changes and ignore the error.
-                }
+                var projectedResult = new ProjectedResult(
+                    product,
+                    emitter.DeserializeToType(product.GetFactReference(simpleProjection.Tag), type),
+                    path,
+                    ImmutableList<ProjectedResultChildCollection>.Empty
+                );
+                productProjections = productProjections.Add(projectedResult);
             }
             return productProjections;
         }
@@ -83,31 +73,21 @@ namespace Jinaga.Managers
                 var productProjections = ImmutableList<ProjectedResult>.Empty;
                 foreach (var product in products)
                 {
-                    try
+                    var args = new List<object?>();
+                    var collections = ImmutableList<ProjectedResultChildCollection>.Empty;
+                    foreach (var parameter in parameters)
                     {
-                        var args = new List<object>();
-                        var collections = ImmutableList<ProjectedResultChildCollection>.Empty;
-                        foreach (var parameter in parameters)
+                        var projection = compoundProjection.GetProjection(parameter.Name);
+                        (var obj, var children) = DeserializeParameter(emitter, projection, path, parameter.ParameterType, parameter.Name, product);
+                        args.Add(obj);
+                        if (children != null)
                         {
-                            var projection = compoundProjection.GetProjection(parameter.Name);
-                            (var obj, var children) = DeserializeParameter(emitter, projection, path, parameter.ParameterType, parameter.Name, product);
-                            args.Add(obj);
-                            if (children != null)
-                            {
-                                collections = collections.Add(children);
-                            }
+                            collections = collections.Add(children);
                         }
-                        var result = constructor.Invoke(args.ToArray());
-                        var projectedResult = new ProjectedResult(product, result, path, collections);
-                        productProjections = productProjections.Add(projectedResult);
                     }
-                    catch
-                    {
-                        // If the emitter throws an exception, then the
-                        // fact does not match the target type. Perhaps
-                        // the fields or predecessors have changed. We
-                        // must tolerate these changes and ignore the error.
-                    }
+                    var result = constructor.Invoke(args.ToArray());
+                    var projectedResult = new ProjectedResult(product, result, path, collections);
+                    productProjections = productProjections.Add(projectedResult);
                 }
                 return productProjections;
             }
@@ -176,26 +156,16 @@ namespace Jinaga.Managers
             var productProjections = ImmutableList<ProjectedResult>.Empty;
             foreach (var product in products)
             {
-                try
-                {
-                    var projectedResult = new ProjectedResult(
-                        product,
-                        propertyInfo.GetValue(
-                            emitter.DeserializeToType(
-                                product.GetFactReference(fieldProjection.Tag),
-                                fieldProjection.FactRuntimeType)),
-                        path,
-                        ImmutableList<ProjectedResultChildCollection>.Empty
-                    );
-                    productProjections = productProjections.Add(projectedResult);
-                }
-                catch
-                {
-                    // If the emitter throws an exception, then the
-                    // fact does not match the target type. Perhaps
-                    // the fields or predecessors have changed. We
-                    // must tolerate these changes and ignore the error.
-                }
+                var projectedResult = new ProjectedResult(
+                    product,
+                    propertyInfo.GetValue(
+                        emitter.DeserializeToType(
+                            product.GetFactReference(fieldProjection.Tag),
+                            fieldProjection.FactRuntimeType)),
+                    path,
+                    ImmutableList<ProjectedResultChildCollection>.Empty
+                );
+                productProjections = productProjections.Add(projectedResult);
             }
             return productProjections;
         }
@@ -221,7 +191,7 @@ namespace Jinaga.Managers
             }
         }
 
-        private static (object obj, ProjectedResultChildCollection? children) DeserializeParameter(Emitter emitter, Projection projection, string parentPath, Type parameterType, string parameterName, Product product)
+        private static (object? obj, ProjectedResultChildCollection? children) DeserializeParameter(Emitter emitter, Projection projection, string parentPath, Type parameterType, string parameterName, Product product)
         {
             if (parameterType.IsFactType())
             {
@@ -348,65 +318,45 @@ namespace Jinaga.Managers
                 var reference = product.GetFactReference(fieldProjection.Tag);
                 var fact = emitter.Graph.GetFact(reference);
                 var field = fact.Fields.FirstOrDefault(f => f.Name == fieldProjection.FieldName);
-                if (field == null)
+                var value = field?.Value ?? FieldValue.Undefined;
+                if (parameterType == typeof(string))
                 {
-                    throw new ArgumentException($"Unknown field {fieldProjection.FieldName} in fact {reference.Type}");
+                    var obj = value.StringValue;
+                    return (obj, null);
                 }
-                var value = field.Value;
-                if (value is FieldValueString fieldValueString)
+                else if (parameterType == typeof(DateTime))
                 {
-                    if (parameterType == typeof(string))
-                    {
-                        var obj = fieldValueString.StringValue;
-                        return (obj, null);
-                    }
-                    else if (parameterType == typeof(DateTime))
-                    {
-                        var obj = FieldValue.FromIso8601String(fieldValueString.StringValue);
-                        return (obj, null);
-                    }
-                    else
-                    {
-                        throw new ArgumentException($"Cannot convert string to {parameterType.Name}, reading field {parameterName} of {reference.Type}.");
-                    }
+                    var obj = FieldValue.FromIso8601String(value.StringValue);
+                    return (obj, null);
                 }
-                else if (value is FieldValueNumber fieldValueNumber)
+                else if (parameterType == typeof(DateTime?))
                 {
-                    if (parameterType == typeof(int))
-                    {
-                        var obj = (int)fieldValueNumber.DoubleValue;
-                        return (obj, null);
-                    }
-                    else if (parameterType == typeof(float))
-                    {
-                        var obj = (float)fieldValueNumber.DoubleValue;
-                        return (obj, null);
-                    }
-                    else if (parameterType == typeof(double))
-                    {
-                        var obj = fieldValueNumber.DoubleValue;
-                        return (obj, null);
-                    }
-                    else
-                    {
-                        throw new ArgumentException($"Cannot convert number to {parameterType.Name}, reading field {parameterName} of {reference.Type}.");
-                    }
+                    var obj = FieldValue.FromNullableIso8601String(value.StringValue);
+                    return (obj, null);
                 }
-                else if (value is FieldValueBoolean fieldValueBoolean)
+                else if (parameterType == typeof(int))
                 {
-                    if (parameterType == typeof(bool))
-                    {
-                        var obj = fieldValueBoolean.BoolValue;
-                        return (obj, null);
-                    }
-                    else
-                    {
-                        throw new ArgumentException($"Cannot convert boolean to {parameterType.Name}, reading field {parameterName} of {reference.Type}.");
-                    }
+                    var obj = (int)value.DoubleValue;
+                    return (obj, null);
+                }
+                else if (parameterType == typeof(float))
+                {
+                    var obj = (float)value.DoubleValue;
+                    return (obj, null);
+                }
+                else if (parameterType == typeof(double))
+                {
+                    var obj = value.DoubleValue;
+                    return (obj, null);
+                }
+                else if (parameterType == typeof(bool))
+                {
+                    var obj = value.BoolValue;
+                    return (obj, null);
                 }
                 else
                 {
-                    throw new ArgumentException($"Unknown field type {value.GetType().Name}, reading field {parameterName} of {reference.Type}.");
+                    throw new ArgumentException($"Unknown field type {parameterType.Name}, reading field {parameterName} of {reference.Type}.");
                 }
             }
             else

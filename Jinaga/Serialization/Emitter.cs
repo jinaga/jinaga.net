@@ -7,6 +7,11 @@ using System.Reflection;
 
 namespace Jinaga.Serialization
 {
+    public interface IFactProxy
+    {
+        FactGraph Graph { get; }
+    }
+
     class Emitter
     {
         public FactGraph Graph { get; }
@@ -58,6 +63,11 @@ namespace Jinaga.Serialization
             return references
                 .Select(reference => Deserialize<TFact>(reference))
                 .ToArray();
+        }
+
+        public FactGraph GetSubgraph(Fact fact)
+        {
+            return Graph.GetSubgraph(fact.Reference);
         }
     }
 }

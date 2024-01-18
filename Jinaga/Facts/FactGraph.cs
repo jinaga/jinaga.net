@@ -42,6 +42,24 @@ namespace Jinaga.Facts
             );
         }
 
+        public FactGraph AddGraph(FactGraph factGraph)
+        {
+            var newFacts = factGraph.topologicalOrder
+                .Select(reference => factGraph.factsByReference[reference])
+                .Where(fact => !factsByReference.ContainsKey(fact.Reference))
+                .ToImmutableList();
+
+            if (newFacts.Count == 0)
+            {
+                return this;
+            }
+
+            return new FactGraph(
+                factsByReference.AddRange(newFacts.Select(fact => new KeyValuePair<FactReference, Fact>(fact.Reference, fact))),
+                topologicalOrder.AddRange(newFacts.Select(fact => fact.Reference))
+            );
+        }
+
         public ImmutableList<FactReference> FactReferences => topologicalOrder;
         public FactReference Last => topologicalOrder.Last();
 
@@ -54,6 +72,20 @@ namespace Jinaga.Facts
                 .Where(p => p.Role == role)
                 .SelectMany(p => p.AllReferences)
                 .Where(r => r.Type == targetType);
+        }
+
+        public FactGraph GetSubgraph(FactReference reference)
+        {
+            var subgraph = Empty;
+            Fact fact = GetFact(reference);
+            // Recursively add all predecessors
+            foreach (var predecessorReference in fact.GetAllPredecessorReferences())
+            {
+                subgraph = subgraph.AddGraph(GetSubgraph(predecessorReference));
+            }
+            // Add this fact
+            subgraph = subgraph.Add(fact);
+            return subgraph;
         }
     }
 }

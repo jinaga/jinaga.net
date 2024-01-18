@@ -34,22 +34,36 @@ namespace Jinaga.Serialization
                 FactVisitsCount++;
 
                 var runtimeType = runtimeFact.GetType();
-                var (newCache, serializer) = SerializerCache.GetSerializer(runtimeType);
-                SerializerCache = newCache;
-                try
+                if (typeof(IFactProxy).IsAssignableFrom(runtimeType))
                 {
-                    var fact = serializer(runtimeFact, this);
+                    var graph = ((IFactProxy)runtimeFact).Graph;
+                    Graph = Graph.AddGraph(graph);
+                    reference = graph.Last;
+                }
+                else
+                {
+                    var fact = SerializeToFact(runtimeType, runtimeFact);
                     reference = fact.Reference;
 
                     Graph = Graph.Add(fact);
                     referenceByObject = referenceByObject.Add(runtimeFact, reference);
                 }
-                catch (TargetInvocationException tie)
-                {
-                    throw tie.InnerException;
-                }
             }
             return reference;
+        }
+
+        private Fact SerializeToFact(Type runtimeType, object runtimeFact)
+        {
+            var (newCache, serializer) = SerializerCache.GetSerializer(runtimeType);
+            SerializerCache = newCache;
+            try
+            {
+                return serializer(runtimeFact, this);
+            }
+            catch (TargetInvocationException tie)
+            {
+                throw tie.InnerException;
+            }
         }
     }
 }

@@ -35,7 +35,7 @@ namespace Jinaga.Facts
                 .ToImmutableList();
             if (values.Count == 0)
             {
-                throw new ArgumentException($"The fact {Reference.Type} did not contain any fields named {name}");
+                return FieldValue.Undefined;
             }
             else if (values.Count > 1)
             {
