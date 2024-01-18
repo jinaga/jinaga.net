@@ -203,76 +203,83 @@ namespace Jinaga.Serialization
 
         private static Type CreateProxyType(Type type)
         {
-            var typeSignature = $"{type.Name}Proxy";
-            var assemblyName = new AssemblyName(typeSignature);
-            var assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
-            var moduleBuilder = assemblyBuilder.DefineDynamicModule("MainModule");
-            // Inherit from T
-            var typeBuilder = moduleBuilder.DefineType(typeSignature,
-                    TypeAttributes.Public |
-                    TypeAttributes.Class |
-                    TypeAttributes.AutoClass |
-                    TypeAttributes.AnsiClass |
-                    TypeAttributes.BeforeFieldInit |
-                    TypeAttributes.AutoLayout,
-                    type);
-            // Implement IFactProxy
-            typeBuilder.AddInterfaceImplementation(typeof(IFactProxy));
-            // Define a backing field for the fact graph
-            var fieldBuilder = typeBuilder.DefineField(
-                "graph",
-                typeof(FactGraph),
-                FieldAttributes.Private
-            );
-            // Define a property for the fact graph
-            var propertyBuilder = typeBuilder.DefineProperty(
-                nameof(IFactProxy.Graph),
-                PropertyAttributes.None,
-                typeof(FactGraph),
-                Type.EmptyTypes
-            );
-            // Define the getter for the FactReference
-            var getterBuilder = typeBuilder.DefineMethod(
-                "get_Graph",
-                MethodAttributes.Public |
-                MethodAttributes.SpecialName |
-                MethodAttributes.HideBySig |
-                MethodAttributes.Virtual,
-                typeof(FactGraph),
-                Type.EmptyTypes
-            );
-            // Implement the getter for the Fact
-            var gil = getterBuilder.GetILGenerator();
-            gil.Emit(OpCodes.Ldarg_0);
-            gil.Emit(OpCodes.Ldfld, fieldBuilder);
-            gil.Emit(OpCodes.Ret);
-            propertyBuilder.SetGetMethod(getterBuilder);
-
-            // Get the only constructor for T
-            var constructor = type.GetConstructors().Single();
-            // Get the constructor parameters for T
-            var parameters = constructor.GetParameters();
-            // Define a constructor for the proxy that takes all of the parameters for T plus a fact graph
-            var constructorBuilder = typeBuilder.DefineConstructor(
-                MethodAttributes.Public,
-                CallingConventions.Standard,
-                parameters.Select(p => p.ParameterType).Append(typeof(FactGraph)).ToArray()
-            );
-            // Call the base constructor for T
-            var cil = constructorBuilder.GetILGenerator();
-            cil.Emit(OpCodes.Ldarg_0);
-            for (var i = 0; i < parameters.Length; i++)
+            try
             {
-                cil.Emit(OpCodes.Ldarg, i + 1);
+                var typeSignature = $"{type.Name}Proxy";
+                var assemblyName = new AssemblyName(typeSignature);
+                var assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
+                var moduleBuilder = assemblyBuilder.DefineDynamicModule("MainModule");
+                // Inherit from T
+                var typeBuilder = moduleBuilder.DefineType(typeSignature,
+                        TypeAttributes.Public |
+                        TypeAttributes.Class |
+                        TypeAttributes.AutoClass |
+                        TypeAttributes.AnsiClass |
+                        TypeAttributes.BeforeFieldInit |
+                        TypeAttributes.AutoLayout,
+                        type);
+                // Implement IFactProxy
+                typeBuilder.AddInterfaceImplementation(typeof(IFactProxy));
+                // Define a backing field for the fact graph
+                var fieldBuilder = typeBuilder.DefineField(
+                    "graph",
+                    typeof(FactGraph),
+                    FieldAttributes.Private
+                );
+                // Define a property for the fact graph
+                var propertyBuilder = typeBuilder.DefineProperty(
+                    nameof(IFactProxy.Graph),
+                    PropertyAttributes.None,
+                    typeof(FactGraph),
+                    Type.EmptyTypes
+                );
+                // Define the getter for the FactReference
+                var getterBuilder = typeBuilder.DefineMethod(
+                    "get_Graph",
+                    MethodAttributes.Public |
+                    MethodAttributes.SpecialName |
+                    MethodAttributes.HideBySig |
+                    MethodAttributes.Virtual,
+                    typeof(FactGraph),
+                    Type.EmptyTypes
+                );
+                // Implement the getter for the Fact
+                var gil = getterBuilder.GetILGenerator();
+                gil.Emit(OpCodes.Ldarg_0);
+                gil.Emit(OpCodes.Ldfld, fieldBuilder);
+                gil.Emit(OpCodes.Ret);
+                propertyBuilder.SetGetMethod(getterBuilder);
+
+                // Get the only constructor for T
+                var constructor = type.GetConstructors().Single();
+                // Get the constructor parameters for T
+                var parameters = constructor.GetParameters();
+                // Define a constructor for the proxy that takes all of the parameters for T plus a fact graph
+                var constructorBuilder = typeBuilder.DefineConstructor(
+                    MethodAttributes.Public,
+                    CallingConventions.Standard,
+                    parameters.Select(p => p.ParameterType).Append(typeof(FactGraph)).ToArray()
+                );
+                // Call the base constructor for T
+                var cil = constructorBuilder.GetILGenerator();
+                cil.Emit(OpCodes.Ldarg_0);
+                for (var i = 0; i < parameters.Length; i++)
+                {
+                    cil.Emit(OpCodes.Ldarg, i + 1);
+                }
+                cil.Emit(OpCodes.Call, constructor);
+                // Set the reference field
+                cil.Emit(OpCodes.Ldarg_0);
+                cil.Emit(OpCodes.Ldarg, parameters.Length + 1);
+                cil.Emit(OpCodes.Stfld, fieldBuilder);
+                cil.Emit(OpCodes.Ret);
+                var proxyType = typeBuilder.CreateType();
+                return proxyType;
             }
-            cil.Emit(OpCodes.Call, constructor);
-            // Set the reference field
-            cil.Emit(OpCodes.Ldarg_0);
-            cil.Emit(OpCodes.Ldarg, parameters.Length + 1);
-            cil.Emit(OpCodes.Stfld, fieldBuilder);
-            cil.Emit(OpCodes.Ret);
-            var proxyType = typeBuilder.CreateType();
-            return proxyType;
+            catch (TypeLoadException ex)
+            {
+                throw new ArgumentException($"The type {type.FullName} must be public.", ex);
+            }
         }
     }
 }
