@@ -84,9 +84,7 @@ namespace Jinaga.Serialization
                     ? Expression.New(typeof(FieldValueNumber).GetConstructor(new[] { typeof(double) }), propertyGet)
                 : propertyInfo.PropertyType == typeof(bool)
                     ? Expression.New(typeof(FieldValueBoolean).GetConstructor(new[] { typeof(bool) }), propertyGet)
-                // Nullable DateTime
-                : propertyInfo.PropertyType.IsGenericType && propertyInfo.PropertyType.GetGenericTypeDefinition() == typeof(Nullable<>)
-                    && propertyInfo.PropertyType.GetGenericArguments()[0] == typeof(DateTime)
+                : propertyInfo.PropertyType == typeof(DateTime?)
                     ? Expression.New(typeof(FieldValueString).GetConstructor(new[] { typeof(string) }), CallToNullableISO8601String(propertyGet))
                 : throw new ArgumentException($"Unsupported field type {propertyInfo.PropertyType.Name} in {propertyInfo.DeclaringType.Name}.{propertyInfo.Name}");
             NewExpression newField = Expression.New(

@@ -110,9 +110,7 @@ namespace Jinaga.Serialization
                     )
                 );
             }
-            else if (parameterType.IsGenericType &&
-                parameterType.GetGenericTypeDefinition() == typeof(Nullable<>) &&
-                parameterType.GetGenericArguments()[0] == typeof(DateTime))
+            else if (parameterType == typeof(DateTime?))
             {
                 var fromNullableIso8601String = typeof(FieldValue).GetMethod(nameof(FieldValue.FromNullableIso8601String));
                 return Expression.Call(
