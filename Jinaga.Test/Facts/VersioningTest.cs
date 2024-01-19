@@ -64,6 +64,36 @@ public class VersioningTest
     }
 
     [Fact]
+    public void CanSerializeNullableDateTimeFieldWithValue()
+    {
+        var original = new BlogV4(new DateTime(2021, 1, 1).ToUniversalTime());
+        var factGraph = Serialize(original);
+        var deserialized = Deserialize<BlogV4>(factGraph, factGraph.Last);
+
+        deserialized.createdAt.Should().Be(new DateTime(2021, 1, 1).ToUniversalTime());
+    }
+
+    [Fact]
+    public void CanSerializeNullableDateTimeFieldWithNull()
+    {
+        var original = new BlogV4(null);
+        var factGraph = Serialize(original);
+        var deserialized = Deserialize<BlogV4>(factGraph, factGraph.Last);
+
+        deserialized.createdAt.Should().BeNull();
+    }
+
+    [Fact]
+    public void CanUpgradeNullableDateTimeToNonNullable()
+    {
+        var original = new BlogV4(null);
+        var factGraph = Serialize(original);
+        var deserialized = Deserialize<BlogV5>(factGraph, factGraph.Last);
+
+        deserialized.createdAt.Should().Be(DateTime.UnixEpoch);
+    }
+
+    [Fact]
     public void CanDowngrade()
     {
         var original = new BlogV3("michaelperry.net", "Michael's Blog", 5);
@@ -101,3 +131,6 @@ public record BlogV3(string domain, string title, int stars) {}
 
 [FactType("Blog")]
 public record BlogV4(DateTime? createdAt) {}
+
+[FactType("Blog")]
+public record BlogV5(DateTime createdAt) {}
