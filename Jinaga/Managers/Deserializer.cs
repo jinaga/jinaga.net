@@ -359,6 +359,20 @@ namespace Jinaga.Managers
                     throw new ArgumentException($"Unknown field type {parameterType.Name}, reading field {parameterName} of {reference.Type}.");
                 }
             }
+            else if (projection is HashProjection hashProjection)
+            {
+                var reference = product.GetFactReference(hashProjection.Tag);
+                var value = reference.Hash;
+                if (parameterType == typeof(string))
+                {
+                    var obj = value;
+                    return (obj, null);
+                }
+                else
+                {
+                    throw new ArgumentException($"A hash is expected to be a string.");
+                }
+            }
             else
             {
                 throw new NotImplementedException();

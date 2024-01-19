@@ -147,6 +147,20 @@ namespace Jinaga.Repository
                     var collectionProjection = new CollectionProjection(value.Matches, value.Projection, expression.Type);
                     return collectionProjection;
                 }
+                else if (methodCallExpression.Method.DeclaringType == typeof(JinagaClient) &&
+                    methodCallExpression.Method.Name == nameof(JinagaClient.Hash) &&
+                    methodCallExpression.Arguments.Count == 1)
+                {
+                    var value = ProcessProjection(methodCallExpression.Arguments[0], symbolTable);
+                    if (value is SimpleProjection simpleProjection)
+                    {
+                        return new HashProjection(simpleProjection.Tag, methodCallExpression.Arguments[0].Type);
+                    }
+                    else
+                    {
+                        throw new SpecificationException($"Cannot hash {value.ToDescriptiveString()}.");
+                    }
+                }
             }
             throw new SpecificationException($"Unsupported type of projection {expression}.");
         }

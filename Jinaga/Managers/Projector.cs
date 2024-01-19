@@ -40,6 +40,10 @@ namespace Jinaga.Managers
             {
                 return new[] { product.GetFactReference(field.Tag) };
             }
+            else if (projection is HashProjection hash)
+            {
+                return new[] { product.GetFactReference(hash.Tag) };
+            }
             else
             {
                 throw new NotImplementedException();
