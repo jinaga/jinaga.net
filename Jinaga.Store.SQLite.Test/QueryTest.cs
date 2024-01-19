@@ -59,6 +59,25 @@ public class QueryTest
     }
 
     [Fact]
+    public async Task CanQueryForHashOfSuccessor()
+    {
+        var airlineDay = await j.Fact(new AirlineDay(new Airline("IA"), DateTime.Today));
+        var flight = await j.Fact(new Flight(airlineDay, 4247));
+        var flightHash = j.Hash(flight);
+
+        var specification = Given<AirlineDay>.Match((airlineDay, facts) =>
+            from flight in facts.OfType<Flight>()
+            where flight.airlineDay == airlineDay
+            select j.Hash(flight)
+        );
+        var hashes = await j.Query(specification, airlineDay);
+
+        hashes.Should().ContainSingle().Which.Should().Be(flightHash);
+
+        await j.Unload();
+    }
+
+    [Fact]
     public async Task CanQueryMultipleSteps()
     {
         var airline = await j.Fact(new Airline("IA"));

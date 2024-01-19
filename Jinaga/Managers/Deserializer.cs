@@ -29,6 +29,8 @@ namespace Jinaga.Managers
                 return DeserializeCollectionProjection(emitter, collectionProjection, type, products, path);
             else if (projection is FieldProjection fieldProjection)
                 return DeserializeFieldProjection(emitter, fieldProjection, type, products, path);
+            else if (projection is HashProjection hashProjection)
+                return DeserializeHashProjection(emitter, hashProjection, type, products, path);
             else
                 throw new ArgumentException($"Unknown projection type {projection.GetType().Name}");
         }
@@ -162,6 +164,22 @@ namespace Jinaga.Managers
                         emitter.DeserializeToType(
                             product.GetFactReference(fieldProjection.Tag),
                             fieldProjection.FactRuntimeType)),
+                    path,
+                    ImmutableList<ProjectedResultChildCollection>.Empty
+                );
+                productProjections = productProjections.Add(projectedResult);
+            }
+            return productProjections;
+        }
+
+        private static ImmutableList<ProjectedResult> DeserializeHashProjection(Emitter emitter, HashProjection hashProjection, Type type, ImmutableList<Product> products, string path)
+        {
+            var productProjections = ImmutableList<ProjectedResult>.Empty;
+            foreach (var product in products)
+            {
+                var projectedResult = new ProjectedResult(
+                    product,
+                    product.GetFactReference(hashProjection.Tag).Hash,
                     path,
                     ImmutableList<ProjectedResultChildCollection>.Empty
                 );

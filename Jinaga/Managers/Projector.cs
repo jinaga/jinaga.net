@@ -121,6 +121,12 @@ namespace Jinaga.Managers
                     .Select(product => product.GetFactReference(field.Tag))
                     .ToImmutableList();
             }
+            else if (projection is HashProjection hash)
+            {
+                return products
+                    .Select(product => product.GetFactReference(hash.Tag))
+                    .ToImmutableList();
+            }
             else
             {
                 throw new NotImplementedException();
