@@ -23,14 +23,18 @@ namespace Jinaga.Facts
 
         public static DateTime FromIso8601String(string str)
         {
-            return DateTime.Parse(str).ToUniversalTime();
+            return DateTime.TryParse(str, out var dateTime)
+                ? dateTime.ToUniversalTime()
+                : DateTime.UnixEpoch;
         }
 
         public static DateTime? FromNullableIso8601String(string str)
         {
             return string.IsNullOrEmpty(str)
                 ? (DateTime?)null
-                : FromIso8601String(str);
+                : DateTime.TryParse(str, out var dateTime)
+                ? dateTime.ToUniversalTime()
+                : (DateTime?)null;
         }
 
         public abstract string StringValue { get; }
