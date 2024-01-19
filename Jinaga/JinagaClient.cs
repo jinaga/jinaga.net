@@ -2,6 +2,7 @@ using Jinaga.DefaultImplementations;
 using Jinaga.Facts;
 using Jinaga.Http;
 using Jinaga.Managers;
+using Jinaga.Serialization;
 using Jinaga.Services;
 using Jinaga.Storage;
 using System;
@@ -197,6 +198,28 @@ namespace Jinaga
             }
 
             return factManager.Deserialize<TFact>(graph, graph.Last);
+        }
+
+        /// <summary>
+        /// Compute the hash of a fact.
+        /// </summary>
+        /// <typeparam name="TFact">The type of the fact</typeparam>
+        /// <param name="fact">The fact of which to compute the hash</param>
+        /// <returns>Base 64 encoded SHA-512 hash of the fact</returns>
+        public string Hash<TFact>(TFact fact)
+        {
+            if (fact == null)
+            {
+                throw new ArgumentNullException(nameof(fact));
+            }
+
+            if (typeof(IFactProxy).IsAssignableFrom(typeof(TFact)))
+            {
+                return ((IFactProxy)fact).Graph.Last.Hash;
+            }
+
+            var graph = factManager.Serialize(fact);
+            return graph.Last.Hash;
         }
 
         /// <summary>
