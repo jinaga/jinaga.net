@@ -55,6 +55,10 @@ namespace Jinaga.Graphviz
             {
                 yield return projection;
             }
+            else if (typeof(IFactProxy).IsAssignableFrom(type))
+            {
+                yield return projection;
+            }
             else
             {
                 if (type.IsAssignableTo(typeof(IEnumerable)) && type != typeof(string))

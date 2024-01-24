@@ -46,8 +46,9 @@ namespace Jinaga.Serialization
                     reference = fact.Reference;
 
                     Graph = Graph.Add(fact);
-                    referenceByObject = referenceByObject.Add(runtimeFact, reference);
                 }
+                visiting = visiting.Remove(runtimeFact);
+                referenceByObject = referenceByObject.Add(runtimeFact, reference);
             }
             return reference;
         }
