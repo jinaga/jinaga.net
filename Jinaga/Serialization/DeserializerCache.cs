@@ -173,21 +173,38 @@ namespace Jinaga.Serialization
 
         private static Expression GetPredecessor(string role, Type parameterType, ParameterExpression factParameter, ParameterExpression emitterParameter)
         {
+            /*
+            var predecessorSingle = fact.GetPredecessorSingle(role);
+            return predecessorSingle == null
+                ? (T)null
+                : emitter.Deserialize<T>(predecessorSingle);
+            */
             var predecessorSingle = Expression.Call(
                 factParameter,
                 typeof(Fact).GetMethod(nameof(Fact.GetPredecessorSingle)),
                 Expression.Constant(role)
             );
-            var deserialize = Expression.Call(
-                emitterParameter,
-                typeof(Emitter).GetMethod(nameof(Emitter.Deserialize)).MakeGenericMethod(parameterType),
-                predecessorSingle
+            var deserialize = Expression.Condition(
+                Expression.Equal(
+                    predecessorSingle,
+                    Expression.Constant(null)
+                ),
+                Expression.Constant(null, parameterType),
+                Expression.Call(
+                    emitterParameter,
+                    typeof(Emitter).GetMethod(nameof(Emitter.Deserialize)).MakeGenericMethod(parameterType),
+                    predecessorSingle
+                )
             );
             return deserialize;
         }
 
         private static Expression GetPredecessorArray(string role, Type elementType, ParameterExpression factParameter, ParameterExpression emitterParameter)
         {
+            /*
+            var predecessorMultiple = fact.GetPredecessorMultiple(role);
+            return emitter.Deserialize<T[]>(predecessorMultiple);
+            */
             var predecessorMultiple = Expression.Call(
                 factParameter,
                 typeof(Fact).GetMethod(nameof(Fact.GetPredecessorMultiple)),

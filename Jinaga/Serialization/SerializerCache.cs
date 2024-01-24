@@ -36,6 +36,17 @@ namespace Jinaga.Serialization
 
         private static LambdaExpression Serialize(Type type)
         {
+            /*
+            (T instance, Collector collector) =>
+            {
+                var reference = collector.Serialize(instance);
+                return Fact.Create(
+                    type.FactTypeName(),
+                    FieldList(type, instance),
+                    PredecessorList(type, instance, collector)
+                );
+            }
+            */
             var instanceParameter = Expression.Parameter(type);
             var collectorParameter = Expression.Parameter(typeof(Collector));
             var createFactCall = Expression.Call(
@@ -121,6 +132,12 @@ namespace Jinaga.Serialization
 
         private static Expression PredecessorList(Type type, ParameterExpression instanceParameter, ParameterExpression collectorParameter)
         {
+            /*
+            ImmutableList<Predecessor> predecessors = ImmutableList<Predecessor>.Empty;
+            predecessors = predecessors.Add(new PredecessorSingle("predecessor", collector.Serialize(instance.Predecessor)));
+            predecessors = predecessors.Add(new PredecessorMultiple("predecessors", collector.Serialize(instance.Predecessors)));
+            return predecessors;
+            */
             var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
             Expression emptyList = Expression.Field(
                null,
@@ -139,15 +156,28 @@ namespace Jinaga.Serialization
 
         private static Expression PredecessorSingleGetter(PropertyInfo propertyInfo, ParameterExpression instanceParameter, ParameterExpression collectorParameter)
         {
-            return Expression.New(
-                typeof(PredecessorSingle).GetConstructor(new[] { typeof(string), typeof(FactReference) }),
-                Expression.Constant(propertyInfo.Name),
-                Expression.Call(
-                    collectorParameter,
-                    typeof(Collector).GetMethod(nameof(Collector.Serialize)),
-                    Expression.Convert(
-                        Expression.Property(instanceParameter, propertyInfo),
-                        typeof(object)
+            /*
+            instance.Predecessor == null ? (PredecessorSingle)null : new PredecessorSingle(
+                "predecessor",
+                collector.Serialize(instance.Predecessor)
+            )
+            */
+            return Expression.Condition(
+                Expression.Equal(
+                    Expression.Property(instanceParameter, propertyInfo),
+                    Expression.Constant(null)
+                ),
+                Expression.Constant(null, typeof(PredecessorSingle)),
+                Expression.New(
+                    typeof(PredecessorSingle).GetConstructor(new[] { typeof(string), typeof(FactReference) }),
+                    Expression.Constant(propertyInfo.Name),
+                    Expression.Call(
+                        collectorParameter,
+                        typeof(Collector).GetMethod(nameof(Collector.Serialize)),
+                        Expression.Convert(
+                            Expression.Property(instanceParameter, propertyInfo),
+                            typeof(object)
+                        )
                     )
                 )
             );
@@ -155,6 +185,12 @@ namespace Jinaga.Serialization
 
         private static Expression PredecessorMultipleGetter(PropertyInfo propertyInfo, ParameterExpression instanceParameter, ParameterExpression collectorParameter)
         {
+            /*
+            new PredecessorMultiple(
+                "predecessors",
+                SerializerCache.SerializePredecessors(instance.Predecessors, collector)
+            )
+            */
             var serializeMethod = typeof(SerializerCache)
                 .GetMethod(nameof(SerializerCache.SerializePredecessors))
                 .MakeGenericMethod(propertyInfo.PropertyType.GetElementType());
@@ -173,6 +209,10 @@ namespace Jinaga.Serialization
 
         public static ImmutableList<FactReference> SerializePredecessors<T>(T[] predecessors, Collector collector)
         {
+            if (predecessors == null)
+            {
+                return ImmutableList<FactReference>.Empty;
+            }
             return predecessors
                 .OfType<object>()
                 .Select(obj => collector.Serialize(obj))

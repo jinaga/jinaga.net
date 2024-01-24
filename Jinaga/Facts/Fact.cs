@@ -12,6 +12,9 @@ namespace Jinaga.Facts
     {
         public static Fact Create(string type, ImmutableList<Field> fields, ImmutableList<Predecessor> predecessors)
         {
+            predecessors = predecessors
+                .Where(predecessor => predecessor != null)
+                .ToImmutableList();
             var reference = new FactReference(type, ComputeHash(fields, predecessors));
             return new Fact(reference, fields, predecessors);
         }
@@ -47,7 +50,7 @@ namespace Jinaga.Facts
             }
         }
 
-        public FactReference GetPredecessorSingle(string role)
+        public FactReference? GetPredecessorSingle(string role)
         {
             var references = Predecessors
                 .Where(p => p.Role == role)
@@ -56,11 +59,11 @@ namespace Jinaga.Facts
                 .ToImmutableList();
             if (references.Count == 0)
             {
-                throw new ArgumentException($"The fact {Reference.Type} did not contain any predecessors in role {role}");
+                return null;
             }
             else if (references.Count > 1)
             {
-                throw new ArgumentException($"The fact {Reference.Type} contained {references.Count} predecessors in role {role}; there should only be 1");
+                return null;
             }
             else
             {
@@ -73,20 +76,9 @@ namespace Jinaga.Facts
             var references = Predecessors
                 .Where(p => p.Role == role)
                 .OfType<PredecessorMultiple>()
-                .Select(p => p.References)
+                .SelectMany(p => p.References)
                 .ToImmutableList();
-            if (references.Count == 0)
-            {
-                throw new ArgumentException($"The fact {Reference.Type} did not contain any predecessors in role {role}");
-            }
-            else if (references.Count > 1)
-            {
-                throw new ArgumentException($"The fact {Reference.Type} contained {references.Count} predecessors in role {role}; there should only be 1");
-            }
-            else
-            {
-                return references.Single();
-            }
+            return references;
         }
 
         public ImmutableList<FactReference> GetPredecessors(string role)
@@ -112,12 +104,14 @@ namespace Jinaga.Facts
 
         public IEnumerable<FactReference> GetAllPredecessorReferences()
         {
-            return Predecessors.SelectMany(p => p switch
-            {
-                PredecessorSingle single => ImmutableList<FactReference>.Empty.Add(single.Reference),
-                PredecessorMultiple multiple => multiple.References,
-                _ => throw new InvalidOperationException("Unknown predecessor type")
-            });
+            return Predecessors
+                .Where(p => p != null)
+                .SelectMany(p => p switch
+                {
+                    PredecessorSingle single => ImmutableList<FactReference>.Empty.Add(single.Reference),
+                    PredecessorMultiple multiple => multiple.References,
+                    _ => throw new InvalidOperationException("Unknown predecessor type")
+                });
         }
 
         private static string ComputeHash(ImmutableList<Field> fields, ImmutableList<Predecessor> predecessors)
@@ -166,6 +160,7 @@ namespace Jinaga.Facts
         private static string CanonicalizePredecessors(ImmutableList<Predecessor> predecessors)
         {
             var serializedPredecessors = predecessors
+                .Where(predecessor => predecessor != null)
                 .OrderBy(predecessor => predecessor.Role, StringComparer.Ordinal)
                 .Select(predecessor => $"\"{predecessor.Role}\":{SerializePredecessor(predecessor)}")
                 .ToArray();

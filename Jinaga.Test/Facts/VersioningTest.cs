@@ -103,6 +103,38 @@ public class VersioningTest
         deserialized.domain.Should().Be("michaelperry.net");
     }
 
+    [Fact]
+    public void CanAddPredecessor()
+    {
+        var original = new CommentV1(new BlogV5(DateTime.UtcNow), "Hello, world!");
+        var factGraph = Serialize(original);
+        var deserialized = Deserialize<CommentV2>(factGraph, factGraph.Last);
+
+        deserialized.message.Should().Be("Hello, world!");
+        deserialized.author.Should().BeNull();
+    }
+
+    [Fact]
+    public void CanRemovePredecessor()
+    {
+        var original = new CommentV2(new BlogV5(DateTime.UtcNow), "Hello, world!", new User("Michael"));
+        var factGraph = Serialize(original);
+        var deserialized = Deserialize<CommentV1>(factGraph, factGraph.Last);
+
+        deserialized.message.Should().Be("Hello, world!");
+    }
+
+    [Fact]
+    public void CanSerializeNullPredecessor()
+    {
+        var original = new CommentV2(new BlogV5(DateTime.UtcNow), "Hello, world!", null);
+        var factGraph = Serialize(original);
+        var deserialized = Deserialize<CommentV2>(factGraph, factGraph.Last);
+
+        deserialized.message.Should().Be("Hello, world!");
+        deserialized.author.Should().BeNull();
+    }
+
     private static FactGraph Serialize(object fact)
     {
         var serializerCache = SerializerCache.Empty;
@@ -134,3 +166,9 @@ public record BlogV4(DateTime? createdAt) {}
 
 [FactType("Blog")]
 public record BlogV5(DateTime createdAt) {}
+
+[FactType("Comment")]
+public record CommentV1(BlogV5 blog, string message) {}
+
+[FactType("Comment")]
+public record CommentV2(BlogV5 blog, string message, User author) {}
