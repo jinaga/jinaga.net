@@ -98,5 +98,8 @@ namespace Jinaga.Test.Specifications.Specifications
         }
     }
 
-    record PassengerProjection(Passenger Passenger, IObservableCollection<PassengerName> names);
+    record PassengerProjection(Passenger Passenger, IObservableCollection<PassengerName> names)
+    {
+        public string Name => names.Select(name => name.value).FirstOrDefault();
+    }
 }
