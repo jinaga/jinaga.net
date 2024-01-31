@@ -194,7 +194,7 @@ public class StoreTest
         DateTime now = DateTime.Parse("2021-07-04T01:39:43.241Z");
         var j = new JinagaClient(Store, new LocalNetwork());            
         var airline = new Airline("Airline1");           
-        var user = await j.Fact(new User("fqjsdfqkfjqlm"));
+        var user = await j.Fact(new User("fqjsdf'qkfjqlm"));
         var passenger = await j.Fact(new Passenger(airline, user));
         var passengerName1 = await j.Fact(new PassengerName(passenger, "Michael", new PassengerName[0]));
         var passengerName2 = await j.Fact(new PassengerName(passenger, "Caden", new PassengerName[0]));
