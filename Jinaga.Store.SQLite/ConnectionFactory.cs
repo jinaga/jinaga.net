@@ -80,7 +80,7 @@ namespace Jinaga.Store.SQLite
         {
             string sql;
             sql = "PRAGMA journal_mode=WAL";
-            conn.ExecuteScalar<string>(sql);         
+            conn.ExecuteScalar(sql);         
         }
 
 
@@ -114,18 +114,23 @@ namespace Jinaga.Store.SQLite
             }
 
 
-            public int ExecuteNonQuery(string sql)
+            public int ExecuteNonQuery(string sql, params object[] parameters)
             {
-                var stmt = SQLite.Prepare2(_db, sql);               
+                var stmt = SQLite.Prepare2(_db, sql);
                 try
                 {
+                    int index = 1;
+                    foreach (object parameter in parameters)
+                    {
+                        SQLite.BindParameter(stmt, index, parameter, true, "", true);
+                        index++;
+                    };
                     var r = SQLite.Step(stmt);
                     if (r == SQLite.Result.Done)
                     {
                         return SQLite.Changes(_db);
                     }
                     throw SQLiteException.New(r, $"ExecuteNonQuery/1: {r} - {SQLite.GetErrmsg(_db)}");
-
                 }
                 finally
                 {
@@ -138,14 +143,19 @@ namespace Jinaga.Store.SQLite
             }
 
 
-            public String ExecuteScalar<T>(string sql)
+            public string ExecuteScalar(string sql, params object[] parameters)
             {
-                //TODO: Make this work for <T> and not only for <string>.
                 var stmt = SQLite.Prepare2(_db, sql);
-                String result = "";
+                string result = "";
                 try
                 {
-                    var r = SQLite.Step(stmt);                    
+                    int index = 1;
+                    foreach (object parameter in parameters)
+                    {
+                        SQLite.BindParameter(stmt, index, parameter, true, "", true);
+                        index++;
+                    };
+                    var r = SQLite.Step(stmt);
                     while (r == SQLite.Result.Row)
                     {
                         result = SQLite.ColumnText(stmt, 0);
@@ -153,7 +163,7 @@ namespace Jinaga.Store.SQLite
                     }
                     if (r == SQLite.Result.Done)
                     {
-                        return result;                        
+                        return result;
                     }
                     throw SQLiteException.New(r, $"ExecuteScalar<T>/1: {r} - {SQLite.GetErrmsg(_db)}");
                 }
@@ -169,7 +179,7 @@ namespace Jinaga.Store.SQLite
 
 
             public IEnumerable<T> ExecuteQuery<T>(string sql, params object[] parameters) where T : class, new()
-            {               
+            {
                 IList<T> result = new List<T>();
                 var stmt = SQLite.Prepare2(_db, sql);
                 try
@@ -285,7 +295,7 @@ namespace Jinaga.Store.SQLite
                 {
                     conn.ExecuteNonQuery("ROLLBACK TRANSACTION");
                     //myLog += $"{MyStopWatch.Elapsed()}: {id:D2} -- {e.ToString()}\n\r";
-                    throw (e);
+                    throw;
                 }
             };
 
@@ -333,7 +343,7 @@ namespace Jinaga.Store.SQLite
                 {
                     if (attempt >= pause.Length)
                     {
-                        throw (e);
+                        throw;
                     }
                     else
                     {

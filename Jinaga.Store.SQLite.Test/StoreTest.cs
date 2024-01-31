@@ -194,7 +194,7 @@ public class StoreTest
         DateTime now = DateTime.Parse("2021-07-04T01:39:43.241Z");
         var j = new JinagaClient(Store, new LocalNetwork());            
         var airline = new Airline("Airline1");           
-        var user = await j.Fact(new User("fqjsdfqkfjqlm"));
+        var user = await j.Fact(new User("fqjsdf'qkfjqlm"));
         var passenger = await j.Fact(new Passenger(airline, user));
         var passengerName1 = await j.Fact(new PassengerName(passenger, "Michael", new PassengerName[0]));
         var passengerName2 = await j.Fact(new PassengerName(passenger, "Caden", new PassengerName[0]));
@@ -371,13 +371,13 @@ public class StoreTest
             var nbOfRecordsInserted = connFactory.WithConn((conn, id) =>
                 {
                     string sql;
-                    sql = $"INSERT INTO fact_type(name) VALUES ('{DateTime.Now} - {Stopwatch.GetTimestamp(),15:N0}')";
+                    sql = "INSERT INTO fact_type(name) VALUES (@0)";
                     //This statement will save a record
-                    conn.ExecuteNonQuery(sql);
-                    sql = $"INSERT INTO fact_type(NonExistingColumnName) VALUES ('ERROR @ {DateTime.Now} - {Stopwatch.GetTimestamp(),15:N0}')";
+                    conn.ExecuteNonQuery(sql, $"{DateTime.Now} - {Stopwatch.GetTimestamp(),15:N0}");
+                    sql = "INSERT INTO fact_type(NonExistingColumnName) VALUES (@0)";
                     //This statement will fail, hence this 'insert' AND the previous 'insert' will be repeated by the backoff algo.
                     //As both 'inserts' are independant (not part of a transaction), on every attempt the first 'insert' will save a record.
-                    return conn.ExecuteNonQuery(sql);
+                    return conn.ExecuteNonQuery(sql, $"ERROR @ {DateTime.Now} - {Stopwatch.GetTimestamp(),15:N0}");
                 },
                 true
             );
@@ -403,13 +403,13 @@ public class StoreTest
             var nbOfRecordsInserted = connFactory.WithConn((conn, id) =>
                 {
                     string sql;
-                    sql = $"INSERT INTO fact_type(name) VALUES ('{DateTime.Now} - {Stopwatch.GetTimestamp(),15:N0}')";
+                    sql = "INSERT INTO fact_type(name) VALUES (@0)";
                     //This statement will save a record
-                    conn.ExecuteNonQuery(sql);
-                    sql = $"INSERT INTO fact_type(NonExistingColumnName) VALUES ('ERROR @ {DateTime.Now} - {Stopwatch.GetTimestamp(),15:N0}')";
+                    conn.ExecuteNonQuery(sql, $"{DateTime.Now} - {Stopwatch.GetTimestamp(),15:N0}");
+                    sql = "INSERT INTO fact_type(NonExistingColumnName) VALUES (@0)";
                     //This statement will fail, hence this 'insert' AND the previous 'insert' will be repeated by the backoff algo.
-                    //As both 'inserts' are independant (not part of a transaction), on every attempt the first 'insert' will save a record.
-                    return conn.ExecuteNonQuery(sql);
+                    //As both 'inserts' are independent (not part of a transaction), on every attempt the first 'insert' will save a record.
+                    return conn.ExecuteNonQuery(sql, $"ERROR @ {DateTime.Now} - {Stopwatch.GetTimestamp(),15:N0}");
                 },
                 false
             );
@@ -450,7 +450,7 @@ public class StoreTest
             {
                 string sql;
                 sql = "PRAGMA journal_mode=DELETE";
-                return conn.ExecuteScalar<string>(sql);
+                return conn.ExecuteScalar(sql);
             },
                 false
         );
@@ -462,7 +462,7 @@ public class StoreTest
             {
                 string sql;
                 sql = "PRAGMA journal_mode=WAL";
-                return conn.ExecuteScalar<string>(sql);
+                return conn.ExecuteScalar(sql);
             },
                 false
         );
@@ -769,11 +769,11 @@ public class StoreTest
 
                     string sql;
                     sql = $"SELECT count(*) FROM fact_type";
-                    var readResult2 = conn.ExecuteScalar<FactType>(sql);
+                    var readResult2 = conn.ExecuteScalar(sql);
 
                     Thread.Sleep(2000);
 
-                    readResult2 = conn.ExecuteScalar<FactType>(sql);
+                    readResult2 = conn.ExecuteScalar(sql);
 
                     output.WriteLine($"{MyStopWatch.Elapsed()}: {id:D2} -- Result read: count(*) = {readResult2}");
                     output.WriteLine($"{MyStopWatch.Elapsed()}: {id:D2} -- ENDING Read-Thread: {Thread.CurrentThread.ManagedThreadId}");

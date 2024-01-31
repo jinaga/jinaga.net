@@ -342,7 +342,7 @@ namespace Jinaga.Store.SQLite
                 }
                 else
                 {
-                    throw new NotSupportedException("Cannot store type");
+                    throw new NotSupportedException($"Cannot store type {value.GetType()}");
                 }
             }
         }
@@ -391,8 +391,8 @@ namespace Jinaga.Store.SQLite
 			var r = Sqlite3.sqlite3_prepare_v2 (db, query, out stmt);
 
 			if (r != 0) {
-				//throw SQLiteException.New ((Result)r, GetErrmsg (db));
-				throw SQLiteException.New((Result)r, $"Prepare2 - Result: {r.ToString()} - ExtendedErrCode: {ExtendedErrCode(db)} - ErrorMsg: {GetErrmsg(db)}" );
+                string message = GetErrmsg(db);
+                throw SQLiteException.New ((Result)r, message);
 			}
 			return stmt;
 		}
