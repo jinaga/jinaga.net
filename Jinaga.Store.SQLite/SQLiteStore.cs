@@ -53,72 +53,72 @@ namespace Jinaga.Store.SQLite
                                 string sql;
 
                                 // Select or insert into FactType table.  Gets a FactTypeId
-                                sql = $@"
+                                sql = @"
                                     SELECT fact_type_id 
                                     FROM fact_type 
-                                    WHERE name = '{fact.Reference.Type}'
+                                    WHERE name = @0
                                 ";
-                                var factTypeId = conn.ExecuteScalar<String>(sql);
+                                var factTypeId = conn.ExecuteScalar(sql, fact.Reference.Type);
                                 if (factTypeId == "")
                                 {
-                                    sql = $@"
+                                    sql = @"
                                         INSERT OR IGNORE INTO fact_type (name) 
-                                        VALUES ('{fact.Reference.Type}')
+                                        VALUES (@0)
                                     ";
-                                    conn.ExecuteNonQuery(sql);
-                                    sql = $@"
+                                    conn.ExecuteNonQuery(sql, fact.Reference.Type);
+                                    sql = @"
                                         SELECT fact_type_id 
                                         FROM fact_type 
-                                        WHERE name = '{fact.Reference.Type}'
+                                        WHERE name = @0
                                     ";
-                                    factTypeId = conn.ExecuteScalar<String>(sql);
+                                    factTypeId = conn.ExecuteScalar(sql, fact.Reference.Type);
                                 }
 
                                 // Select or insert into Fact table.  Gets a FactId
-                                sql = $@"
+                                sql = @"
                                     SELECT fact_id FROM fact 
-                                    WHERE hash = '{fact.Reference.Hash}' AND fact_type_id = {factTypeId}
+                                    WHERE hash = @0 AND fact_type_id = @1
                                 ";
-                                var factId = conn.ExecuteScalar<String>(sql);
+                                var factId = conn.ExecuteScalar(sql, fact.Reference.Hash, factTypeId);
                                 if (factId == "")
                                 {
                                     newFacts = newFacts.Add(fact);
                                     string data = Fact.Canonicalize(fact.Fields, fact.Predecessors);
-                                    sql = $@"
+                                    sql = @"
                                         INSERT OR IGNORE INTO fact (fact_type_id, hash, data) 
-                                        VALUES ({factTypeId},'{fact.Reference.Hash}', '{data}' )
+                                        VALUES (@0, @1, @2)
                                     ";
-                                    conn.ExecuteNonQuery(sql);
-                                    sql = $@"
+                                    conn.ExecuteNonQuery(sql, factTypeId, fact.Reference.Hash, data);
+                                    sql = @"
                                         SELECT fact_id 
                                         FROM fact 
-                                        WHERE hash = '{fact.Reference.Hash}' AND fact_type_id = {factTypeId}
+                                        WHERE hash = @0 AND fact_type_id = @1
                                     ";
-                                    factId = conn.ExecuteScalar<String>(sql);
+                                    factId = conn.ExecuteScalar(sql, fact.Reference.Hash, factTypeId);
 
                                     // For each predecessor of the inserted fact ...
                                     foreach (var predecessor in fact.Predecessors)
                                     {
                                         // Select or insert into Role table.  Gets a RoleId
-                                        sql = $@"
+                                        sql = @"
                                             SELECT role_id 
                                             FROM role 
-                                            WHERE defining_fact_type_id = {factTypeId} AND name = '{predecessor.Role}'
+                                            WHERE defining_fact_type_id = @0 AND name = @1
                                         ";
-                                        var roleId = conn.ExecuteScalar<String>(sql);
+                                        var roleId = conn.ExecuteScalar(sql, factTypeId, predecessor.Role);
                                         if (roleId == "")
                                         {
-                                            sql = $@"
+                                            sql = @"
                                                 INSERT OR IGNORE INTO role (defining_fact_type_id, name) 
-                                                VALUES ({factTypeId},'{predecessor.Role}')
+                                                VALUES (@0, @1)
                                             ";
-                                            conn.ExecuteNonQuery(sql);
-                                            sql = $@"
+                                            conn.ExecuteNonQuery(sql, factTypeId, predecessor.Role);
+                                            sql = @"
                                                 SELECT role_id 
                                                 FROM role 
-                                                WHERE defining_fact_type_id = {factTypeId} AND name = '{predecessor.Role}'
+                                                WHERE defining_fact_type_id = @0 AND name = @1
                                             ";
-                                            roleId = conn.ExecuteScalar<String>(sql);
+                                            roleId = conn.ExecuteScalar(sql, factTypeId, predecessor.Role);
                                         }
 
                                         // Insert into Edge and Ancestor tables
@@ -164,14 +164,14 @@ namespace Jinaga.Store.SQLite
                 FROM fact_type 
                 WHERE name = '{factReference.Type}'
             ";
-            var factTypeId = conn.ExecuteScalar<String>(sql);
+            var factTypeId = conn.ExecuteScalar(sql);
 
             sql = $@"
                 SELECT fact_id 
                 FROM fact 
                 WHERE hash = '{factReference.Hash}' AND fact_type_id = {factTypeId}
             ";
-            return conn.ExecuteScalar<String>(sql);
+            return conn.ExecuteScalar(sql);
         }
 
 
@@ -179,16 +179,16 @@ namespace Jinaga.Store.SQLite
         {
             string sql;
 
-            sql = $@"
+            sql = @"
                 INSERT OR IGNORE INTO ancestor 
                     (fact_id, ancestor_fact_id)
-                SELECT '{factId}', '{predecessorFactId}'
+                SELECT @0, @1
                 UNION
-                SELECT '{factId}', ancestor_fact_id
+                SELECT @0, ancestor_fact_id
                 FROM ancestor
-                WHERE fact_id = '{predecessorFactId}'
+                WHERE fact_id = @1
             ";
-            conn.ExecuteNonQuery(sql);
+            conn.ExecuteNonQuery(sql, factId, predecessorFactId);
         }
 
 
@@ -196,11 +196,11 @@ namespace Jinaga.Store.SQLite
         {
             string sql;
 
-            sql = $@"
+            sql = @"
                 INSERT OR IGNORE INTO edge (role_id, successor_fact_id, predecessor_fact_id) 
-                VALUES ({roleId}, {successorFactId}, {predecessorFactId})
+                VALUES (@0, @1, @2)
             ";
-            conn.ExecuteNonQuery(sql);
+            conn.ExecuteNonQuery(sql, roleId, successorFactId, predecessorFactId);
         }
 
 
@@ -215,24 +215,31 @@ namespace Jinaga.Store.SQLite
             {
                 var factsFromDb = connFactory.WithConn(
                     (conn, id) =>
-                        {                     
-                            string[]  referenceValues = references.Select((f) => "('" + f.Hash + "', '" + f.Type + "')").ToArray();                           
-                            string sql;
-                            sql = $@"
+                        {
+                            var referenceValues = references.Select((f, i) => $"(@{2*i}, @{2*i+1})").ToArray();
+
+                            var parameters = new List<object>();
+                            for (int i = 0; i < references.Count; i++)
+                            {
+                                parameters.Add(references[i].Hash);
+                                parameters.Add(references[i].Type);
+                            }
+
+                            string sql = $@"
                                 SELECT f.hash, 
-                                       f.data,
-                                       t.name
+                                    f.data,
+                                    t.name
                                 FROM fact f 
                                 JOIN fact_type t 
                                     ON f.fact_type_id = t.fact_type_id    
                                 WHERE (f.hash,t.name) 
                                     IN (VALUES {String.Join(",", referenceValues)} )
 
-                             UNION 
+                            UNION 
 
                                 SELECT f2.hash, 
-                                       f2.data,
-                                       t2.name
+                                    f2.data,
+                                    t2.name
                                 FROM fact f1 
                                 JOIN fact_type t1 
                                     ON 
@@ -247,7 +254,7 @@ namespace Jinaga.Store.SQLite
                                     ON t2.fact_type_id = f2.fact_type_id
                             ";
 
-                            return conn.ExecuteQuery<FactFromDb>(sql);
+                            return conn.ExecuteQuery<FactFromDb>(sql, parameters.ToArray());
                         },
                     true   //exponentional backoff
                 );
@@ -451,12 +458,13 @@ namespace Jinaga.Store.SQLite
                  (conn, id) =>
                  {
                      {
-                         string sql;
-                         sql = $@"
+                        string sql;
+
+                        sql = @"
                             INSERT OR REPLACE INTO bookmark (feed_hash, bookmark)                        
-                            VALUES  ('{feed}', '{bookmark}' )
+                            VALUES  (@0, @1)
                         ";
-                         return conn.ExecuteNonQuery(sql);
+                        return conn.ExecuteNonQuery(sql, feed, bookmark);
                      }
                  },
                  true
@@ -477,7 +485,7 @@ namespace Jinaga.Store.SQLite
                             FROM bookmark
                             WHERE feed_hash = '{feed}'
                         ";
-                        return conn.ExecuteScalar<String>(sql);
+                        return conn.ExecuteScalar(sql);
                     }                   
                 },
                 true
@@ -495,11 +503,12 @@ namespace Jinaga.Store.SQLite
                 {
                     {
                         string sql;
-                        sql = $@"
+
+                        sql = @"
                             INSERT OR REPLACE INTO mru (specification_hash, mru_date)                        
-                            VALUES  ('{specificationHash}', '{mruDate.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss")}')
+                            VALUES  (@0, @1)
                         ";
-                        return conn.ExecuteNonQuery(sql);
+                        return conn.ExecuteNonQuery(sql, specificationHash, mruDate.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss"));
                     }
                 },
                 true
@@ -517,13 +526,14 @@ namespace Jinaga.Store.SQLite
                (conn, id) =>
                {
                    {
-                       string sql;
-                       sql = $@"
+                        string sql;
+
+                        sql = @"
                             SELECT mru_date
                             FROM mru
-                            WHERE specification_hash = '{specificationHash}'
+                            WHERE specification_hash = @0
                         ";
-                       return conn.ExecuteScalar<String>(sql);
+                        return conn.ExecuteScalar(sql, specificationHash);
                    }
                },
                true
@@ -552,7 +562,7 @@ namespace Jinaga.Store.SQLite
                         FROM queue_bookmark
                         WHERE replicator = 'primary'
                     ";
-                    return conn.ExecuteScalar<String>(sql);
+                    return conn.ExecuteScalar(sql);
                 },
                 true
             );
