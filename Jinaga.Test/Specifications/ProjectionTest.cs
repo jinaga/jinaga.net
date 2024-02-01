@@ -67,6 +67,9 @@ namespace Jinaga.Test.Specifications.Specifications
                     passenger,
                     facts.Observable(passenger, namesOfPassenger)
                 )
+                {
+                    PassengerID = j.Hash(passenger)
+                }
             ), airline);
 
             var result = passengers.Should().ContainSingle().Subject;
@@ -98,5 +101,10 @@ namespace Jinaga.Test.Specifications.Specifications
         }
     }
 
-    record PassengerProjection(Passenger Passenger, IObservableCollection<PassengerName> names);
+    record PassengerProjection(Passenger passenger, IObservableCollection<PassengerName> names)
+    {
+        public string Name => names.Select(name => name.value).FirstOrDefault();
+
+        public string PassengerID { get; internal set; }
+    }
 }

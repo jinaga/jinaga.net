@@ -31,7 +31,14 @@ namespace Jinaga.Projections
 
         public Projection GetProjection(string name)
         {
-            return projections[name];
+            if (projections.TryGetValue(name, out var projection))
+            {
+                return projection;
+            }
+            else
+            {
+                throw new ArgumentException($"No projection named {name}");
+            }
         }
 
         public override bool CanRunOnGraph => projections.Values.All(p => p.CanRunOnGraph);

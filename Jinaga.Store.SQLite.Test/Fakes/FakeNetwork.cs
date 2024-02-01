@@ -8,9 +8,9 @@ using Xunit.Abstractions;
 namespace Jinaga.Store.SQLite.Test.Fakes;
 internal class FakeFeed
 {
-    public string Name { get; set; }
-    public Fact[] Facts { get; set; }
-    public int Delay { get; set; }
+    public required string Name { get; set; }
+    public required Fact[] Facts { get; set; }
+    public required int Delay { get; set; }
 }
 internal class FakeNetwork : INetwork
 {
