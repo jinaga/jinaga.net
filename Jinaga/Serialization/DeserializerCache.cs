@@ -131,6 +131,27 @@ namespace Jinaga.Serialization
                     )
                 );
             }
+            else if (parameterType == typeof(Guid))
+            {
+                return Expression.Call(
+                    typeof(FieldValue).GetMethod(nameof(FieldValue.GuidFromString)),
+                    Expression.Property(
+                        getFieldValue,
+                        nameof(FieldValue.StringValue)
+                    )
+                );
+            }
+            else if (parameterType == typeof(Guid?))
+            {
+                var guidFromNullableString = typeof(FieldValue).GetMethod(nameof(FieldValue.NullableGuidFromString));
+                return Expression.Call(
+                    guidFromNullableString,
+                    Expression.Property(
+                        getFieldValue,
+                        nameof(FieldValue.StringValue)
+                    )
+                );
+            }
             else if (parameterType == typeof(int))
             {
                 return Expression.Convert(

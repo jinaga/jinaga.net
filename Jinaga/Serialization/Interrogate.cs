@@ -14,6 +14,7 @@ namespace Jinaga.Serialization
                 type == typeof(float) ||
                 type == typeof(double) ||
                 type == typeof(bool) ||
+                type == typeof(Guid) ||
                 IsNullableField(type);
         }
 
