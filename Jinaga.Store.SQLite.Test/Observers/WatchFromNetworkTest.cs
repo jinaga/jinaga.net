@@ -149,8 +149,8 @@ public class WatchFromNetworkTest
 
     private class OfficeViewModel
     {
-        public Office Office;
-        public string Name;
+        public required Office Office;
+        public string? Name;
     }
 
     private class CompanyViewModel
