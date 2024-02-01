@@ -91,10 +91,14 @@ namespace Jinaga.Repository
             }
             else if (expression is MemberInitExpression memberInit)
             {
+                var parameters = memberInit.NewExpression.Constructor.GetParameters()
+                    .Zip(memberInit.NewExpression.Arguments, (parameter, arg) => KeyValuePair.Create(
+                        parameter.Name,
+                        ProcessProjection(arg, symbolTable)));
                 var fields = memberInit.Bindings
-                    .Select(binding => ProcessProjectionMember(binding, symbolTable))
-                    .ToImmutableDictionary();
-                var compoundProjection = new CompoundProjection(fields, memberInit.Type);
+                    .Select(binding => ProcessProjectionMember(binding, symbolTable));
+                var childProjections = parameters.Concat(fields).ToImmutableDictionary();
+                var compoundProjection = new CompoundProjection(childProjections, memberInit.Type);
                 return compoundProjection;
             }
             else if (expression is MemberExpression memberExpression)
