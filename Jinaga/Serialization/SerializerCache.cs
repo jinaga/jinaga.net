@@ -36,6 +36,7 @@ namespace Jinaga.Serialization
 
         private static LambdaExpression Serialize(Type type)
         {
+            ValidateType(type);
             /*
             (T instance, Collector collector) =>
             {
@@ -61,6 +62,22 @@ namespace Jinaga.Serialization
                 collectorParameter
             );
             return lambda;
+        }
+
+        private static void ValidateType(Type type)
+        {
+            var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
+            var unsupportedProperties = properties
+                .Where(property => !Interrogate.IsField(property.PropertyType) && !Interrogate.IsPredecessor(property.PropertyType))
+                .ToImmutableList();
+            if (unsupportedProperties.Any())
+            {
+                var propertyTypesAndNames = unsupportedProperties
+                    .Select(property => $"{property.PropertyType.Name} {property.Name}")
+                    .ToImmutableList();
+                var propertyTypesAndNamesString = string.Join(", ", propertyTypesAndNames);
+                throw new ArgumentException($"Unsupported properties ({propertyTypesAndNamesString}) in {type.Name}. Only fields and predecessors are supported.");
+            }
         }
 
         private static Expression FieldList(Type type, ParameterExpression instanceParameter)

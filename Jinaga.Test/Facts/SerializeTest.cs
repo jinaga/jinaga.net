@@ -103,6 +103,20 @@ namespace Jinaga.Test.Facts
                 .value.Should().Be("George");
         }
 
+        [Fact]
+        public void SerializeGuid()
+        {
+            var school = new School(Guid.NewGuid());
+
+            var graph = Serialize(school);
+            var fact = graph.GetFact(graph.Last);
+
+            var field = fact.Fields.Should().ContainSingle().Subject;
+            field.Name.Should().Be("identifier");
+            field.Value.Should().BeOfType<FieldValueString>().Which
+                .StringValue.Should().Be(school.identifier.ToString());
+        }
+
         private static FactGraph Serialize(object runtimeFact)
         {
             var collector = new Collector(SerializerCache.Empty);
