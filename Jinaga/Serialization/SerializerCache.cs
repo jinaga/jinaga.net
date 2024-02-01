@@ -69,7 +69,11 @@ namespace Jinaga.Serialization
         {
             var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
             var unsupportedProperties = properties
-                .Where(property => !Interrogate.IsField(property.PropertyType) && !Interrogate.IsPredecessor(property.PropertyType))
+                .Where(property =>
+                    !Interrogate.IsField(property.PropertyType) &&
+                    !Interrogate.IsPredecessor(property.PropertyType) &&
+                    !Interrogate.IsHelper(property.PropertyType)
+                )
                 .ToImmutableList();
             if (unsupportedProperties.Any())
             {

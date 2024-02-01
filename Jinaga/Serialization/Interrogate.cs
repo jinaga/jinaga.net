@@ -47,5 +47,11 @@ namespace Jinaga.Serialization
                 type.IsArray &&
                 IsFactType(type.GetElementType());
         }
+
+        public static bool IsHelper(Type propertyType)
+        {
+            return
+                propertyType == typeof(Condition);
+        }
     }
 }
