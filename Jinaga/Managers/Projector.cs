@@ -93,27 +93,15 @@ namespace Jinaga.Managers
             }
             else if (projection is CompoundProjection compound)
             {
-                var constructorInfos = type.GetConstructors();
-                if (constructorInfos.Length != 1)
-                {
-                    throw new NotImplementedException($"Multiple constructors for {type.Name}");
-                }
-                var constructor = constructorInfos.Single();
-                var parameters = constructor.GetParameters();
-                var properties = type.GetProperties();
-                var names = parameters.Select(parameter => parameter.Name).Concat(
-                    properties.Select(property => property.Name)
-                ).Distinct();
-                var references = (
+                return (
                     from product in products
-                    from name in names
+                    from name in compound.Names
                     from reference in GetFactReferences(
                         compound.GetProjection(name),
                         product,
                         name)
                     select reference
                 ).Distinct().ToImmutableList();
-                return references;
             }
             else if (projection is FieldProjection field)
             {
