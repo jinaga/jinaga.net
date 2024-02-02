@@ -1,6 +1,7 @@
 using Jinaga.Facts;
 using Jinaga.Repository;
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Linq.Expressions;
@@ -36,6 +37,7 @@ namespace Jinaga.Serialization
 
         private static LambdaExpression Serialize(Type type)
         {
+            ValidateType(type);
             /*
             (T instance, Collector collector) =>
             {
@@ -63,6 +65,26 @@ namespace Jinaga.Serialization
             return lambda;
         }
 
+        private static void ValidateType(Type type)
+        {
+            var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
+            var unsupportedProperties = properties
+                .Where(property =>
+                    !Interrogate.IsField(property.PropertyType) &&
+                    !Interrogate.IsPredecessor(property.PropertyType) &&
+                    !Interrogate.IsHelper(property.PropertyType)
+                )
+                .ToImmutableList();
+            if (unsupportedProperties.Any())
+            {
+                var propertyTypesAndNames = unsupportedProperties
+                    .Select(property => $"{property.PropertyType.Name} {property.Name}")
+                    .ToImmutableList();
+                var propertyTypesAndNamesString = string.Join(", ", propertyTypesAndNames);
+                throw new ArgumentException($"Unsupported properties ({propertyTypesAndNamesString}) in {type.Name}. Only fields and predecessors are supported.");
+            }
+        }
+
         private static Expression FieldList(Type type, ParameterExpression instanceParameter)
         {
             var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
@@ -86,7 +108,7 @@ namespace Jinaga.Serialization
                 propertyInfo.PropertyType == typeof(string)
                     ? Expression.New(typeof(FieldValueString).GetConstructor(new[] { typeof(string) }), propertyGet)
                 : propertyInfo.PropertyType == typeof(DateTime)
-                    ? Expression.New(typeof(FieldValueString).GetConstructor(new[] { typeof(string) }), CallToISO8601String(propertyGet))
+                    ? Expression.New(typeof(FieldValueString).GetConstructor(new[] { typeof(string) }), CallDateTimeToIso8601String(propertyGet))
                 : propertyInfo.PropertyType == typeof(int)
                     ? Expression.New(typeof(FieldValueNumber).GetConstructor(new[] { typeof(double) }), ConvertToDouble(propertyGet))
                 : propertyInfo.PropertyType == typeof(float)
@@ -96,7 +118,11 @@ namespace Jinaga.Serialization
                 : propertyInfo.PropertyType == typeof(bool)
                     ? Expression.New(typeof(FieldValueBoolean).GetConstructor(new[] { typeof(bool) }), propertyGet)
                 : propertyInfo.PropertyType == typeof(DateTime?)
-                    ? Expression.New(typeof(FieldValueString).GetConstructor(new[] { typeof(string) }), CallToNullableISO8601String(propertyGet))
+                    ? Expression.New(typeof(FieldValueString).GetConstructor(new[] { typeof(string) }), CallNullableDateTimeToIso8601String(propertyGet))
+                : propertyInfo.PropertyType == typeof(Guid)
+                    ? Expression.New(typeof(FieldValueString).GetConstructor(new[] { typeof(string) }), CallGuidToString(propertyGet))
+                : propertyInfo.PropertyType == typeof(Guid?)
+                    ? Expression.New(typeof(FieldValueString).GetConstructor(new[] { typeof(string) }), CallNullableGuidToString(propertyGet))
                 : throw new ArgumentException($"Unsupported field type {propertyInfo.PropertyType.Name} in {propertyInfo.DeclaringType.Name}.{propertyInfo.Name}");
             NewExpression newField = Expression.New(
                 typeof(Field).GetConstructor(new[] { typeof(string), typeof(FieldValue) }),
@@ -106,20 +132,40 @@ namespace Jinaga.Serialization
             return newField;
         }
 
-        private static Expression CallToISO8601String(MemberExpression propertyGet)
+        private static Expression CallDateTimeToIso8601String(MemberExpression propertyGet)
         {
             return Expression.Call(
-                typeof(FieldValue).GetMethod(nameof(FieldValue.ToIso8601String)),
+                typeof(FieldValue).GetMethod(nameof(FieldValue.DateTimeToIso8601String)),
                 propertyGet
             );
         }
 
-        private static Expression CallToNullableISO8601String(MemberExpression propertyGet)
+        private static Expression CallNullableDateTimeToIso8601String(MemberExpression propertyGet)
         {
             return Expression.Call(
-                typeof(FieldValue).GetMethod(nameof(FieldValue.ToNullableIso8601String)),
+                typeof(FieldValue).GetMethod(nameof(FieldValue.NullableDateTimeToIso8601String)),
                 propertyGet
             );
+        }
+
+        private static IEnumerable<Expression> CallGuidToString(MemberExpression propertyGet)
+        {
+            return new[] {
+                Expression.Call(
+                    typeof(FieldValue).GetMethod(nameof(FieldValue.GuidToString)),
+                    propertyGet
+                )
+            };
+        }
+
+        private static IEnumerable<Expression> CallNullableGuidToString(MemberExpression propertyGet)
+        {
+            return new[] {
+                Expression.Call(
+                    typeof(FieldValue).GetMethod(nameof(FieldValue.NullableGuidToString)),
+                    propertyGet
+                )
+            };
         }
 
         private static Expression ConvertToDouble(MemberExpression propertyGet)

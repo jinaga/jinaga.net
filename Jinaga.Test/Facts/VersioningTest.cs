@@ -135,6 +135,56 @@ public class VersioningTest
         deserialized.author.Should().BeNull();
     }
 
+    [Fact]
+    public void CanSerializeGuid()
+    {
+        var original = new BlogWithGuid(Guid.NewGuid());
+        var factGraph = Serialize(original);
+        var deserialized = Deserialize<BlogWithGuid>(factGraph, factGraph.Last);
+
+        deserialized.identifier.Should().Be(original.identifier);
+    }
+
+    [Fact]
+    public void CanSerializeNullableGuidWithValue()
+    {
+        var original = new BlogWithNullableGuid(Guid.NewGuid());
+        var factGraph = Serialize(original);
+        var deserialized = Deserialize<BlogWithNullableGuid>(factGraph, factGraph.Last);
+
+        deserialized.identifier.Should().Be(original.identifier);
+    }
+
+    [Fact]
+    public void CanSerializeNullableGuidWithNull()
+    {
+        var original = new BlogWithNullableGuid(null);
+        var factGraph = Serialize(original);
+        var deserialized = Deserialize<BlogWithNullableGuid>(factGraph, factGraph.Last);
+
+        deserialized.identifier.Should().BeNull();
+    }
+
+    [Fact]
+    public void CanUpgradeToGuid()
+    {
+        var original = new BlogV1("michaelperry.net");
+        var factGraph = Serialize(original);
+        var deserialized = Deserialize<BlogWithGuid>(factGraph, factGraph.Last);
+
+        deserialized.identifier.Should().Be(Guid.Empty);
+    }
+
+    [Fact]
+    public void CanUpgradeToNullableGuid()
+    {
+        var original = new BlogV1("michaelperry.net");
+        var factGraph = Serialize(original);
+        var deserialized = Deserialize<BlogWithNullableGuid>(factGraph, factGraph.Last);
+
+        deserialized.identifier.Should().BeNull();
+    }
+
     private static FactGraph Serialize(object fact)
     {
         var serializerCache = SerializerCache.Empty;
@@ -166,6 +216,12 @@ public record BlogV4(DateTime? createdAt) {}
 
 [FactType("Blog")]
 public record BlogV5(DateTime createdAt) {}
+
+[FactType("Blog")]
+public record BlogWithGuid(Guid identifier) {}
+
+[FactType("Blog")]
+public record BlogWithNullableGuid(Guid? identifier) {}
 
 [FactType("Comment")]
 public record CommentV1(BlogV5 blog, string message) {}

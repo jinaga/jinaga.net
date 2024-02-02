@@ -6,7 +6,7 @@ namespace Jinaga.Facts
     {
         public static FieldValue Undefined { get; } = new FieldValueUndefined();
 
-        public static string ToIso8601String(DateTime dateTime)
+        public static string DateTimeToIso8601String(DateTime dateTime)
         {
             var utcDateTime = dateTime.Kind == DateTimeKind.Utc
                 ? dateTime
@@ -14,10 +14,10 @@ namespace Jinaga.Facts
             return utcDateTime.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
         }
 
-        public static string ToNullableIso8601String(DateTime? dateTime)
+        public static string NullableDateTimeToIso8601String(DateTime? dateTime)
         {
             return dateTime.HasValue
-                ? ToIso8601String(dateTime.Value)
+                ? DateTimeToIso8601String(dateTime.Value)
                 : string.Empty;
         }
 
@@ -35,6 +35,34 @@ namespace Jinaga.Facts
                 : DateTime.TryParse(str, out var dateTime)
                 ? dateTime.ToUniversalTime()
                 : (DateTime?)null;
+        }
+
+        public static string GuidToString(Guid guid)
+        {
+            return guid.ToString("D");
+        }
+
+        public static string NullableGuidToString(Guid? guid)
+        {
+            return guid.HasValue
+                ? guid.Value.ToString("D")
+                : string.Empty;
+        }
+
+        public static Guid GuidFromString(string str)
+        {
+            return Guid.TryParse(str, out var guid)
+                ? guid
+                : Guid.Empty;
+        }
+
+        public static Guid? NullableGuidFromString(string str)
+        {
+            return string.IsNullOrEmpty(str)
+                ? (Guid?)null
+                : Guid.TryParse(str, out var guid)
+                ? guid
+                : (Guid?)null;
         }
 
         public abstract string StringValue { get; }

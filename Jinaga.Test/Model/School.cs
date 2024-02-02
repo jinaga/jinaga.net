@@ -3,7 +3,10 @@
 namespace Jinaga.Test.Model;
 
 [FactType("School")]
-public record School(string name) { }
+public record OldSchool(string name, Guid? identifier) {}
+
+[FactType("School")]
+public record School(Guid identifier) { }
 
 [FactType("Course")]
 public record Course(School school, string identifier) { }

@@ -103,6 +103,91 @@ namespace Jinaga.Test.Facts
                 .value.Should().Be("George");
         }
 
+        [Fact]
+        public void SerializeGuid()
+        {
+            var school = new School(Guid.NewGuid());
+
+            var graph = Serialize(school);
+            var fact = graph.GetFact(graph.Last);
+
+            var field = fact.Fields.Should().ContainSingle().Subject;
+            field.Name.Should().Be("identifier");
+            field.Value.Should().BeOfType<FieldValueString>().Which
+                .StringValue.Should().Be(school.identifier.ToString());
+        }
+
+        [Fact]
+        public void SerializeNullableGuid()
+        {
+            var school = new OldSchool("IHS", null);
+
+            var graph = Serialize(school);
+            var fact = graph.GetFact(graph.Last);
+
+            fact.Fields.Should().HaveCount(2);
+            var name = fact.Fields.Single(f => f.Name == "name");
+            name.Value.Should().BeOfType<FieldValueString>().Which
+                .StringValue.Should().Be("IHS");
+            var identifier = fact.Fields.Single(f => f.Name == "identifier");
+            identifier.Value.Should().BeOfType<FieldValueString>().Which
+                .StringValue.Should().Be(string.Empty);
+        }
+
+        [Fact]
+        public void SerializeNullableGuidWithValue()
+        {
+            var school = new OldSchool("IHS", Guid.NewGuid());
+
+            var graph = Serialize(school);
+            var fact = graph.GetFact(graph.Last);
+
+            fact.Fields.Should().HaveCount(2);
+            var name = fact.Fields.Single(f => f.Name == "name");
+            name.Value.Should().BeOfType<FieldValueString>().Which
+                .StringValue.Should().Be("IHS");
+            var identifier = fact.Fields.Single(f => f.Name == "identifier");
+            identifier.Value.Should().BeOfType<FieldValueString>().Which
+                .StringValue.Should().Be(school.identifier.Value.ToString());
+        }
+
+        [Fact]
+        public void SerializeGuidRoundTrip()
+        {
+            Guid identifier = Guid.NewGuid();
+            var school = new School(identifier);
+
+            var graph = Serialize(school);
+            var roundTrip = Deserialize<School>(graph, graph.Last);
+
+            roundTrip.identifier.Should().Be(identifier);
+        }
+
+        [Fact]
+        public void SerializeNullableGuidWithValueRoundTrip()
+        {
+            Guid identifier = Guid.NewGuid();
+            var school = new OldSchool("IHS", identifier);
+
+            var graph = Serialize(school);
+            var roundTrip = Deserialize<OldSchool>(graph, graph.Last);
+
+            roundTrip.name.Should().Be("IHS");
+            roundTrip.identifier.Should().Be(identifier);
+        }
+
+        [Fact]
+        public void SerializeNullableGuidWithNullRoundTrip()
+        {
+            var school = new OldSchool("IHS", null);
+
+            var graph = Serialize(school);
+            var roundTrip = Deserialize<OldSchool>(graph, graph.Last);
+
+            roundTrip.name.Should().Be("IHS");
+            roundTrip.identifier.Should().BeNull();
+        }
+
         private static FactGraph Serialize(object runtimeFact)
         {
             var collector = new Collector(SerializerCache.Empty);
