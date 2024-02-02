@@ -68,6 +68,10 @@ namespace Jinaga.Serialization
         private static void ValidateType(Type type)
         {
             var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
+            if (properties.Any(property => property.Name == "type"))
+            {
+                throw new ArgumentException($"The type {type.Name} has a property named 'type'. That property name is reserved.");
+            }
             var unsupportedProperties = properties
                 .Where(property =>
                     !Interrogate.IsField(property.PropertyType) &&

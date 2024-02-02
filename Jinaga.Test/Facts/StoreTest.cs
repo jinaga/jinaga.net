@@ -1,4 +1,5 @@
 ﻿using FluentAssertions;
+using Jinaga;
 using Jinaga.Test.Model;
 using Jinaga.UnitTest;
 using System;
@@ -28,5 +29,18 @@ namespace Jinaga.Test.Facts
             airlineDay.date.Kind.Should().Be(DateTimeKind.Utc);
             airlineDay.date.Hour.Should().Be(1);
         }
+
+        [Fact]
+        public async Task CannotSaveFactWithType()
+        {
+            var j = JinagaTest.Create();
+            await Assert.ThrowsAsync<ArgumentException>(async () =>
+            {
+                await j.Fact(new FactWithType("value"));
+            });
+        }
     }
 }
+
+[FactType("FactWithType")]
+public record FactWithType(string type) { }
