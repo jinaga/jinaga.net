@@ -29,7 +29,7 @@ namespace Jinaga
             return publicKey.GetHashCode();
         }
 
-        public static bool operator ==(User a, User b)
+        public static bool operator ==(User? a, User? b)
         {
             if (ReferenceEquals(a, b))
             {
@@ -42,7 +42,7 @@ namespace Jinaga
             return a.Equals(b);
         }
 
-        public static bool operator !=(User a, User b)
+        public static bool operator !=(User? a, User? b)
         {
             if (ReferenceEquals(a, b))
             {
