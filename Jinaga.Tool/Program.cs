@@ -153,6 +153,8 @@ internal class Program
         Console.WriteLine("jinaga commands:");
         Console.WriteLine("  deploy authorization <assembly> <endpoint> <secret>");
         Console.WriteLine("  deploy distribution <assembly> <endpoint> <secret>");
+        Console.WriteLine("  print authorization <assembly>");
+        Console.WriteLine("  print distribution <assembly>");
         Console.WriteLine("");
         Console.WriteLine("The assembly should expose public static methods named");
         Console.WriteLine("JinagaConfig.Authorization and JinagaConfig.Distribution.");
