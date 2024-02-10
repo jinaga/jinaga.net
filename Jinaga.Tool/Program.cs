@@ -16,6 +16,10 @@ internal class Program
             {
                 await Deploy(arguments);
             }
+            else if (arguments.Consume("print"))
+            {
+                Print(arguments);
+            }
             else
             {
                 arguments.ExpectEnd();
@@ -65,6 +69,29 @@ internal class Program
 
         Console.WriteLine($"{methodName} deployed");
         return httpClient;
+    }
+
+    private static void Print(CommandLineArguments arguments)
+    {
+        if (arguments.Consume("authorization"))
+        {
+            PrintRules(arguments, "Authorization");
+        }
+        else if (arguments.Consume("distribution"))
+        {
+            PrintRules(arguments, "Distribution");
+        }
+        else
+        {
+            throw new ArgumentException("Expected print target authorization or distribution");
+        }
+    }
+
+    private static void PrintRules(CommandLineArguments arguments, string methodName)
+    {
+        var assembly = arguments.Next();
+        var rules = GetRulesFromAssembly(assembly, methodName);
+        Console.WriteLine(rules);
     }
 
     private static string GetRulesFromAssembly(string path, string methodName)
@@ -126,6 +153,8 @@ internal class Program
         Console.WriteLine("jinaga commands:");
         Console.WriteLine("  deploy authorization <assembly> <endpoint> <secret>");
         Console.WriteLine("  deploy distribution <assembly> <endpoint> <secret>");
+        Console.WriteLine("  print authorization <assembly>");
+        Console.WriteLine("  print distribution <assembly>");
         Console.WriteLine("");
         Console.WriteLine("The assembly should expose public static methods named");
         Console.WriteLine("JinagaConfig.Authorization and JinagaConfig.Distribution.");

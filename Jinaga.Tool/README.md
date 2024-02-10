@@ -116,8 +116,18 @@ dotnet pack .\Jinaga.Tool -c Release
 dotnet tool install --global --add-source .\Jinaga.Tool\bin\Release Jinaga.Tool
 ```
 
+```bash
+dotnet build ./Jinaga.Tool -c Release
+dotnet pack ./Jinaga.Tool -c Release
+sudo dotnet tool install --global --add-source ./Jinaga.Tool/bin/Release Jinaga.Tool
+```
+
 After testing, uninstall the tool
 
 ```powershell
 dotnet tool uninstall --global Jinaga.Tool
+```
+
+``bash
+sudo dotnet tool uninstall --global Jinaga.Tool
 ```
