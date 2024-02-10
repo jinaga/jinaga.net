@@ -28,7 +28,7 @@
 
   <ItemGroup>
     <None Include="..\README.md" Pack="true" PackagePath="\" />
-    <None Include="..\JinagaIcon.png"  Pack="True" PackagePath="\" />
+    <None Include="..\JinagaIcon.png" Pack="True" PackagePath="\" />
   </ItemGroup>
 
   <ItemGroup>
@@ -36,7 +36,7 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="2.0.7" />
+    <PackageReference Include="SQLitePCLRaw.bundle_green" Version="2.1.8" />
     <PackageReference Include="System.Text.Json" Version="6.0.7" />
   </ItemGroup>
 
