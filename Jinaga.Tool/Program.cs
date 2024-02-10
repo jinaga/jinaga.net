@@ -16,6 +16,10 @@ internal class Program
             {
                 await Deploy(arguments);
             }
+            else if (arguments.Consume("print"))
+            {
+                Print(arguments);
+            }
             else
             {
                 arguments.ExpectEnd();
@@ -65,6 +69,29 @@ internal class Program
 
         Console.WriteLine($"{methodName} deployed");
         return httpClient;
+    }
+
+    private static void Print(CommandLineArguments arguments)
+    {
+        if (arguments.Consume("authorization"))
+        {
+            PrintRules(arguments, "Authorization");
+        }
+        else if (arguments.Consume("distribution"))
+        {
+            PrintRules(arguments, "Distribution");
+        }
+        else
+        {
+            throw new ArgumentException("Expected print target authorization or distribution");
+        }
+    }
+
+    private static void PrintRules(CommandLineArguments arguments, string methodName)
+    {
+        var assembly = arguments.Next();
+        var rules = GetRulesFromAssembly(assembly, methodName);
+        Console.WriteLine(rules);
     }
 
     private static string GetRulesFromAssembly(string path, string methodName)
