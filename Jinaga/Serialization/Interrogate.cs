@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Linq;
+using Jinaga.Facts;
 
 namespace Jinaga.Serialization
 {
@@ -51,6 +52,7 @@ namespace Jinaga.Serialization
         public static bool IsHelper(Type propertyType)
         {
             return
+                propertyType == typeof(FactGraph) ||
                 propertyType == typeof(Condition);
         }
     }

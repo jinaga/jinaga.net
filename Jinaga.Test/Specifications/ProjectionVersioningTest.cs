@@ -46,13 +46,16 @@ public class ProjectionVersioningTest
             select new
             {
                 content.createdAt,
-                hash = jinagaClient.Hash(content)
+                hash = jinagaClient.Hash(content),
+                content
             }
         );
         var contentCreatedAt = await jinagaClient.Query(contentCreatedAtForSite, site);
 
-        contentCreatedAt.Should().ContainSingle().Which.createdAt.Should().BeNull();
-        contentCreatedAt.Should().ContainSingle().Which.hash.Should().Be(originalHash);
+        var projection = contentCreatedAt.Should().ContainSingle().Subject;
+        projection.createdAt.Should().BeNull();
+        projection.hash.Should().Be(originalHash);
+        jinagaClient.Hash(projection.content).Should().Be(originalHash);
     }
 
     [Fact]

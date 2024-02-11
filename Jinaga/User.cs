@@ -1,7 +1,7 @@
 namespace Jinaga
 {
     [FactType("Jinaga.User")]
-    public class User
+    public partial class User
     {
         public string publicKey { get; }
 
