@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Linq;
+using System.Text;
 
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -31,8 +32,7 @@ namespace Jinaga.SourceGenerator
             foreach (var classDeclaration in receiver.CandidateClasses)
             {
                 // Get the namespace of the class
-                var namespaceDeclaration = classDeclaration.FirstAncestorOrSelf<NamespaceDeclarationSyntax>();
-                var namespaceName = namespaceDeclaration.Name.ToString();
+                var namespaceName = GetNamespaceName(classDeclaration);
 
                 // Get the name of the class
                 var className = classDeclaration.Identifier.Text;
@@ -55,14 +55,13 @@ namespace {namespaceName}
             }
 
             // Iterate over all candidate records
-            foreach (var classDeclaration in receiver.CandidateRecords)
+            foreach (var recordDeclaration in receiver.CandidateRecords)
             {
                 // Get the namespace of the record
-                var namespaceDeclaration = classDeclaration.FirstAncestorOrSelf<NamespaceDeclarationSyntax>();
-                var namespaceName = namespaceDeclaration.Name.ToString();
+                string namespaceName = GetNamespaceName(recordDeclaration);
 
                 // Get the name of the class
-                var recordName = classDeclaration.Identifier.Text;
+                var recordName = recordDeclaration.Identifier.Text;
 
                 // Generate the source code for the other half of the partial record
                 var source = $@"
@@ -80,6 +79,16 @@ namespace {namespaceName}
                 // Add the source code to the compilation
                 context.AddSource($"{recordName}.g.cs", SourceText.From(source, Encoding.UTF8));
             }
+        }
+
+        private static string GetNamespaceName(SyntaxNode syntaxNode)
+        {
+            var namespaceDeclaration = syntaxNode.Parent is NamespaceDeclarationSyntax
+                ? (NamespaceDeclarationSyntax)syntaxNode.Parent
+                : syntaxNode.SyntaxTree.GetRoot().DescendantNodes().OfType<NamespaceDeclarationSyntax>().FirstOrDefault();
+
+            var namespaceName = namespaceDeclaration?.Name.ToString();
+            return namespaceName;
         }
     }
 }
