@@ -21,21 +21,27 @@ namespace Jinaga.SourceGenerator
             if (!(context.SyntaxReceiver is FactSyntaxReceiver receiver))
                 return;
 
-            // Iterate over all candidate classes
-            foreach (var classDeclaration in receiver.CandidateClasses)
+            // If there are any diagnostics, report them to the compiler
+            foreach (var diagnostic in receiver.Diagnostics)
             {
-                // Get the namespace of the class
+                context.ReportDiagnostic(diagnostic);
+            }
+
+            // Iterate over all candidate records
+            foreach (var classDeclaration in receiver.CandidateRecords)
+            {
+                // Get the namespace of the record
                 var namespaceDeclaration = classDeclaration.FirstAncestorOrSelf<NamespaceDeclarationSyntax>();
                 var namespaceName = namespaceDeclaration.Name.ToString();
 
                 // Get the name of the class
                 var className = classDeclaration.Identifier.Text;
 
-                // Generate the source code for the other half of the partial class
+                // Generate the source code for the other half of the partial record
                 var source = $@"
 namespace {namespaceName}
 {{
-    public partial class {className} : IFactProxy
+    public partial record {className} : IFactProxy
     {{
         FactGraph IFactProxy.Graph {{ get; set; }}
     }}
