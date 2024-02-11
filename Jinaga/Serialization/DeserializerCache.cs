@@ -45,6 +45,12 @@ namespace Jinaga.Serialization
 
         private static Expression CreateObject(Type type, ParameterExpression factParameter, ParameterExpression emitterParameter)
         {
+            /*
+            return Emitter.SetGraph<T>(fact, new T(
+                GetFieldValue("creator", typeof(User), fact),
+                GetFieldValue("identifier", typeof(string), fact)
+            ));
+            */
             var constructorInfos = type.GetConstructors();
             if (constructorInfos.Length != 1)
             {
@@ -64,24 +70,22 @@ namespace Jinaga.Serialization
                 )
                 .ToArray();
 
-            // Get the subgraph for the fact
-            var getSubgraphMethod = typeof(Emitter).GetMethod(nameof(Emitter.GetSubgraph));
-            var getSubgraph = Expression.Call(
-                emitterParameter,
-                getSubgraphMethod,
-                factParameter
-            );
-
-            var proxyConstructor = type.GetConstructors().Single();
+            // Construct the runtime fact record
+            var factConstructor = type.GetConstructors().Single();
             var newExpression = Expression.New(
-                proxyConstructor,
+                factConstructor,
                 parameterExpressions
             );
-            var cast = Expression.Convert(
-                newExpression,
-                type
+
+            // Set the graph for the fact
+            var setGraphMethod = typeof(Emitter).GetMethod(nameof(Emitter.SetGraph)).MakeGenericMethod(type);
+            var setGraph = Expression.Call(
+                emitterParameter,
+                setGraphMethod,
+                factParameter,
+                newExpression
             );
-            return cast;
+            return setGraph;
         }
 
         private static Expression GetFieldValue(string name, Type parameterType, ParameterExpression factParameter)
