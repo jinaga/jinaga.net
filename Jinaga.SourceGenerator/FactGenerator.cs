@@ -39,6 +39,9 @@ namespace Jinaga.SourceGenerator
 
                 // Generate the source code for the other half of the partial class
                 var source = $@"
+using Jinaga.Facts;
+using Jinaga.Serialization;
+
 namespace {namespaceName}
 {{
     public partial class {className} : IFactProxy
@@ -63,6 +66,9 @@ namespace {namespaceName}
 
                 // Generate the source code for the other half of the partial record
                 var source = $@"
+using Jinaga.Facts;
+using Jinaga.Serialization;
+
 namespace {namespaceName}
 {{
     public partial record {recordName} : IFactProxy
