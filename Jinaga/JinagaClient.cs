@@ -215,7 +215,11 @@ namespace Jinaga
 
             if (typeof(IFactProxy).IsAssignableFrom(typeof(TFact)))
             {
-                return ((IFactProxy)fact).Graph.Last.Hash;
+                FactGraph? serializedGraph = ((IFactProxy)fact).Graph;
+                if (serializedGraph != null)
+                {
+                    return serializedGraph.Last.Hash;
+                }
             }
 
             var graph = factManager.Serialize(fact);

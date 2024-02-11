@@ -9,7 +9,7 @@ namespace Jinaga.Serialization
 {
     public interface IFactProxy
     {
-        FactGraph Graph { get; }
+        FactGraph? Graph { get; }
     }
 
     class Emitter

@@ -291,7 +291,7 @@ namespace Jinaga.Store.SQLite
                     conn.ExecuteNonQuery("END TRANSACTION");
                     return result;
                 }
-                catch (Exception e)
+                catch
                 {
                     conn.ExecuteNonQuery("ROLLBACK TRANSACTION");
                     //myLog += $"{MyStopWatch.Elapsed()}: {id:D2} -- {e.ToString()}\n\r";
@@ -339,7 +339,7 @@ namespace Jinaga.Store.SQLite
                 {
                     return callback();
                 }
-                catch (Exception e)
+                catch
                 {
                     if (attempt >= pause.Length)
                     {

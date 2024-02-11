@@ -34,9 +34,9 @@ namespace Jinaga.Serialization
                 FactVisitsCount++;
 
                 var runtimeType = runtimeFact.GetType();
-                if (typeof(IFactProxy).IsAssignableFrom(runtimeType))
+                FactGraph? graph;
+                if (typeof(IFactProxy).IsAssignableFrom(runtimeType) && (graph = ((IFactProxy)runtimeFact).Graph) != null)
                 {
-                    var graph = ((IFactProxy)runtimeFact).Graph;
                     Graph = Graph.AddGraph(graph);
                     reference = graph.Last;
                 }

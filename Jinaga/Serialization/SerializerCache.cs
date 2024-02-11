@@ -72,6 +72,10 @@ namespace Jinaga.Serialization
             {
                 throw new ArgumentException($"The type {type.Name} has a property named 'type'. That property name is reserved.");
             }
+            if (properties.Any(property => property.Name == "Graph" && property.PropertyType != typeof(FactGraph)))
+            {
+                throw new ArgumentException($"The type {type.Name} has a property named 'Graph'. That property name is reserved.");
+            }
             var unsupportedProperties = properties
                 .Where(property =>
                     !Interrogate.IsField(property.PropertyType) &&
