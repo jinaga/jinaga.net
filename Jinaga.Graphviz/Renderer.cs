@@ -129,11 +129,18 @@ namespace Jinaga.Graphviz
         {
             return value switch
             {
-                FieldValueString str => HttpUtility.HtmlEncode(str.StringValue),
+                FieldValueString str => HttpUtility.HtmlEncode(Limit(str.StringValue)),
                 FieldValueNumber number => number.DoubleValue.ToString(),
                 FieldValueBoolean b => b.BoolValue ? "true" : "false",
                 _ => throw new NotImplementedException()
             };
+        }
+
+        private static string Limit(string stringValue)
+        {
+            return stringValue != null && stringValue.Length > 20
+                ? $"{stringValue[..20]}..."
+                : stringValue;
         }
 
         public static ImmutableList<string> ListTypes(params Type[] types)
