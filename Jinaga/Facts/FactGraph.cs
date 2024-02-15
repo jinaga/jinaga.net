@@ -87,5 +87,25 @@ namespace Jinaga.Facts
             subgraph = subgraph.Add(fact);
             return subgraph;
         }
+
+        public override bool Equals(object obj)
+        {
+            // Two graphs are equal if they contain the same fact references.
+            if (obj is FactGraph other)
+            {
+                return topologicalOrder.SequenceEqual(other.topologicalOrder);
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        public override int GetHashCode()
+        {
+            return topologicalOrder.Any()
+                ? Last.Hash.GetHashCode()
+                : 0;
+        }
     }
 }
