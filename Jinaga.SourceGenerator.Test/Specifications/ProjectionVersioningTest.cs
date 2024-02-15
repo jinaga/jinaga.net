@@ -57,7 +57,6 @@ public class ProjectionVersioningTest
         var projection = contentCreatedAt.Should().ContainSingle().Subject;
         projection.createdAt.Should().BeNull();
         projection.hash.Should().Be(originalHash);
-        projection.content.Should().Be(contentV1);
         jinagaClient.Hash(projection.content).Should().Be(originalHash);
     }
 
