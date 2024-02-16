@@ -1,6 +1,5 @@
 ﻿using Jinaga.Facts;
 using Jinaga.Repository;
-using Jinaga.Serialization;
 using Microsoft.AspNetCore.Html;
 using System;
 using System.Collections;
@@ -15,7 +14,7 @@ namespace Jinaga.Graphviz
 {
     public static class Renderer
     {
-        public static HtmlString RenderFacts(params object[] projections)
+        public static HtmlString RenderFacts(this JinagaClient jinagaClient, params object[] projections)
         {
             string[] prefix = new[]
             {
@@ -27,17 +26,19 @@ namespace Jinaga.Graphviz
             {
                 "}"
             };
-            var collector = new Collector(SerializerCache.Empty, new());
+            var graph = FactGraph.Empty;
             var references = new List<FactReference>();
             foreach (var fact in projections.SelectMany(projection => GetFacts(projection, 5)))
             {
-                var reference = collector.Serialize(fact);
+                var factGraph = jinagaClient.Graph(fact);
+                graph = graph.AddGraph(factGraph);
+                var reference = factGraph.Last;
                 references.Add(reference);
             }
-            var body = collector.Graph.FactReferences
-                .SelectMany(reference => FactToDigraph(collector.Graph.GetFact(reference), references.Contains(reference)));
-            string graph = string.Join("\n", prefix.Concat(body).Concat(suffix));
-            return RenderGraph(graph);
+            var body = graph.FactReferences
+                .SelectMany(reference => FactToDigraph(graph.GetFact(reference), references.Contains(reference)));
+            string dot = string.Join("\n", prefix.Concat(body).Concat(suffix));
+            return RenderGraph(dot);
         }
 
         private static IEnumerable<object> GetFacts(object projection, int depth)
