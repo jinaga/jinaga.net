@@ -213,15 +213,6 @@ namespace Jinaga
                 throw new ArgumentNullException(nameof(fact));
             }
 
-            if (typeof(IFactProxy).IsAssignableFrom(typeof(TFact)))
-            {
-                FactGraph? serializedGraph = ((IFactProxy)fact).Graph;
-                if (serializedGraph != null)
-                {
-                    return serializedGraph.Last.Hash;
-                }
-            }
-
             var graph = factManager.Serialize(fact);
             return graph.Last.Hash;
         }

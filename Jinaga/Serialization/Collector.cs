@@ -34,19 +34,10 @@ namespace Jinaga.Serialization
                 FactVisitsCount++;
 
                 var runtimeType = runtimeFact.GetType();
-                FactGraph? graph;
-                if (typeof(IFactProxy).IsAssignableFrom(runtimeType) && (graph = ((IFactProxy)runtimeFact).Graph) != null)
-                {
-                    Graph = Graph.AddGraph(graph);
-                    reference = graph.Last;
-                }
-                else
-                {
-                    var fact = SerializeToFact(runtimeType, runtimeFact);
-                    reference = fact.Reference;
+                var fact = SerializeToFact(runtimeType, runtimeFact);
+                reference = fact.Reference;
 
-                    Graph = Graph.Add(fact);
-                }
+                Graph = Graph.Add(fact);
                 visiting = visiting.Remove(runtimeFact);
                 referenceByObject = referenceByObject.Add(runtimeFact, reference);
             }
