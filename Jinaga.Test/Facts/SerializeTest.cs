@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using FluentAssertions;
 using Jinaga.Facts;
 using Jinaga.Serialization;
@@ -188,16 +189,18 @@ namespace Jinaga.Test.Facts
             roundTrip.identifier.Should().BeNull();
         }
 
-        private static FactGraph Serialize(object runtimeFact)
+        private readonly ConditionalWeakTable<object, FactGraph> graphByFact = new();
+
+        private FactGraph Serialize(object runtimeFact)
         {
-            var collector = new Collector(SerializerCache.Empty);
+            var collector = new Collector(SerializerCache.Empty, graphByFact);
             var reference = collector.Serialize(runtimeFact);
             return collector.Graph;
         }
 
-        private static T Deserialize<T>(FactGraph graph, FactReference reference)
+        private T Deserialize<T>(FactGraph graph, FactReference reference)
         {
-            var emitter = new Emitter(graph, DeserializerCache.Empty);
+            var emitter = new Emitter(graph, DeserializerCache.Empty, graphByFact);
             var runtimeFact = emitter.Deserialize<T>(reference);
             return runtimeFact;
         }

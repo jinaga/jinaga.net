@@ -26,7 +26,7 @@ internal class FakeNetwork : INetwork
 
     public void AddFeed(string name, object[] facts, int delay = 0)
     {
-        var collector = new Collector(serializerCache);
+        var collector = new Collector(serializerCache, new());
         foreach (var fact in facts)
         {
             collector.Serialize(fact);

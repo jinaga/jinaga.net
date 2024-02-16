@@ -23,13 +23,16 @@ public class ProjectionVersioningTest
             select new
             {
                 content.path,
-                hash = jinagaClient.Hash(content)
+                hash = jinagaClient.Hash(content),
+                content
             }
         );
         var contentPath = await jinagaClient.Query(contentPathForSite, site);
 
-        contentPath.Should().ContainSingle().Which.path.Should().Be("index.html");
-        contentPath.Should().ContainSingle().Which.hash.Should().Be(originalHash);
+        var projection = contentPath.Should().ContainSingle().Subject;
+        projection.path.Should().Be("index.html");
+        projection.hash.Should().Be(originalHash);
+        jinagaClient.Hash(projection.content).Should().Be(originalHash);
     }
 
     [Fact]
@@ -72,13 +75,16 @@ public class ProjectionVersioningTest
             select new
             {
                 content.createdAt,
-                hash = jinagaClient.Hash(content)
+                hash = jinagaClient.Hash(content),
+                content
             }
         );
         var contentCreatedAt = await jinagaClient.Query(contentCreatedAtForSite, site);
 
-        contentCreatedAt.Should().ContainSingle().Which.createdAt.Should().Be(new DateTime(2021, 1, 1).ToUniversalTime());
-        contentCreatedAt.Should().ContainSingle().Which.hash.Should().Be(originalHash);
+        var projection = contentCreatedAt.Should().ContainSingle().Subject;
+        projection.createdAt.Should().Be(new DateTime(2021, 1, 1).ToUniversalTime());
+        projection.hash.Should().Be(originalHash);
+        jinagaClient.Hash(projection.content).Should().Be(originalHash);
     }
 
     [Fact]
@@ -95,12 +101,15 @@ public class ProjectionVersioningTest
             select new
             {
                 content.path,
-                hash = jinagaClient.Hash(content)
+                hash = jinagaClient.Hash(content),
+                content
             }
         );
         var contentPath = await jinagaClient.Query(contentPathForSite, site);
 
-        contentPath.Should().ContainSingle().Which.path.Should().Be("");
-        contentPath.Should().ContainSingle().Which.hash.Should().Be(originalHash);
+        var projection = contentPath.Should().ContainSingle().Subject;
+        projection.path.Should().Be("");
+        projection.hash.Should().Be(originalHash);
+        jinagaClient.Hash(projection.content).Should().Be(originalHash);
     }
 }

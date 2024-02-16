@@ -4,14 +4,10 @@ using System;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 
 namespace Jinaga.Serialization
 {
-    public interface IFactProxy
-    {
-        FactGraph? Graph { get; set; }
-    }
-
     class Emitter
     {
         public FactGraph Graph { get; }
@@ -23,10 +19,13 @@ namespace Jinaga.Serialization
 
         public IWatchContext? WatchContext { get; }
 
-        public Emitter(FactGraph graph, DeserializerCache deserializerCache, IWatchContext? watchContext = null)
+        private readonly ConditionalWeakTable<object, FactGraph> graphByFact;
+
+        public Emitter(FactGraph graph, DeserializerCache deserializerCache, ConditionalWeakTable<object, FactGraph> graphByFact, IWatchContext? watchContext = null)
         {
             this.Graph = graph;
             DeserializerCache = deserializerCache;
+            this.graphByFact = graphByFact;
             WatchContext = watchContext;
         }
 
@@ -67,9 +66,9 @@ namespace Jinaga.Serialization
 
         public T SetGraph<T>(Fact fact, T runtimeFact)
         {
-            if (runtimeFact is IFactProxy proxy)
+            if (runtimeFact != null)
             {
-                proxy.Graph = Graph.GetSubgraph(fact.Reference);
+                graphByFact.Add(runtimeFact, Graph.GetSubgraph(fact.Reference));
             }
             return runtimeFact;
         }

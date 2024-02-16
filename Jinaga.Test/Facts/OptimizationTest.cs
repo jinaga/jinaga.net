@@ -7,6 +7,7 @@ using Jinaga.UnitTest;
 using System;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -14,6 +15,8 @@ namespace Jinaga.Test.Facts
 {
     public class OptimizationTest
     {
+        private readonly ConditionalWeakTable<object, FactGraph> graphByFact = new();
+
         [Fact]
         public void Optimization_LimitVisits()
         {
@@ -21,7 +24,7 @@ namespace Jinaga.Test.Facts
             var firstName = new PassengerName(passenger, "George", new PassengerName[0]);
             var secondName = new PassengerName(passenger, "Jorge", new PassengerName[] { firstName });
 
-            var collector = new Collector(SerializerCache.Empty);
+            var collector = new Collector(SerializerCache.Empty, new());
             var result = collector.Serialize(secondName);
             int factVisits = collector.FactVisitsCount;
 
@@ -39,7 +42,7 @@ namespace Jinaga.Test.Facts
             // You have to really want to do this
             prior[0] = secondName;
 
-            var collector = new Collector(SerializerCache.Empty);
+            var collector = new Collector(SerializerCache.Empty, new());
             Action serialize = () => collector.Serialize(secondName);
             serialize.Should().Throw<ArgumentException>()
                 .WithMessage("Jinaga cannot serialize a fact containing a cycle");
@@ -61,7 +64,7 @@ namespace Jinaga.Test.Facts
             var secondName = new PassengerName(passenger, "Jorge", new PassengerName[] { firstName });
 
             var serializerCache = SerializerCache.Empty;
-            var collector = new Collector(serializerCache);
+            var collector = new Collector(serializerCache, new());
             var result = collector.Serialize(secondName);
             collector.SerializerCache.TypeCount.Should().Be(4);
         }
@@ -73,10 +76,10 @@ namespace Jinaga.Test.Facts
             var firstName = new PassengerName(passenger, "George", new PassengerName[0]);
             var secondName = new PassengerName(passenger, "Jorge", new PassengerName[] { firstName });
 
-            var collector = new Collector(SerializerCache.Empty);
+            var collector = new Collector(SerializerCache.Empty, new());
             var result = collector.Serialize(secondName);
 
-            var emitter = new Emitter(collector.Graph, DeserializerCache.Empty);
+            var emitter = new Emitter(collector.Graph, DeserializerCache.Empty, graphByFact);
             var deserialized = emitter.Deserialize<PassengerName>(result);
 
             deserialized.passenger.Should().BeSameAs(deserialized.prior[0].passenger);
@@ -93,7 +96,7 @@ namespace Jinaga.Test.Facts
             var passenger = new Passenger(new Airline("IA"), new User("--- PUBLIC KEY ---"));
             var passengerName = new PassengerName(passenger, "George", new PassengerName[0]);
 
-            var collector = new Collector(SerializerCache.Empty);
+            var collector = new Collector(SerializerCache.Empty, new());
             var reference = collector.Serialize(passengerName);
             var graph = collector.Graph;
             var tuple = FactReferenceTuple.Empty
@@ -107,7 +110,7 @@ namespace Jinaga.Test.Facts
                 .ToImmutableList();
             var userReference = references.Should().ContainSingle().Subject;
 
-            var emitter = new Emitter(graph, DeserializerCache.Empty);
+            var emitter = new Emitter(graph, DeserializerCache.Empty, graphByFact);
             var user = emitter.Deserialize<User>(userReference);
             user.publicKey.Should().Be("--- PUBLIC KEY ---");
         }

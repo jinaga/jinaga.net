@@ -1,5 +1,5 @@
 namespace Jinaga.Test.Model
 {
     [FactType("Skylane.Passenger")]
-    public partial record Passenger(Airline airline, User user);
+    public record Passenger(Airline airline, User user);
 }

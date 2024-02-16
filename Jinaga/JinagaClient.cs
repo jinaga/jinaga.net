@@ -208,22 +208,25 @@ namespace Jinaga
         /// <returns>Base 64 encoded SHA-512 hash of the fact</returns>
         public string Hash<TFact>(TFact fact)
         {
+            var graph = Graph(fact);
+            return graph.Last.Hash;
+        }
+
+        /// <summary>
+        /// Get the graph of a fact. It is rare for an application to need this.
+        /// </summary>
+        /// <typeparam name="TFact">The type of the fact</typeparam>
+        /// <param name="fact">The fact of which to get the graph</param>
+        /// <returns>The graph of the fact</returns>
+        public FactGraph Graph<TFact>(TFact fact)
+        {
             if (fact == null)
             {
                 throw new ArgumentNullException(nameof(fact));
             }
 
-            if (typeof(IFactProxy).IsAssignableFrom(typeof(TFact)))
-            {
-                FactGraph? serializedGraph = ((IFactProxy)fact).Graph;
-                if (serializedGraph != null)
-                {
-                    return serializedGraph.Last.Hash;
-                }
-            }
-
             var graph = factManager.Serialize(fact);
-            return graph.Last.Hash;
+            return graph;
         }
 
         /// <summary>

@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.CompilerServices;
 using FluentAssertions;
 using Jinaga.Facts;
 using Jinaga.Serialization;
@@ -185,18 +186,20 @@ public class VersioningTest
         deserialized.identifier.Should().BeNull();
     }
 
-    private static FactGraph Serialize(object fact)
+    private readonly ConditionalWeakTable<object, FactGraph> graphByFact = new();
+
+    private FactGraph Serialize(object fact)
     {
         var serializerCache = SerializerCache.Empty;
-        var collector = new Collector(serializerCache);
+        var collector = new Collector(serializerCache, graphByFact);
         collector.Serialize(fact);
         serializerCache = collector.SerializerCache;
         return collector.Graph;
     }
 
-    private static T Deserialize<T>(FactGraph graph, FactReference reference)
+    private T Deserialize<T>(FactGraph graph, FactReference reference)
     {
-        var emitter = new Emitter(graph, DeserializerCache.Empty);
+        var emitter = new Emitter(graph, DeserializerCache.Empty, graphByFact);
         var runtimeFact = emitter.Deserialize<T>(reference);
         return runtimeFact;
     }
