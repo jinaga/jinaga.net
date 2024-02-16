@@ -115,7 +115,7 @@ namespace Jinaga.Test.Facts
 
         private static string ComputeHash(object fact)
         {
-            var collector = new Collector(SerializerCache.Empty);
+            var collector = new Collector(SerializerCache.Empty, new());
             var reference = collector.Serialize(fact);
             return reference.Hash;
         }

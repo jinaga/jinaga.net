@@ -4,6 +4,7 @@ using Jinaga.Serialization;
 using Jinaga.Test.Model;
 using System;
 using System.Collections.Immutable;
+using System.Runtime.CompilerServices;
 using Xunit;
 
 namespace Jinaga.Test.Facts
@@ -45,9 +46,11 @@ namespace Jinaga.Test.Facts
             airlineDay.date.Hour.Should().Be(1);
         }
 
-        private static T Deserialize<T>(FactGraph graph, FactReference reference)
+        private readonly ConditionalWeakTable<object, FactGraph> graphByFact = new();
+
+        private T Deserialize<T>(FactGraph graph, FactReference reference)
         {
-            var emitter = new Emitter(graph, DeserializerCache.Empty);
+            var emitter = new Emitter(graph, DeserializerCache.Empty, graphByFact);
             var runtimeFact = emitter.Deserialize<T>(reference);
             return runtimeFact;
         }

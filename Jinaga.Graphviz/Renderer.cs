@@ -27,7 +27,7 @@ namespace Jinaga.Graphviz
             {
                 "}"
             };
-            var collector = new Collector(SerializerCache.Empty);
+            var collector = new Collector(SerializerCache.Empty, new());
             var references = new List<FactReference>();
             foreach (var fact in projections.SelectMany(projection => GetFacts(projection, 5)))
             {

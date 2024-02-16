@@ -2,6 +2,7 @@ using Jinaga.Facts;
 using System;
 using System.Collections.Immutable;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 
 namespace Jinaga.Serialization
 {
@@ -11,15 +12,17 @@ namespace Jinaga.Serialization
 
         public int FactVisitsCount { get; private set; } = 0;
         public SerializerCache SerializerCache { get; private set; }
+        private readonly ConditionalWeakTable<object, FactGraph> graphByFact;
 
         private ImmutableHashSet<object> visiting =
             ImmutableHashSet<object>.Empty;
         private ImmutableDictionary<object, FactReference> referenceByObject =
             ImmutableDictionary<object, FactReference>.Empty;
 
-        public Collector(SerializerCache serializerCache)
+        public Collector(SerializerCache serializerCache, ConditionalWeakTable<object, FactGraph> graphByFact)
         {
             SerializerCache = serializerCache;
+            this.graphByFact = graphByFact;
         }
 
         public FactReference Serialize(object runtimeFact)
@@ -33,11 +36,20 @@ namespace Jinaga.Serialization
                 visiting = visiting.Add(runtimeFact);
                 FactVisitsCount++;
 
-                var runtimeType = runtimeFact.GetType();
-                var fact = SerializeToFact(runtimeType, runtimeFact);
-                reference = fact.Reference;
+                if (graphByFact.TryGetValue(runtimeFact, out var graph))
+                {
+                    Graph = Graph.AddGraph(graph);
+                    reference = graph.Last;
+                }
+                else
+                {
+                    var runtimeType = runtimeFact.GetType();
+                    var fact = SerializeToFact(runtimeType, runtimeFact);
+                    reference = fact.Reference;
 
-                Graph = Graph.Add(fact);
+                    Graph = Graph.Add(fact);
+                }
+
                 visiting = visiting.Remove(runtimeFact);
                 referenceByObject = referenceByObject.Add(runtimeFact, reference);
             }

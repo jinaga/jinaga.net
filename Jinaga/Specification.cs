@@ -6,6 +6,7 @@ using System;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Runtime.CompilerServices;
 
 namespace Jinaga
 {
@@ -65,7 +66,7 @@ namespace Jinaga
 
         public string ToDescriptiveString(TFact given)
         {
-            var collector = new Collector(SerializerCache.Empty);
+            var collector = new Collector(SerializerCache.Empty, new ConditionalWeakTable<object, FactGraph>());
             var givenReference = collector.Serialize(given);
             var givenTuple = FactReferenceTuple.Empty
                 .Add(Givens.Single().Label.Name, givenReference);
@@ -86,7 +87,7 @@ namespace Jinaga
         }
         public string ToDescriptiveString(TFact1 given1, TFact2 given2)
         {
-            var collector = new Collector(SerializerCache.Empty);
+            var collector = new Collector(SerializerCache.Empty, new ConditionalWeakTable<object, FactGraph>());
             var aReference = collector.Serialize(given1);
             var bReference = collector.Serialize(given2);
             var givenTuple = FactReferenceTuple.Empty

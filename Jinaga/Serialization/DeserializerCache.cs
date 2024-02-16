@@ -46,10 +46,10 @@ namespace Jinaga.Serialization
         private static Expression CreateObject(Type type, ParameterExpression factParameter, ParameterExpression emitterParameter)
         {
             /*
-            return new T(
+            return Emitter.SetGraph<T>(fact, new T(
                 GetFieldValue("creator", typeof(User), fact),
                 GetFieldValue("identifier", typeof(string), fact)
-            );
+            ));
             */
             var constructorInfos = type.GetConstructors();
             if (constructorInfos.Length != 1)
@@ -77,7 +77,15 @@ namespace Jinaga.Serialization
                 parameterExpressions
             );
 
-            return newExpression;
+            // Set the graph for the fact
+            var setGraphMethod = typeof(Emitter).GetMethod(nameof(Emitter.SetGraph)).MakeGenericMethod(type);
+            var setGraph = Expression.Call(
+                emitterParameter,
+                setGraphMethod,
+                factParameter,
+                newExpression
+            );
+            return setGraph;
         }
 
         private static Expression GetFieldValue(string name, Type parameterType, ParameterExpression factParameter)

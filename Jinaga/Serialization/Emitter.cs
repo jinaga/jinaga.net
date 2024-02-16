@@ -4,6 +4,7 @@ using System;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 
 namespace Jinaga.Serialization
 {
@@ -18,10 +19,13 @@ namespace Jinaga.Serialization
 
         public IWatchContext? WatchContext { get; }
 
-        public Emitter(FactGraph graph, DeserializerCache deserializerCache, IWatchContext? watchContext = null)
+        private readonly ConditionalWeakTable<object, FactGraph> graphByFact;
+
+        public Emitter(FactGraph graph, DeserializerCache deserializerCache, ConditionalWeakTable<object, FactGraph> graphByFact, IWatchContext? watchContext = null)
         {
             this.Graph = graph;
             DeserializerCache = deserializerCache;
+            this.graphByFact = graphByFact;
             WatchContext = watchContext;
         }
 
@@ -58,6 +62,15 @@ namespace Jinaga.Serialization
             return references
                 .Select(reference => Deserialize<TFact>(reference))
                 .ToArray();
+        }
+
+        public T SetGraph<T>(Fact fact, T runtimeFact)
+        {
+            if (runtimeFact != null)
+            {
+                graphByFact.Add(runtimeFact, Graph.GetSubgraph(fact.Reference));
+            }
+            return runtimeFact;
         }
     }
 }

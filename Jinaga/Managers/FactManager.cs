@@ -7,6 +7,7 @@ using Jinaga.Services;
 using System;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -30,6 +31,7 @@ namespace Jinaga.Managers
 
         private SerializerCache serializerCache = SerializerCache.Empty;
         private DeserializerCache deserializerCache = DeserializerCache.Empty;
+        private readonly ConditionalWeakTable<object, FactGraph> graphByFact = new ConditionalWeakTable<object, FactGraph>();
 
         public async Task<(FactGraph graph, UserProfile profile)> Login(CancellationToken cancellationToken)
         {
@@ -127,7 +129,7 @@ namespace Jinaga.Managers
         {
             lock (this)
             {
-                var collector = new Collector(serializerCache);
+                var collector = new Collector(serializerCache, graphByFact);
                 collector.Serialize(prototype);
                 serializerCache = collector.SerializerCache;
                 return collector.Graph;
@@ -138,7 +140,7 @@ namespace Jinaga.Managers
         {
             lock (this)
             {
-                var emitter = new Emitter(graph, deserializerCache);
+                var emitter = new Emitter(graph, deserializerCache, graphByFact);
                 var fact = emitter.Deserialize<TFact>(reference);
                 deserializerCache = emitter.DeserializerCache;
                 return fact;
@@ -155,7 +157,7 @@ namespace Jinaga.Managers
         {
             lock (this)
             {
-                var emitter = new Emitter(graph, deserializerCache, watchContext);
+                var emitter = new Emitter(graph, deserializerCache, graphByFact, watchContext);
                 ImmutableList<ProjectedResult> results = Deserializer.Deserialize(emitter, projection, type, products, path);
                 deserializerCache = emitter.DeserializerCache;
                 return results;
