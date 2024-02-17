@@ -116,9 +116,9 @@ namespace Jinaga.Storage
             resultReferences = result.Select(reference =>
                 references.Add(match.Unknown.Name, reference)).ToImmutableList();
 
-            if (match.PathConditions.Count > 1)
+            foreach (var additionalPathCondition in match.PathConditions.Skip(1))
             {
-                throw new NotImplementedException();
+                resultReferences = FilterByPathCondition(resultReferences, references, match.Unknown, additionalPathCondition);
             }
             foreach (var condition in match.ExistentialConditions)
             {
@@ -140,6 +140,15 @@ namespace Jinaga.Storage
                 set = ExecuteSuccessorStep(set, role.name, role.declaringType);
             }
             return set;
+        }
+
+        private ImmutableList<FactReferenceTuple> FilterByPathCondition(ImmutableList<FactReferenceTuple> resultReferences, FactReferenceTuple references, Label unknown, PathCondition pathCondition)
+        {
+            var otherResultReferences = ExecutePathCondition(references, unknown, pathCondition);
+            return resultReferences
+                .Where(resultReference =>
+                    otherResultReferences.Contains(resultReference.Get(unknown.Name)))
+                .ToImmutableList();
         }
 
         private ImmutableList<FactReferenceTuple> FilterByExistentialCondition(ImmutableList<FactReferenceTuple> resultReferences, ExistentialCondition existentialCondition)
