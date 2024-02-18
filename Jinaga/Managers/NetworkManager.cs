@@ -113,7 +113,7 @@ namespace Jinaga.Managers
             }
         }
 
-        public async Task Subscribe(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
+        public async Task<ImmutableList<string>> Subscribe(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
         {
             var reducedSpecification = specification.Reduce();
             var feeds = await GetFeedsFromCache(givenTuple, reducedSpecification, cancellationToken).ConfigureAwait(false);
@@ -151,9 +151,10 @@ namespace Jinaga.Managers
                 this.Unsubscribe(feeds);
                 throw e;
             }
+            return feeds;
         }
 
-        private void Unsubscribe(ImmutableList<string> feeds)
+        public void Unsubscribe(ImmutableList<string> feeds)
         {
             lock (this)
             {

@@ -84,9 +84,14 @@ namespace Jinaga.Managers
             await networkManager.Fetch(givenTuple, specification, cancellationToken).ConfigureAwait(false);
         }
 
-        public async Task Subscribe(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
+        public async Task<ImmutableList<string>> Subscribe(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
         {
-            await networkManager.Subscribe(givenTuple, specification, cancellationToken).ConfigureAwait(false);
+            return await networkManager.Subscribe(givenTuple, specification, cancellationToken).ConfigureAwait(false);
+        }
+
+        public void Unsubscribe(ImmutableList<string> feeds)
+        {
+            networkManager.Unsubscribe(feeds);
         }
 
         public async Task<ImmutableList<ProjectedResult>> Read(FactReferenceTuple givenTuple, Specification specification, Type type, IWatchContext? watchContext, CancellationToken cancellationToken)

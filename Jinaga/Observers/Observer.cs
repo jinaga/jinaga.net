@@ -33,6 +33,7 @@ namespace Jinaga.Observers
             ImmutableList<AddedHandler>.Empty;
         private ImmutableHashSet<FactReferenceTuple> notifiedTuples =
             ImmutableHashSet<FactReferenceTuple>.Empty;
+        private ImmutableList<string> feeds = ImmutableList<string>.Empty;
 
         internal Observer(Specification specification, FactReferenceTuple givenTuple, FactManager factManager, Func<object, Task<Func<Task>>> onAdded)
         {
@@ -139,6 +140,8 @@ namespace Jinaga.Observers
                 factManager.RemoveSpecificationListener(listener);
             }
             cancelInitialize.Dispose();
+            factManager.Unsubscribe(feeds);
+            feeds = ImmutableList<string>.Empty;
         }
 
         private async Task Read(CancellationToken cancellationToken)
@@ -152,15 +155,19 @@ namespace Jinaga.Observers
             await SynchronizeNotifyAdded(results, givenSubset).ConfigureAwait(false);
         }
 
-        private Task Fetch(CancellationToken cancellationToken, bool keepAlive)
+        private async Task Fetch(CancellationToken cancellationToken, bool keepAlive)
         {
             if (keepAlive)
             {
-                return factManager.Subscribe(givenTuple, specification, cancellationToken);
+                var feeds = await factManager.Subscribe(givenTuple, specification, cancellationToken);
+                lock (this)
+                {
+                    this.feeds = feeds;
+                }
             }
             else
             {
-                return factManager.Fetch(givenTuple, specification, cancellationToken);
+                await factManager.Fetch(givenTuple, specification, cancellationToken);
             }
         }
 
