@@ -151,7 +151,7 @@ namespace Jinaga.Http
             {
                 using var request = createRequest();
                 setRequestHeaders(request.Headers);
-                using var response = await httpClient.SendAsync(request).ConfigureAwait(false);
+                using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
                 if (response.StatusCode == HttpStatusCode.Unauthorized ||
                     response.StatusCode == HttpStatusCode.ProxyAuthenticationRequired)
                 {
@@ -159,7 +159,7 @@ namespace Jinaga.Http
                     {
                         using var retryRequest = createRequest();
                         setRequestHeaders(retryRequest.Headers);
-                        using var retryResponse = await httpClient.SendAsync(retryRequest).ConfigureAwait(false);
+                        using var retryResponse = await httpClient.SendAsync(retryRequest, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
                         await CheckForError(retryResponse).ConfigureAwait(false);
                         var retryResult = await processResponse(retryResponse).ConfigureAwait(false);
                         return retryResult;
