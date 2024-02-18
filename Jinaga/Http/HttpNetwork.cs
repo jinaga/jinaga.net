@@ -69,7 +69,12 @@ namespace Jinaga.Http
 
         public void StreamFeed(string feed, string bookmark, CancellationToken cancellationToken, Func<ImmutableList<Facts.FactReference>, string, Task> onResponse, Action<Exception> onError)
         {
-            throw new NotImplementedException();
+            webClient.StreamFeed(feed, bookmark, cancellationToken, async (FeedResponse response) => {
+                var references = response.references
+                    .Select(r => ReadFactReference(r))
+                    .ToImmutableList();
+                await onResponse(references, response.bookmark).ConfigureAwait(false);
+            }, onError);
         }
 
         public async Task<FactGraph> Load(ImmutableList<Facts.FactReference> factReferences, CancellationToken cancellationToken)

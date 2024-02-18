@@ -4,6 +4,7 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Jinaga.Http
@@ -40,7 +41,49 @@ namespace Jinaga.Http
                 });
         }
 
-        public Task<ObservableStream<TResponse>> GetStream<TResponse>(string path, string contentType)
+        public async void GetStream<T>(string path, Func<T, Task> onResponse, Action<Exception> onError, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var observableStream = await GetObservableStream<T>(path, "application/x-jinaga-feed-stream", cancellationToken).ConfigureAwait(false);
+                // As data comes in, parse non-blank lines to JSON and pass to onResponse.
+                // Skip blank lines.
+                // If an error occurs, call onError.
+                observableStream.Start(async data =>
+                {
+                    // Parse data bytes to UTF-8 lines.
+                    // If the last line is incomplete, return the number of bytes that were handled.
+                    Decoder utf8Decoder = Encoding.UTF8.GetDecoder();
+                    int bytesHandled = 0;
+                    while (bytesHandled < data.Length)
+                    {
+                        char[] chars = new char[utf8Decoder.GetCharCount(data, bytesHandled, data.Length - bytesHandled, false)];
+                        utf8Decoder.GetChars(data, bytesHandled, data.Length - bytesHandled, chars, 0, false);
+                        string text = new string(chars);
+                        // Find one line at the beginning of text up to and including the \r\n or \n.
+                        int endOfLine = text.IndexOf('\n');
+                        if (endOfLine == -1)
+                        {
+                            break;
+                        }
+                        string line = text.Substring(0, endOfLine + 1);
+                        if (line.Length > 0)
+                        {
+                            T response = MessageSerializer.Deserialize<T>(line.TrimEnd('\r', '\n'));
+                            await onResponse(response);
+                        }
+                        bytesHandled += Encoding.UTF8.GetByteCount(line);
+                    }
+                    return bytesHandled;
+                }, onError);
+            }
+            catch (Exception ex)
+            {
+                onError(ex);
+            }
+        }
+
+        private Task<ObservableStream<TResponse>> GetObservableStream<TResponse>(string path, string contentType, CancellationToken cancellationToken)
         {
             return WithHttpClient(() =>
             {
@@ -50,7 +93,7 @@ namespace Jinaga.Http
             }, async httpResponse =>
             {
                 var stream = await httpResponse.Content.ReadAsStreamAsync().ConfigureAwait(false);
-                return new ObservableStream<TResponse>(stream);
+                return new ObservableStream<TResponse>(stream, cancellationToken);
             });
         }
 
@@ -117,7 +160,7 @@ namespace Jinaga.Http
                         using var retryRequest = createRequest();
                         setRequestHeaders(retryRequest.Headers);
                         using var retryResponse = await httpClient.SendAsync(retryRequest).ConfigureAwait(false);
-                        await CheckForError(response).ConfigureAwait(false);
+                        await CheckForError(retryResponse).ConfigureAwait(false);
                         var retryResult = await processResponse(retryResponse).ConfigureAwait(false);
                         return retryResult;
                     }
