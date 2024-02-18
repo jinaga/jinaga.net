@@ -9,28 +9,36 @@ namespace Jinaga.Store.SQLite.Generation
 {
     internal static class SqlGenerator
     {
-        public static SqlQueryTree CreateSqlQueryTree(ResultDescription description, int parentFactIdLength = 0)
+        public static SqlQueryTree CreateSqlQueryTree(ResultDescription description)
         {
-            var sqlQuery = GenerateResultSqlQuery(description.QueryDescription);
+            return RecursiveCreateSqlQueryTree(description, ImmutableList<SpecificationLabel>.Empty);
+        }
+
+        private static SqlQueryTree RecursiveCreateSqlQueryTree(ResultDescription description, ImmutableList<SpecificationLabel> parentLabels)
+        {
+            var sqlQuery = GenerateResultSqlQuery(description.QueryDescription, parentLabels);
             var childQueries = description.ChildResultDescriptions
                 .Select(child => KeyValuePair.Create(
                     child.Key,
-                    CreateSqlQueryTree(child.Value, description.QueryDescription.OutputLength())))
+                    RecursiveCreateSqlQueryTree(child.Value, sqlQuery.Labels)))
                 .ToImmutableDictionary();
-            return new SqlQueryTree(sqlQuery, parentFactIdLength, childQueries);
+            return new SqlQueryTree(sqlQuery, parentLabels.Count, childQueries);
         }
 
-        private static SpecificationSqlQuery GenerateResultSqlQuery(QueryDescription queryDescription)
+        private static SpecificationSqlQuery GenerateResultSqlQuery(QueryDescription queryDescription, ImmutableList<SpecificationLabel> parentLabels)
         {
             if (!queryDescription.IsSatisfiable())
             {
                 return SpecificationSqlQuery.Empty;
             }
-            var allLabels = queryDescription.Inputs
+            // Append additional labels from the child query to the parent labels.
+            // This ensures that the parent facts are the prefix of the child facts.
+            var childLabels = queryDescription.Inputs
                 .Select(input => new SpecificationLabel(input.Label, input.FactIndex, input.Type))
                 .Concat(queryDescription.Outputs
-                    .Select(output => new SpecificationLabel(output.Label, output.FactIndex, output.Type)))
-                .ToImmutableList();
+                    .Select(output => new SpecificationLabel(output.Label, output.FactIndex, output.Type)));
+            var additionalLabels = childLabels.Except(parentLabels);
+            var allLabels = parentLabels.AddRange(additionalLabels);
             var columns = allLabels.Select(label =>
                 $"f{label.Index}.hash as hash{label.Index}, " +
                 $"f{label.Index}.fact_id as id{label.Index}, " +
