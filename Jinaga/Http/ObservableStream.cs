@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -7,11 +8,13 @@ namespace Jinaga.Http
 {
     public class ObservableStream<TResponse>
     {
+        private readonly HttpResponseMessage httpResponse;
         private readonly Stream stream;
         private readonly CancellationToken cancellationToken;
 
-        public ObservableStream(Stream stream, CancellationToken cancellationToken)
+        public ObservableStream(HttpResponseMessage httpResponse, Stream stream, CancellationToken cancellationToken)
         {
+            this.httpResponse = httpResponse;
             this.stream = stream;
             this.cancellationToken = cancellationToken;
         }
@@ -42,6 +45,14 @@ namespace Jinaga.Http
                     onError(ex);
                     break;
                 }
+            }
+            try
+            {
+                httpResponse.Dispose();
+            }
+            catch (Exception)
+            {
+                // Ignore
             }
         }
     }
