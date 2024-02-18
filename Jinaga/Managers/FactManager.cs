@@ -84,6 +84,11 @@ namespace Jinaga.Managers
             await networkManager.Fetch(givenTuple, specification, cancellationToken).ConfigureAwait(false);
         }
 
+        public async Task Subscribe(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
+        {
+            await networkManager.Subscribe(givenTuple, specification, cancellationToken).ConfigureAwait(false);
+        }
+
         public async Task<ImmutableList<ProjectedResult>> Read(FactReferenceTuple givenTuple, Specification specification, Type type, IWatchContext? watchContext, CancellationToken cancellationToken)
         {
             var products = await store.Read(givenTuple, specification, cancellationToken).ConfigureAwait(false);
@@ -169,10 +174,10 @@ namespace Jinaga.Managers
             }
         }
 
-        public Observer StartObserver(FactReferenceTuple givenTuple, Specification specification, Func<object, Task<Func<Task>>> onAdded)
+        public Observer StartObserver(FactReferenceTuple givenTuple, Specification specification, Func<object, Task<Func<Task>>> onAdded, bool keepAlive)
         {
             var observer = new Observer(specification, givenTuple, this, onAdded);
-            observer.Start();
+            observer.Start(keepAlive);
             return observer;
         }
 

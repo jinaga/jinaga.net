@@ -469,7 +469,7 @@ namespace Jinaga
             var givenTuple = FactReferenceTuple.Empty
                 .Add(specification.Givens.Single().Label.Name, givenReference);
             Func<object, Task<Func<Task>>> onAdded = (object obj) => added((TProjection)obj);
-            var observer = factManager.StartObserver(givenTuple, specification, onAdded);
+            var observer = factManager.StartObserver(givenTuple, specification, onAdded, keepAlive: false);
             return observer;
         }
 
@@ -580,7 +580,7 @@ namespace Jinaga
             var givenTuple = FactReferenceTuple.Empty
                 .Add(specification.Givens.Single().Label.Name, givenReference);
             Func<object, Task<Func<Task>>> onAdded = (object obj) => added((TProjection)obj);
-            var observer = factManager.StartObserver(givenTuple, specification, onAdded);
+            var observer = factManager.StartObserver(givenTuple, specification, onAdded, keepAlive: true);
             return observer;
         }
 

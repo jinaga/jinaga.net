@@ -50,7 +50,7 @@ namespace Jinaga.Observers
         public Task<bool> Cached => cachedTask ?? Task.FromResult(false);
         public Task Loaded => loadedTask ?? Task.CompletedTask;
 
-        internal void Start()
+        internal void Start(bool keepAlive)
         {
             // Capture the synchronization context so that notifications
             // can be executed on the same thread.
@@ -62,7 +62,7 @@ namespace Jinaga.Observers
             loadedTask = Task.Run(async () =>
             {
                 bool cached = await cachedTask.ConfigureAwait(false);
-                await FetchFromNetwork(cached, cancellationToken).ConfigureAwait(false);
+                await FetchFromNetwork(cached, keepAlive, cancellationToken).ConfigureAwait(false);
             });
         }
 
@@ -75,12 +75,12 @@ namespace Jinaga.Observers
             
             if (cancellationToken != null)
             {
-                await FetchFromNetwork(true, cancellationToken.Value).ConfigureAwait(false);
+                await FetchFromNetwork(true, false, cancellationToken.Value).ConfigureAwait(false);
             }
             else
             {
                 using var source = new CancellationTokenSource();
-                await FetchFromNetwork(true, source.Token).ConfigureAwait(false);
+                await FetchFromNetwork(true, false, source.Token).ConfigureAwait(false);
             }
         }
 
@@ -105,20 +105,20 @@ namespace Jinaga.Observers
             return true;
         }
 
-        private async Task FetchFromNetwork(bool cached, CancellationToken cancellationToken)
+        private async Task FetchFromNetwork(bool cached, bool keepAlive, CancellationToken cancellationToken)
         {
             if (!cached)
             {
                 // Fetch from the network first,
                 // then read from local storage.
-                await Fetch(cancellationToken).ConfigureAwait(false);
+                await Fetch(cancellationToken, keepAlive).ConfigureAwait(false);
                 await Read(cancellationToken).ConfigureAwait(false);
             }
             else
             {
                 // Already read from local storage.
                 // Fetch from the network to update the cache.
-                await Fetch(cancellationToken).ConfigureAwait(false);
+                await Fetch(cancellationToken, keepAlive).ConfigureAwait(false);
             }
             await factManager.SetMruDate(specificationHash, DateTime.UtcNow).ConfigureAwait(false);
         }
@@ -152,9 +152,16 @@ namespace Jinaga.Observers
             await SynchronizeNotifyAdded(results, givenSubset).ConfigureAwait(false);
         }
 
-        private Task Fetch(CancellationToken cancellationToken)
+        private Task Fetch(CancellationToken cancellationToken, bool keepAlive)
         {
-            return factManager.Fetch(givenTuple, specification, cancellationToken);
+            if (keepAlive)
+            {
+                return factManager.Subscribe(givenTuple, specification, cancellationToken);
+            }
+            else
+            {
+                return factManager.Fetch(givenTuple, specification, cancellationToken);
+            }
         }
 
         private void AddSpecificationListeners()
