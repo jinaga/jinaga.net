@@ -22,11 +22,21 @@ namespace Jinaga.Http
         public async void Start(Func<string, Task> onData, Action<Exception> onError)
         {
             using var reader = new StreamReader(stream);
+            using var cancellationRegistration = cancellationToken.Register(() => stream.Close());
 
             string line;
-            while ((line = await reader.ReadLineAsync()) != null)
+            while (true)
             {
-                if (cancellationToken.IsCancellationRequested)
+                try
+                {
+                    line = await reader.ReadLineAsync();
+                }
+                catch (IOException) when (cancellationToken.IsCancellationRequested)
+                {
+                    break;
+                }
+
+                if (line == null || cancellationToken.IsCancellationRequested)
                 {
                     break;
                 }
