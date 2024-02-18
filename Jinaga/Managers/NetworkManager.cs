@@ -126,7 +126,7 @@ namespace Jinaga.Managers
                     if (!this.subscribers.TryGetValue(feed, out var subscriber))
                     {
                         subscriber = new Subscriber(feed, this.network, this.store, this.notifyObservers);
-                        this.subscribers.Add(feed, subscriber);
+                        this.subscribers = this.subscribers.Add(feed, subscriber);
                     }
                     return subscriber;
                 }).ToList();
