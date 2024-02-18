@@ -24,6 +24,11 @@ namespace Jinaga.Test
             throw new InvalidOperationException("This network should never be used.");
         }
 
+        public void StreamFeed(string feed, string bookmark, CancellationToken cancellationToken, Func<System.Collections.Immutable.ImmutableList<FactReference>, string, Task> onResponse, Action<Exception> onError)
+        {
+            throw new InvalidOperationException("This network should never be used.");
+        }
+
         public Task<FactGraph> Load(System.Collections.Immutable.ImmutableList<FactReference> factReferences, CancellationToken cancellationToken)
         {
             throw new InvalidOperationException("This network should never be used.");

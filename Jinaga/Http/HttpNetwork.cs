@@ -67,6 +67,11 @@ namespace Jinaga.Http
             return (references, bookmark);
         }
 
+        public void StreamFeed(string feed, string bookmark, CancellationToken cancellationToken, Func<ImmutableList<Facts.FactReference>, string, Task> onResponse, Action<Exception> onError)
+        {
+            throw new NotImplementedException();
+        }
+
         public async Task<FactGraph> Load(ImmutableList<Facts.FactReference> factReferences, CancellationToken cancellationToken)
         {
             var request = new LoadRequest

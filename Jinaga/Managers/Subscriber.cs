@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Immutable;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Jinaga.Facts;
@@ -17,6 +18,9 @@ namespace Jinaga.Managers
         private int refCount = 0;
         private string bookmark = string.Empty;
         private bool resolved = false;
+        private TaskCompletionSource<bool>? taskCompletionSource;
+        private CancellationTokenSource? cancellationTokenSource;
+        private Timer? timer;
 
         public Subscriber(string feed, INetwork network, IStore store, Func<FactGraph, ImmutableList<Fact>, CancellationToken, Task> notifyObservers)
         {
@@ -40,28 +44,55 @@ namespace Jinaga.Managers
 
         public async Task Start()
         {
-            /*
-    this.bookmark = await this.store.loadBookmark(this.feed);
-    await new Promise<void>((resolve, reject) => {
-      this.resolved = false;
-      // Refresh the connection every 4 minutes.
-      this.disconnect = this.connectToFeed(resolve, reject);
-      this.timer = setInterval(() => {
-        if (this.disconnect) {
-          this.disconnect();
-        }
-        this.disconnect = this.connectToFeed(resolve, reject);
-      }, 4 * 60 * 1000);
-    });
-            */
             bookmark = await store.LoadBookmark(feed);
             resolved = false;
-            
+
+            taskCompletionSource = new TaskCompletionSource<bool>();
+
+            // Initialize the connection immediately.
+            // Refresh the connection every 4 minutes.
+            timer = new Timer(_ =>
+            {
+                cancellationTokenSource?.Cancel();
+                cancellationTokenSource = new CancellationTokenSource();
+                ConnectToFeed(taskCompletionSource, cancellationTokenSource.Token);
+            }, null, TimeSpan.Zero, TimeSpan.FromMinutes(4));
+
+            // Wait for the connection to be established.
+            await taskCompletionSource.Task;
         }
 
         public void Stop()
         {
-            throw new NotImplementedException();
+            timer?.Dispose();
+            timer = null;
+            cancellationTokenSource?.Cancel();
+            cancellationTokenSource = null;
+        }
+
+        private void ConnectToFeed(TaskCompletionSource<bool> taskCompletionSource, CancellationToken cancellationToken)
+        {
+            network.StreamFeed(feed, bookmark, cancellationToken, async (factReferences, newBookmark) =>
+            {
+                var factGraph = await network.Load(factReferences, cancellationToken);
+                var facts = factReferences.Select(reference => factGraph.GetFact(reference)).ToImmutableList();
+                await store.Save(factGraph, cancellationToken);
+                await store.SaveBookmark(feed, newBookmark);
+                bookmark = newBookmark;
+                await notifyObservers(factGraph, facts, cancellationToken);
+                if (!resolved)
+                {
+                    resolved = true;
+                    taskCompletionSource.SetResult(true);
+                }
+            }, ex =>
+            {
+                if (!resolved)
+                {
+                    resolved = true;
+                    taskCompletionSource.SetException(ex);
+                }
+            });
         }
     }
 }

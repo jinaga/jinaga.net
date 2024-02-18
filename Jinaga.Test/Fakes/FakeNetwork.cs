@@ -83,6 +83,31 @@ internal class FakeNetwork : INetwork
         return (references, "done");
     }
 
+    public void StreamFeed(string feed, string bookmark, CancellationToken cancellationToken, Func<ImmutableList<FactReference>, string, Task> onResponse, Action<Exception> onError)
+    {
+        if (bookmark == "done")
+        {
+            onResponse(ImmutableList<FactReference>.Empty, "done");
+            return;
+        }
+        var fakeFeed = feeds.Single(f => f.Name == feed);
+        var references = fakeFeed.Facts
+            .Select(fact => fact.Reference)
+            .ToImmutableList();
+        if (fakeFeed.Delay > 0)
+        {
+            Task.Run(async () =>
+            {
+                await Task.Delay(fakeFeed.Delay);
+                await onResponse(references, "done");
+            });
+        }
+        else
+        {
+            onResponse(references, "done");
+        }
+    }
+
     public Task<FactGraph> Load(ImmutableList<FactReference> factReferences, CancellationToken cancellationToken)
     {
         string references = string.Join(",\n", factReferences.Select(r => $"  {r}"));

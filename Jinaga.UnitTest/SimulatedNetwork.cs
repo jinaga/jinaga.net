@@ -47,6 +47,11 @@ namespace Jinaga.UnitTest
             throw new NotImplementedException();
         }
 
+        public void StreamFeed(string feed, string bookmark, CancellationToken cancellationToken, Func<ImmutableList<FactReference>, string, Task> onResponse, Action<Exception> onError)
+        {
+            throw new NotImplementedException();
+        }
+
         public Task<FactGraph> Load(ImmutableList<FactReference> factReferences, CancellationToken cancellationToken)
         {
             throw new NotImplementedException();
