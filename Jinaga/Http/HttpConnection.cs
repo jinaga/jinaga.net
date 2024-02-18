@@ -46,35 +46,10 @@ namespace Jinaga.Http
             try
             {
                 var observableStream = await GetObservableStream<T>(path, "application/x-jinaga-feed-stream", cancellationToken).ConfigureAwait(false);
-                // As data comes in, parse non-blank lines to JSON and pass to onResponse.
-                // Skip blank lines.
-                // If an error occurs, call onError.
-                observableStream.Start(async data =>
+                observableStream.Start(async line =>
                 {
-                    // Parse data bytes to UTF-8 lines.
-                    // If the last line is incomplete, return the number of bytes that were handled.
-                    Decoder utf8Decoder = Encoding.UTF8.GetDecoder();
-                    int bytesHandled = 0;
-                    while (bytesHandled < data.Length)
-                    {
-                        char[] chars = new char[utf8Decoder.GetCharCount(data, bytesHandled, data.Length - bytesHandled, false)];
-                        utf8Decoder.GetChars(data, bytesHandled, data.Length - bytesHandled, chars, 0, false);
-                        string text = new string(chars);
-                        // Find one line at the beginning of text up to and including the \r\n or \n.
-                        int endOfLine = text.IndexOf('\n');
-                        if (endOfLine == -1)
-                        {
-                            break;
-                        }
-                        string line = text.Substring(0, endOfLine + 1);
-                        if (line.Length > 0)
-                        {
-                            T response = MessageSerializer.Deserialize<T>(line.TrimEnd('\r', '\n'));
-                            await onResponse(response);
-                        }
-                        bytesHandled += Encoding.UTF8.GetByteCount(line);
-                    }
-                    return bytesHandled;
+                    T response = MessageSerializer.Deserialize<T>(line.TrimEnd('\r', '\n'));
+                    await onResponse(response);
                 }, onError);
             }
             catch (Exception ex)

@@ -16,25 +16,26 @@ namespace Jinaga.Http
             this.cancellationToken = cancellationToken;
         }
 
-        public async void Start(Func<byte[], Task<int>> onData, Action<Exception> onError)
+        public async void Start(Func<string, Task> onData, Action<Exception> onError)
         {
-            var buffer = new byte[1024];
-            var unhandledData = new byte[0];
-            while (!cancellationToken.IsCancellationRequested)
+            using var reader = new StreamReader(stream);
+
+            string line;
+            while ((line = await reader.ReadLineAsync()) != null)
             {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    break;
+                }
+
+                if (string.IsNullOrWhiteSpace(line))
+                {
+                    continue;
+                }
+
                 try
                 {
-                    int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, cancellationToken);
-                    if (bytesRead == 0)
-                    {
-                        break;
-                    }
-                    byte[] data = new byte[unhandledData.Length + bytesRead];
-                    Array.Copy(unhandledData, data, unhandledData.Length);
-                    Array.Copy(buffer, 0, data, unhandledData.Length, bytesRead);
-                    var bytesHandled = await onData.Invoke(data);
-                    unhandledData = new byte[data.Length - bytesHandled];
-                    Array.Copy(data, bytesHandled, unhandledData, 0, unhandledData.Length);
+                    await onData(line);
                 }
                 catch (Exception ex)
                 {
