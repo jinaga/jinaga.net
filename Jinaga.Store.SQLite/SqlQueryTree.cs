@@ -148,6 +148,7 @@ namespace Jinaga.Store.SQLite
         private ImmutableList<int> IdentifierOf(ImmutableDictionary<int, ResultSetFact> row)
         {
             return SqlQuery.Labels
+                .OrderBy(label => label.Index)
                 .Select(label => row[label.Index].FactId)
                 .ToImmutableList();
         }

@@ -182,9 +182,19 @@ namespace Jinaga.Store.SQLite.Builder
                 }
                 var roleId = roleMap[typeId][role.Name];
 
-                var successorFactIndex = factIndex;
-                (context, factIndex) = context.WithFact(role.TargetType);
-                context = context.WithEdge(factIndex, successorFactIndex, roleId);
+                // If we have already written the output, we can use the fact index.
+                if (context.KnownFacts.TryGetValue(unknown.Name, out var knownFact))
+                {
+                    context = context.WithEdge(knownFact.FactIndex, factIndex, roleId);
+                    factIndex = knownFact.FactIndex;
+                }
+                // If we have not written the fact, we need to write it now.
+                else
+                {
+                    var successorFactIndex = factIndex;
+                    (context, factIndex) = context.WithFact(role.TargetType);
+                    context = context.WithEdge(factIndex, successorFactIndex, roleId);
+                }
                 
                 type = role.TargetType;
             }
@@ -224,9 +234,19 @@ namespace Jinaga.Store.SQLite.Builder
             for (int i = newEdges.Count - 1; i >= 0; i--)
             {
                 var (roleId, successorType) = newEdges[i];
-                var predecessorFactIndex = factIndex;
-                (context, factIndex) = context.WithFact(successorType);
-                context = context.WithEdge(predecessorFactIndex, factIndex, roleId);
+                // If we have already written the output, we can use the fact index.
+                if (i == 0 && context.KnownFacts.TryGetValue(unknown.Name, out var knownFact))
+                {
+                    context = context.WithEdge(factIndex, knownFact.FactIndex, roleId);
+                    factIndex = knownFact.FactIndex;
+                }
+                // If we have not written the fact, we need to write it now.
+                else
+                {
+                    var predecessorFactIndex = factIndex;
+                    (context, factIndex) = context.WithFact(successorType);
+                    context = context.WithEdge(predecessorFactIndex, factIndex, roleId);
+                }
             }
 
             context = context.WithLabel(unknown, factIndex);

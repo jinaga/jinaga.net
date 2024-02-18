@@ -307,6 +307,43 @@ namespace Jinaga.Test
                 .titles.Should().ContainSingle().Which
                     .Should().Be("Introduction to Jinaga Replicator");
         }
+
+        [Fact]
+        public async Task Query_SpecificationWithTwoGivens()
+        {
+            var site = await j.Fact(new Site("michaelperry.net"));
+            var post = await j.Fact(new Post(site, "2022-09-30T13:40:00Z"));
+            var title = await j.Fact(new Title(post, "Introduction to Jinaga Replicator", new Title[0]));
+            var visitor = await j.Fact(new User("visitor"));
+            var comment = await j.Fact(new Comment(post, visitor, "Great post!"));
+            var otherComment = await j.Fact(new Comment(post, new User("other"), "I disagree."));
+
+            var specification = Given<Site, User>.Match((site, user, facts) =>
+                from post in facts.OfType<Post>()
+                where post.site == site
+                select new
+                {
+                    postCreatedAt = post.createdAt,
+                    titles =
+                        from title in facts.OfType<Title>()
+                        where title.post == post
+                        select title.value,
+                    myComments =
+                        from comment in facts.OfType<Comment>()
+                        where comment.post == post
+                        where comment.author == user
+                        select comment.message
+                }
+            );
+
+            var posts = await j.Query(specification, site, visitor);
+
+            var result = posts.Should().ContainSingle().Subject;
+            result.titles.Should().ContainSingle().Which
+                .Should().Be("Introduction to Jinaga Replicator");
+            result.myComments.Should().ContainSingle().Which
+                .Should().Be("Great post!");
+        }
     }
 
     [FactType("Blog.Site")]
@@ -317,4 +354,7 @@ namespace Jinaga.Test
 
     [FactType("Blog.Post.Title")]
     public record Title(Post post, string value, Title[] prior) { }
+
+    [FactType("Blog.Comment")]
+    public record Comment(Post post, User author, string message) { }
 }
