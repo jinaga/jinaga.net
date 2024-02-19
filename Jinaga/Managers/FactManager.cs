@@ -84,6 +84,16 @@ namespace Jinaga.Managers
             await networkManager.Fetch(givenTuple, specification, cancellationToken).ConfigureAwait(false);
         }
 
+        public async Task<ImmutableList<string>> Subscribe(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
+        {
+            return await networkManager.Subscribe(givenTuple, specification, cancellationToken).ConfigureAwait(false);
+        }
+
+        public void Unsubscribe(ImmutableList<string> feeds)
+        {
+            networkManager.Unsubscribe(feeds);
+        }
+
         public async Task<ImmutableList<ProjectedResult>> Read(FactReferenceTuple givenTuple, Specification specification, Type type, IWatchContext? watchContext, CancellationToken cancellationToken)
         {
             var products = await store.Read(givenTuple, specification, cancellationToken).ConfigureAwait(false);
@@ -101,6 +111,11 @@ namespace Jinaga.Managers
         public async Task<ImmutableList<Product>> Query(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
         {
             await networkManager.Fetch(givenTuple, specification, cancellationToken).ConfigureAwait(false);
+            return await store.Read(givenTuple, specification, cancellationToken).ConfigureAwait(false);
+        }
+
+        public async Task<ImmutableList<Product>> QueryLocal(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
+        {
             return await store.Read(givenTuple, specification, cancellationToken).ConfigureAwait(false);
         }
 
@@ -164,10 +179,10 @@ namespace Jinaga.Managers
             }
         }
 
-        public Observer StartObserver(FactReferenceTuple givenTuple, Specification specification, Func<object, Task<Func<Task>>> onAdded)
+        public Observer StartObserver(FactReferenceTuple givenTuple, Specification specification, Func<object, Task<Func<Task>>> onAdded, bool keepAlive)
         {
             var observer = new Observer(specification, givenTuple, this, onAdded);
-            observer.Start();
+            observer.Start(keepAlive);
             return observer;
         }
 

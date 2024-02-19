@@ -3,6 +3,7 @@ using Jinaga.Identity;
 using Jinaga.Projections;
 using Jinaga.Services;
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
@@ -20,6 +21,8 @@ namespace Jinaga.Managers
             ImmutableDictionary<string, Task<ImmutableList<string>>>.Empty;
         private ImmutableDictionary<string, Task> activeFeeds =
             ImmutableDictionary<string, Task>.Empty;
+        private ImmutableDictionary<string, Subscriber> subscribers =
+            ImmutableDictionary<string, Subscriber>.Empty;
         private int fetchCount = 0;
         private LoadBatch? currentBatch = null;
         private JinagaStatus status = JinagaStatus.Default;
@@ -107,6 +110,65 @@ namespace Jinaga.Managers
             {
                 SetLoadStatus(false, ex);
                 throw;
+            }
+        }
+
+        public async Task<ImmutableList<string>> Subscribe(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
+        {
+            var reducedSpecification = specification.Reduce();
+            var feeds = await GetFeedsFromCache(givenTuple, reducedSpecification, cancellationToken).ConfigureAwait(false);
+
+            List<Subscriber> subscribers;
+            lock (this)
+            {
+                subscribers = feeds.Select(feed =>
+                {
+                    if (!this.subscribers.TryGetValue(feed, out var subscriber))
+                    {
+                        subscriber = new Subscriber(feed, this.network, this.store, this.notifyObservers);
+                        this.subscribers = this.subscribers.Add(feed, subscriber);
+                    }
+                    return subscriber;
+                }).ToList();
+            }
+
+            var tasks = subscribers.Select(async subscriber =>
+            {
+                if (subscriber.AddRef())
+                {
+                    await subscriber.Start();
+                }
+            });
+
+            try
+            {
+                await Task.WhenAll(tasks);
+            }
+            catch (Exception e)
+            {
+                // If any feed fails, then remove the specification from the cache.
+                this.RemoveFeedsFromCache(givenTuple, reducedSpecification);
+                this.Unsubscribe(feeds);
+                throw e;
+            }
+            return feeds;
+        }
+
+        public void Unsubscribe(ImmutableList<string> feeds)
+        {
+            lock (this)
+            {
+                foreach (var feed in feeds)
+                {
+                    if (subscribers.TryGetValue(feed, out var subscriber))
+                    {
+                        if (subscriber.Release())
+                        {
+                            subscriber.Stop();
+                            subscribers = subscribers.Remove(feed);
+                        }
+                    }
+                }
             }
         }
 

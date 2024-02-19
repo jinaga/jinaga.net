@@ -1,4 +1,5 @@
-﻿using System.Threading;
+﻿using System;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Jinaga.Http
@@ -31,6 +32,12 @@ namespace Jinaga.Http
         {
             string queryString = bookmark == null ? "" : $"?b={bookmark}";
             return httpConnection.Get<FeedResponse>($"feeds/{feed}{queryString}");
+        }
+
+        public void StreamFeed(string feed, string bookmark, CancellationToken cancellationToken, Func<FeedResponse, Task> onResponse, Action<Exception> onError)
+        {
+            string queryString = bookmark == null ? "" : $"?b={bookmark}";
+            httpConnection.GetStream<FeedResponse>($"feeds/{feed}{queryString}", onResponse, onError, cancellationToken);
         }
 
         public Task<LoadResponse> Load(LoadRequest request, CancellationToken cancellationToken)

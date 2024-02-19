@@ -5,7 +5,6 @@ using FluentAssertions;
 using Jinaga.Test.Model;
 using Jinaga.UnitTest;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Jinaga.Test
 {

@@ -4,6 +4,7 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Jinaga.Http
@@ -38,6 +39,37 @@ namespace Jinaga.Http
                     var response = MessageSerializer.Deserialize<TResponse>(body);
                     return response;
                 });
+        }
+
+        public async void GetStream<T>(string path, Func<T, Task> onResponse, Action<Exception> onError, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var observableStream = await GetObservableStream<T>(path, "application/x-jinaga-feed-stream", cancellationToken).ConfigureAwait(false);
+                observableStream.Start(async line =>
+                {
+                    T response = MessageSerializer.Deserialize<T>(line.TrimEnd('\r', '\n'));
+                    await onResponse(response);
+                }, onError);
+            }
+            catch (Exception ex)
+            {
+                onError(ex);
+            }
+        }
+
+        private Task<ObservableStream<TResponse>> GetObservableStream<TResponse>(string path, string contentType, CancellationToken cancellationToken)
+        {
+            return WithHttpClientStreaming(() =>
+            {
+                var request = new HttpRequestMessage(HttpMethod.Get, path);
+                request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue(contentType));
+                return request;
+            }, async httpResponse =>
+            {
+                var stream = await httpResponse.Content.ReadAsStreamAsync().ConfigureAwait(false);
+                return new ObservableStream<TResponse>(httpResponse, stream, cancellationToken);
+            });
         }
 
         public Task PostJson<TRequest>(string path, TRequest request)
@@ -103,7 +135,7 @@ namespace Jinaga.Http
                         using var retryRequest = createRequest();
                         setRequestHeaders(retryRequest.Headers);
                         using var retryResponse = await httpClient.SendAsync(retryRequest).ConfigureAwait(false);
-                        await CheckForError(response).ConfigureAwait(false);
+                        await CheckForError(retryResponse).ConfigureAwait(false);
                         var retryResult = await processResponse(retryResponse).ConfigureAwait(false);
                         return retryResult;
                     }
@@ -117,6 +149,62 @@ namespace Jinaga.Http
                     await CheckForError(response).ConfigureAwait(false);
                     var result = await processResponse(response).ConfigureAwait(false);
                     return result;
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(@"\tERROR {0}", ex.Message);
+                throw;
+            }
+        }
+
+        private async Task<T> WithHttpClientStreaming<T>(
+            Func<HttpRequestMessage> createRequest,
+            Func<HttpResponseMessage, Task<T>> processResponse)
+        {
+            try
+            {
+                using var request = createRequest();
+                setRequestHeaders(request.Headers);
+                HttpResponseMessage? response = null;
+                try
+                {
+                    response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
+                    if (response.StatusCode == HttpStatusCode.Unauthorized ||
+                        response.StatusCode == HttpStatusCode.ProxyAuthenticationRequired)
+                    {
+                        if (await reauthenticate().ConfigureAwait(false))
+                        {
+                            using var retryRequest = createRequest();
+                            setRequestHeaders(retryRequest.Headers);
+                            response.Dispose();
+                            response = await httpClient.SendAsync(retryRequest, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
+                            await CheckForError(response).ConfigureAwait(false);
+                            var retryResult = await processResponse(response).ConfigureAwait(false);
+                            // We've transferred ownership of the response to the ObservableStream.
+                            response = null;
+                            return retryResult;
+                        }
+                        else
+                        {
+                            throw new UnauthorizedAccessException();
+                        }
+                    }
+                    else
+                    {
+                        await CheckForError(response).ConfigureAwait(false);
+                        var result = await processResponse(response).ConfigureAwait(false);
+                        // We've transferred ownership of the response to the ObservableStream.
+                        response = null;
+                        return result;
+                    }
+                }
+                finally
+                {
+                    if (response != null)
+                    {
+                        response.Dispose();
+                    }
                 }
             }
             catch (Exception ex)
