@@ -610,7 +610,6 @@ namespace Jinaga
             }
             else
             {
-                await factManager.Fetch(givenTuple, specification, cancellationToken).ConfigureAwait(false);
                 var products = await factManager.Query(givenTuple, specification, cancellationToken).ConfigureAwait(false);
                 var productProjections = await factManager.ComputeProjections(specification.Projection, products, typeof(TProjection), null, string.Empty, cancellationToken).ConfigureAwait(false);
                 var projections = productProjections
