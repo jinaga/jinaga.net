@@ -1,5 +1,4 @@
 ﻿using Jinaga.Projections;
-using System;
 
 namespace Jinaga
 {

@@ -1,5 +1,3 @@
-using Jinaga;
-
 namespace Jinaga.Test.Model.Order
 {
     [FactType("Catalog")]

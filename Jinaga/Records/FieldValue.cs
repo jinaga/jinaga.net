@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Jinaga.Records
+﻿namespace Jinaga.Records
 {
     public abstract class FieldValue
     {

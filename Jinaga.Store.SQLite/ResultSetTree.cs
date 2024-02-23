@@ -1,5 +1,4 @@
-﻿using Jinaga.Facts;
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
 
 namespace Jinaga.Store.SQLite
 {
