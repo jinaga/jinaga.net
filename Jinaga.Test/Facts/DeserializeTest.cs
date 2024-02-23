@@ -2,6 +2,7 @@
 using Jinaga.Facts;
 using Jinaga.Serialization;
 using Jinaga.Test.Model;
+using Jinaga.Test.Model.Order;
 using System;
 using System.Collections.Immutable;
 using System.Runtime.CompilerServices;
@@ -23,6 +24,37 @@ namespace Jinaga.Test.Facts
             var airline = Deserialize<Airline>(graph, fact.Reference);
 
             airline.identifier.Should().Be("value");
+        }
+
+        [Fact]
+        public void Deserialize_DecimalField()
+        {
+            var catalog = Fact.Create(
+                "Catalog",
+                ImmutableList.Create(new Field("identifier", new FieldValueString("catalog"))),
+                ImmutableList<Predecessor>.Empty
+            );
+            var product = Fact.Create(
+                "Product",
+                ImmutableList.Create(new Field("sku", new FieldValueString("sku"))),
+                ImmutableList.Create<Predecessor>(new PredecessorSingle("catalog", catalog.Reference))
+            );
+            var price = Fact.Create(
+                "Price",
+                ImmutableList<Field>.Empty.Add(new Field("value", new FieldValueNumber(123.45))),
+                ImmutableList.Create<Predecessor>(
+                    new PredecessorSingle("product", product.Reference),
+                    new PredecessorMultiple("prior", ImmutableList<FactReference>.Empty)
+                )
+            );
+
+            var graph = FactGraph.Empty
+                .Add(catalog)
+                .Add(product)
+                .Add(price);
+            var priceRecord = Deserialize<Price>(graph, graph.Last);
+
+            priceRecord.value.Should().Be(123.45m);
         }
 
         [Fact]

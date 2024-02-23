@@ -180,6 +180,16 @@ namespace Jinaga.Serialization
                     nameof(FieldValue.DoubleValue)
                 );
             }
+            else if (parameterType == typeof(decimal))
+            {
+                return Expression.Convert(
+                    Expression.Property(
+                        getFieldValue,
+                        nameof(FieldValue.DoubleValue)
+                    ),
+                    typeof(decimal)
+                );
+            }
             else if (parameterType == typeof(bool))
             {
                 return Expression.Property(
