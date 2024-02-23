@@ -110,7 +110,19 @@ namespace Jinaga.Managers
 
         public async Task<ImmutableList<Product>> Query(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
         {
-            await networkManager.Fetch(givenTuple, specification, cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await networkManager.Fetch(givenTuple, specification, cancellationToken).ConfigureAwait(false);
+            }
+            catch
+            {
+                // If we are using a persistent store, then don't throw.
+                // Just return the local results.
+                if (!store.IsPersistent)
+                {
+                    throw;
+                }
+            }
             return await store.Read(givenTuple, specification, cancellationToken).ConfigureAwait(false);
         }
 
