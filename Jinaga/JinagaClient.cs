@@ -183,7 +183,7 @@ namespace Jinaga
         /// <param name="prototype">The new fact</param>
         /// <returns>A copy of the fact as saved</returns>
         /// <exception cref="ArgumentNullException">If the fact is null</exception>
-        public async Task<TFact> Fact<TFact>(TFact prototype) where TFact: class
+        public async Task<TFact> Fact<TFact>(TFact prototype) where TFact : class
         {
             if (prototype == null)
             {
@@ -431,7 +431,7 @@ namespace Jinaga
             Specification<TFact, TProjection> specification,
             TFact given,
             Func<TProjection, Task> added)
-            where TFact: class
+            where TFact : class
         {
             return Watch<TFact, TProjection>(specification, given,
                 async projection =>
@@ -467,6 +467,141 @@ namespace Jinaga
             var givenReference = graph.Last;
             var givenTuple = FactReferenceTuple.Empty
                 .Add(specification.Givens.Single().Label.Name, givenReference);
+            Func<object, Task<Func<Task>>> onAdded = (object obj) => added((TProjection)obj);
+            var observer = factManager.StartObserver(givenTuple, specification, onAdded, keepAlive: false);
+            return observer;
+        }
+
+        /// <summary>
+        /// Observe the results of a specification, including changes.
+        /// Unlike Query, Watch sets up an observer which responds to new facts.
+        /// </summary>
+        /// <typeparam name="TFact1">The type of the first starting point</typeparam>
+        /// <typeparam name="TFact2">The type of the second starting point</typeparam>
+        /// <typeparam name="TProjection">The type of the results</typeparam>
+        /// <param name="specification">Defines which facts to match and how to project them</param>
+        /// <param name="given1">The first starting point for the query</param>
+        /// <param name="given2">The second starting point for the query</param>
+        /// <param name="added">Called when a result is added. Optionally return a function to be called when it is removed.</param>
+        /// <returns>To control the observer</returns>
+        public IObserver Watch<TFact1, TFact2, TProjection>(
+            Specification<TFact1, TFact2, TProjection> specification,
+            TFact1 given1,
+            TFact2 given2,
+            Action<TProjection> added)
+            where TFact1 : class
+            where TFact2 : class
+        {
+            return Watch<TFact1, TFact2, TProjection>(specification, given1, given2,
+                projection =>
+                {
+                    added(projection);
+                    Func<Task> result = () => Task.CompletedTask;
+                    return Task.FromResult(result);
+                }
+            );
+        }
+
+        /// <summary>
+        /// Observe the results of a specification, including changes.
+        /// Unlike Query, Watch sets up an observer which responds to new facts.
+        /// </summary>
+        /// <typeparam name="TFact1">The type of the first starting point</typeparam>
+        /// <typeparam name="TFact2">The type of the second starting point</typeparam>
+        /// <typeparam name="TProjection">The type of the results</typeparam>
+        /// <param name="specification">Defines which facts to match and how to project them</param>
+        /// <param name="given1">The first starting point for the query</param>
+        /// <param name="given2">The second starting point for the query</param>
+        /// <param name="added">Called when a result is added. Optionally return a function to be called when it is removed.</param>
+        /// <returns>To control the observer</returns>
+        public IObserver Watch<TFact1, TFact2, TProjection>(
+            Specification<TFact1, TFact2, TProjection> specification,
+            TFact1 given1,
+            TFact2 given2,
+            Func<TProjection, Action> added)
+            where TFact1 : class
+            where TFact2 : class
+        {
+            return Watch<TFact1, TFact2, TProjection>(specification, given1, given2,
+                projection =>
+                {
+                    var removed = added(projection);
+                    Func<Task> result = () =>
+                    {
+                        removed();
+                        return Task.CompletedTask;
+                    };
+                    return Task.FromResult(result);
+                }
+            );
+        }
+
+        /// <summary>
+        /// Observe the results of a specification, including changes.
+        /// Unlike Query, Watch sets up an observer which responds to new facts.
+        /// </summary>
+        /// <typeparam name="TFact1">The type of the first starting point</typeparam>
+        /// <typeparam name="TFact2">The type of the second starting point</typeparam>
+        /// <typeparam name="TProjection">The type of the results</typeparam>
+        /// <param name="specification">Defines which facts to match and how to project them</param>
+        /// <param name="given1">The first starting point for the query</param>
+        /// <param name="given2">The second starting point for the query</param>
+        /// <param name="added">Called when a result is added. Optionally return a function to be called when it is removed.</param>
+        /// <returns>To control the observer</returns>
+        public IObserver Watch<TFact1, TFact2, TProjection>(
+            Specification<TFact1, TFact2, TProjection> specification,
+            TFact1 given1,
+            TFact2 given2,
+            Func<TProjection, Task> added)
+            where TFact1 : class
+            where TFact2 : class
+        {
+            return Watch<TFact1, TFact2, TProjection>(specification, given1, given2,
+                async projection =>
+                {
+                    await added(projection).ConfigureAwait(false);
+                    return () => Task.CompletedTask;
+                }
+            );
+        }
+
+        /// <summary>
+        /// Observe the results of a specification, including changes.
+        /// Unlike Query, Watch sets up an observer which responds to new facts.
+        /// </summary>
+        /// <typeparam name="TFact1">The type of the first starting point</typeparam>
+        /// <typeparam name="TFact2">The type of the second starting point</typeparam>
+        /// <typeparam name="TProjection">The type of the results</typeparam>
+        /// <param name="specification">Defines which facts to match and how to project them</param>
+        /// <param name="given1">The first starting point for the query</param>
+        /// <param name="given2">The second starting point for the query</param>
+        /// <param name="added">Called when a result is added. Optionally return a function to be called when it is removed.</param>
+        /// <returns>To control the observer</returns>
+        public IObserver Watch<TFact1, TFact2, TProjection>(
+            Specification<TFact1, TFact2, TProjection> specification,
+            TFact1 given1,
+            TFact2 given2,
+            Func<TProjection, Task<Func<Task>>> added)
+            where TFact1 : class
+            where TFact2 : class
+        {
+            if (given1 == null)
+            {
+                throw new ArgumentNullException(nameof(given1));
+            }
+
+            if (given2 == null)
+            {
+                throw new ArgumentNullException(nameof(given2));
+            }
+
+            var graph1 = factManager.Serialize(given1);
+            var givenReference1 = graph1.Last;
+            var graph2 = factManager.Serialize(given2);
+            var givenReference2 = graph2.Last;
+            var givenTuple = FactReferenceTuple.Empty
+                .Add(specification.Givens[0].Label.Name, givenReference1)
+                .Add(specification.Givens[1].Label.Name, givenReference2);
             Func<object, Task<Func<Task>>> onAdded = (object obj) => added((TProjection)obj);
             var observer = factManager.StartObserver(givenTuple, specification, onAdded, keepAlive: false);
             return observer;
