@@ -719,6 +719,141 @@ namespace Jinaga
         }
 
         /// <summary>
+        /// Observe the results of a specification, including changes from the remote replicator.
+        /// Unlike Watch, Subscribe creates a persistent connection to the replicator.
+        /// </summary>
+        /// <typeparam name="TFact1">The type of the first starting point</typeparam>
+        /// <typeparam name="TFact2">The type of the second starting point</typeparam>
+        /// <typeparam name="TProjection">The type of the results</typeparam>
+        /// <param name="specification">Defines which facts to match and how to project them</param>
+        /// <param name="given1">The first starting point for the query</param>
+        /// <param name="given2">The second starting point for the query</param>
+        /// <param name="added">Called when a result is added. Optionally return a function to be called when it is removed.</param>
+        /// <returns></returns>
+        public IObserver Subscribe<TFact1, TFact2, TProjection>(
+            Specification<TFact1, TFact2, TProjection> specification,
+            TFact1 given1,
+            TFact2 given2,
+            Action<TProjection> added)
+            where TFact1 : class
+            where TFact2 : class
+        {
+            return Subscribe<TFact1, TFact2, TProjection>(specification, given1, given2,
+                projection =>
+                {
+                    added(projection);
+                    Func<Task> result = () => Task.CompletedTask;
+                    return Task.FromResult(result);
+                }
+            );
+        }
+
+        /// <summary>
+        /// Observe the results of a specification, including changes from the remote replicator.
+        /// Unlike Watch, Subscribe creates a persistent connection to the replicator.
+        /// </summary>
+        /// <typeparam name="TFact1">The type of the first starting point</typeparam>
+        /// <typeparam name="TFact2">The type of the second starting point</typeparam>
+        /// <typeparam name="TProjection">The type of the results</typeparam>
+        /// <param name="specification">Defines which facts to match and how to project them</param>
+        /// <param name="given1">The first starting point for the query</param>
+        /// <param name="given2">The second starting point for the query</param>
+        /// <param name="added">Called when a result is added. Optionally return a function to be called when it is removed.</param>
+        /// <returns></returns>
+        public IObserver Subscribe<TFact1, TFact2, TProjection>(
+            Specification<TFact1, TFact2, TProjection> specification,
+            TFact1 given1,
+            TFact2 given2,
+            Func<TProjection, Action> added)
+            where TFact1 : class
+            where TFact2 : class
+        {
+            return Subscribe<TFact1, TFact2, TProjection>(specification, given1, given2,
+                projection =>
+                {
+                    var removed = added(projection);
+                    Func<Task> result = () =>
+                    {
+                        removed();
+                        return Task.CompletedTask;
+                    };
+                    return Task.FromResult(result);
+                }
+            );
+        }
+
+        /// <summary>
+        /// Observe the results of a specification, including changes from the remote replicator.
+        /// Unlike Watch, Subscribe creates a persistent connection to the replicator.
+        /// </summary>
+        /// <typeparam name="TFact1">The type of the first starting point</typeparam>
+        /// <typeparam name="TFact2">The type of the second starting point</typeparam>
+        /// <typeparam name="TProjection">The type of the results</typeparam>
+        /// <param name="specification">Defines which facts to match and how to project them</param>
+        /// <param name="given1">The first starting point for the query</param>
+        /// <param name="given2">The second starting point for the query</param>
+        /// <param name="added">Called when a result is added. Optionally return a function to be called when it is removed.</param>
+        /// <returns></returns>
+        public IObserver Subscribe<TFact1, TFact2, TProjection>(
+            Specification<TFact1, TFact2, TProjection> specification,
+            TFact1 given1,
+            TFact2 given2,
+            Func<TProjection, Task> added)
+            where TFact1 : class
+            where TFact2 : class
+        {
+            return Subscribe<TFact1, TFact2, TProjection>(specification, given1, given2,
+                async projection =>
+                {
+                    await added(projection).ConfigureAwait(false);
+                    return () => Task.CompletedTask;
+                }
+            );
+        }
+
+        /// <summary>
+        /// Observe the results of a specification, including changes from the remote replicator.
+        /// Unlike Watch, Subscribe creates a persistent connection to the replicator.
+        /// </summary>
+        /// <typeparam name="TFact1">The type of the first starting point</typeparam>
+        /// <typeparam name="TFact2">The type of the second starting point</typeparam>
+        /// <typeparam name="TProjection">The type of the results</typeparam>
+        /// <param name="specification">Defines which facts to match and how to project them</param>
+        /// <param name="given1">The first starting point for the query</param>
+        /// <param name="given2">The second starting point for the query</param>
+        /// <param name="added">Called when a result is added. Optionally return a function to be called when it is removed.</param>
+        /// <returns></returns>
+        public IObserver Subscribe<TFact1, TFact2, TProjection>(
+            Specification<TFact1, TFact2, TProjection> specification,
+            TFact1 given1,
+            TFact2 given2,
+            Func<TProjection, Task<Func<Task>>> added)
+            where TFact1 : class
+            where TFact2 : class
+        {
+            if (given1 == null)
+            {
+                throw new ArgumentNullException(nameof(given1));
+            }
+
+            if (given2 == null)
+            {
+                throw new ArgumentNullException(nameof(given2));
+            }
+
+            var graph1 = factManager.Serialize(given1);
+            var givenReference1 = graph1.Last;
+            var graph2 = factManager.Serialize(given2);
+            var givenReference2 = graph2.Last;
+            var givenTuple = FactReferenceTuple.Empty
+                .Add(specification.Givens[0].Label.Name, givenReference1)
+                .Add(specification.Givens[1].Label.Name, givenReference2);
+            Func<object, Task<Func<Task>>> onAdded = (object obj) => added((TProjection)obj);
+            var observer = factManager.StartObserver(givenTuple, specification, onAdded, keepAlive: true);
+            return observer;
+        }
+
+        /// <summary>
         /// Wait for any background processes to stop.
         /// </summary>
         /// <returns>Resolved when background processes are finished</returns>
