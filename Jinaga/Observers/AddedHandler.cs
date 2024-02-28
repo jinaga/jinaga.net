@@ -1,6 +1,4 @@
 using Jinaga.Facts;
-using System;
-using System.Threading.Tasks;
 
 namespace Jinaga.Observers
 {
@@ -8,9 +6,9 @@ namespace Jinaga.Observers
     {
         public FactReferenceTuple Anchor { get; }
         public string Path { get; }
-        public Func<object, Task<Func<Task>>> Added { get; }
+        public OnAddedHandler Added { get; }
 
-        public AddedHandler(FactReferenceTuple anchor, string path, Func<object, Task<Func<Task>>> added)
+        public AddedHandler(FactReferenceTuple anchor, string path, OnAddedHandler added)
         {
             Anchor = anchor;
             Path = path;

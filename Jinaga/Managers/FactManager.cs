@@ -179,7 +179,7 @@ namespace Jinaga.Managers
             }
         }
 
-        public Observer StartObserver(FactReferenceTuple givenTuple, Specification specification, Func<object, Task<Func<Task>>> onAdded, bool keepAlive)
+        public Observer StartObserver(FactReferenceTuple givenTuple, Specification specification, OnAddedHandler onAdded, bool keepAlive)
         {
             var observer = new Observer(specification, givenTuple, this, onAdded);
             observer.Start(keepAlive);

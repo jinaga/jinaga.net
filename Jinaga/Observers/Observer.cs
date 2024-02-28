@@ -35,7 +35,7 @@ namespace Jinaga.Observers
             ImmutableHashSet<FactReferenceTuple>.Empty;
         private ImmutableList<string> feeds = ImmutableList<string>.Empty;
 
-        internal Observer(Specification specification, FactReferenceTuple givenTuple, FactManager factManager, Func<object, Task<Func<Task>>> onAdded)
+        internal Observer(Specification specification, FactReferenceTuple givenTuple, FactManager factManager, OnAddedHandler onAdded)
         {
             this.specification = specification;
             this.givenTuple = givenTuple;
@@ -124,7 +124,7 @@ namespace Jinaga.Observers
             await factManager.SetMruDate(specificationHash, DateTime.UtcNow).ConfigureAwait(false);
         }
 
-        public void OnAdded(FactReferenceTuple anchor, string path, Func<object, Task<Func<Task>>> added)
+        public void OnAdded(FactReferenceTuple anchor, string path, OnAddedHandler added)
         {
             lock (this)
             {
@@ -254,7 +254,7 @@ namespace Jinaga.Observers
                     var resultTuple = result.Product.GetAnchor();
                     if (FirstTimeNotified(resultTuple))
                     {
-                        var removal = await resultAdded(result.Projection).ConfigureAwait(false);
+                        var removal = await resultAdded.Handle(result.Projection).ConfigureAwait(false);
                         lock (this)
                         {
                             removalsByProduct = removalsByProduct.Add(resultTuple, removal);

@@ -2,7 +2,6 @@ using Jinaga.Facts;
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 
 namespace Jinaga.Observers
 {
@@ -32,10 +31,9 @@ namespace Jinaga.Observers
             throw new InvalidOperationException("You cannot enumerate a collection after j.Watch.");
         }
 
-        public void OnAdded(Func<TProjection, Task<Func<Task>>> added)
+        public void OnAdded(OnAddedHandler<TProjection> added)
         {
-            context.OnAdded(anchor, path,
-                projection => added((TProjection)projection));
+            context.OnAdded(anchor, path, added);
         }
 
         IEnumerator IEnumerable.GetEnumerator()

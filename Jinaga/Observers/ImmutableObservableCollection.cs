@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Reflection;
-using System.Threading.Tasks;
 
 namespace Jinaga.Observers
 {
@@ -44,7 +43,7 @@ namespace Jinaga.Observers
             return projections.GetEnumerator();
         }
 
-        public void OnAdded(Func<TProjection, Task<Func<Task>>> added)
+        public void OnAdded(OnAddedHandler<TProjection> added)
         {
             throw new InvalidOperationException("You cannot receive notification from a collection after j.Query.");
         }

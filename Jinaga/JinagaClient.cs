@@ -2,6 +2,7 @@ using Jinaga.DefaultImplementations;
 using Jinaga.Facts;
 using Jinaga.Http;
 using Jinaga.Managers;
+using Jinaga.Observers;
 using Jinaga.Projections;
 using Jinaga.Services;
 using Jinaga.Storage;
@@ -374,88 +375,7 @@ namespace Jinaga
         public IObserver Watch<TFact, TProjection>(
             Specification<TFact, TProjection> specification,
             TFact given,
-            Action<TProjection> added)
-            where TFact : class
-        {
-            return Watch<TFact, TProjection>(specification, given,
-                projection =>
-                {
-                    added(projection);
-                    Func<Task> result = () => Task.CompletedTask;
-                    return Task.FromResult(result);
-                }
-            );
-        }
-
-        /// <summary>
-        /// Observe the results of a specification, including changes.
-        /// Unlike Query, Watch sets up an observer which responds to new facts.
-        /// </summary>
-        /// <typeparam name="TFact">The type of the starting point</typeparam>
-        /// <typeparam name="TProjection">The type of the results</typeparam>
-        /// <param name="specification">Defines which facts to match and how to project them</param>
-        /// <param name="given">The starting point for the query</param>
-        /// <param name="added">Called when a result is added. Optionally return a function to be called when it is removed.</param>
-        /// <returns>To control the observer</returns>
-        public IObserver Watch<TFact, TProjection>(
-            Specification<TFact, TProjection> specification,
-            TFact given,
-            Func<TProjection, Action> added)
-            where TFact : class
-        {
-            return Watch<TFact, TProjection>(specification, given,
-                projection =>
-                {
-                    var removed = added(projection);
-                    Func<Task> result = () =>
-                    {
-                        removed();
-                        return Task.CompletedTask;
-                    };
-                    return Task.FromResult(result);
-                }
-            );
-        }
-
-        /// <summary>
-        /// Observe the results of a specification, including changes.
-        /// Unlike Query, Watch sets up an observer which responds to new facts.
-        /// </summary>
-        /// <typeparam name="TFact">The type of the starting point</typeparam>
-        /// <typeparam name="TProjection">The type of the results</typeparam>
-        /// <param name="specification">Defines which facts to match and how to project them</param>
-        /// <param name="given">The starting point for the query</param>
-        /// <param name="added">Called when a result is added. Optionally return a function to be called when it is removed.</param>
-        /// <returns>To control the observer</returns>
-        public IObserver Watch<TFact, TProjection>(
-            Specification<TFact, TProjection> specification,
-            TFact given,
-            Func<TProjection, Task> added)
-            where TFact: class
-        {
-            return Watch<TFact, TProjection>(specification, given,
-                async projection =>
-                {
-                    await added(projection).ConfigureAwait(false);
-                    return () => Task.CompletedTask;
-                }
-            );
-        }
-
-        /// <summary>
-        /// Observe the results of a specification, including changes.
-        /// Unlike Query, Watch sets up an observer which responds to new facts.
-        /// </summary>
-        /// <typeparam name="TFact">The type of the starting point</typeparam>
-        /// <typeparam name="TProjection">The type of the results</typeparam>
-        /// <param name="specification">Defines which facts to match and how to project them</param>
-        /// <param name="given">The starting point for the query</param>
-        /// <param name="added">Called when a result is added. Optionally return a function to be called when it is removed.</param>
-        /// <returns>To control the observer</returns>
-        public IObserver Watch<TFact, TProjection>(
-            Specification<TFact, TProjection> specification,
-            TFact given,
-            Func<TProjection, Task<Func<Task>>> added)
+            OnAddedHandler<TProjection> added)
             where TFact : class
         {
             if (given == null)
@@ -467,8 +387,7 @@ namespace Jinaga
             var givenReference = graph.Last;
             var givenTuple = FactReferenceTuple.Empty
                 .Add(specification.Givens.Single().Label.Name, givenReference);
-            Func<object, Task<Func<Task>>> onAdded = (object obj) => added((TProjection)obj);
-            var observer = factManager.StartObserver(givenTuple, specification, onAdded, keepAlive: false);
+            var observer = factManager.StartObserver(givenTuple, specification, added, keepAlive: false);
             return observer;
         }
 
@@ -485,88 +404,7 @@ namespace Jinaga
         public IObserver Subscribe<TFact, TProjection>(
             Specification<TFact, TProjection> specification,
             TFact given,
-            Action<TProjection> added)
-            where TFact : class
-        {
-            return Subscribe<TFact, TProjection>(specification, given,
-                projection =>
-                {
-                    added(projection);
-                    Func<Task> result = () => Task.CompletedTask;
-                    return Task.FromResult(result);
-                }
-            );
-        }
-
-        /// <summary>
-        /// Observe the results of a specification, including changes from the remote replicator.
-        /// Unlike Watch, Subscribe creates a persistent connection to the replicator.
-        /// </summary>
-        /// <typeparam name="TFact">The type of the starting point</typeparam>
-        /// <typeparam name="TProjection">The type of the results</typeparam>
-        /// <param name="specification">Defines which facts to match and how to project them</param>
-        /// <param name="given">The starting point for the query</param>
-        /// <param name="added">Called when a result is added. Optionally return a function to be called when it is removed.</param>
-        /// <returns>To control the observer</returns>
-        public IObserver Subscribe<TFact, TProjection>(
-            Specification<TFact, TProjection> specification,
-            TFact given,
-            Func<TProjection, Action> added)
-            where TFact : class
-        {
-            return Subscribe<TFact, TProjection>(specification, given,
-                projection =>
-                {
-                    var removed = added(projection);
-                    Func<Task> result = () =>
-                    {
-                        removed();
-                        return Task.CompletedTask;
-                    };
-                    return Task.FromResult(result);
-                }
-            );
-        }
-
-        /// <summary>
-        /// Observe the results of a specification, including changes from the remote replicator.
-        /// Unlike Watch, Subscribe creates a persistent connection to the replicator.
-        /// </summary>
-        /// <typeparam name="TFact">The type of the starting point</typeparam>
-        /// <typeparam name="TProjection">The type of the results</typeparam>
-        /// <param name="specification">Defines which facts to match and how to project them</param>
-        /// <param name="given">The starting point for the query</param>
-        /// <param name="added">Called when a result is added. Optionally return a function to be called when it is removed.</param>
-        /// <returns>To control the observer</returns>
-        public IObserver Subscribe<TFact, TProjection>(
-            Specification<TFact, TProjection> specification,
-            TFact given,
-            Func<TProjection, Task> added)
-            where TFact : class
-        {
-            return Subscribe<TFact, TProjection>(specification, given,
-                async projection =>
-                {
-                    await added(projection).ConfigureAwait(false);
-                    return () => Task.CompletedTask;
-                }
-            );
-        }
-
-        /// <summary>
-        /// Observe the results of a specification, including changes from the remote replicator.
-        /// Unlike Watch, Subscribe creates a persistent connection to the replicator.
-        /// </summary>
-        /// <typeparam name="TFact">The type of the starting point</typeparam>
-        /// <typeparam name="TProjection">The type of the results</typeparam>
-        /// <param name="specification">Defines which facts to match and how to project them</param>
-        /// <param name="given">The starting point for the query</param>
-        /// <param name="added">Called when a result is added. Optionally return a function to be called when it is removed.</param>
-        /// <returns>To control the observer</returns>
-        public IObserver Subscribe<TFact, TProjection>(
-            Specification<TFact, TProjection> specification,
-            TFact given,
-            Func<TProjection, Task<Func<Task>>> added)
+            OnAddedHandler<TProjection> added)
             where TFact : class
         {
             if (given == null)
@@ -578,8 +416,7 @@ namespace Jinaga
             var givenReference = graph.Last;
             var givenTuple = FactReferenceTuple.Empty
                 .Add(specification.Givens.Single().Label.Name, givenReference);
-            Func<object, Task<Func<Task>>> onAdded = (object obj) => added((TProjection)obj);
-            var observer = factManager.StartObserver(givenTuple, specification, onAdded, keepAlive: true);
+            var observer = factManager.StartObserver(givenTuple, specification, added, keepAlive: true);
             return observer;
         }
 

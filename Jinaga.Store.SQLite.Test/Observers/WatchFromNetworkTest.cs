@@ -1,4 +1,5 @@
 ﻿using FluentAssertions;
+using Jinaga.Observers;
 using Jinaga.Store.SQLite.Test.Fakes;
 using Jinaga.Store.SQLite.Test.Model;
 using Xunit.Abstractions;
@@ -184,10 +185,10 @@ public class WatchFromNetworkTest
                 };
                 Offices.Add(officeViewModel);
 
-                projection.names.OnAdded(name =>
+                projection.names.OnAdded((name =>
                 {
                     officeViewModel.Name = name;
-                });
+                }));
 
                 return () =>
                 {
