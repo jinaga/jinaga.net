@@ -2,18 +2,15 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-
-using Sqlite3 = SQLitePCL.raw;
 
 
 
 namespace Jinaga.Store.SQLite
 {
 
-    
+
     public sealed class MyStopWatch
     {
         //TODO: Remove this class here and inject it, together with a Logger, to be used during unit-testing

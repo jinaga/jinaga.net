@@ -1,5 +1,3 @@
-using Jinaga;
-
 namespace Jinaga.Test.Model.Order
 {
     [FactType("Catalog")]
@@ -7,6 +5,9 @@ namespace Jinaga.Test.Model.Order
 
     [FactType("Product")]
     record Product(Catalog Catalog, string sku);
+
+    [FactType("Price")]
+    record Price(Product product, decimal value, Price[] prior);
 
     [FactType("Item")]
     record Item(Product product, int quantity);

@@ -1,5 +1,4 @@
-﻿using Jinaga;
-using System;
+﻿using System;
 using System.Linq;
 
 namespace Jinaga.Test.Model

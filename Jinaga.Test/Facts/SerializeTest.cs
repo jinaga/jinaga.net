@@ -5,6 +5,7 @@ using FluentAssertions;
 using Jinaga.Facts;
 using Jinaga.Serialization;
 using Jinaga.Test.Model;
+using Jinaga.Test.Model.Order;
 using Xunit;
 
 namespace Jinaga.Test.Facts
@@ -54,6 +55,21 @@ namespace Jinaga.Test.Facts
             field.Name.Should().Be("flightNumber");
             field.Value.Should().BeOfType<FieldValueNumber>().Which
                 .DoubleValue.Should().Be(4272.0);
+        }
+
+        [Fact]
+        public void SerializeDecimal()
+        {
+            var catalog = new Catalog("catalog");
+            var product = new Product(catalog, "sku");
+            var price = new Price(product, 123.45m, new Price[0]);
+            var graph = Serialize(price);
+
+            var fact = graph.GetFact(graph.Last);
+            var field = fact.Fields.SingleOrDefault(f => f.Name == "value");
+            field.Should().NotBeNull();
+            field.Value.Should().BeOfType<FieldValueNumber>().Which
+                .DoubleValue.Should().Be(123.45);
         }
 
         [Fact]

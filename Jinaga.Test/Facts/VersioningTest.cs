@@ -186,6 +186,46 @@ public class VersioningTest
         deserialized.identifier.Should().BeNull();
     }
 
+    [Fact]
+    public void CanConvertFloatToDecimal()
+    {
+        var original = new PriceV1(3.14f);
+        var factGraph = Serialize(original);
+        var deserialized = Deserialize<PriceV2>(factGraph, factGraph.Last);
+
+        deserialized.amount.Should().BeApproximately(3.14m, 0.000001m);
+    }
+
+    [Fact]
+    public void CanConvertFloatToDouble()
+    {
+        var original = new PriceV1(3.14f);
+        var factGraph = Serialize(original);
+        var deserialized = Deserialize<PriceV3>(factGraph, factGraph.Last);
+
+        deserialized.amount.Should().BeApproximately(3.14, 0.000001);
+    }
+
+    [Fact]
+    public void CanConvertFloatToInt()
+    {
+        var original = new PriceV1(3.14f);
+        var factGraph = Serialize(original);
+        var deserialized = Deserialize<PriceV4>(factGraph, factGraph.Last);
+
+        deserialized.amount.Should().Be(3);
+    }
+
+    [Fact]
+    public void DefaultDecimalValueIsZero()
+    {
+        var original = new PriceV5(3.14);
+        var factGraph = Serialize(original);
+        var deserialized = Deserialize<PriceV2>(factGraph, factGraph.Last);
+
+        deserialized.amount.Should().Be(0m);
+    }
+
     private readonly ConditionalWeakTable<object, FactGraph> graphByFact = new();
 
     private FactGraph Serialize(object fact)
@@ -231,3 +271,18 @@ public record CommentV1(BlogV5 blog, string message) {}
 
 [FactType("Comment")]
 public record CommentV2(BlogV5 blog, string message, User author) {}
+
+[FactType("Price")]
+public record PriceV1(float amount) {}
+
+[FactType("Price")]
+public record PriceV2(decimal amount) {}
+
+[FactType("Price")]
+public record PriceV3(double amount) {}
+
+[FactType("Price")]
+public record PriceV4(int amount) {}
+
+[FactType("Price")]
+public record PriceV5(double value) {}

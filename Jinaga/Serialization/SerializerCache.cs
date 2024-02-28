@@ -123,6 +123,8 @@ namespace Jinaga.Serialization
                     ? Expression.New(typeof(FieldValueNumber).GetConstructor(new[] { typeof(double) }), ConvertToDouble(propertyGet))
                 : propertyInfo.PropertyType == typeof(double)
                     ? Expression.New(typeof(FieldValueNumber).GetConstructor(new[] { typeof(double) }), propertyGet)
+                : propertyInfo.PropertyType == typeof(decimal)
+                    ? Expression.New(typeof(FieldValueNumber).GetConstructor(new[] { typeof(double) }), ConvertToDouble(propertyGet))
                 : propertyInfo.PropertyType == typeof(bool)
                     ? Expression.New(typeof(FieldValueBoolean).GetConstructor(new[] { typeof(bool) }), propertyGet)
                 : propertyInfo.PropertyType == typeof(DateTime?)

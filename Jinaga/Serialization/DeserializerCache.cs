@@ -3,8 +3,6 @@ using System;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Linq.Expressions;
-using System.Reflection;
-using System.Reflection.Emit;
 
 namespace Jinaga.Serialization
 {
@@ -180,6 +178,16 @@ namespace Jinaga.Serialization
                 return Expression.Property(
                     getFieldValue,
                     nameof(FieldValue.DoubleValue)
+                );
+            }
+            else if (parameterType == typeof(decimal))
+            {
+                return Expression.Convert(
+                    Expression.Property(
+                        getFieldValue,
+                        nameof(FieldValue.DoubleValue)
+                    ),
+                    typeof(decimal)
                 );
             }
             else if (parameterType == typeof(bool))
