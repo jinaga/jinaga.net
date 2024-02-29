@@ -5,6 +5,7 @@ using Jinaga.Managers;
 using Jinaga.Projections;
 using Jinaga.Services;
 using Jinaga.Storage;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Immutable;
 using System.Linq;
@@ -32,6 +33,12 @@ namespace Jinaga
         /// The strategy to use for authenticating with the Jinaga replicator.
         /// </summary>
         public IHttpAuthenticationProvider? HttpAuthenticationProvider { get; set; }
+
+        /// <summary>
+        /// A factory configured for logging.
+        /// If not provided, the default factory will be used.
+        /// </summary>
+        public ILoggerFactory? LoggerFactory { get; set; }
     }
 
     /// <summary>
