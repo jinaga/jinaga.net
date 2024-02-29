@@ -1,6 +1,7 @@
 ﻿using FluentAssertions;
 using Jinaga.Store.SQLite.Test.Fakes;
 using Jinaga.Store.SQLite.Test.Model;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit.Abstractions;
 
 namespace Jinaga.Store.SQLite.Test.Observers;
@@ -143,7 +144,7 @@ public class WatchFromNetworkTest
 
     private static JinagaClient GivenJinagaClient(FakeNetwork network)
     {
-        return new JinagaClient(new SQLiteStore(SQLitePath), network);
+        return new JinagaClient(new SQLiteStore(SQLitePath), network, NullLoggerFactory.Instance);
     }
 
     private class OfficeViewModel

@@ -8,6 +8,7 @@ using Jinaga.Projections;
 using Jinaga.Services;
 using Jinaga.Storage;
 using Jinaga.Test.Model;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace Jinaga.Test
@@ -52,7 +53,7 @@ namespace Jinaga.Test
 
         public QueryLocalTest()
         {
-            j = new JinagaClient(new MemoryStore(), new NeverUsedNetwork());
+            j = new JinagaClient(new MemoryStore(), new NeverUsedNetwork(), NullLoggerFactory.Instance);
         }
 
         [Fact]

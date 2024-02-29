@@ -2,6 +2,7 @@
 using Jinaga.Http;
 using Jinaga.Services;
 using Jinaga.Storage;
+using Microsoft.Extensions.Logging.Abstractions;
 using System;
 
 namespace Jinaga.Store.SQLite
@@ -34,13 +35,14 @@ namespace Jinaga.Store.SQLite
         {
             var options = new JinagaSQLiteClientOptions();
             configure(options);
+            var loggerFactory = options.LoggerFactory ?? NullLoggerFactory.Instance;
             IStore store = options.SQLitePath == null
                 ? (IStore)new MemoryStore()
                 : new SQLiteStore(options.SQLitePath);
             INetwork network = options.HttpEndpoint == null
                 ? (INetwork)new LocalNetwork()
                 : new HttpNetwork(options.HttpEndpoint, options.HttpAuthenticationProvider);
-            return new JinagaClient(store, network);
+            return new JinagaClient(store, network, loggerFactory);
         }
     }
 }

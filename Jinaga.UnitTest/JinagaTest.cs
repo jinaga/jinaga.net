@@ -1,4 +1,5 @@
 using Jinaga.Storage;
+using Microsoft.Extensions.Logging.Abstractions;
 using System;
 
 namespace Jinaga.UnitTest
@@ -19,9 +20,10 @@ namespace Jinaga.UnitTest
         {
             var options = new JinagaTestOptions();
             configure(options);
+            var loggerFactory = NullLoggerFactory.Instance;
             var network = new SimulatedNetwork(
                 options.User == null ? null : options.User.publicKey);
-            var client = new JinagaClient(new MemoryStore(), network);
+            var client = new JinagaClient(new MemoryStore(), network, loggerFactory);
             return client;
         }
     }
