@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -932,6 +933,8 @@ namespace Jinaga
             FactReferenceTuple givenTuple,
             CancellationToken cancellationToken)
         {
+            var stopwatch = Stopwatch.StartNew();
+
             try
             {
                 logger.LogInformation("Query starting for {Specification}", specification.ToDescriptiveString());
@@ -942,8 +945,9 @@ namespace Jinaga
                     var products = specification.Execute(givenTuple, graph);
                     var productAnchorProjections = factManager.DeserializeProductsFromGraph(
                         graph, specification.Projection, products, typeof(TProjection), "", null);
-                    
-                    logger.LogInformation("Query was able to run on graph");
+
+                    stopwatch.Stop();
+                    logger.LogInformation("Query was able to run on graph in {ElapsedMilliseconds} ms", stopwatch.ElapsedMilliseconds);
 
                     return productAnchorProjections.Select(pap => (TProjection)pap.Projection).ToImmutableList();
                 }
@@ -955,14 +959,16 @@ namespace Jinaga
                         .Select(pair => (TProjection)pair.Projection)
                         .ToImmutableList();
 
-                    logger.LogInformation("Query succeeded");
+                    stopwatch.Stop();
+                    logger.LogInformation("Query succeeded after {ElapsedMilliseconds} ms", stopwatch.ElapsedMilliseconds);
 
                     return projections;
                 }
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Query failed");
+                stopwatch.Stop();
+                logger.LogError(ex, "Query failed after {ElapsedMilliseconds} ms", stopwatch.ElapsedMilliseconds);
                 throw;
             }
         }
@@ -974,6 +980,8 @@ namespace Jinaga
             FactReferenceTuple givenTuple,
             CancellationToken cancellationToken)
         {
+            var stopwatch = Stopwatch.StartNew();
+
             try
             {
                 logger.LogInformation("QueryLocal starting for {Specification}", specification.ToDescriptiveString());
@@ -984,8 +992,9 @@ namespace Jinaga
                     var products = specification.Execute(givenTuple, graph);
                     var productAnchorProjections = factManager.DeserializeProductsFromGraph(
                         graph, specification.Projection, products, typeof(TProjection), "", null);
-                    
-                    logger.LogInformation("QueryLocal was able to run on graph");
+
+                    stopwatch.Stop();
+                    logger.LogInformation("QueryLocal was able to run on graph in {ElapsedMilliseconds} ms", stopwatch.ElapsedMilliseconds);
 
                     return productAnchorProjections.Select(pap => (TProjection)pap.Projection).ToImmutableList();
                 }
@@ -997,14 +1006,16 @@ namespace Jinaga
                         .Select(pair => (TProjection)pair.Projection)
                         .ToImmutableList();
 
-                    logger.LogInformation("QueryLocal succeeded");
+                    stopwatch.Stop();
+                    logger.LogInformation("QueryLocal succeeded after {ElapsedMilliseconds} ms", stopwatch.ElapsedMilliseconds);
 
                     return projections;
                 }
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "QueryLocal failed");
+                stopwatch.Stop();
+                logger.LogError(ex, "QueryLocal failed after {ElapsedMilliseconds} ms", stopwatch.ElapsedMilliseconds);
                 throw;
             }
         }
