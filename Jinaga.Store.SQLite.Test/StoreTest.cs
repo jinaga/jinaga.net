@@ -801,7 +801,8 @@ public class StoreTest
     {
         var store = new MemoryStore();
         var networkManager = new NetworkManager(new LocalNetwork(), store, (FactGraph g, ImmutableList<Fact> l, CancellationToken c) => Task.CompletedTask);
-        var factManager = new FactManager(store, networkManager);
+        var loggerFactory = NullLoggerFactory.Instance;
+        var factManager = new FactManager(store, networkManager, loggerFactory);
         var graph = factManager.Serialize(fact);
         var lastRef = graph.Last;
         return lastRef;

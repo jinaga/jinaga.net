@@ -161,7 +161,7 @@ namespace Jinaga
                     await factManager.NotifyObservers(graph, added, cancellationToken).ConfigureAwait(false);
                 }
             });
-            factManager = new FactManager(store, networkManager);
+            factManager = new FactManager(store, networkManager, loggerFactory);
             logger = loggerFactory.CreateLogger<JinagaClient>();
         }
 
