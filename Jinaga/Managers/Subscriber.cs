@@ -62,7 +62,7 @@ namespace Jinaga.Managers
             }, null, TimeSpan.Zero, TimeSpan.FromMinutes(4));
 
             // Wait for the connection to be established.
-            await taskCompletionSource.Task;
+            await taskCompletionSource.Task.ConfigureAwait(false);
         }
 
         public void Stop()
@@ -78,12 +78,25 @@ namespace Jinaga.Managers
             network.StreamFeed(feed, bookmark, cancellationToken, async (factReferences, newBookmark) =>
             {
                 logger.LogInformation("Subscribe received {count} facts", factReferences.Count);
-                var factGraph = await network.Load(factReferences, cancellationToken);
-                var facts = factReferences.Select(reference => factGraph.GetFact(reference)).ToImmutableList();
-                await store.Save(factGraph, cancellationToken);
-                await store.SaveBookmark(feed, newBookmark);
-                bookmark = newBookmark;
-                await notifyObservers(factGraph, facts, cancellationToken);
+
+                // Load the facts that I don't already have.
+                var knownFactReferences = await store.ListKnown(factReferences).ConfigureAwait(false);
+                var unknownFactReferences = factReferences.RemoveRange(knownFactReferences);
+                if (unknownFactReferences.Any())
+                {
+                    var factGraph = await network.Load(factReferences, cancellationToken);
+                    var facts = factReferences.Select(reference => factGraph.GetFact(reference)).ToImmutableList();
+                    await store.Save(factGraph, cancellationToken).ConfigureAwait(false);
+                    await store.SaveBookmark(feed, newBookmark).ConfigureAwait(false);
+                    bookmark = newBookmark;
+                    await notifyObservers(factGraph, facts, cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    await store.SaveBookmark(feed, newBookmark).ConfigureAwait(false);
+                    bookmark = newBookmark;
+                }
+
                 if (!resolved)
                 {
                     resolved = true;
