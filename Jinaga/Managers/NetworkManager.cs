@@ -16,7 +16,7 @@ namespace Jinaga.Managers
     {
         private readonly INetwork network;
         private readonly IStore store;
-        private readonly ILogger<NetworkManager> logger;
+        private readonly ILogger logger;
         private readonly Func<FactGraph, ImmutableList<Fact>, CancellationToken, Task> notifyObservers;
 
         private ImmutableDictionary<string, Task<ImmutableList<string>>> feedsCache =
@@ -139,7 +139,7 @@ namespace Jinaga.Managers
                 {
                     if (!this.subscribers.TryGetValue(feed, out var subscriber))
                     {
-                        subscriber = new Subscriber(feed, this.network, this.store, this.notifyObservers);
+                        subscriber = new Subscriber(feed, this.network, this.store, this.logger, this.notifyObservers);
                         this.subscribers = this.subscribers.Add(feed, subscriber);
                     }
                     return subscriber;

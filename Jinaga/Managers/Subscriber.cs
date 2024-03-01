@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Jinaga.Facts;
 using Jinaga.Services;
+using Microsoft.Extensions.Logging;
 
 namespace Jinaga.Managers
 {
@@ -13,6 +14,7 @@ namespace Jinaga.Managers
         private string feed;
         private INetwork network;
         private IStore store;
+        private readonly ILogger logger;
         private Func<FactGraph, ImmutableList<Fact>, CancellationToken, Task> notifyObservers;
 
         private int refCount = 0;
@@ -22,11 +24,12 @@ namespace Jinaga.Managers
         private CancellationTokenSource? cancellationTokenSource;
         private Timer? timer;
 
-        public Subscriber(string feed, INetwork network, IStore store, Func<FactGraph, ImmutableList<Fact>, CancellationToken, Task> notifyObservers)
+        public Subscriber(string feed, INetwork network, IStore store, ILogger logger, Func<FactGraph, ImmutableList<Fact>, CancellationToken, Task> notifyObservers)
         {
             this.feed = feed;
             this.network = network;
             this.store = store;
+            this.logger = logger;
             this.notifyObservers = notifyObservers;
         }
 
@@ -74,6 +77,7 @@ namespace Jinaga.Managers
         {
             network.StreamFeed(feed, bookmark, cancellationToken, async (factReferences, newBookmark) =>
             {
+                logger.LogInformation("Subscribe received {count} facts", factReferences.Count);
                 var factGraph = await network.Load(factReferences, cancellationToken);
                 var facts = factReferences.Select(reference => factGraph.GetFact(reference)).ToImmutableList();
                 await store.Save(factGraph, cancellationToken);
