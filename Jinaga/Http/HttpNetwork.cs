@@ -3,6 +3,7 @@ using Jinaga.Pipelines;
 using Jinaga.Projections;
 using Jinaga.Records;
 using Jinaga.Services;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
@@ -16,9 +17,9 @@ namespace Jinaga.Http
     {
         private readonly WebClient webClient;
 
-        public HttpNetwork(Uri baseUrl, IHttpAuthenticationProvider? authenticationProvider)
+        public HttpNetwork(Uri baseUrl, IHttpAuthenticationProvider? authenticationProvider, ILoggerFactory loggerFactory)
         {
-            webClient = new WebClient(new HttpConnection(baseUrl,
+            webClient = new WebClient(new HttpConnection(baseUrl, loggerFactory,
                 headers =>
                 {
                     if (authenticationProvider != null)

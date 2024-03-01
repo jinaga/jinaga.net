@@ -2,6 +2,7 @@
 using Jinaga.Identity;
 using Jinaga.Projections;
 using Jinaga.Services;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
@@ -15,6 +16,7 @@ namespace Jinaga.Managers
     {
         private readonly INetwork network;
         private readonly IStore store;
+        private readonly ILogger logger;
         private readonly Func<FactGraph, ImmutableList<Fact>, CancellationToken, Task> notifyObservers;
 
         private ImmutableDictionary<string, Task<ImmutableList<string>>> feedsCache =
@@ -29,10 +31,11 @@ namespace Jinaga.Managers
 
         public event JinagaStatusChanged? OnStatusChanged;
 
-        public NetworkManager(INetwork network, IStore store, Func<FactGraph, ImmutableList<Fact>, CancellationToken, Task> notifyObservers)
+        public NetworkManager(INetwork network, IStore store, ILoggerFactory loggerFactory, Func<FactGraph, ImmutableList<Fact>, CancellationToken, Task> notifyObservers)
         {
             this.network = network;
             this.store = store;
+            this.logger = loggerFactory.CreateLogger<NetworkManager>();
             this.notifyObservers = notifyObservers;
         }
 
@@ -50,6 +53,8 @@ namespace Jinaga.Managers
                 SetSaveStatus(false, null, 0);
                 return;
             }
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            logger.LogInformation("Save started with {0} facts.", queue.Facts.Count);
             SetSaveStatus(true, null, queue.Facts.Count);
 
             try
@@ -58,10 +63,12 @@ namespace Jinaga.Managers
                 await network.Save(queue.Facts, cancellationToken).ConfigureAwait(false);
                 // Update the queue.
                 await store.SetQueueBookmark(queue.NextBookmark).ConfigureAwait(false);
+                logger.LogInformation("Save completed after {elapsedMilliseconds} ms.", stopwatch.ElapsedMilliseconds);
                 SetSaveStatus(false, null, 0);
             }
             catch (Exception ex)
             {
+                logger.LogError(ex, "Save failed after {elapsedMilliseconds} ms.", stopwatch.ElapsedMilliseconds);
                 SetSaveStatus(false, ex, queue.Facts.Count);
                 throw;
             }
@@ -69,12 +76,14 @@ namespace Jinaga.Managers
 
         public async Task Fetch(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
         {
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
             SetLoadStatus(true, null);
 
             try
             {
                 var reducedSpecification = specification.Reduce();
                 var feeds = await GetFeedsFromCache(givenTuple, reducedSpecification, cancellationToken).ConfigureAwait(false);
+                logger.LogInformation("Fetch from {0} feeds.", feeds.Count);
 
                 // Fork to fetch from each feed.
                 var tasks = feeds.Select(feed =>
@@ -97,6 +106,7 @@ namespace Jinaga.Managers
                 try
                 {
                     await Task.WhenAll(tasks).ConfigureAwait(false);
+                    logger.LogInformation("Fetch completed after {elapsedMilliseconds} ms.", stopwatch.ElapsedMilliseconds);
                     SetLoadStatus(false, null);
                 }
                 catch
@@ -108,6 +118,7 @@ namespace Jinaga.Managers
             }
             catch (Exception ex)
             {
+                logger.LogError(ex, "Fetch failed after {elapsedMilliseconds} ms.", stopwatch.ElapsedMilliseconds);
                 SetLoadStatus(false, ex);
                 throw;
             }
@@ -115,8 +126,11 @@ namespace Jinaga.Managers
 
         public async Task<ImmutableList<string>> Subscribe(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
         {
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
             var reducedSpecification = specification.Reduce();
             var feeds = await GetFeedsFromCache(givenTuple, reducedSpecification, cancellationToken).ConfigureAwait(false);
+            logger.LogInformation("Subscribe to {0} feeds.", feeds.Count);
 
             List<Subscriber> subscribers;
             lock (this)
@@ -125,7 +139,7 @@ namespace Jinaga.Managers
                 {
                     if (!this.subscribers.TryGetValue(feed, out var subscriber))
                     {
-                        subscriber = new Subscriber(feed, this.network, this.store, this.notifyObservers);
+                        subscriber = new Subscriber(feed, this.network, this.store, this.logger, this.notifyObservers);
                         this.subscribers = this.subscribers.Add(feed, subscriber);
                     }
                     return subscriber;
@@ -143,9 +157,11 @@ namespace Jinaga.Managers
             try
             {
                 await Task.WhenAll(tasks);
+                logger.LogInformation("Subscribe initialized after {elapsedMilliseconds} ms.", stopwatch.ElapsedMilliseconds);
             }
             catch (Exception e)
             {
+                logger.LogError(e, "Subscribe failed after {elapsedMilliseconds} ms.", stopwatch.ElapsedMilliseconds);
                 // If any feed fails, then remove the specification from the cache.
                 this.RemoveFeedsFromCache(givenTuple, reducedSpecification);
                 this.Unsubscribe(feeds);
@@ -156,6 +172,11 @@ namespace Jinaga.Managers
 
         public void Unsubscribe(ImmutableList<string> feeds)
         {
+            if (feeds.Count == 0)
+            {
+                return;
+            }
+            logger.LogInformation("Unsubscribe from {0} feeds.", feeds.Count);
             lock (this)
             {
                 foreach (var feed in feeds)

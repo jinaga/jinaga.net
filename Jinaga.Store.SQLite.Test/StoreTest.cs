@@ -10,6 +10,7 @@ using System.Diagnostics;
 using Xunit.Abstractions;
 using Jinaga.Storage;
 using System.Globalization;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Jinaga.Store.SQLite.Test;
 
@@ -49,8 +50,8 @@ public class StoreTest
     [Fact]
     public async Task SaveAndLoadBookmark()
     {
-        IStore sqliteStore = new SQLiteStore(SQLitePath);
-        await sqliteStore.SaveBookmark("myFeedHashA","bookmarkA_1");
+        IStore sqliteStore = GivenSQLiteStore();
+        await sqliteStore.SaveBookmark("myFeedHashA", "bookmarkA_1");
         var bmA1 = await sqliteStore.LoadBookmark("myFeedHashA");
 
         await sqliteStore.SaveBookmark("myFeedHashB", "bookmarkB_1");
@@ -72,7 +73,7 @@ public class StoreTest
     [Fact]
     public async Task SaveAndLoadMru()
     {
-        IStore sqliteStore = new SQLiteStore(SQLitePath);
+        IStore sqliteStore = GivenSQLiteStore();
         
         DateTime nowA1 = DateTime.Parse("2023-08-23T18:39:43");
         await sqliteStore.SetMruDate("mySpecificationHashA", nowA1);
@@ -99,7 +100,7 @@ public class StoreTest
     [Fact]
     public async Task MruRespectUTC()
     {
-        IStore sqliteStore = new SQLiteStore(SQLitePath);
+        IStore sqliteStore = GivenSQLiteStore();
 
         DateTime nowC1 = DateTime.Parse("2023-08-23T18:39:43Z",null, DateTimeStyles.AdjustToUniversal);
         await sqliteStore.SetMruDate("mySpecificationHashC", nowC1);
@@ -115,7 +116,7 @@ public class StoreTest
     public async Task CanQueryForSuccessors()
     {
 
-        var j = new JinagaClient(new SQLiteStore(SQLitePath), new LocalNetwork());
+        var j = GivenJinagaClient();
         //var j = new Jinaga(new SQLiteStore(), new HttpNetwork());
         //var j = new Jinaga(new MemoryStore(), new SimulatedNetwork());
 
@@ -132,15 +133,13 @@ public class StoreTest
         flightNumbers.Should().ContainSingle().Which.Should().Be(4247);
     }
 
-
-
     [Fact]
     public async Task StoreRoundTripToUTC()
     {
         output.WriteLine($"{MyStopWatch.Start()}: BEGIN OF TESTS at {DateTime.Now}");
          
         DateTime now = DateTime.Parse("2021-07-04T01:39:43.241Z");
-        var j = new JinagaClient(new SQLiteStore(SQLitePath), new LocalNetwork());            
+        var j = GivenJinagaClient();
         var airlineDay = await j.Fact(new AirlineDay(new Airline("Airline1"), now));
         var flight = await j.Fact(new Flight(airlineDay, 555));
         //airlineDay = await j.Fact(new AirlineDay(new Airline("Airline2"), now));
@@ -158,7 +157,7 @@ public class StoreTest
         output.WriteLine($"{MyStopWatch.Start()}: BEGIN OF TESTS at {DateTime.Now}");
 
         DateTime now = DateTime.Parse("2021-07-04T01:39:43.241Z");
-        var j = new JinagaClient(new SQLiteStore(SQLitePath), new LocalNetwork());
+        var j = GivenJinagaClient();
         var airline = new Airline("Airline1");            
         var user = await j.Fact(new User("fqjsdfqkfjqlm"));
         var passenger = await j.Fact(new Passenger(airline, user));
@@ -176,7 +175,7 @@ public class StoreTest
     public async Task LoadNothingFromStore()
     {
         output.WriteLine($"{MyStopWatch.Start()}: BEGIN OF TESTS at {DateTime.Now}");
-        IStore sqliteStore = new SQLiteStore(SQLitePath);
+        IStore sqliteStore = GivenSQLiteStore();
         FactGraph factGraph = await sqliteStore.Load(ImmutableList<FactReference>.Empty, default);
         factGraph.FactReferences.Should().BeEmpty();
         output.WriteLine($"{MyStopWatch.Elapsed()}: END OF TESTS at {DateTime.Now}\n\r");
@@ -189,10 +188,10 @@ public class StoreTest
         output.WriteLine($"{MyStopWatch.Start()}: BEGIN OF TESTS at {DateTime.Now}");
 
         //IStore Store = new MemoryStore();
-        IStore Store = new SQLiteStore(SQLitePath);
+        IStore Store = GivenSQLiteStore();
 
         DateTime now = DateTime.Parse("2021-07-04T01:39:43.241Z");
-        var j = new JinagaClient(Store, new LocalNetwork());            
+        var j = GivenJinagaClient(Store);
         var airline = new Airline("Airline1");           
         var user = await j.Fact(new User("fqjsdf'qkfjqlm"));
         var passenger = await j.Fact(new Passenger(airline, user));
@@ -267,10 +266,10 @@ public class StoreTest
         output.WriteLine($"{MyStopWatch.Start()}: BEGIN OF TESTS at {DateTime.Now}");
 
         //IStore Store = new MemoryStore();
-        IStore Store = new SQLiteStore(SQLitePath);
+        IStore Store = GivenSQLiteStore();
 
         DateTime now = DateTime.Parse("2021-07-04T01:39:43.241Z");
-        var j = new JinagaClient(Store, new LocalNetwork());
+        var j = GivenJinagaClient(Store);
 
         var supplier = await j.Fact(new Supplier("abc-pubkey"));
         var client = await j.Fact(new Client(supplier, now));
@@ -298,7 +297,7 @@ public class StoreTest
     public async Task StoreRoundTripFromUTC()
     {
         DateTime now = DateTime.Parse("2021-07-04T01:39:43.241Z").ToUniversalTime();
-        var j = new JinagaClient(new SQLiteStore(SQLitePath), new LocalNetwork());
+        var j = GivenJinagaClient();
         var airlineDay = await j.Fact(new AirlineDay(new Airline("value"), now));
         airlineDay.date.Kind.Should().Be(DateTimeKind.Utc);
         airlineDay.date.Hour.Should().Be(1);
@@ -801,10 +800,21 @@ public class StoreTest
     private static FactReference ReferenceOfFact(object fact)
     {
         var store = new MemoryStore();
-        var networkManager = new NetworkManager(new LocalNetwork(), store, (FactGraph g, ImmutableList<Fact> l, CancellationToken c) => Task.CompletedTask);
-        var factManager = new FactManager(store, networkManager);
+        var loggerFactory = NullLoggerFactory.Instance;
+        var networkManager = new NetworkManager(new LocalNetwork(), store, loggerFactory, (FactGraph g, ImmutableList<Fact> l, CancellationToken c) => Task.CompletedTask);
+        var factManager = new FactManager(store, networkManager, loggerFactory);
         var graph = factManager.Serialize(fact);
         var lastRef = graph.Last;
         return lastRef;
+    }
+
+    private static JinagaClient GivenJinagaClient(IStore? store = null)
+    {
+        return new JinagaClient(store ?? new SQLiteStore(SQLitePath, NullLoggerFactory.Instance), new LocalNetwork(), NullLoggerFactory.Instance);
+    }
+
+    private static SQLiteStore GivenSQLiteStore()
+    {
+        return new SQLiteStore(SQLitePath, NullLoggerFactory.Instance);
     }
 }

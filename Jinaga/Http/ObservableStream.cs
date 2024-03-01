@@ -3,6 +3,7 @@ using System.IO;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Jinaga.Http
 {
@@ -10,12 +11,14 @@ namespace Jinaga.Http
     {
         private readonly HttpResponseMessage httpResponse;
         private readonly Stream stream;
+        private readonly ILogger logger;
         private readonly CancellationToken cancellationToken;
 
-        public ObservableStream(HttpResponseMessage httpResponse, Stream stream, CancellationToken cancellationToken)
+        public ObservableStream(HttpResponseMessage httpResponse, Stream stream, ILoggerFactory loggerFactory, CancellationToken cancellationToken)
         {
             this.httpResponse = httpResponse;
             this.stream = stream;
+            this.logger = loggerFactory.CreateLogger<ObservableStream<TResponse>>();
             this.cancellationToken = cancellationToken;
         }
 
@@ -25,6 +28,7 @@ namespace Jinaga.Http
             using var cancellationRegistration = cancellationToken.Register(() => stream.Close());
 
             string line;
+            logger.LogTrace("Stream opened.");
             while (true)
             {
                 try
@@ -48,21 +52,31 @@ namespace Jinaga.Http
 
                 try
                 {
+                    logger.LogTrace("Stream received data.");
                     await onData(line);
                 }
                 catch (Exception ex)
                 {
+                    logger.LogError(ex, "Stream failed processing data.");
                     onError(ex);
                     break;
                 }
+            }
+            if (cancellationToken.IsCancellationRequested)
+            {
+                logger.LogTrace("Stream closed by client.");
+            }
+            else
+            {
+                logger.LogTrace("Stream closed by server.");
             }
             try
             {
                 httpResponse.Dispose();
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // Ignore
+                logger.LogError(ex, "Stream failed to dispose.");
             }
         }
     }

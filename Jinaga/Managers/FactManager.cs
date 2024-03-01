@@ -4,6 +4,7 @@ using Jinaga.Products;
 using Jinaga.Projections;
 using Jinaga.Serialization;
 using Jinaga.Services;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Immutable;
 using System.Linq;
@@ -17,15 +18,17 @@ namespace Jinaga.Managers
     {
         private readonly IStore store;
         private readonly NetworkManager networkManager;
+        private readonly ILoggerFactory loggerFactory;
         private readonly ObservableSource observableSource;
 
         private ImmutableList<TaskHandle> pendingTasks = ImmutableList<TaskHandle>.Empty;
 
-        public FactManager(IStore store, NetworkManager networkManager)
+        public FactManager(IStore store, NetworkManager networkManager, ILoggerFactory loggerFactory)
         {
             this.store = store;
             this.networkManager = networkManager;
-            
+            this.loggerFactory = loggerFactory;
+
             observableSource = new ObservableSource(store);
         }
 
@@ -119,14 +122,6 @@ namespace Jinaga.Managers
             return await store.Read(givenTuple, specification, cancellationToken).ConfigureAwait(false);
         }
 
-        public async Task<FactGraph> LoadProducts(ImmutableList<Product> products, CancellationToken cancellationToken)
-        {
-            var references = products
-                .SelectMany(product => product.GetFactReferences())
-                .ToImmutableList();
-            return await store.Load(references, cancellationToken).ConfigureAwait(false);
-        }
-
         public async Task<ImmutableList<ProjectedResult>> ComputeProjections(
             Projection projection,
             ImmutableList<Product> products,
@@ -181,7 +176,7 @@ namespace Jinaga.Managers
 
         public Observer StartObserver(FactReferenceTuple givenTuple, Specification specification, Func<object, Task<Func<Task>>> onAdded, bool keepAlive)
         {
-            var observer = new Observer(specification, givenTuple, this, onAdded);
+            var observer = new Observer(specification, givenTuple, this, onAdded, loggerFactory);
             observer.Start(keepAlive);
             return observer;
         }

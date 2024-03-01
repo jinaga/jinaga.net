@@ -5,8 +5,11 @@ using Jinaga.Managers;
 using Jinaga.Projections;
 using Jinaga.Services;
 using Jinaga.Storage;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -32,6 +35,12 @@ namespace Jinaga
         /// The strategy to use for authenticating with the Jinaga replicator.
         /// </summary>
         public IHttpAuthenticationProvider? HttpAuthenticationProvider { get; set; }
+
+        /// <summary>
+        /// A factory configured for logging.
+        /// If not provided, logging is disabled.
+        /// </summary>
+        public ILoggerFactory? LoggerFactory { get; set; }
     }
 
     /// <summary>
@@ -109,15 +118,17 @@ namespace Jinaga
         {
             var options = new JinagaClientOptions();
             configure(options);
+            var loggerFactory = options.LoggerFactory ?? NullLoggerFactory.Instance;
             IStore store = new MemoryStore();
             INetwork network = options.HttpEndpoint == null
                 ? (INetwork)new LocalNetwork()
-                : new HttpNetwork(options.HttpEndpoint, options.HttpAuthenticationProvider);
-            return new JinagaClient(store, network);
+                : new HttpNetwork(options.HttpEndpoint, options.HttpAuthenticationProvider, loggerFactory);
+            return new JinagaClient(store, network, loggerFactory);
         }
 
         private readonly FactManager factManager;
         private readonly NetworkManager networkManager;
+        private readonly ILogger<JinagaClient> logger;
 
         /// <summary>
         /// Event that fires when the status of the client changes.
@@ -140,16 +151,18 @@ namespace Jinaga
         /// </summary>
         /// <param name="store">A strategy to store facts locally</param>
         /// <param name="network">A strategy to communicate with a remote replicator</param>
-        public JinagaClient(IStore store, INetwork network)
+        /// <param name="loggerFactory">A factory configured for logging</param>
+        public JinagaClient(IStore store, INetwork network, ILoggerFactory loggerFactory)
         {
-            networkManager = new NetworkManager(network, store, async (graph, added, cancellationToken) =>
+            networkManager = new NetworkManager(network, store, loggerFactory, async (graph, added, cancellationToken) =>
             {
                 if (factManager != null)
                 {
                     await factManager.NotifyObservers(graph, added, cancellationToken).ConfigureAwait(false);
                 }
             });
-            factManager = new FactManager(store, networkManager);
+            factManager = new FactManager(store, networkManager, loggerFactory);
+            logger = loggerFactory.CreateLogger<JinagaClient>();
         }
 
         /// <summary>
@@ -159,9 +172,22 @@ namespace Jinaga
         /// <returns>The user fact and profile information from the identity provider</returns>
         public async Task<(User user, UserProfile profile)> Login(CancellationToken cancellationToken = default)
         {
-            var (graph, profile) = await factManager.Login(cancellationToken);
-            var user = factManager.Deserialize<User>(graph, graph.Last);
-            return (user, profile);
+            try
+            {
+                logger.LogInformation("Login starting");
+
+                var (graph, profile) = await factManager.Login(cancellationToken);
+                var user = factManager.Deserialize<User>(graph, graph.Last);
+
+                logger.LogInformation("Login succeeded for {DisplayName}", profile.DisplayName);
+
+                return (user, profile);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Login failed");
+                throw;
+            }
         }
 
         /// <summary>
@@ -171,7 +197,19 @@ namespace Jinaga
         /// <returns>Resolved when the queue has been emptied</returns>
         public async Task Push(CancellationToken cancellationToken = default)
         {
-            await factManager.Push(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                logger.LogInformation("Push starting");
+
+                await factManager.Push(cancellationToken).ConfigureAwait(false);
+
+                logger.LogInformation("Push succeeded");
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Push failed");
+                throw;
+            }
         }
 
         /// <summary>
@@ -185,19 +223,33 @@ namespace Jinaga
         /// <exception cref="ArgumentNullException">If the fact is null</exception>
         public async Task<TFact> Fact<TFact>(TFact prototype) where TFact : class
         {
-            if (prototype == null)
+            try
             {
-                throw new ArgumentNullException(nameof(prototype));
-            }
+                logger.LogInformation("Fact creation starting");
 
-            var graph = factManager.Serialize(prototype);
-            using (var source = new CancellationTokenSource())
+                if (prototype == null)
+                {
+                    throw new ArgumentNullException(nameof(prototype));
+                }
+
+                var graph = factManager.Serialize(prototype);
+                using (var source = new CancellationTokenSource())
+                {
+                    var token = source.Token;
+                    await factManager.Save(graph, token).ConfigureAwait(false);
+                }
+
+                var fact = factManager.Deserialize<TFact>(graph, graph.Last);
+
+                logger.LogInformation("Fact creation succeeded");
+
+                return fact;
+            }
+            catch (Exception ex)
             {
-                var token = source.Token;
-                await factManager.Save(graph, token).ConfigureAwait(false);
+                logger.LogError(ex, "Fact creation failed");
+                throw;
             }
-
-            return factManager.Deserialize<TFact>(graph, graph.Last);
         }
 
         /// <summary>
@@ -859,7 +911,19 @@ namespace Jinaga
         /// <returns>Resolved when background processes are finished</returns>
         public async Task Unload()
         {
-            await factManager.Unload().ConfigureAwait(false);
+            try
+            {
+                logger.LogInformation("Unload starting");
+
+                await factManager.Unload().ConfigureAwait(false);
+
+                logger.LogInformation("Unload succeeded");
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Unload failed");
+                throw;
+            }
         }
 
         private async Task<ImmutableList<TProjection>> RunSpecification<TProjection>(
@@ -869,22 +933,43 @@ namespace Jinaga
             FactReferenceTuple givenTuple,
             CancellationToken cancellationToken)
         {
-            var givenReferences = ImmutableList.Create(givenReference);
-            if (specification.CanRunOnGraph)
+            var stopwatch = Stopwatch.StartNew();
+
+            try
             {
-                var products = specification.Execute(givenTuple, graph);
-                var productAnchorProjections = factManager.DeserializeProductsFromGraph(
-                    graph, specification.Projection, products, typeof(TProjection), "", null);
-                return productAnchorProjections.Select(pap => (TProjection)pap.Projection).ToImmutableList();
+                logger.LogInformation("Query starting for {Specification}", specification.ToDescriptiveString());
+
+                var givenReferences = ImmutableList.Create(givenReference);
+                if (specification.CanRunOnGraph)
+                {
+                    var products = specification.Execute(givenTuple, graph);
+                    var productAnchorProjections = factManager.DeserializeProductsFromGraph(
+                        graph, specification.Projection, products, typeof(TProjection), "", null);
+
+                    stopwatch.Stop();
+                    logger.LogInformation("Query was able to run on graph in {ElapsedMilliseconds} ms", stopwatch.ElapsedMilliseconds);
+
+                    return productAnchorProjections.Select(pap => (TProjection)pap.Projection).ToImmutableList();
+                }
+                else
+                {
+                    var products = await factManager.Query(givenTuple, specification, cancellationToken).ConfigureAwait(false);
+                    var productProjections = await factManager.ComputeProjections(specification.Projection, products, typeof(TProjection), null, string.Empty, cancellationToken).ConfigureAwait(false);
+                    var projections = productProjections
+                        .Select(pair => (TProjection)pair.Projection)
+                        .ToImmutableList();
+
+                    stopwatch.Stop();
+                    logger.LogInformation("Query succeeded after {ElapsedMilliseconds} ms", stopwatch.ElapsedMilliseconds);
+
+                    return projections;
+                }
             }
-            else
+            catch (Exception ex)
             {
-                var products = await factManager.Query(givenTuple, specification, cancellationToken).ConfigureAwait(false);
-                var productProjections = await factManager.ComputeProjections(specification.Projection, products, typeof(TProjection), null, string.Empty, cancellationToken).ConfigureAwait(false);
-                var projections = productProjections
-                    .Select(pair => (TProjection)pair.Projection)
-                    .ToImmutableList();
-                return projections;
+                stopwatch.Stop();
+                logger.LogError(ex, "Query failed after {ElapsedMilliseconds} ms", stopwatch.ElapsedMilliseconds);
+                throw;
             }
         }
 
@@ -895,22 +980,43 @@ namespace Jinaga
             FactReferenceTuple givenTuple,
             CancellationToken cancellationToken)
         {
-            var givenReferences = ImmutableList.Create(givenReference);
-            if (specification.CanRunOnGraph)
+            var stopwatch = Stopwatch.StartNew();
+
+            try
             {
-                var products = specification.Execute(givenTuple, graph);
-                var productAnchorProjections = factManager.DeserializeProductsFromGraph(
-                    graph, specification.Projection, products, typeof(TProjection), "", null);
-                return productAnchorProjections.Select(pap => (TProjection)pap.Projection).ToImmutableList();
+                logger.LogInformation("QueryLocal starting for {Specification}", specification.ToDescriptiveString());
+
+                var givenReferences = ImmutableList.Create(givenReference);
+                if (specification.CanRunOnGraph)
+                {
+                    var products = specification.Execute(givenTuple, graph);
+                    var productAnchorProjections = factManager.DeserializeProductsFromGraph(
+                        graph, specification.Projection, products, typeof(TProjection), "", null);
+
+                    stopwatch.Stop();
+                    logger.LogInformation("QueryLocal was able to run on graph in {ElapsedMilliseconds} ms", stopwatch.ElapsedMilliseconds);
+
+                    return productAnchorProjections.Select(pap => (TProjection)pap.Projection).ToImmutableList();
+                }
+                else
+                {
+                    var products = await factManager.QueryLocal(givenTuple, specification, cancellationToken).ConfigureAwait(false);
+                    var productProjections = await factManager.ComputeProjections(specification.Projection, products, typeof(TProjection), null, string.Empty, cancellationToken).ConfigureAwait(false);
+                    var projections = productProjections
+                        .Select(pair => (TProjection)pair.Projection)
+                        .ToImmutableList();
+
+                    stopwatch.Stop();
+                    logger.LogInformation("QueryLocal succeeded after {ElapsedMilliseconds} ms", stopwatch.ElapsedMilliseconds);
+
+                    return projections;
+                }
             }
-            else
+            catch (Exception ex)
             {
-                var products = await factManager.QueryLocal(givenTuple, specification, cancellationToken).ConfigureAwait(false);
-                var productProjections = await factManager.ComputeProjections(specification.Projection, products, typeof(TProjection), null, string.Empty, cancellationToken).ConfigureAwait(false);
-                var projections = productProjections
-                    .Select(pair => (TProjection)pair.Projection)
-                    .ToImmutableList();
-                return projections;
+                stopwatch.Stop();
+                logger.LogError(ex, "QueryLocal failed after {ElapsedMilliseconds} ms", stopwatch.ElapsedMilliseconds);
+                throw;
             }
         }
     }

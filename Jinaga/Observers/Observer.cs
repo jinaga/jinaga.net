@@ -4,6 +4,7 @@ using Jinaga.Managers;
 using Jinaga.Pipelines;
 using Jinaga.Products;
 using Jinaga.Projections;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Immutable;
 using System.Linq;
@@ -18,6 +19,7 @@ namespace Jinaga.Observers
         private readonly string specificationHash;
         private readonly FactReferenceTuple givenTuple;
         private readonly FactManager factManager;
+        private readonly ILogger logger;
 
         private CancellationTokenSource cancelInitialize = new CancellationTokenSource();
 
@@ -35,11 +37,12 @@ namespace Jinaga.Observers
             ImmutableHashSet<FactReferenceTuple>.Empty;
         private ImmutableList<string> feeds = ImmutableList<string>.Empty;
 
-        internal Observer(Specification specification, FactReferenceTuple givenTuple, FactManager factManager, Func<object, Task<Func<Task>>> onAdded)
+        internal Observer(Specification specification, FactReferenceTuple givenTuple, FactManager factManager, Func<object, Task<Func<Task>>> onAdded, ILoggerFactory loggerFactory)
         {
             this.specification = specification;
             this.givenTuple = givenTuple;
             this.factManager = factManager;
+            this.logger = loggerFactory.CreateLogger<Observer>();
 
             // Add the initial handler.
             addedHandlers = addedHandlers.Add(new AddedHandler(givenTuple, "", onAdded));
@@ -53,6 +56,8 @@ namespace Jinaga.Observers
 
         internal void Start(bool keepAlive)
         {
+            logger.LogInformation("Observer starting for {Specification}", specification.ToDescriptiveString());
+
             // Capture the synchronization context so that notifications
             // can be executed on the same thread.
             synchronizationContext = SynchronizationContext.Current;
@@ -134,6 +139,8 @@ namespace Jinaga.Observers
 
         public void Stop()
         {
+            logger.LogInformation("Observer stopping for {Specification}", specification.ToDescriptiveString());
+
             cancelInitialize.Cancel();
             foreach (var listener in listeners)
             {

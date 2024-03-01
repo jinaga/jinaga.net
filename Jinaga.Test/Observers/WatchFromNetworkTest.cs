@@ -2,6 +2,7 @@
 using Jinaga.Storage;
 using Jinaga.Test.Fakes;
 using Jinaga.Test.Model;
+using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -22,7 +23,8 @@ public class WatchFromNetworkTest
     [Fact]
     public async Task Watch_EmptyUpstream()
     {
-        var j = new JinagaClient(new MemoryStore(), new FakeNetwork(output));
+        var network = new FakeNetwork(output);
+        var j = GivenJinagaClient(network);
 
         var viewModel = new CompanyViewModel();
         var watch = viewModel.Load(j, "contoso");
@@ -50,7 +52,7 @@ public class WatchFromNetworkTest
             dallasOffice
         });
 
-        var j = new JinagaClient(new MemoryStore(), network);
+        var j = GivenJinagaClient(network);
 
         var viewModel = new CompanyViewModel();
         var watch = viewModel.Load(j, "contoso");
@@ -84,7 +86,7 @@ public class WatchFromNetworkTest
             dallasOfficeName
         }, 1);
 
-        var j = new JinagaClient(new MemoryStore(), network);
+        var j = GivenJinagaClient(network);
 
         var viewModel = new CompanyViewModel();
         var watch = viewModel.Load(j, "contoso");
@@ -122,7 +124,7 @@ public class WatchFromNetworkTest
             dallasOfficeName3
         }, 1);
 
-        var j = new JinagaClient(new MemoryStore(), network);
+        var j = GivenJinagaClient(network);
 
         var viewModel = new CompanyViewModel();
         var watch = viewModel.Load(j, "contoso");
@@ -137,6 +139,11 @@ public class WatchFromNetworkTest
         {
             watch.Stop();
         }
+    }
+
+    private static JinagaClient GivenJinagaClient(FakeNetwork network)
+    {
+        return new JinagaClient(new MemoryStore(), network, NullLoggerFactory.Instance);
     }
 
     private class OfficeViewModel

@@ -4,6 +4,7 @@ using Jinaga.Projections;
 using Jinaga.Services;
 using Jinaga.Store.SQLite.Builder;
 using Jinaga.Store.SQLite.Generation;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
@@ -21,21 +22,22 @@ namespace Jinaga.Store.SQLite
     {
 
         private ConnectionFactory connFactory;
+        private readonly ILogger logger;
 
-        public SQLiteStore(string dbFullPath)
+        public SQLiteStore(string dbFullPath, ILoggerFactory loggerFactory)
         {
             // Ensure that the folder exists.
             var folder = Path.GetDirectoryName(dbFullPath);
             Directory.CreateDirectory(folder);
             
             this.connFactory = new ConnectionFactory(dbFullPath);
+            this.logger = loggerFactory.CreateLogger<SQLiteStore>();
         }
 
         public bool IsPersistent => true;
 
         Task<ImmutableList<Fact>> IStore.Save(FactGraph graph, CancellationToken cancellationToken)
         {
-
             if (graph.FactReferences.IsEmpty)
             {
                 return Task.FromResult(ImmutableList<Fact>.Empty);
@@ -149,6 +151,7 @@ namespace Jinaga.Store.SQLite
                     );
 
                 }
+                logger.LogInformation("SQLite saved {count} facts", newFacts.Count);
                 return Task.FromResult(newFacts);
             }
 
@@ -206,7 +209,6 @@ namespace Jinaga.Store.SQLite
 
         Task<FactGraph> IStore.Load(ImmutableList<FactReference> references, CancellationToken cancellationToken)
         {
-
             if (references.IsEmpty)
             {
                 return Task.FromResult(FactGraph.Empty);
@@ -259,6 +261,8 @@ namespace Jinaga.Store.SQLite
                     true   //exponentional backoff
                 );
 
+                logger.LogTrace("SQLite loaded {count} facts", factsFromDb.Count());
+
                 FactGraphBuilder fb = new FactGraphBuilder() ;
             
                 foreach (Fact fact in factsFromDb.Deserialise()) 
@@ -304,6 +308,7 @@ namespace Jinaga.Store.SQLite
                     .Select(r => new FactReference(r.name, r.hash))
                     .ToImmutableList();
 
+                logger.LogTrace("SQLite listed {knownCount} known facts of {givenCount}", knownReferences.Count, factReferences.Count);
                 return Task.FromResult(knownReferences);
             }
         }
@@ -353,6 +358,7 @@ namespace Jinaga.Store.SQLite
                 );
             }
 
+            logger.LogInformation("SQLite read {count} facts", resultSets.Count);
             return Task.FromResult(sqlQueryTree.ResultsToProducts(resultSets, givenProduct));
         }
 
@@ -612,6 +618,7 @@ namespace Jinaga.Store.SQLite
             }
 
             // Return the facts and the next bookmark.
+            logger.LogTrace("SQLite read {count} queued facts", facts.Count);
             return Task.FromResult(new QueuedFacts(facts, lastFactId.ToString()));
         }
 
