@@ -800,8 +800,8 @@ public class StoreTest
     private static FactReference ReferenceOfFact(object fact)
     {
         var store = new MemoryStore();
-        var networkManager = new NetworkManager(new LocalNetwork(), store, (FactGraph g, ImmutableList<Fact> l, CancellationToken c) => Task.CompletedTask);
         var loggerFactory = NullLoggerFactory.Instance;
+        var networkManager = new NetworkManager(new LocalNetwork(), store, loggerFactory, (FactGraph g, ImmutableList<Fact> l, CancellationToken c) => Task.CompletedTask);
         var factManager = new FactManager(store, networkManager, loggerFactory);
         var graph = factManager.Serialize(fact);
         var lastRef = graph.Last;

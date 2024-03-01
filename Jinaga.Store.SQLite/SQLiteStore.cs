@@ -151,7 +151,7 @@ namespace Jinaga.Store.SQLite
                     );
 
                 }
-                logger.LogTrace("SQLite saved {count} facts", newFacts.Count);
+                logger.LogInformation("SQLite saved {count} facts", newFacts.Count);
                 return Task.FromResult(newFacts);
             }
 
@@ -358,7 +358,7 @@ namespace Jinaga.Store.SQLite
                 );
             }
 
-            logger.LogTrace("SQLite read {count} facts", resultSets.Count);
+            logger.LogInformation("SQLite read {count} facts", resultSets.Count);
             return Task.FromResult(sqlQueryTree.ResultsToProducts(resultSets, givenProduct));
         }
 

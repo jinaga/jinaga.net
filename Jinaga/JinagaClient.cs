@@ -154,7 +154,7 @@ namespace Jinaga
         /// <param name="loggerFactory">A factory configured for logging</param>
         public JinagaClient(IStore store, INetwork network, ILoggerFactory loggerFactory)
         {
-            networkManager = new NetworkManager(network, store, async (graph, added, cancellationToken) =>
+            networkManager = new NetworkManager(network, store, loggerFactory, async (graph, added, cancellationToken) =>
             {
                 if (factManager != null)
                 {
