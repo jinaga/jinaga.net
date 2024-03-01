@@ -122,14 +122,6 @@ namespace Jinaga.Managers
             return await store.Read(givenTuple, specification, cancellationToken).ConfigureAwait(false);
         }
 
-        public async Task<FactGraph> LoadProducts(ImmutableList<Product> products, CancellationToken cancellationToken)
-        {
-            var references = products
-                .SelectMany(product => product.GetFactReferences())
-                .ToImmutableList();
-            return await store.Load(references, cancellationToken).ConfigureAwait(false);
-        }
-
         public async Task<ImmutableList<ProjectedResult>> ComputeProjections(
             Projection projection,
             ImmutableList<Product> products,
