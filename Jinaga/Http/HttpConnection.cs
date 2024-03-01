@@ -130,13 +130,13 @@ namespace Jinaga.Http
             {
                 var stopwatch = Stopwatch.StartNew();
                 using var request = createRequest();
-                logger.LogInformation("HTTP {method} {baseAddress}{path}", request.Method, httpClient.BaseAddress, request.RequestUri);
+                logger.LogTrace("HTTP {method} {baseAddress}{path}", request.Method, httpClient.BaseAddress, request.RequestUri);
                 setRequestHeaders(request.Headers);
                 using var response = await httpClient.SendAsync(request).ConfigureAwait(false);
                 if (response.StatusCode == HttpStatusCode.Unauthorized ||
                     response.StatusCode == HttpStatusCode.ProxyAuthenticationRequired)
                 {
-                    logger.LogInformation("HTTP response {statusCode}: Re-authenticating", response.StatusCode);
+                    logger.LogTrace("HTTP response {statusCode}: Re-authenticating", response.StatusCode);
                     if (await reauthenticate().ConfigureAwait(false))
                     {
                         using var retryRequest = createRequest();
@@ -173,7 +173,7 @@ namespace Jinaga.Http
             {
                 var stopwatch = Stopwatch.StartNew();
                 using var request = createRequest();
-                logger.LogInformation("HTTP {method} stream {baseAddress}{path}", request.Method, httpClient.BaseAddress, request.RequestUri);
+                logger.LogTrace("HTTP {method} stream {baseAddress}{path}", request.Method, httpClient.BaseAddress, request.RequestUri);
                 setRequestHeaders(request.Headers);
                 HttpResponseMessage? response = null;
                 try
@@ -182,7 +182,7 @@ namespace Jinaga.Http
                     if (response.StatusCode == HttpStatusCode.Unauthorized ||
                         response.StatusCode == HttpStatusCode.ProxyAuthenticationRequired)
                     {
-                        logger.LogInformation("HTTP response {statusCode}: Re-authenticating", response.StatusCode);
+                        logger.LogTrace("HTTP response {statusCode}: Re-authenticating", response.StatusCode);
                         if (await reauthenticate().ConfigureAwait(false))
                         {
                             using var retryRequest = createRequest();
@@ -245,7 +245,7 @@ namespace Jinaga.Http
             }
             else
             {
-                logger.LogInformation("HTTP response {statusCode} after {elapsedMilliseconds} ms", response.StatusCode, stopwatch.ElapsedMilliseconds);
+                logger.LogTrace("HTTP response {statusCode} after {elapsedMilliseconds} ms", response.StatusCode, stopwatch.ElapsedMilliseconds);
             }
         }
     }

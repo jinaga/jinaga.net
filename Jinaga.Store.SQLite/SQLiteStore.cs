@@ -151,7 +151,7 @@ namespace Jinaga.Store.SQLite
                     );
 
                 }
-                logger.LogInformation("SQLite saved {count} facts", newFacts.Count);
+                logger.LogTrace("SQLite saved {count} facts", newFacts.Count);
                 return Task.FromResult(newFacts);
             }
 
@@ -261,7 +261,7 @@ namespace Jinaga.Store.SQLite
                     true   //exponentional backoff
                 );
 
-                logger.LogInformation("SQLite loaded {count} facts", factsFromDb.Count());
+                logger.LogTrace("SQLite loaded {count} facts", factsFromDb.Count());
 
                 FactGraphBuilder fb = new FactGraphBuilder() ;
             
@@ -308,7 +308,7 @@ namespace Jinaga.Store.SQLite
                     .Select(r => new FactReference(r.name, r.hash))
                     .ToImmutableList();
 
-                logger.LogInformation("SQLite listed {knownCount} known facts of {givenCount}", knownReferences.Count, factReferences.Count);
+                logger.LogTrace("SQLite listed {knownCount} known facts of {givenCount}", knownReferences.Count, factReferences.Count);
                 return Task.FromResult(knownReferences);
             }
         }
@@ -358,7 +358,7 @@ namespace Jinaga.Store.SQLite
                 );
             }
 
-            logger.LogInformation("SQLite read {count} facts", resultSets.Count);
+            logger.LogTrace("SQLite read {count} facts", resultSets.Count);
             return Task.FromResult(sqlQueryTree.ResultsToProducts(resultSets, givenProduct));
         }
 
@@ -618,7 +618,7 @@ namespace Jinaga.Store.SQLite
             }
 
             // Return the facts and the next bookmark.
-            logger.LogInformation("SQLite read {count} queued facts", facts.Count);
+            logger.LogTrace("SQLite read {count} queued facts", facts.Count);
             return Task.FromResult(new QueuedFacts(facts, lastFactId.ToString()));
         }
 
