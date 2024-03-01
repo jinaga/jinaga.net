@@ -77,7 +77,6 @@ namespace Jinaga.Managers
         public async Task Fetch(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
         {
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-            logger.LogInformation("Fetch started.");
             SetLoadStatus(true, null);
 
             try
@@ -128,7 +127,6 @@ namespace Jinaga.Managers
         public async Task<ImmutableList<string>> Subscribe(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
         {
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-            logger.LogInformation("Subscribe started.");
 
             var reducedSpecification = specification.Reduce();
             var feeds = await GetFeedsFromCache(givenTuple, reducedSpecification, cancellationToken).ConfigureAwait(false);
