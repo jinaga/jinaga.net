@@ -62,7 +62,7 @@ namespace Jinaga.Managers
             }, null, TimeSpan.Zero, TimeSpan.FromMinutes(4));
 
             // Wait for the connection to be established.
-            await taskCompletionSource.Task;
+            await taskCompletionSource.Task.ConfigureAwait(false);
         }
 
         public void Stop()
@@ -86,14 +86,14 @@ namespace Jinaga.Managers
                 {
                     var factGraph = await network.Load(factReferences, cancellationToken);
                     var facts = factReferences.Select(reference => factGraph.GetFact(reference)).ToImmutableList();
-                    await store.Save(factGraph, cancellationToken);
-                    await store.SaveBookmark(feed, newBookmark);
+                    await store.Save(factGraph, cancellationToken).ConfigureAwait(false);
+                    await store.SaveBookmark(feed, newBookmark).ConfigureAwait(false);
                     bookmark = newBookmark;
-                    await notifyObservers(factGraph, facts, cancellationToken);
+                    await notifyObservers(factGraph, facts, cancellationToken).ConfigureAwait(false);
                 }
                 else
                 {
-                    await store.SaveBookmark(feed, newBookmark);
+                    await store.SaveBookmark(feed, newBookmark).ConfigureAwait(false);
                     bookmark = newBookmark;
                 }
 
