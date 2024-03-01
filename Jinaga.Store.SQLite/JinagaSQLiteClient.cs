@@ -41,7 +41,7 @@ namespace Jinaga.Store.SQLite
                 : new SQLiteStore(options.SQLitePath);
             INetwork network = options.HttpEndpoint == null
                 ? (INetwork)new LocalNetwork()
-                : new HttpNetwork(options.HttpEndpoint, options.HttpAuthenticationProvider);
+                : new HttpNetwork(options.HttpEndpoint, options.HttpAuthenticationProvider, loggerFactory);
             return new JinagaClient(store, network, loggerFactory);
         }
     }

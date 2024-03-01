@@ -122,7 +122,7 @@ namespace Jinaga
             IStore store = new MemoryStore();
             INetwork network = options.HttpEndpoint == null
                 ? (INetwork)new LocalNetwork()
-                : new HttpNetwork(options.HttpEndpoint, options.HttpAuthenticationProvider);
+                : new HttpNetwork(options.HttpEndpoint, options.HttpAuthenticationProvider, loggerFactory);
             return new JinagaClient(store, network, loggerFactory);
         }
 

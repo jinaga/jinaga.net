@@ -6,25 +6,29 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Jinaga.Http
 {
     public class HttpConnection : IHttpConnection
     {
         private readonly HttpClient httpClient;
+        private readonly ILoggerFactory loggerFactory;
         private readonly Action<HttpRequestHeaders> setRequestHeaders;
         private readonly Func<Task<bool>> reauthenticate;
+        private readonly ILogger logger;
 
-        public HttpConnection(Uri baseUrl, Action<HttpRequestHeaders> setRequestHeaders, Func<Task<bool>> reauthenticate)
+        public HttpConnection(Uri baseUrl, ILoggerFactory loggerFactory, Action<HttpRequestHeaders> setRequestHeaders, Func<Task<bool>> reauthenticate)
         {
             this.httpClient = new HttpClient();
+            logger = loggerFactory.CreateLogger<HttpConnection>();
 
             if (!baseUrl.AbsoluteUri.EndsWith("/"))
             {
                 baseUrl = new Uri(baseUrl.AbsoluteUri + "/");
             }
             httpClient.BaseAddress = baseUrl;
-
+            this.loggerFactory = loggerFactory;
             this.setRequestHeaders = setRequestHeaders;
             this.reauthenticate = reauthenticate;
         }
@@ -68,7 +72,7 @@ namespace Jinaga.Http
             }, async httpResponse =>
             {
                 var stream = await httpResponse.Content.ReadAsStreamAsync().ConfigureAwait(false);
-                return new ObservableStream<TResponse>(httpResponse, stream, cancellationToken);
+                return new ObservableStream<TResponse>(httpResponse, stream, loggerFactory, cancellationToken);
             });
         }
 
@@ -124,18 +128,21 @@ namespace Jinaga.Http
         {
             try
             {
+                var stopwatch = Stopwatch.StartNew();
                 using var request = createRequest();
+                logger.LogInformation("HTTP {method} {baseAddress}{path}", request.Method, httpClient.BaseAddress, request.RequestUri);
                 setRequestHeaders(request.Headers);
                 using var response = await httpClient.SendAsync(request).ConfigureAwait(false);
                 if (response.StatusCode == HttpStatusCode.Unauthorized ||
                     response.StatusCode == HttpStatusCode.ProxyAuthenticationRequired)
                 {
+                    logger.LogInformation("HTTP response {statusCode}: Re-authenticating", response.StatusCode);
                     if (await reauthenticate().ConfigureAwait(false))
                     {
                         using var retryRequest = createRequest();
                         setRequestHeaders(retryRequest.Headers);
                         using var retryResponse = await httpClient.SendAsync(retryRequest).ConfigureAwait(false);
-                        await CheckForError(retryResponse).ConfigureAwait(false);
+                        await CheckForError(retryResponse, stopwatch).ConfigureAwait(false);
                         var retryResult = await processResponse(retryResponse).ConfigureAwait(false);
                         return retryResult;
                     }
@@ -146,14 +153,14 @@ namespace Jinaga.Http
                 }
                 else
                 {
-                    await CheckForError(response).ConfigureAwait(false);
+                    await CheckForError(response, stopwatch).ConfigureAwait(false);
                     var result = await processResponse(response).ConfigureAwait(false);
                     return result;
                 }
             }
             catch (Exception ex)
             {
-                Debug.WriteLine(@"\tERROR {0}", ex.Message);
+                logger.LogError(ex, "HTTP error {message}", ex.Message);
                 throw;
             }
         }
@@ -164,7 +171,9 @@ namespace Jinaga.Http
         {
             try
             {
+                var stopwatch = Stopwatch.StartNew();
                 using var request = createRequest();
+                logger.LogInformation("HTTP {method} stream {baseAddress}{path}", request.Method, httpClient.BaseAddress, request.RequestUri);
                 setRequestHeaders(request.Headers);
                 HttpResponseMessage? response = null;
                 try
@@ -173,13 +182,14 @@ namespace Jinaga.Http
                     if (response.StatusCode == HttpStatusCode.Unauthorized ||
                         response.StatusCode == HttpStatusCode.ProxyAuthenticationRequired)
                     {
+                        logger.LogInformation("HTTP response {statusCode}: Re-authenticating", response.StatusCode);
                         if (await reauthenticate().ConfigureAwait(false))
                         {
                             using var retryRequest = createRequest();
                             setRequestHeaders(retryRequest.Headers);
                             response.Dispose();
                             response = await httpClient.SendAsync(retryRequest, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
-                            await CheckForError(response).ConfigureAwait(false);
+                            await CheckForError(response, stopwatch).ConfigureAwait(false);
                             var retryResult = await processResponse(response).ConfigureAwait(false);
                             // We've transferred ownership of the response to the ObservableStream.
                             response = null;
@@ -192,7 +202,7 @@ namespace Jinaga.Http
                     }
                     else
                     {
-                        await CheckForError(response).ConfigureAwait(false);
+                        await CheckForError(response, stopwatch).ConfigureAwait(false);
                         var result = await processResponse(response).ConfigureAwait(false);
                         // We've transferred ownership of the response to the ObservableStream.
                         response = null;
@@ -209,12 +219,12 @@ namespace Jinaga.Http
             }
             catch (Exception ex)
             {
-                Debug.WriteLine(@"\tERROR {0}", ex.Message);
+                logger.LogError(ex, "HTTP error {message}", ex.Message);
                 throw;
             }
         }
 
-        private async Task CheckForError(HttpResponseMessage response)
+        private async Task CheckForError(HttpResponseMessage response, Stopwatch stopwatch)
         {
             if (!response.IsSuccessStatusCode)
             {
@@ -223,13 +233,19 @@ namespace Jinaga.Http
                 {
                     // Read the content of the error from the response.
                     body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                    logger.LogError("HTTP error {statusCode} after {elapsedMilliseconds} ms: {body}", response.StatusCode, stopwatch.ElapsedMilliseconds, body);
                 }
                 catch
                 {
                     // Fall back on the default behavior.
+                    logger.LogError("HTTP error {statusCode} after {elapsedMilliseconds} ms", response.StatusCode, stopwatch.ElapsedMilliseconds);
                     response.EnsureSuccessStatusCode();
                 }
                 throw new HttpRequestException($"Error {response.StatusCode}: {body}");
+            }
+            else
+            {
+                logger.LogInformation("HTTP response {statusCode} after {elapsedMilliseconds} ms", response.StatusCode, stopwatch.ElapsedMilliseconds);
             }
         }
     }
