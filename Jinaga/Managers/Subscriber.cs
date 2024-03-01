@@ -78,12 +78,25 @@ namespace Jinaga.Managers
             network.StreamFeed(feed, bookmark, cancellationToken, async (factReferences, newBookmark) =>
             {
                 logger.LogInformation("Subscribe received {count} facts", factReferences.Count);
-                var factGraph = await network.Load(factReferences, cancellationToken);
-                var facts = factReferences.Select(reference => factGraph.GetFact(reference)).ToImmutableList();
-                await store.Save(factGraph, cancellationToken);
-                await store.SaveBookmark(feed, newBookmark);
-                bookmark = newBookmark;
-                await notifyObservers(factGraph, facts, cancellationToken);
+
+                // Load the facts that I don't already have.
+                var knownFactReferences = await store.ListKnown(factReferences).ConfigureAwait(false);
+                var unknownFactReferences = factReferences.RemoveRange(knownFactReferences);
+                if (unknownFactReferences.Any())
+                {
+                    var factGraph = await network.Load(factReferences, cancellationToken);
+                    var facts = factReferences.Select(reference => factGraph.GetFact(reference)).ToImmutableList();
+                    await store.Save(factGraph, cancellationToken);
+                    await store.SaveBookmark(feed, newBookmark);
+                    bookmark = newBookmark;
+                    await notifyObservers(factGraph, facts, cancellationToken);
+                }
+                else
+                {
+                    await store.SaveBookmark(feed, newBookmark);
+                    bookmark = newBookmark;
+                }
+
                 if (!resolved)
                 {
                     resolved = true;
