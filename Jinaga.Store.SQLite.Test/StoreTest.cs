@@ -50,8 +50,8 @@ public class StoreTest
     [Fact]
     public async Task SaveAndLoadBookmark()
     {
-        IStore sqliteStore = new SQLiteStore(SQLitePath);
-        await sqliteStore.SaveBookmark("myFeedHashA","bookmarkA_1");
+        IStore sqliteStore = GivenSQLiteStore();
+        await sqliteStore.SaveBookmark("myFeedHashA", "bookmarkA_1");
         var bmA1 = await sqliteStore.LoadBookmark("myFeedHashA");
 
         await sqliteStore.SaveBookmark("myFeedHashB", "bookmarkB_1");
@@ -73,7 +73,7 @@ public class StoreTest
     [Fact]
     public async Task SaveAndLoadMru()
     {
-        IStore sqliteStore = new SQLiteStore(SQLitePath);
+        IStore sqliteStore = GivenSQLiteStore();
         
         DateTime nowA1 = DateTime.Parse("2023-08-23T18:39:43");
         await sqliteStore.SetMruDate("mySpecificationHashA", nowA1);
@@ -100,7 +100,7 @@ public class StoreTest
     [Fact]
     public async Task MruRespectUTC()
     {
-        IStore sqliteStore = new SQLiteStore(SQLitePath);
+        IStore sqliteStore = GivenSQLiteStore();
 
         DateTime nowC1 = DateTime.Parse("2023-08-23T18:39:43Z",null, DateTimeStyles.AdjustToUniversal);
         await sqliteStore.SetMruDate("mySpecificationHashC", nowC1);
@@ -175,7 +175,7 @@ public class StoreTest
     public async Task LoadNothingFromStore()
     {
         output.WriteLine($"{MyStopWatch.Start()}: BEGIN OF TESTS at {DateTime.Now}");
-        IStore sqliteStore = new SQLiteStore(SQLitePath);
+        IStore sqliteStore = GivenSQLiteStore();
         FactGraph factGraph = await sqliteStore.Load(ImmutableList<FactReference>.Empty, default);
         factGraph.FactReferences.Should().BeEmpty();
         output.WriteLine($"{MyStopWatch.Elapsed()}: END OF TESTS at {DateTime.Now}\n\r");
@@ -188,7 +188,7 @@ public class StoreTest
         output.WriteLine($"{MyStopWatch.Start()}: BEGIN OF TESTS at {DateTime.Now}");
 
         //IStore Store = new MemoryStore();
-        IStore Store = new SQLiteStore(SQLitePath);
+        IStore Store = GivenSQLiteStore();
 
         DateTime now = DateTime.Parse("2021-07-04T01:39:43.241Z");
         var j = GivenJinagaClient(Store);
@@ -266,7 +266,7 @@ public class StoreTest
         output.WriteLine($"{MyStopWatch.Start()}: BEGIN OF TESTS at {DateTime.Now}");
 
         //IStore Store = new MemoryStore();
-        IStore Store = new SQLiteStore(SQLitePath);
+        IStore Store = GivenSQLiteStore();
 
         DateTime now = DateTime.Parse("2021-07-04T01:39:43.241Z");
         var j = GivenJinagaClient(Store);
@@ -810,6 +810,11 @@ public class StoreTest
 
     private static JinagaClient GivenJinagaClient(IStore? store = null)
     {
-        return new JinagaClient(store ?? new SQLiteStore(SQLitePath), new LocalNetwork(), NullLoggerFactory.Instance);
+        return new JinagaClient(store ?? new SQLiteStore(SQLitePath, NullLoggerFactory.Instance), new LocalNetwork(), NullLoggerFactory.Instance);
+    }
+
+    private static SQLiteStore GivenSQLiteStore()
+    {
+        return new SQLiteStore(SQLitePath, NullLoggerFactory.Instance);
     }
 }

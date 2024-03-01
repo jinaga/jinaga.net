@@ -38,7 +38,7 @@ namespace Jinaga.Store.SQLite
             var loggerFactory = options.LoggerFactory ?? NullLoggerFactory.Instance;
             IStore store = options.SQLitePath == null
                 ? (IStore)new MemoryStore()
-                : new SQLiteStore(options.SQLitePath);
+                : new SQLiteStore(options.SQLitePath, loggerFactory);
             INetwork network = options.HttpEndpoint == null
                 ? (INetwork)new LocalNetwork()
                 : new HttpNetwork(options.HttpEndpoint, options.HttpAuthenticationProvider, loggerFactory);

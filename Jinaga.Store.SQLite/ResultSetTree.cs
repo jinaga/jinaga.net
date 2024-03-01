@@ -20,5 +20,18 @@ namespace Jinaga.Store.SQLite
 
         public ImmutableList<ImmutableDictionary<int, ResultSetFact>> ResultSet { get; set; } = ImmutableList<ImmutableDictionary<int, ResultSetFact>>.Empty;
         public ImmutableDictionary<string, ResultSetTree> ChildResultSets { get; set; } = ImmutableDictionary<string, ResultSetTree>.Empty;
+
+        public int Count
+        {
+            get
+            {
+                var count = ResultSet.Count;
+                foreach (var child in ChildResultSets.Values)
+                {
+                    count += child.Count;
+                }
+                return count;
+            }
+        }
     }
 }
