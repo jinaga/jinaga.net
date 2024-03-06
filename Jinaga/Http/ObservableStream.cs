@@ -23,7 +23,7 @@ namespace Jinaga.Http
             this.cancellationToken = cancellationToken;
         }
 
-        public async void Start(Func<string, Task> onData, Action<Exception> onError)
+        public async Task Start(Func<string, Task> onData, Action<Exception> onError)
         {
             byte[] buffer = new byte[1024];
             StringBuilder sb = new StringBuilder();

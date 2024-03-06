@@ -60,10 +60,17 @@ namespace Jinaga.Managers
                 {
                     logger.LogInformation("Refreshing connection to feed");
                 }
-                cancellationTokenSource?.Cancel();
-                cancellationTokenSource = new CancellationTokenSource();
-                ConnectToFeed(taskCompletionSource, cancellationTokenSource.Token);
-            }, null, TimeSpan.Zero, TimeSpan.FromMinutes(4));
+                try
+                {
+                    cancellationTokenSource?.Cancel();
+                    cancellationTokenSource = new CancellationTokenSource();
+                    ConnectToFeed(taskCompletionSource, cancellationTokenSource.Token);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Error connecting to feed");
+                }
+            }, null, TimeSpan.Zero, TimeSpan.FromSeconds(30));
 
             // Wait for the connection to be established.
             await taskCompletionSource.Task.ConfigureAwait(false);
