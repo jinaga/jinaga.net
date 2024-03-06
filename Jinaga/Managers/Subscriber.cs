@@ -56,6 +56,10 @@ namespace Jinaga.Managers
             // Refresh the connection every 4 minutes.
             timer = new Timer(_ =>
             {
+                if (cancellationTokenSource != null)
+                {
+                    logger.LogInformation("Refreshing connection to feed");
+                }
                 cancellationTokenSource?.Cancel();
                 cancellationTokenSource = new CancellationTokenSource();
                 ConnectToFeed(taskCompletionSource, cancellationTokenSource.Token);

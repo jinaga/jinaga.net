@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Net.Http;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -24,44 +25,55 @@ namespace Jinaga.Http
 
         public async void Start(Func<string, Task> onData, Action<Exception> onError)
         {
-            using var reader = new StreamReader(stream);
-            using var cancellationRegistration = cancellationToken.Register(() => stream.Close());
-
-            string line;
+            byte[] buffer = new byte[1024];
+            StringBuilder sb = new StringBuilder();
             logger.LogTrace("Stream opened.");
+
             while (true)
             {
                 try
                 {
-                    line = await reader.ReadLineAsync();
+                    int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, cancellationToken);
+                    if (bytesRead == 0 || cancellationToken.IsCancellationRequested)
+                    {
+                        break;
+                    }
+
+                    sb.Append(Encoding.UTF8.GetString(buffer, 0, bytesRead));
+
+                    string? line;
+                    while ((line = GetLine(sb)) != null)
+                    {
+                        if (string.IsNullOrWhiteSpace(line))
+                        {
+                            continue;
+                        }
+
+                        try
+                        {
+                            logger.LogTrace("Stream received data.");
+                            await onData(line);
+                        }
+                        catch (Exception ex)
+                        {
+                            logger.LogError(ex, "Stream failed processing data.");
+                            onError(ex);
+                            break;
+                        }
+                    }
                 }
-                catch (IOException) when (cancellationToken.IsCancellationRequested)
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
                     break;
-                }
-
-                if (line == null || cancellationToken.IsCancellationRequested)
-                {
-                    break;
-                }
-
-                if (string.IsNullOrWhiteSpace(line))
-                {
-                    continue;
-                }
-
-                try
-                {
-                    logger.LogTrace("Stream received data.");
-                    await onData(line);
                 }
                 catch (Exception ex)
                 {
-                    logger.LogError(ex, "Stream failed processing data.");
+                    logger.LogError(ex, "Stream failed reading data.");
                     onError(ex);
                     break;
                 }
             }
+
             if (cancellationToken.IsCancellationRequested)
             {
                 logger.LogTrace("Stream closed by client.");
@@ -70,6 +82,7 @@ namespace Jinaga.Http
             {
                 logger.LogTrace("Stream closed by server.");
             }
+
             try
             {
                 httpResponse.Dispose();
@@ -78,6 +91,19 @@ namespace Jinaga.Http
             {
                 logger.LogError(ex, "Stream failed to dispose.");
             }
+        }
+
+        private string? GetLine(StringBuilder sb)
+        {
+            int endOfLine = sb.ToString().IndexOf('\n');
+            if (endOfLine == -1)
+            {
+                return null;
+            }
+
+            string line = sb.ToString().Substring(0, endOfLine).Trim();
+            sb.Remove(0, endOfLine + 1);
+            return line;
         }
     }
 }
