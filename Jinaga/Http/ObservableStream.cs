@@ -28,12 +28,14 @@ namespace Jinaga.Http
             using var cancellationRegistration = cancellationToken.Register(() => stream.Close());
 
             string line;
-            logger.LogTrace("Stream opened.");
+            logger.LogInformation("Stream opened.");
             while (true)
             {
                 try
                 {
+                    logger.LogInformation("Stream reading data.");
                     line = await reader.ReadLineAsync();
+                    logger.LogInformation("Stream returned a line: {line}.", line);
                 }
                 catch (IOException) when (cancellationToken.IsCancellationRequested)
                 {
@@ -52,7 +54,7 @@ namespace Jinaga.Http
 
                 try
                 {
-                    logger.LogTrace("Stream received data.");
+                    logger.LogInformation("Stream received data.");
                     await onData(line);
                 }
                 catch (Exception ex)
@@ -64,15 +66,16 @@ namespace Jinaga.Http
             }
             if (cancellationToken.IsCancellationRequested)
             {
-                logger.LogTrace("Stream closed by client.");
+                logger.LogInformation("Stream closed by client.");
             }
             else
             {
-                logger.LogTrace("Stream closed by server.");
+                logger.LogInformation("Stream closed by server.");
             }
             try
             {
                 httpResponse.Dispose();
+                logger.LogInformation("Stream disposed.");
             }
             catch (Exception ex)
             {
