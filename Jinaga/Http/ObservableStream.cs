@@ -33,15 +33,21 @@ namespace Jinaga.Http
                 try
                 {
                     logger.LogInformation("Stream reading data.");
-                    line = await reader.ReadLineAsync();
+                    line = await reader.ReadLineAsync().WithCancellation(cancellationToken);
                     logger.LogInformation("Stream returned a line: {line}.", line);
                 }
-                catch (IOException) when (cancellationToken.IsCancellationRequested)
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
                     break;
                 }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Stream failed reading data.");
+                    onError(ex);
+                    break;
+                }
 
-                if (line == null || cancellationToken.IsCancellationRequested)
+                if (line == null)
                 {
                     break;
                 }
