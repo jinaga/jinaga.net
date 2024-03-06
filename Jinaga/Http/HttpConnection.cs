@@ -45,21 +45,14 @@ namespace Jinaga.Http
                 });
         }
 
-        public async void GetStream<T>(string path, Func<T, Task> onResponse, Action<Exception> onError, CancellationToken cancellationToken)
+        public async Task GetStream<T>(string path, Func<T, Task> onResponse, Action<Exception> onError, CancellationToken cancellationToken)
         {
-            try
+            var observableStream = await GetObservableStream<T>(path, "application/x-jinaga-feed-stream", cancellationToken).ConfigureAwait(false);
+            await observableStream.Start(async line =>
             {
-                var observableStream = await GetObservableStream<T>(path, "application/x-jinaga-feed-stream", cancellationToken).ConfigureAwait(false);
-                observableStream.Start(async line =>
-                {
-                    T response = MessageSerializer.Deserialize<T>(line.TrimEnd('\r', '\n'));
-                    await onResponse(response);
-                }, onError);
-            }
-            catch (Exception ex)
-            {
-                onError(ex);
-            }
+                T response = MessageSerializer.Deserialize<T>(line.TrimEnd('\r', '\n'));
+                await onResponse(response);
+            }, onError);
         }
 
         private Task<ObservableStream<TResponse>> GetObservableStream<TResponse>(string path, string contentType, CancellationToken cancellationToken)
