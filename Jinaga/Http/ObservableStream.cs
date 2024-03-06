@@ -22,10 +22,9 @@ namespace Jinaga.Http
             this.cancellationToken = cancellationToken;
         }
 
-        public async void Start(Func<string, Task> onData, Action<Exception> onError)
+        public async Task Start(Func<string, Task> onData, Action<Exception> onError)
         {
             using var reader = new StreamReader(stream);
-            using var cancellationRegistration = cancellationToken.Register(() => stream.Close());
 
             string line;
             logger.LogTrace("Stream opened.");

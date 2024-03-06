@@ -34,10 +34,18 @@ namespace Jinaga.Http
             return httpConnection.Get<FeedResponse>($"feeds/{feed}{queryString}");
         }
 
-        public void StreamFeed(string feed, string bookmark, CancellationToken cancellationToken, Func<FeedResponse, Task> onResponse, Action<Exception> onError)
+        public async void StreamFeed(string feed, string bookmark, CancellationToken cancellationToken, Func<FeedResponse, Task> onResponse, Action<Exception> onError)
         {
             string queryString = bookmark == null ? "" : $"?b={bookmark}";
-            httpConnection.GetStream<FeedResponse>($"feeds/{feed}{queryString}", onResponse, onError, cancellationToken);
+
+            try
+            {
+                await httpConnection.GetStream<FeedResponse>($"feeds/{feed}{queryString}", onResponse, onError, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                onError(ex);
+            }
         }
 
         public Task<LoadResponse> Load(LoadRequest request, CancellationToken cancellationToken)
