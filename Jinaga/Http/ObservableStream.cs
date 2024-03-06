@@ -27,15 +27,18 @@ namespace Jinaga.Http
         {
             byte[] buffer = new byte[1024];
             StringBuilder sb = new StringBuilder();
-            logger.LogTrace("Stream opened.");
+            logger.LogInformation("Stream opened.");
 
             while (true)
             {
                 try
                 {
+                    logger.LogInformation("Stream reading data.");
                     int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, cancellationToken);
+                    logger.LogInformation("Stream ReadAsync returned {bytesRead}.", bytesRead);
                     if (bytesRead == 0 || cancellationToken.IsCancellationRequested)
                     {
+                        logger.LogInformation("Stream cancelled during ReadAsync.");
                         break;
                     }
 
@@ -51,7 +54,7 @@ namespace Jinaga.Http
 
                         try
                         {
-                            logger.LogTrace("Stream received data.");
+                            logger.LogInformation("Stream received data.");
                             await onData(line);
                         }
                         catch (Exception ex)
@@ -64,6 +67,7 @@ namespace Jinaga.Http
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
+                    logger.LogInformation("Stream cancelled due to OperationCanceledException.");
                     break;
                 }
                 catch (Exception ex)
@@ -76,16 +80,17 @@ namespace Jinaga.Http
 
             if (cancellationToken.IsCancellationRequested)
             {
-                logger.LogTrace("Stream closed by client.");
+                logger.LogInformation("Stream closed by client.");
             }
             else
             {
-                logger.LogTrace("Stream closed by server.");
+                logger.LogInformation("Stream closed by server.");
             }
 
             try
             {
                 httpResponse.Dispose();
+                logger.LogInformation("Stream disposed.");
             }
             catch (Exception ex)
             {
