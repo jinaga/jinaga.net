@@ -71,16 +71,9 @@ namespace Jinaga.Store.SQLite.Builder
             var facts = QueryDescription.Facts.Add(factDescription);
             var input = new InputDescription(label.Name, label.Type, factIndex, factTypeParameter, factHashParameter);
             var parameters = QueryDescription.Parameters.Add(factTypeId).Add(hash);
-            if (Path.Count == 0)
-            {
-                var inputs = QueryDescription.Inputs.Add(input);
-                var queryDescription = QueryDescription.WithInputs(inputs).WithParameters(parameters).WithFacts(facts);
-                return new ResultDescriptionBuilderContext(queryDescription, KnownFacts.Add(label.Name, factDescription), Path);
-            }
-            else
-            {
-                throw new NotImplementedException();
-            }
+            var inputs = QueryDescription.Inputs.Add(input);
+            var queryDescription = QueryDescription.WithInputs(inputs).WithParameters(parameters).WithFacts(facts);
+            return new ResultDescriptionBuilderContext(queryDescription, KnownFacts.Add(label.Name, factDescription), Path);
         }
 
         public (ResultDescriptionBuilderContext context, int factIndex) WithFact(string type)
