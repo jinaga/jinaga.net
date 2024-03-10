@@ -332,6 +332,44 @@ public class QueryGeneratorTests
     }
 
     [Fact]
+    public void ShouldHandleJoinToPredecessorCollection()
+    {
+        var specification = Given<Project>.Match((project, facts) =>
+            from name in facts.OfType<ProjectName>()
+            where name.project == project
+            from prior in facts.OfType<ProjectName>()
+            where prior.project == project &&
+                name.prior.Contains(prior)
+            select prior
+        );
+        SqlQueryTree sqlQueryTree = SqlFor(specification);
+
+        sqlQueryTree.SqlQuery.Sql.Should().Be(
+            "SELECT " +
+                "f1.hash as hash1, f1.fact_id as id1, f1.data as data1, " + // project
+                "f2.hash as hash2, f2.fact_id as id2, f2.data as data2, " + // name
+                "f3.hash as hash3, f3.fact_id as id3, f3.data as data3 " +  // prior
+            "FROM fact f1 " +   // project
+            "JOIN edge e1 " +   // name->project
+                "ON e1.predecessor_fact_id = f1.fact_id " +
+                "AND e1.role_id = ?3 " +
+            "JOIN fact f2 " +   // name
+                "ON f2.fact_id = e1.successor_fact_id " +
+            "JOIN edge e2 " +   // prior->project
+                "ON e2.predecessor_fact_id = f1.fact_id " +
+                "AND e2.role_id = ?4 " +
+            "JOIN fact f3 " +   // prior
+                "ON f3.fact_id = e2.successor_fact_id " +
+            "JOIN edge e3 " +   // prior->name
+                "ON e3.predecessor_fact_id = f3.fact_id " +
+                "AND e3.successor_fact_id = f2.fact_id " +
+                "AND e3.role_id = ?5 " +
+            "WHERE f1.fact_type_id = ?1 AND f1.hash = ?2 " +
+            "ORDER BY f2.fact_id ASC, f3.fact_id ASC"
+        );
+    }
+
+    [Fact]
     public void ShouldHandleTwoGivens()
     {
         var specification = Given<Company, User>.Match((company, user, facts) =>
