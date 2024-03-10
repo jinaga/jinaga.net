@@ -119,15 +119,20 @@ namespace Jinaga.Specifications
                     .Where(label => !existentialCondition.Matches
                         .Any(match => match.Unknown.Name == label));
 
-                // There should be only one.
-                if (unsatisfiedLabels.Count() != 1)
-                {
-                    throw new ArgumentException("The existential condition does not apply to exactly one unknown");
-                }
-                var unsatisfiedLabel = unsatisfiedLabels.Single();
+                // Those unsatisfied labels should be the unknowns of the matches.
+                // Find the last match that has one of those labels.
+                var unsatisfiedMatch = matches
+                    .Where(match => unsatisfiedLabels
+                        .Any(label => match.Unknown.Name == label))
+                    .LastOrDefault();
 
-                int matchIndex = matches.FindIndex(match => match.Unknown.Name == unsatisfiedLabel);
-                var match = matches[matchIndex];
+                if (unsatisfiedMatch == null)
+                {
+                    throw new ArgumentException("The existential condition does not apply to any unknown");
+                }
+
+                int matchIndex = matches.IndexOf(unsatisfiedMatch);
+                var match = unsatisfiedMatch;
                 var conditions = match.ExistentialConditions;
                 var newCondition = new ExistentialCondition(existentialCondition.Exists, existentialCondition.Matches);
                 conditions = conditions.Add(newCondition);
