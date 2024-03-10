@@ -298,6 +298,51 @@ public class QueryGeneratorTests
         );
     }
 
+    [Fact]
+    public void ShouldHandleTwoGivensInOppositeOrder()
+    {
+        var specification = Given<Company, User>.Match((company, user, facts) =>
+            from project in facts.OfType<Project>()
+            where project.department.company == company
+            from assignment in facts.OfType<Assignment>()
+            where assignment.user == user
+            where assignment.project == project
+            select assignment
+        );
+        SqlQueryTree sqlQueryTree = SqlFor(specification);
+
+        sqlQueryTree.SqlQuery.Sql.Should().Be(
+            "SELECT " +
+                "f1.hash as hash1, f1.fact_id as id1, f1.data as data1, " +  // company
+                "f5.hash as hash5, f5.fact_id as id5, f5.data as data5, " +  // user
+                "f3.hash as hash3, f3.fact_id as id3, f3.data as data3, " +  // project
+                "f4.hash as hash4, f4.fact_id as id4, f4.data as data4 " +   // assignment
+            "FROM fact f1 " +  // company
+            "JOIN edge e1 " +  // department->company
+                "ON e1.predecessor_fact_id = f1.fact_id " +
+                "AND e1.role_id = ?3 " +
+            "JOIN fact f2 " +  // department
+                "ON f2.fact_id = e1.successor_fact_id " +
+            "JOIN edge e2 " +  // project->department
+                "ON e2.predecessor_fact_id = f2.fact_id " +
+                "AND e2.role_id = ?4 " +
+            "JOIN fact f3 " +  // project
+                "ON f3.fact_id = e2.successor_fact_id " +
+            "JOIN edge e3 " +  // assignment->project
+                "ON e3.predecessor_fact_id = f3.fact_id " +
+                "AND e3.role_id = ?5 " +
+            "JOIN fact f4 " +  // assignment
+                "ON f4.fact_id = e3.successor_fact_id " +
+            "JOIN edge e4 " +  // assignment->user
+                "ON e4.successor_fact_id = f4.fact_id " +
+                "AND e4.role_id = ?8 " +
+            "JOIN fact f5 " +  // user
+                "ON f5.fact_id = e4.predecessor_fact_id " +
+            "WHERE f1.fact_type_id = ?1 AND f1.hash = ?2 AND f5.fact_type_id = ?6 AND f5.hash = ?7 " +
+            "ORDER BY f3.fact_id ASC, f4.fact_id ASC"
+        );
+    }
+
     private SqlQueryTree SqlFor(Specification specification)
     {
         var factTypes = GetAllFactTypes(specification);

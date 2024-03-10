@@ -82,7 +82,8 @@ namespace Jinaga.Store.SQLite.Builder
         {
             foreach (var match in matches)
             {
-                foreach (var pathCondition in match.PathConditions)
+                var sortedPathConditions = SortPathConditions(context, match.PathConditions);
+                foreach (var pathCondition in sortedPathConditions)
                 {
                     context = AddPathCondition(context, pathCondition, givens, givenTuple, match.Unknown, "");
                     if (!context.QueryDescription.IsSatisfiable())
@@ -114,6 +115,21 @@ namespace Jinaga.Store.SQLite.Builder
                 }
             }
             return context;
+        }
+
+        private ImmutableList<PathCondition> SortPathConditions(ResultDescriptionBuilderContext context, ImmutableList<PathCondition> pathConditions)
+        {
+            if (pathConditions.Count <= 1)
+            {
+                return pathConditions;
+            }
+            // Favor path conditions that reference known facts.
+            var knownFacts = context.KnownFacts.Keys.ToImmutableHashSet();
+            var sortedPathConditions = pathConditions
+                .OrderByDescending(pathCondition => knownFacts.Contains(pathCondition.LabelRight))
+                .ToImmutableList();
+
+            return sortedPathConditions;
         }
 
         private ResultDescriptionBuilderContext AddPathCondition(ResultDescriptionBuilderContext context, PathCondition pathCondition, ImmutableList<SpecificationGiven> givens, FactReferenceTuple givenTuple, Label unknown, string v)
