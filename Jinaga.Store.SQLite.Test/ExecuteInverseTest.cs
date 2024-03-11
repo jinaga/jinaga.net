@@ -62,6 +62,64 @@ public class ExecuteInverseTest
             "    ]\n" +
             "} => topic\n"
         );
+
+        var inverse0Sql = inverses[0].InverseSpecification.ToSql();
+        inverse0Sql.SqlQuery.Sql.Should().Be(
+            "SELECT " +
+                "f1.hash as hash1, f1.fact_id as id1, f1.data as data1, " +  // root
+                "f3.hash as hash3, f3.fact_id as id3, f3.data as data3, " +  // projectTopics
+                "f4.hash as hash4, f4.fact_id as id4, f4.data as data4 " +   // topic
+            "FROM fact f1 " +  // root
+            "JOIN edge e1 " +  // project->root
+                "ON e1.successor_fact_id = f1.fact_id " +
+                "AND e1.role_id = ?3 " +
+            "JOIN fact f2 " +  // project
+                "ON f2.fact_id = e1.predecessor_fact_id " +
+            "JOIN edge e2 " +  // projectTopics->project
+                "ON e2.successor_fact_id = f2.fact_id " +
+                "AND e2.role_id = ?4 " +
+            "JOIN fact f3 " +  // projectTopics
+                "ON f3.fact_id = e2.predecessor_fact_id " +
+            "JOIN edge e3 " +  // projectTopics->topic
+                "ON e3.successor_fact_id = f1.fact_id " +
+                "AND e3.role_id = ?5 " +
+            "JOIN fact f4 " +  // topic
+                "ON f4.fact_id = e3.predecessor_fact_id " +
+            "WHERE f1.fact_type_id = ?1 AND f1.hash = ?2 " +
+            "ORDER BY f3.fact_id ASC, f4.fact_id ASC"
+        );
+
+        var inverse1Sql = inverses[1].InverseSpecification.ToSql();
+        inverse1Sql.SqlQuery.Sql.Should().Be(
+            "SELECT " +
+                "f1.hash as hash1, f1.fact_id as id1, f1.data as data1, " +  // next
+                "f2.hash as hash2, f2.fact_id as id2, f2.data as data2, " +  // projectTopics
+                "f4.hash as hash4, f4.fact_id as id4, f4.data as data4, " +  // root
+                "f5.hash as hash5, f5.fact_id as id5, f5.data as data5 " +   // topic
+            "FROM fact f1 " +  // next
+            "JOIN edge e1 " +  // prior->next
+                "ON e1.successor_fact_id = f1.fact_id " +
+                "AND e1.role_id = ?3 " +
+            "JOIN fact f2 " +  // prior
+                "ON f2.fact_id = e1.predecessor_fact_id " +
+            "JOIN edge e2 " +  // projectTopics->prior
+                "ON e2.successor_fact_id = f2.fact_id " +
+                "AND e2.role_id = ?4 " +
+            "JOIN fact f3 " +  // projectTopics
+                "ON f3.fact_id = e2.predecessor_fact_id " +
+            "JOIN edge e3 " +  // project->root
+                "ON e3.successor_fact_id = f3.fact_id " +
+                "AND e3.role_id = ?5 " +
+            "JOIN fact f4 " +  // root
+                "ON f4.fact_id = e3.predecessor_fact_id " +
+            "JOIN edge e4 " +  // projectTopics->topic
+                "ON e4.successor_fact_id = f2.fact_id " +
+                "AND e4.role_id = ?6 " +
+            "JOIN fact f5 " +  // topic
+                "ON f5.fact_id = e4.predecessor_fact_id " +
+            "WHERE f1.fact_type_id = ?1 AND f1.hash = ?2 " +
+            "ORDER BY f2.fact_id ASC, f4.fact_id ASC, f5.fact_id ASC"
+        );
     }
 }
 
