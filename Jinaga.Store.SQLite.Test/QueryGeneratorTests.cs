@@ -63,14 +63,14 @@ public class QueryGeneratorTests
     [Fact]
     public void ApplyNegativeExistentialConditions()
     {
-        var specification = Given<Company>.Match((company, facts) =>
-            from project in facts.OfType<Project>()
+        var specification = Given<Company>.Match<Models.Project>((company, facts) =>
+            from project in facts.OfType<Models.Project>()
             where project.department.company == company
             where !(
                 from deleted in facts.OfType<ProjectDeleted>()
                 where deleted.project == project
                 select deleted
-            ).Any()
+            ).Any<ProjectDeleted>()
             select project
         );
         SqlQueryTree sqlQueryTree = SqlFor(specification);
@@ -106,14 +106,14 @@ public class QueryGeneratorTests
     [Fact]
     public void ApplyPositiveExistentialCondition()
     {
-        var specification = Given<Company>.Match((company, facts) =>
-            from project in facts.OfType<Project>()
+        var specification = Given<Company>.Match<Models.Project>((company, facts) =>
+            from project in facts.OfType<Models.Project>()
             where project.department.company == company
             where (
                 from deleted in facts.OfType<ProjectDeleted>()
                 where deleted.project == project
                 select deleted
-            ).Any()
+            ).Any<ProjectDeleted>()
             select project
         );
         SqlQueryTree sqlQueryTree = SqlFor(specification);
@@ -149,8 +149,8 @@ public class QueryGeneratorTests
     [Fact]
     public void ShouldApplyNestedExistentialConditions()
     {
-        var specification = Given<Company>.Match((company, facts) =>
-            from project in facts.OfType<Project>()
+        var specification = Given<Company>.Match<Models.Project>((company, facts) =>
+            from project in facts.OfType<Models.Project>()
             where project.department.company == company
             where !(
                 from deleted in facts.OfType<ProjectDeleted>()
@@ -159,9 +159,9 @@ public class QueryGeneratorTests
                     from restored in facts.OfType<ProjectRestored>()
                     where restored.deleted == deleted
                     select restored
-                ).Any()
+                ).Any<ProjectRestored>()
                 select deleted
-            ).Any()
+            ).Any<ProjectDeleted>()
             select project
         );
         SqlQueryTree sqlQueryTree = SqlFor(specification);
@@ -211,7 +211,7 @@ public class QueryGeneratorTests
             select new
             {
                 department,
-                projects = facts.OfType<Project>(project =>
+                projects = facts.OfType<Models.Project>(project =>
                     project.department == department)
             }
         );
@@ -256,7 +256,7 @@ public class QueryGeneratorTests
     [Fact]
     public void ShouldHandleAdditionalPathConditions()
     {
-        var specification = Given<Project>.Match((project, facts) =>
+        var specification = Given<Models.Project>.Match<ProjectName>((project, facts) =>
             from name in facts.OfType<ProjectName>()
             where name.project == project
             from next in facts.OfType<ProjectName>()
@@ -294,7 +294,7 @@ public class QueryGeneratorTests
     [Fact]
     public void ShouldHandleAdditionalPathConditionsInCondition()
     {
-        var specification = Given<Project>.Match((project, facts) =>
+        var specification = Given<Models.Project>.Match<ProjectName>((project, facts) =>
             from name in facts.OfType<ProjectName>()
             where name.project == project &&
                 !facts.Any<ProjectName>(next =>
@@ -334,7 +334,7 @@ public class QueryGeneratorTests
     [Fact]
     public void ShouldHandleJoinToPredecessorCollection()
     {
-        var specification = Given<Project>.Match((project, facts) =>
+        var specification = Given<Models.Project>.Match<ProjectName>((project, facts) =>
             from name in facts.OfType<ProjectName>()
             where name.project == project
             from prior in facts.OfType<ProjectName>()
@@ -372,8 +372,8 @@ public class QueryGeneratorTests
     [Fact]
     public void ShouldHandleTwoGivens()
     {
-        var specification = Given<Company, User>.Match((company, user, facts) =>
-            from project in facts.OfType<Project>()
+        var specification = Given<Company, User>.Match<Assignment>((company, user, facts) =>
+            from project in facts.OfType<Models.Project>()
             where project.department.company == company
             from assignment in facts.OfType<Assignment>()
             where assignment.project == project
@@ -417,8 +417,8 @@ public class QueryGeneratorTests
     [Fact]
     public void ShouldHandleTwoGivensInOppositeOrder()
     {
-        var specification = Given<Company, User>.Match((company, user, facts) =>
-            from project in facts.OfType<Project>()
+        var specification = Given<Company, User>.Match<Assignment>((company, user, facts) =>
+            from project in facts.OfType<Models.Project>()
             where project.department.company == company
             from assignment in facts.OfType<Assignment>()
             where assignment.user == user
@@ -462,8 +462,8 @@ public class QueryGeneratorTests
     [Fact]
     public void ShouldHandleTwoGivensWithExistentialCondition()
     {
-        var specification = Given<Company, User>.Match((company, user, facts) =>
-            from project in facts.OfType<Project>()
+        var specification = Given<Company, User>.Match<Models.Project>((company, user, facts) =>
+            from project in facts.OfType<Models.Project>()
             where project.department.company == company &&
                 facts.Any<Assignment>(assignment =>
                     assignment.project == project &&
