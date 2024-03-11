@@ -30,6 +30,38 @@ public class ExecuteInverseTest
             "    ]\n" +
             "} => topic\n"
         );
+
+        var inverses = specification.ComputeInverses();
+        inverses.Count.Should().Be(2);
+        inverses[0].InverseSpecification.ToDescriptiveString().Should().Be(
+            "(projectTopics: Test.ProjectTopics [\n" +
+            "    !E {\n" +
+            "        next: Test.ProjectTopics [\n" +
+            "            next->Prior: Test.ProjectTopics = projectTopics\n" +
+            "        ]\n" +
+            "    }\n" +
+            "]) {\n" +
+            "    root: Test.Root [\n" +
+            "        root = projectTopics->Project: Test.Project->Root: Test.Root\n" +
+            "    ]\n" +
+            "    topic: Test.Topic [\n" +
+            "        topic = projectTopics->Topics: Test.Topic\n" +
+            "    ]\n" +
+            "} => topic\n"
+        );
+        inverses[1].InverseSpecification.ToDescriptiveString().Should().Be(
+            "(next: Test.ProjectTopics) {\n" +
+            "    projectTopics: Test.ProjectTopics [\n" +
+            "        projectTopics = next->Prior: Test.ProjectTopics\n" +
+            "    ]\n" +
+            "    root: Test.Root [\n" +
+            "        root = projectTopics->Project: Test.Project->Root: Test.Root\n" +
+            "    ]\n" +
+            "    topic: Test.Topic [\n" +
+            "        topic = projectTopics->Topics: Test.Topic\n" +
+            "    ]\n" +
+            "} => topic\n"
+        );
     }
 }
 
