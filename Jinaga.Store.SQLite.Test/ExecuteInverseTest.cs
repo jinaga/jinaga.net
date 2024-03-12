@@ -108,29 +108,29 @@ public class ExecuteInverseTest
         var inverse0Sql = inverses[0].InverseSpecification.ToSql();
         inverse0Sql.SqlQuery.Sql.Should().Be(
             "SELECT " +
-                "f1.hash as hash1, f1.fact_id as id1, f1.data as data1, " +
-                "f4.hash as hash4, f4.fact_id as id4, f4.data as data4, " +
-                "f5.hash as hash5, f5.fact_id as id5, f5.data as data5 " +
-            "FROM fact f1 " +
-            "JOIN edge e2 " +
+                "f1.hash as hash1, f1.fact_id as id1, f1.data as data1, " + // child
+                "f4.hash as hash4, f4.fact_id as id4, f4.data as data4, " + // root
+                "f5.hash as hash5, f5.fact_id as id5, f5.data as data5 " +  // source
+            "FROM fact f1 " +       // child
+            "JOIN edge e2 " +       // child->Parent
                 "ON e2.successor_fact_id = f1.fact_id " +
                 "AND e2.role_id = ?4 " +
-            "JOIN fact f3 " +
+            "JOIN fact f3 " +       // Parent
                 "ON f3.fact_id = e2.predecessor_fact_id " +
-            "JOIN edge e3 " +
+            "JOIN edge e3 " +       // Parent->Root
                 "ON e3.successor_fact_id = f3.fact_id " +
                 "AND e3.role_id = ?5 " +
-            "JOIN fact f4 " +
+            "JOIN fact f4 " +       // root
                 "ON f4.fact_id = e3.predecessor_fact_id " +
-            "JOIN edge e4 " +
+            "JOIN edge e4 " +       // child->Sources
                 "ON e4.successor_fact_id = f1.fact_id " +
                 "AND e4.role_id = ?6 " +
-            "JOIN fact f5 " +
+            "JOIN fact f5 " +       // source
                 "ON f5.fact_id = e4.predecessor_fact_id " +
             "WHERE f1.fact_type_id = ?1 AND f1.hash = ?2 " +
             "AND EXISTS (" +
-                "SELECT 1 FROM edge e1 " +
-                "JOIN fact f2 " +
+                "SELECT 1 FROM edge e1 " +  // child->Parent
+                "JOIN fact f2 " +           // Parent
                     "ON f2.fact_id = e1.predecessor_fact_id " +
                 "WHERE e1.successor_fact_id = f1.fact_id " +
                 "AND e1.role_id = ?3" +
