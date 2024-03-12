@@ -109,79 +109,79 @@ public class ExecuteInverseTest
         inverse0Sql.SqlQuery.Sql.Should().Be(
             "SELECT " +
                 "f1.hash as hash1, f1.fact_id as id1, f1.data as data1, " + // child
-                "f4.hash as hash4, f4.fact_id as id4, f4.data as data4, " + // root
-                "f5.hash as hash5, f5.fact_id as id5, f5.data as data5 " +  // source
+                "f5.hash as hash5, f5.fact_id as id5, f5.data as data5, " + // root
+                "f6.hash as hash6, f6.fact_id as id6, f6.data as data6 " +  // source
             "FROM fact f1 " +       // child
-            "JOIN edge e2 " +       // child->Parent
-                "ON e2.successor_fact_id = f1.fact_id " +
-                "AND e2.role_id = ?4 " +
-            "JOIN fact f3 " +       // Parent
-                "ON f3.fact_id = e2.predecessor_fact_id " +
-            "JOIN edge e3 " +       // Parent->Root
-                "ON e3.successor_fact_id = f3.fact_id " +
+            "JOIN edge e3 " +       // child->Parent
+                "ON e3.successor_fact_id = f1.fact_id " +
                 "AND e3.role_id = ?5 " +
-            "JOIN fact f4 " +       // root
+            "JOIN fact f4 " +       // Parent
                 "ON f4.fact_id = e3.predecessor_fact_id " +
-            "JOIN edge e4 " +       // child->Sources
-                "ON e4.successor_fact_id = f1.fact_id " +
+            "JOIN edge e4 " +       // Parent->Root
+                "ON e4.successor_fact_id = f4.fact_id " +
                 "AND e4.role_id = ?6 " +
-            "JOIN fact f5 " +       // source
+            "JOIN fact f5 " +       // root
                 "ON f5.fact_id = e4.predecessor_fact_id " +
+            "JOIN edge e5 " +       // child->Sources
+                "ON e5.successor_fact_id = f1.fact_id " +
+                "AND e5.role_id = ?7 " +
+            "JOIN fact f6 " +       // source
+                "ON f6.fact_id = e5.predecessor_fact_id " +
             "WHERE f1.fact_type_id = ?1 AND f1.hash = ?2 " +
             "AND EXISTS (" +
                 "SELECT 1 FROM edge e1 " +  // child->Parent
                 "JOIN fact f2 " +           // Parent
                     "ON f2.fact_id = e1.predecessor_fact_id " +
                 "WHERE e1.successor_fact_id = f1.fact_id " +
-                "AND e1.role_id = ?3" +
+                "AND e1.role_id = ?3 " +
                 "AND NOT EXISTS (" +
-                    "SELECT 1 FROM edge e5 " + // Parent->History
-                    "JOIN fact f6 " +          // Parent
-                        "ON f6.fact_id = e5.predecessor_fact_id " +
-                    "WHERE e5.successor_fact_id = f2.fact_id " +
-                    "AND e5.role_id = ?7" +
+                    "SELECT 1 FROM edge e2 " + // Parent->History
+                    "JOIN fact f3 " +          // Parent
+                        "ON f3.fact_id = e2.successor_fact_id " +
+                    "WHERE e2.predecessor_fact_id = f2.fact_id " +
+                    "AND e2.role_id = ?4" +
                 ")" +
             ") " +
-            "ORDER BY f4.fact_id ASC, f5.fact_id ASC"
+            "ORDER BY f5.fact_id ASC, f6.fact_id ASC"
         );
 
         var inverse1Sql = inverses[1].InverseSpecification.ToSql();
         inverse1Sql.SqlQuery.Sql.Should().Be(
             "SELECT " +
                 "f1.hash as hash1, f1.fact_id as id1, f1.data as data1, " + // x: Parent
-                "f2.hash as hash2, f2.fact_id as id2, f2.data as data2, " + // child
-                "f4.hash as hash4, f4.fact_id as id4, f4.data as data4, " + // root
-                "f5.hash as hash5, f5.fact_id as id5, f5.data as data5 " +  // source
+                "f3.hash as hash3, f3.fact_id as id3, f3.data as data3, " + // child
+                "f5.hash as hash5, f5.fact_id as id5, f5.data as data5, " + // root
+                "f6.hash as hash6, f6.fact_id as id6, f6.data as data6 " +  // source
             "FROM fact f1 " +       // x: Parent
-            "JOIN edge e1 " +       // child->Parent
-                "ON e1.predecessor_fact_id = f1.fact_id " +
-                "AND e1.role_id = ?3 " +
-            "JOIN fact f2 " +       // child
-                "ON f2.fact_id = e1.successor_fact_id " +
             "JOIN edge e2 " +       // child->Parent
-                "ON e2.successor_fact_id = f2.fact_id " +
+                "ON e2.predecessor_fact_id = f1.fact_id " +
                 "AND e2.role_id = ?4 " +
-            "JOIN fact f3 " +       // Parent
-                "ON f3.fact_id = e2.predecessor_fact_id " +
-            "JOIN edge e3 " +       // Parent->Root
+            "JOIN fact f3 " +       // child
+                "ON f3.fact_id = e2.successor_fact_id " +
+            "JOIN edge e3 " +       // child->Parent
                 "ON e3.successor_fact_id = f3.fact_id " +
                 "AND e3.role_id = ?5 " +
-            "JOIN fact f4 " +       // root
+            "JOIN fact f4 " +       // Parent
                 "ON f4.fact_id = e3.predecessor_fact_id " +
-            "JOIN edge e4 " +       // child->Sources
-                "ON e4.successor_fact_id = f2.fact_id " +
+            "JOIN edge e4 " +       // Parent->Root
+                "ON e4.successor_fact_id = f4.fact_id " +
                 "AND e4.role_id = ?6 " +
-            "JOIN fact f5 " +       // source
+            "JOIN fact f5 " +       // root
                 "ON f5.fact_id = e4.predecessor_fact_id " +
+            "JOIN edge e5 " +       // child->Sources
+                "ON e5.successor_fact_id = f3.fact_id " +
+                "AND e5.role_id = ?7 " +
+            "JOIN fact f6 " +       // source
+                "ON f6.fact_id = e5.predecessor_fact_id " +
             "WHERE f1.fact_type_id = ?1 AND f1.hash = ?2 " +
             "AND NOT EXISTS (" +
-                "SELECT 1 FROM edge e5 " + // Parent->History
-                "JOIN fact f6 " +          // Parent
-                    "ON f6.fact_id = e5.predecessor_fact_id " +
-                "WHERE e5.successor_fact_id = f1.fact_id " +
-                "AND e5.role_id = ?7" +
+                "SELECT 1 FROM edge e1 " + // Parent->History
+                "JOIN fact f2 " +          // Parent
+                    "ON f2.fact_id = e1.successor_fact_id " +
+                "WHERE e1.predecessor_fact_id = f1.fact_id " +
+                "AND e1.role_id = ?3" +
             ") " +
-            "ORDER BY f2.fact_id ASC, f4.fact_id ASC, f5.fact_id ASC"
+            "ORDER BY f3.fact_id ASC, f5.fact_id ASC, f6.fact_id ASC"
         );
 
         var inverse2Sql = inverses[2].InverseSpecification.ToSql();
