@@ -8,114 +8,195 @@ public class ExecuteInverseTest
     public void CanGenerateSQLFromInverses()
     {
         var specification =
-            Given<Root>.Match((root, facts) =>
-                from projectTopics in facts.OfType<ProjectTopics>()
-                where projectTopics.Project.Root == root && projectTopics.IsCurrent
-                from topic in facts.OfType<Topic>()
-                where projectTopics.Topics.Contains(topic)
-                select topic
-            );
+                Given<Root>.Match((root, facts) =>
+                    from child in facts.OfType<Child>()
+                    where child.Parent.Root == root && child.IsCurrent
+                    from source in facts.OfType<Source>()
+                    where child.Sources.Contains(source)
+                    select source
+                );
         specification.ToDescriptiveString().Should().Be(
-            "(root: Test.Root) {\n" +
-            "    projectTopics: Test.ProjectTopics [\n" +
-            "        projectTopics->Project: Test.Project->Root: Test.Root = root\n" +
-            "        !E {\n" +
-            "            next: Test.ProjectTopics [\n" +
-            "                next->Prior: Test.ProjectTopics = projectTopics\n" +
+            "(root: Root) {\n" +
+            "    child: Sources [\n" +
+            "        child->Parent: Parent->Root: Root = root\n" +
+            "        E {\n" +
+            "            x: Parent [\n" +
+            "                x = child->Parent: Parent\n" +
+            "                !E {\n" +
+            "                    f: Parent [\n" +
+            "                        f->History: Parent = x\n" +
+            "                    ]\n" +
+            "                }\n" +
             "            ]\n" +
             "        }\n" +
             "    ]\n" +
-            "    topic: Test.Topic [\n" +
-            "        topic = projectTopics->Topics: Test.Topic\n" +
+            "    source: Source [\n" +
+            "        source = child->Sources: Source\n" +
             "    ]\n" +
-            "} => topic\n"
+            "} => source\n"
         );
 
         var inverses = specification.ComputeInverses();
-        inverses.Count.Should().Be(2);
+        inverses.Count.Should().Be(3);
         inverses[0].InverseSpecification.ToDescriptiveString().Should().Be(
-            "(projectTopics: Test.ProjectTopics [\n" +
-            "    !E {\n" +
-            "        next: Test.ProjectTopics [\n" +
-            "            next->Prior: Test.ProjectTopics = projectTopics\n" +
+            "(child: Sources [\n" +
+            "    E {\n" +
+            "        x: Parent [\n" +
+            "            x = child->Parent: Parent\n" +
+            "            !E {\n" +
+            "                f: Parent [\n" +
+            "                    f->History: Parent = x\n" +
+            "                ]\n" +
+            "            }\n" +
             "        ]\n" +
             "    }\n" +
             "]) {\n" +
-            "    root: Test.Root [\n" +
-            "        root = projectTopics->Project: Test.Project->Root: Test.Root\n" +
+            "    root: Root [\n" +
+            "        root = child->Parent: Parent->Root: Root\n" +
             "    ]\n" +
-            "    topic: Test.Topic [\n" +
-            "        topic = projectTopics->Topics: Test.Topic\n" +
+            "    source: Source [\n" +
+            "        source = child->Sources: Source\n" +
             "    ]\n" +
-            "} => topic\n"
+            "} => source\n"
         );
         inverses[1].InverseSpecification.ToDescriptiveString().Should().Be(
-            "(next: Test.ProjectTopics) {\n" +
-            "    projectTopics: Test.ProjectTopics [\n" +
-            "        projectTopics = next->Prior: Test.ProjectTopics\n" +
+            "(x: Parent [\n" +
+            "    !E {\n" +
+            "        f: Parent [\n" +
+            "            f->History: Parent = x\n" +
+            "        ]\n" +
+            "    }\n" +
+            "]) {\n" +
+            "    child: Sources [\n" +
+            "        child->Parent: Parent = x\n" +
             "    ]\n" +
-            "    root: Test.Root [\n" +
-            "        root = projectTopics->Project: Test.Project->Root: Test.Root\n" +
+            "    root: Root [\n" +
+            "        root = child->Parent: Parent->Root: Root\n" +
             "    ]\n" +
-            "    topic: Test.Topic [\n" +
-            "        topic = projectTopics->Topics: Test.Topic\n" +
+            "    source: Source [\n" +
+            "        source = child->Sources: Source\n" +
             "    ]\n" +
-            "} => topic\n"
+            "} => source\n"
+        );
+        inverses[2].InverseSpecification.ToDescriptiveString().Should().Be(
+            "(f: Parent) {\n" +
+            "    x: Parent [\n" +
+            "        x = f->History: Parent\n" +
+            "    ]\n" +
+            "    child: Sources [\n" +
+            "        child->Parent: Parent = x\n" +
+            "        E {\n" +
+            "            x: Parent [\n" +
+            "                x = child->Parent: Parent\n" +
+            "                !E {\n" +
+            "                    f: Parent [\n" +
+            "                        f->History: Parent = x\n" +
+            "                    ]\n" +
+            "                }\n" +
+            "            ]\n" +
+            "        }\n" +
+            "    ]\n" +
+            "    root: Root [\n" +
+            "        root = child->Parent: Parent->Root: Root\n" +
+            "    ]\n" +
+            "    source: Source [\n" +
+            "        source = child->Sources: Source\n" +
+            "    ]\n" +
+            "} => source\n"
         );
 
         var inverse0Sql = inverses[0].InverseSpecification.ToSql();
         inverse0Sql.SqlQuery.Sql.Should().Be(
             "SELECT " +
-                "f1.hash as hash1, f1.fact_id as id1, f1.data as data1, " +  // root
-                "f3.hash as hash3, f3.fact_id as id3, f3.data as data3, " +  // projectTopics
-                "f4.hash as hash4, f4.fact_id as id4, f4.data as data4 " +   // topic
-            "FROM fact f1 " +  // root
-            "JOIN edge e1 " +  // project->root
-                "ON e1.successor_fact_id = f1.fact_id " +
-                "AND e1.role_id = ?3 " +
-            "JOIN fact f2 " +  // project
-                "ON f2.fact_id = e1.predecessor_fact_id " +
-            "JOIN edge e2 " +  // projectTopics->project
-                "ON e2.successor_fact_id = f2.fact_id " +
+                "f1.hash as hash1, f1.fact_id as id1, f1.data as data1, " +
+                "f4.hash as hash4, f4.fact_id as id4, f4.data as data4, " +
+                "f5.hash as hash5, f5.fact_id as id5, f5.data as data5 " +
+            "FROM fact f1 " +
+            "JOIN edge e2 " +
+                "ON e2.successor_fact_id = f1.fact_id " +
                 "AND e2.role_id = ?4 " +
-            "JOIN fact f3 " +  // projectTopics
+            "JOIN fact f3 " +
                 "ON f3.fact_id = e2.predecessor_fact_id " +
-            "JOIN edge e3 " +  // projectTopics->topic
-                "ON e3.successor_fact_id = f1.fact_id " +
+            "JOIN edge e3 " +
+                "ON e3.successor_fact_id = f3.fact_id " +
                 "AND e3.role_id = ?5 " +
-            "JOIN fact f4 " +  // topic
+            "JOIN fact f4 " +
                 "ON f4.fact_id = e3.predecessor_fact_id " +
+            "JOIN edge e4 " +
+                "ON e4.successor_fact_id = f1.fact_id " +
+                "AND e4.role_id = ?6 " +
+            "JOIN fact f5 " +
+                "ON f5.fact_id = e4.predecessor_fact_id " +
             "WHERE f1.fact_type_id = ?1 AND f1.hash = ?2 " +
-            "ORDER BY f3.fact_id ASC, f4.fact_id ASC"
+            "AND EXISTS (" +
+                "SELECT 1 FROM edge e1 " +
+                "JOIN fact f2 " +
+                    "ON f2.fact_id = e1.predecessor_fact_id " +
+                "WHERE e1.successor_fact_id = f1.fact_id " +
+                "AND e1.role_id = ?3" +
+            ") " +
+            "ORDER BY f4.fact_id ASC, f5.fact_id ASC"
         );
 
         var inverse1Sql = inverses[1].InverseSpecification.ToSql();
         inverse1Sql.SqlQuery.Sql.Should().Be(
             "SELECT " +
-                "f1.hash as hash1, f1.fact_id as id1, f1.data as data1, " +  // next
-                "f2.hash as hash2, f2.fact_id as id2, f2.data as data2, " +  // projectTopics
-                "f4.hash as hash4, f4.fact_id as id4, f4.data as data4, " +  // root
-                "f5.hash as hash5, f5.fact_id as id5, f5.data as data5 " +   // topic
-            "FROM fact f1 " +  // next
-            "JOIN edge e1 " +  // prior->next
-                "ON e1.successor_fact_id = f1.fact_id " +
+                "f1.hash as hash1, f1.fact_id as id1, f1.data as data1, " +
+                "f2.hash as hash2, f2.fact_id as id2, f2.data as data2, " +
+                "f4.hash as hash4, f4.fact_id as id4, f4.data as data4, " +
+                "f5.hash as hash5, f5.fact_id as id5, f5.data as data5 " +
+            "FROM fact f1 " +
+            "JOIN edge e1 " +
+                "ON e1.predecessor_fact_id = f1.fact_id " +
                 "AND e1.role_id = ?3 " +
-            "JOIN fact f2 " +  // prior
-                "ON f2.fact_id = e1.predecessor_fact_id " +
-            "JOIN edge e2 " +  // projectTopics->prior
+            "JOIN fact f2 " +
+                "ON f2.fact_id = e1.successor_fact_id " +
+            "JOIN edge e2 " +
                 "ON e2.successor_fact_id = f2.fact_id " +
                 "AND e2.role_id = ?4 " +
-            "JOIN fact f3 " +  // projectTopics
+            "JOIN fact f3 " +
                 "ON f3.fact_id = e2.predecessor_fact_id " +
-            "JOIN edge e3 " +  // project->root
+            "JOIN edge e3 " +
                 "ON e3.successor_fact_id = f3.fact_id " +
                 "AND e3.role_id = ?5 " +
-            "JOIN fact f4 " +  // root
+            "JOIN fact f4 " +
                 "ON f4.fact_id = e3.predecessor_fact_id " +
-            "JOIN edge e4 " +  // projectTopics->topic
+            "JOIN edge e4 " +
                 "ON e4.successor_fact_id = f2.fact_id " +
                 "AND e4.role_id = ?6 " +
-            "JOIN fact f5 " +  // topic
+            "JOIN fact f5 " +
+                "ON f5.fact_id = e4.predecessor_fact_id " +
+            "WHERE f1.fact_type_id = ?1 AND f1.hash = ?2 " +
+            "ORDER BY f2.fact_id ASC, f4.fact_id ASC, f5.fact_id ASC"
+        );
+
+        var inverse2Sql = inverses[2].InverseSpecification.ToSql();
+        inverse2Sql.SqlQuery.Sql.Should().Be(
+            "SELECT " +
+                "f1.hash as hash1, f1.fact_id as id1, f1.data as data1, " +
+                "f2.hash as hash2, f2.fact_id as id2, f2.data as data2, " +
+                "f4.hash as hash4, f4.fact_id as id4, f4.data as data4, " +
+                "f5.hash as hash5, f5.fact_id as id5, f5.data as data5 " +
+            "FROM fact f1 " +
+            "JOIN edge e1 " +
+                "ON e1.predecessor_fact_id = f1.fact_id " +
+                "AND e1.role_id = ?3 " +
+            "JOIN fact f2 " +
+                "ON f2.fact_id = e1.successor_fact_id " +
+            "JOIN edge e2 " +
+                "ON e2.successor_fact_id = f2.fact_id " +
+                "AND e2.role_id = ?4 " +
+            "JOIN fact f3 " +
+                "ON f3.fact_id = e2.predecessor_fact_id " +
+            "JOIN edge e3 " +
+                "ON e3.successor_fact_id = f3.fact_id " +
+                "AND e3.role_id = ?5 " +
+            "JOIN fact f4 " +
+                "ON f4.fact_id = e3.predecessor_fact_id " +
+            "JOIN edge e4 " +
+                "ON e4.successor_fact_id = f2.fact_id " +
+                "AND e4.role_id = ?6 " +
+            "JOIN fact f5 " +
                 "ON f5.fact_id = e4.predecessor_fact_id " +
             "WHERE f1.fact_type_id = ?1 AND f1.hash = ?2 " +
             "ORDER BY f2.fact_id ASC, f4.fact_id ASC, f5.fact_id ASC"
@@ -123,18 +204,25 @@ public class ExecuteInverseTest
     }
 }
 
-[FactType("Test.Root")]
-internal record Root(string Name) {}
+[FactType("Root")]
+public record Root(string Id);
 
-[FactType("Test.Project")]
-internal record Project(Root Root) {}
+[FactType("Parent")]
+public record Parent(Root Root, DateTime CreatedOn, Parent[] History);
 
-[FactType("Test.Topic")]
-internal record Topic(string Name) {}
-
-[FactType("Test.ProjectTopics")]
-internal record ProjectTopics(Project Project, Topic[] Topics, ProjectTopics[] Prior)
+[FactType("Sources")]
+public record Child(Parent Parent, Source[] Sources)
 {
     public Condition IsCurrent => new Condition(facts =>
-        !facts.Any<ProjectTopics>(next => next.Prior.Contains(this)));
+        facts.Any<Parent>(x => this.Parent == x &&
+            !facts.Any<Parent>(f => f.History.Contains(x))
+        )
+    );
+
 }
+
+[FactType("Source")]
+public record Source(SourceCode Code, string Description, int Order);
+
+[FactType("Source.Code")]
+public record SourceCode(string Code);
