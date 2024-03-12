@@ -134,6 +134,13 @@ public class ExecuteInverseTest
                     "ON f2.fact_id = e1.predecessor_fact_id " +
                 "WHERE e1.successor_fact_id = f1.fact_id " +
                 "AND e1.role_id = ?3" +
+                "AND NOT EXISTS (" +
+                    "SELECT 1 FROM edge e5 " + // Parent->History
+                    "JOIN fact f6 " +          // Parent
+                        "ON f6.fact_id = e5.predecessor_fact_id " +
+                    "WHERE e5.successor_fact_id = f2.fact_id " +
+                    "AND e5.role_id = ?7" +
+                ")" +
             ") " +
             "ORDER BY f4.fact_id ASC, f5.fact_id ASC"
         );
