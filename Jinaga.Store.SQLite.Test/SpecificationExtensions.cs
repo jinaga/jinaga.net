@@ -130,6 +130,12 @@ internal static class SpecificationExtensions
         typesByLabel = typesByLabel.AddRange(specification.Matches
             .Select(match => KeyValuePair.Create(match.Unknown.Name, match.Unknown.Type)));
         var roles = GetAllRolesFromMatches(typesByLabel, specification.Matches).ToImmutableList();
+        foreach (var existentialCondition in specification.Givens.SelectMany(g => g.ExistentialConditions))
+        {
+            typesByLabel = typesByLabel.AddRange(existentialCondition.Matches
+                .Select(match => KeyValuePair.Create(match.Unknown.Name, match.Unknown.Type)));
+            roles = roles.AddRange(GetAllRolesFromMatches(typesByLabel, existentialCondition.Matches));
+        }
         roles = roles.AddRange(GetAllRolesFromProjection(typesByLabel, specification.Projection));
         return roles;
     }
