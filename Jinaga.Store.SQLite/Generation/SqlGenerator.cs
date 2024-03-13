@@ -66,7 +66,11 @@ namespace Jinaga.Store.SQLite.Generation
             {
                 if (writtenFactIndexes.Contains(firstEdge.SuccessorFactIndex))
                 {
-                    throw new NotImplementedException();
+                    whereClause = whereClause.Add(
+                        $"e{firstEdge.EdgeIndex}.predecessor_fact_id = f{firstEdge.PredecessorFactIndex}.fact_id" +
+                        $" AND e{firstEdge.EdgeIndex}.successor_fact_id = f{firstEdge.SuccessorFactIndex}.fact_id" +
+                        $" AND e{firstEdge.EdgeIndex}.role_id = ?{firstEdge.RoleParameter}"
+                    );
                 }
                 else
                 {

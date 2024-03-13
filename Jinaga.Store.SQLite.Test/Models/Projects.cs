@@ -14,3 +14,9 @@ internal record ProjectDeleted(Project project) { }
 
 [FactType("Project.Restored")]
 internal record ProjectRestored(ProjectDeleted deleted) { }
+
+[FactType("Project.Name")]
+internal record ProjectName(Project project, string value, ProjectName[] prior) { }
+
+[FactType("Assignment")]
+internal record Assignment(Project project, User user, DateTime createdAt) { }

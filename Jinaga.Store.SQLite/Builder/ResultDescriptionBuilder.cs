@@ -82,7 +82,8 @@ namespace Jinaga.Store.SQLite.Builder
         {
             foreach (var match in matches)
             {
-                foreach (var pathCondition in match.PathConditions)
+                var sortedPathConditions = SortPathConditions(context, match.PathConditions);
+                foreach (var pathCondition in sortedPathConditions)
                 {
                     context = AddPathCondition(context, pathCondition, givens, givenTuple, match.Unknown, "");
                     if (!context.QueryDescription.IsSatisfiable())
@@ -96,7 +97,13 @@ namespace Jinaga.Store.SQLite.Builder
                     // The path describes which not-exists condition we are currently building on.
                     // Because the path is not empty, labeled facts will be included in the output.
                     var contextWithCondition = context.WithExistentialCondition(existentialCondition.Exists);
-                    var contextConditional = AddEdges(contextWithCondition, givens, givenTuple, existentialCondition.Matches);
+
+                    // Remove all labels that share a name with an unknown in the existential
+                    // condition so that they can be redefined within its scope.
+                    var nestedContext = existentialCondition.Matches.Select(match => match.Unknown)
+                        .Aggregate(contextWithCondition, (context, label) => context.WithoutLabel(label));
+
+                    var contextConditional = AddEdges(nestedContext, givens, givenTuple, existentialCondition.Matches);
 
                     // If the negative existential condition is not satisfiable, then
                     // that means that the condition will always be true.
@@ -114,6 +121,21 @@ namespace Jinaga.Store.SQLite.Builder
                 }
             }
             return context;
+        }
+
+        private ImmutableList<PathCondition> SortPathConditions(ResultDescriptionBuilderContext context, ImmutableList<PathCondition> pathConditions)
+        {
+            if (pathConditions.Count <= 1)
+            {
+                return pathConditions;
+            }
+            // Favor path conditions that reference known facts.
+            var knownFacts = context.KnownFacts.Keys.ToImmutableHashSet();
+            var sortedPathConditions = pathConditions
+                .OrderByDescending(pathCondition => knownFacts.Contains(pathCondition.LabelRight))
+                .ToImmutableList();
+
+            return sortedPathConditions;
         }
 
         private ResultDescriptionBuilderContext AddPathCondition(ResultDescriptionBuilderContext context, PathCondition pathCondition, ImmutableList<SpecificationGiven> givens, FactReferenceTuple givenTuple, Label unknown, string v)
