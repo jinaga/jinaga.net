@@ -203,37 +203,35 @@ public class ExecuteInverseTest
                 "AND e2.role_id = ?4 " +
             "JOIN fact f3 " +       // child
                 "ON f3.fact_id = e2.successor_fact_id " +
-            "JOIN edge e3 " +       // child->Parent->Root
-                "ON e3.successor_fact_id = f3.fact_id " +
-                "AND e3.role_id = ?5 " +
-            "JOIN fact f4 " +       // Parent
-                "ON f4.fact_id = e3.predecessor_fact_id " +
-            "JOIN edge e4 " +       // Parent->Root
-                "ON e4.successor_fact_id = f4.fact_id " +
-                "AND e4.role_id = ?6 " +
-            "JOIN fact f5 " +       // root
-                "ON f5.fact_id = e4.predecessor_fact_id " +
             "JOIN edge e5 " +       // child->Sources
                 "ON e5.successor_fact_id = f3.fact_id " +
                 "AND e5.role_id = ?7 " +
+            "JOIN fact f4 " +       // Parent
+                "ON f4.fact_id = e5.predecessor_fact_id " +
+            "JOIN edge e6 " +       // Parent->Root
+                "ON e6.successor_fact_id = f4.fact_id " +
+                "AND e6.role_id = ?8 " +
+            "JOIN fact f5 " +       // root
+                "ON f5.fact_id = e6.predecessor_fact_id " +
+            "JOIN edge e7 " +       // child->Sources
+                "ON e7.successor_fact_id = f3.fact_id " +
+                "AND e7.role_id = ?9 " +
             "JOIN fact f6 " +       // source
-                "ON f6.fact_id = e5.predecessor_fact_id " +
+                "ON f6.fact_id = e7.predecessor_fact_id " +
             "WHERE f1.fact_type_id = ?1 AND f1.hash = ?2 " +
             "AND EXISTS (" +
-                "SELECT 1 FROM edge e6 " +  // child->Parent
-                "JOIN fact f7 " +           // Parent
-                    "ON f7.fact_id = e6.predecessor_fact_id " +
-                "WHERE e6.successor_fact_id = f3.fact_id " +
-                "AND e6.role_id = ?8" +
+                "SELECT 1 FROM edge e3 " +  // child->Parent
+                "WHERE e3.predecessor_fact_id = f2.fact_id " +
+                "AND e3.successor_fact_id = f3.fact_id " +
+                "AND e3.role_id = ?5 " +
                 "AND NOT EXISTS (" +
-                    "SELECT 1 FROM edge e7 " + // Parent->History
-                    "JOIN fact f8 " +          // Parent
-                        "ON f8.fact_id = e7.predecessor_fact_id " +
-                    "WHERE e7.successor_fact_id = f7.fact_id " +
-                    "AND e7.role_id = ?9" +
+                    "SELECT 1 FROM edge e4 " + // Parent->History
+                    "WHERE e4.predecessor_fact_id = f2.fact_id " +
+                    "AND e4.successor_fact_id = f1.fact_id " +
+                    "AND e4.role_id = ?6" +
                 ")" +
             ") " +
-            "ORDER BY f3.fact_id ASC, f5.fact_id ASC, f6.fact_id ASC"
+            "ORDER BY f2.fact_id ASC, f3.fact_id ASC, f5.fact_id ASC, f6.fact_id ASC"
         );
     }
 }
