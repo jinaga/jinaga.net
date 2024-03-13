@@ -97,7 +97,13 @@ namespace Jinaga.Store.SQLite.Builder
                     // The path describes which not-exists condition we are currently building on.
                     // Because the path is not empty, labeled facts will be included in the output.
                     var contextWithCondition = context.WithExistentialCondition(existentialCondition.Exists);
-                    var contextConditional = AddEdges(contextWithCondition, givens, givenTuple, existentialCondition.Matches);
+
+                    // Remove all labels that share a name with an unknown in the existential
+                    // condition so that they can be redefined within its scope.
+                    var nestedContext = existentialCondition.Matches.Select(match => match.Unknown)
+                        .Aggregate(contextWithCondition, (context, label) => context.WithoutLabel(label));
+
+                    var contextConditional = AddEdges(nestedContext, givens, givenTuple, existentialCondition.Matches);
 
                     // If the negative existential condition is not satisfiable, then
                     // that means that the condition will always be true.

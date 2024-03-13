@@ -164,5 +164,15 @@ namespace Jinaga.Store.SQLite.Builder
             }
             return this;
         }
+
+        public ResultDescriptionBuilderContext WithoutLabel(Label unknown)
+        {
+            if (KnownFacts.ContainsKey(unknown.Name))
+            {
+                var factByLabel = KnownFacts.Remove(unknown.Name);
+                return new ResultDescriptionBuilderContext(QueryDescription, factByLabel, Path);
+            }
+            return this;
+        }
     }
 }
