@@ -103,6 +103,9 @@ namespace Jinaga.Http
                     case FieldValueNumber numberValue:
                         JsonSerializer.Serialize(writer, numberValue.Value, options);
                         break;
+                    case FieldValueNull _:
+                        writer.WriteNullValue();
+                        break;
                     default:
                         throw new JsonException();
                 }
