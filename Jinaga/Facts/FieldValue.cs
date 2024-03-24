@@ -119,7 +119,7 @@ namespace Jinaga.Facts
 
     public class FieldValueNull : FieldValue
     {
-        public override string StringValue => string.Empty;
+        public override string StringValue => null!;
         public override double DoubleValue => default;
         public override bool BoolValue => false;
     }
