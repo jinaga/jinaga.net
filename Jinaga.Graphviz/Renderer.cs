@@ -129,6 +129,7 @@ namespace Jinaga.Graphviz
                 FieldValueString str => HttpUtility.HtmlEncode(Limit(str.StringValue)),
                 FieldValueNumber number => number.DoubleValue.ToString(),
                 FieldValueBoolean b => b.BoolValue ? "true" : "false",
+                FieldValueNull _ => "null",
                 _ => throw new NotImplementedException()
             };
         }

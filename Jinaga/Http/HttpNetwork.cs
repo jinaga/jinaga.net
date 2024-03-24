@@ -120,6 +120,10 @@ namespace Jinaga.Http
             {
                 return Records.FieldValue.From(fieldValueBoolean.BoolValue);
             }
+            else if (value is Facts.FieldValueNull)
+            {
+                return Records.FieldValue.Null;
+            }
             else
             {
                 throw new ArgumentException($"Unknown field value type: {value.GetType().Name}");
@@ -233,6 +237,10 @@ namespace Jinaga.Http
             else if (value is Records.FieldValueBoolean booleanValue)
             {
                 return new Facts.FieldValueBoolean(booleanValue.Value);
+            }
+            else if (value is Records.FieldValueNull)
+            {
+                return Facts.FieldValue.Null;
             }
             else
             {

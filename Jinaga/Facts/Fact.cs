@@ -152,8 +152,10 @@ namespace Jinaga.Facts
                     return JsonSerializer.Serialize(number.DoubleValue);
                 case FieldValueBoolean boolean:
                     return JsonSerializer.Serialize(boolean.BoolValue);
+                case FieldValueNull _:
+                    return "null";
                 default:
-                    throw new NotImplementedException();
+                    throw new ArgumentException($"Unknown field value type {value.GetType().Name}");
             }
         }
 

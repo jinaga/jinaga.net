@@ -5,6 +5,7 @@ namespace Jinaga.Facts
     public abstract class FieldValue
     {
         public static FieldValue Undefined { get; } = new FieldValueUndefined();
+        public static FieldValue Null { get; } = new FieldValueNull();
 
         public static string DateTimeToIso8601String(DateTime dateTime)
         {
@@ -114,5 +115,12 @@ namespace Jinaga.Facts
         public override string StringValue => BoolValue ? "true" : "false";
         public override double DoubleValue => BoolValue ? 1.0 : 0.0;
         public override bool BoolValue { get; }
+    }
+
+    public class FieldValueNull : FieldValue
+    {
+        public override string StringValue => string.Empty;
+        public override double DoubleValue => default;
+        public override bool BoolValue => false;
     }
 }

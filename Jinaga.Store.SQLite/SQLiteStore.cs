@@ -692,6 +692,9 @@ namespace Jinaga.Store.SQLite
                             case JsonValueKind.False:
                                 fields = fields.Add(new Field(field.Name, new FieldValueBoolean(field.Value.GetBoolean())));
                                 break;
+                            case JsonValueKind.Null:
+                                fields = fields.Add(new Field(field.Name, FieldValue.Null));
+                                break;
                         }
                     }
 

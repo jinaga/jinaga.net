@@ -2,6 +2,8 @@
 {
     public abstract class FieldValue
     {
+        public static FieldValue Null { get; } = new FieldValueNull();
+
         public static FieldValueString From(string value)
         {
             return new FieldValueString
