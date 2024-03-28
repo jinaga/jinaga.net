@@ -50,7 +50,7 @@ namespace Jinaga.Http
 
         public Task<LoadResponse> Load(LoadRequest request, CancellationToken cancellationToken)
         {
-            return httpConnection.PostJsonExpectingJson<LoadRequest, LoadResponse>("load", request);
+            return httpConnection.PostLoad("load", request);
         }
     }
 }
