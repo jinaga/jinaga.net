@@ -35,8 +35,11 @@ namespace Jinaga.Http
 
         public Task<TResponse> Get<TResponse>(string path)
         {
-            return WithHttpClient(() =>
-                new HttpRequestMessage(HttpMethod.Get, path),
+            return WithHttpClient(() => {
+                var httpRequestMessage = new HttpRequestMessage(HttpMethod.Get, path);
+                httpRequestMessage.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                return httpRequestMessage;
+            },
                 async httpResponse =>
                 {
                     string body = await httpResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
@@ -76,6 +79,7 @@ namespace Jinaga.Http
                     var httpRequest = new HttpRequestMessage(HttpMethod.Post, path);
                     string body = MessageSerializer.Serialize(request);
                     httpRequest.Content = new StringContent(body, Encoding.UTF8, "application/json");
+                    httpRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
                     return httpRequest;
                 },
                 httpResponse => Task.FromResult(true));
@@ -105,6 +109,7 @@ namespace Jinaga.Http
             {
                 var httpRequest = new HttpRequestMessage(HttpMethod.Post, path);
                 httpRequest.Content = new StringContent(request);
+                httpRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
                 return httpRequest;
             },
             async httpResponse =>
