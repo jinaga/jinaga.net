@@ -1,15 +1,12 @@
 using System;
 using System.Linq;
 using System.Threading;
-using System.Threading.Tasks;
-using FluentAssertions;
 using Jinaga.Facts;
 using Jinaga.Projections;
 using Jinaga.Services;
 using Jinaga.Storage;
 using Jinaga.Test.Model;
 using Microsoft.Extensions.Logging.Abstractions;
-using Xunit;
 
 namespace Jinaga.Test
 {

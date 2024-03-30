@@ -1,15 +1,11 @@
-using FluentAssertions;
 using Jinaga.Facts;
 using Jinaga.Products;
 using Jinaga.Serialization;
 using Jinaga.Test.Model;
-using Jinaga.UnitTest;
 using System;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Threading.Tasks;
-using Xunit;
 
 namespace Jinaga.Test.Facts
 {

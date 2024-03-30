@@ -1,8 +1,3 @@
-using System.Threading.Tasks;
-using FluentAssertions;
-using Jinaga.UnitTest;
-using Xunit;
-
 namespace Jinaga.Test.Facts;
 
 public class ComparisonTest

@@ -1,9 +1,7 @@
 using System;
 using System.Runtime.CompilerServices;
-using FluentAssertions;
 using Jinaga.Facts;
 using Jinaga.Serialization;
-using Xunit;
 
 namespace Jinaga.Test.Facts;
 

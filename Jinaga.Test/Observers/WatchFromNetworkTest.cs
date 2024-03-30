@@ -1,13 +1,10 @@
-﻿using FluentAssertions;
-using Jinaga.Storage;
+﻿using Jinaga.Storage;
 using Jinaga.Test.Fakes;
 using Jinaga.Test.Model;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
-using Xunit;
 using Xunit.Abstractions;
 
 namespace Jinaga.Test.Observers;

@@ -1,10 +1,6 @@
-﻿using FluentAssertions;
-using Jinaga;
+﻿using Jinaga;
 using Jinaga.Test.Model;
-using Jinaga.UnitTest;
 using System;
-using System.Threading.Tasks;
-using Xunit;
 
 namespace Jinaga.Test.Facts
 {

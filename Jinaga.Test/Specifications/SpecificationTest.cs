@@ -1,9 +1,7 @@
 using System;
 using System.Linq;
-using FluentAssertions;
 using Jinaga.Test.Model;
 using Jinaga.Test.Model.Order;
-using Xunit;
 
 namespace Jinaga.Test.Specifications.Specifications
 {

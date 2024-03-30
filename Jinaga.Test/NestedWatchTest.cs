@@ -1,12 +1,8 @@
 using System;
-using FluentAssertions;
 using Jinaga.Observers;
 using Jinaga.Test.Fakes;
 using Jinaga.Test.Model;
-using Jinaga.UnitTest;
 using System.Linq;
-using System.Threading.Tasks;
-using Xunit;
 
 namespace Jinaga.Test
 {

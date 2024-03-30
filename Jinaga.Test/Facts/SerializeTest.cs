@@ -1,12 +1,10 @@
 using System;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using FluentAssertions;
 using Jinaga.Facts;
 using Jinaga.Serialization;
 using Jinaga.Test.Model;
 using Jinaga.Test.Model.Order;
-using Xunit;
 
 namespace Jinaga.Test.Facts
 {
