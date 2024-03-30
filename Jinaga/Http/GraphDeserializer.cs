@@ -21,6 +21,15 @@ namespace Jinaga.Http
                 {
                     break;
                 }
+                // If the line starts with PK, then it is a public key.
+                // Skip lines until the next blank.
+                if (typeLine.StartsWith("PK"))
+                {
+                    while (GetLine(reader) != "")
+                    {
+                    }
+                    continue;
+                }
                 var type = JsonSerializer.Deserialize<string>(typeLine);
 
                 var predecessorsLine = GetLine(reader);
