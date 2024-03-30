@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -110,14 +111,11 @@ namespace Jinaga.Http
                     {
                         var graphDeserializer = new GraphDeserializer();
                         using var stream = await httpResponse.Content.ReadAsStreamAsync().ConfigureAwait(false);
-                        using var reader = new StreamReader(stream);
-                        // Read lines one by one from the stream reader and pass them to the graph deserializer.
-                        while (!reader.EndOfStream)
+                        graphDeserializer.Deserialize(stream);
+                        return new LoadResponse
                         {
-                            string line = await reader.ReadLineAsync().ConfigureAwait(false);
-                            graphDeserializer.DeserializeLine(line);
-                        }
-                        return graphDeserializer.Graph;
+                            Facts = graphDeserializer.Facts.ToList()
+                        };
                     }
                     else
                     {
