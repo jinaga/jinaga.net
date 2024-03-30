@@ -6,12 +6,17 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Jinaga.Facts;
 using Microsoft.Extensions.Logging;
 
 namespace Jinaga.Http
 {
     public class HttpConnection : IHttpConnection
     {
+        private const string JsonContentType = "application/json";
+        private const string JinagaGraphContentType = "application/x-jinaga-graph-v1";
+        private const string JinagaFeedStreamContentType = "application/x-jinaga-feed-stream";
+
         private readonly HttpClient httpClient;
         private readonly ILoggerFactory loggerFactory;
         private readonly Action<HttpRequestHeaders> setRequestHeaders;
@@ -37,7 +42,7 @@ namespace Jinaga.Http
         {
             return WithHttpClient(() => {
                 var httpRequestMessage = new HttpRequestMessage(HttpMethod.Get, path);
-                httpRequestMessage.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                httpRequestMessage.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue(JsonContentType));
                 return httpRequestMessage;
             },
                 async httpResponse =>
@@ -50,7 +55,7 @@ namespace Jinaga.Http
 
         public async Task GetStream<T>(string path, Func<T, Task> onResponse, Action<Exception> onError, CancellationToken cancellationToken)
         {
-            var observableStream = await GetObservableStream<T>(path, "application/x-jinaga-feed-stream", cancellationToken).ConfigureAwait(false);
+            var observableStream = await GetObservableStream<T>(path, JinagaFeedStreamContentType, cancellationToken).ConfigureAwait(false);
             await observableStream.Start(async line =>
             {
                 T response = MessageSerializer.Deserialize<T>(line.TrimEnd('\r', '\n'));
@@ -78,29 +83,50 @@ namespace Jinaga.Http
                 {
                     var httpRequest = new HttpRequestMessage(HttpMethod.Post, path);
                     string body = MessageSerializer.Serialize(request);
-                    httpRequest.Content = new StringContent(body, Encoding.UTF8, "application/json");
-                    httpRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                    httpRequest.Content = new StringContent(body, Encoding.UTF8, JsonContentType);
+                    httpRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue(JsonContentType));
                     return httpRequest;
                 },
                 httpResponse => Task.FromResult(true));
         }
 
-        public Task<TResponse> PostJsonExpectingJson<TRequest, TResponse>(string path, TRequest request)
+        public Task<FactGraph> PostLoad(string path, LoadRequest request)
         {
             return WithHttpClient(() =>
                 {
                     var httpRequest = new HttpRequestMessage(HttpMethod.Post, path);
                     string json = MessageSerializer.Serialize(request);
                     httpRequest.Content = new ByteArrayContent(Encoding.UTF8.GetBytes(json));
-                    httpRequest.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
-                    httpRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                    httpRequest.Content.Headers.ContentType = new MediaTypeHeaderValue(JsonContentType);
+                    httpRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue(JinagaGraphContentType));
+                    httpRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue(JsonContentType));
                     return httpRequest;
                 },
                 async httpResponse =>
                 {
-                    string body = await httpResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
-                    var response = MessageSerializer.Deserialize<TResponse>(body);
-                    return response;
+                    // If the content type is application/x-jinaga-graph-v1, then deserialize the response as a graph.
+                    // Otherwise, deserialize it as JSON.
+                    if (httpResponse.Content.Headers.ContentType.MediaType == JinagaGraphContentType)
+                    {
+                        var graphDeserializer = new GraphDeserializer();
+                        using var stream = await httpResponse.Content.ReadAsStreamAsync().ConfigureAwait(false);
+                        graphDeserializer.Deserialize(stream);
+                        return graphDeserializer.Graph;
+                    }
+                    else
+                    {
+                        string body = await httpResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
+                        var response = MessageSerializer.Deserialize<LoadResponse>(body);
+                        var builder = new FactGraphBuilder();
+                        foreach (var factRecord in response.Facts)
+                        {
+                            var fact = FactReader.ReadFact(factRecord);
+                            builder.Add(fact);
+                        }
+
+                        FactGraph graph = builder.Build();
+                        return graph;
+                    }
                 });
         }
 
@@ -110,7 +136,7 @@ namespace Jinaga.Http
             {
                 var httpRequest = new HttpRequestMessage(HttpMethod.Post, path);
                 httpRequest.Content = new StringContent(request);
-                httpRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                httpRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue(JsonContentType));
                 return httpRequest;
             },
             async httpResponse =>

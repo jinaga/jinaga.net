@@ -1,5 +1,3 @@
-using FluentAssertions;
-
 namespace Jinaga.Store.SQLite.Test;
 
 public class ExecuteInverseTest

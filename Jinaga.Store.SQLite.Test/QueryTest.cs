@@ -1,4 +1,3 @@
-using FluentAssertions;
 using Jinaga.DefaultImplementations;
 using Jinaga.Store.SQLite.Test.Models;
 using Microsoft.Extensions.Logging.Abstractions;

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Jinaga.Facts;
 
 namespace Jinaga.Http
 {
@@ -48,9 +49,9 @@ namespace Jinaga.Http
             }
         }
 
-        public Task<LoadResponse> Load(LoadRequest request, CancellationToken cancellationToken)
+        public Task<FactGraph> Load(LoadRequest request, CancellationToken cancellationToken)
         {
-            return httpConnection.PostJsonExpectingJson<LoadRequest, LoadResponse>("load", request);
+            return httpConnection.PostLoad("load", request);
         }
     }
 }

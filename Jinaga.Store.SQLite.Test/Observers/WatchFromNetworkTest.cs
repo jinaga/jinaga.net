@@ -1,5 +1,4 @@
-﻿using FluentAssertions;
-using Jinaga.Store.SQLite.Test.Fakes;
+﻿using Jinaga.Store.SQLite.Test.Fakes;
 using Jinaga.Store.SQLite.Test.Model;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit.Abstractions;
