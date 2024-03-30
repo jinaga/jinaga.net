@@ -79,16 +79,30 @@ namespace Jinaga.Http
             if (value.ValueKind == JsonValueKind.Array)
             {
                 var factReferences = value.EnumerateArray()
-                    .Select(predecessor => Graph.FactReferences[predecessor.GetInt32()])
+                    .Select(GetFactReference)
                     .ToImmutableList();
 
                 return new PredecessorMultiple(role, factReferences);
             }
-            else
+            else if (value.ValueKind == JsonValueKind.Number)
             {
-                var factReference = Graph.FactReferences[value.GetInt32()];
+                var factReference = GetFactReference(value);
                 return new PredecessorSingle(role, factReference);
             }
+            else
+            {
+                throw new Exception($"Unexpected value kind for predecessor: {value.ValueKind}. Expected array or number.");
+            }
+        }
+
+        private FactReference GetFactReference(JsonElement predecessor)
+        {
+            if (predecessor.ValueKind != JsonValueKind.Number)
+            {
+                throw new Exception($"Unexpected value kind for predecessor: {predecessor.ValueKind}. Expected number.");
+            }
+
+            return Graph.FactReferences[predecessor.GetInt32()];
         }
 
         private Field CreateField(JsonProperty property)
