@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Immutable;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using Jinaga.Facts;
 
@@ -36,65 +37,17 @@ namespace Jinaga.Http
                 var predecessorsElement = JsonSerializer.Deserialize<JsonElement>(predecessorsLine);
 
                 // The properties of the JSON object are roles.
-                var predecessors = ImmutableList<Predecessor>.Empty;
-                foreach (var property in predecessorsElement.EnumerateObject())
-                {
-                    var role = property.Name;
-                    var value = property.Value;
-
-                    // If the value is an array, it's a predecessor list.
-                    if (value.ValueKind == JsonValueKind.Array)
-                    {
-                        var factReferences = ImmutableList<FactReference>.Empty;
-                        foreach (var predecessor in value.EnumerateArray())
-                        {
-                            // Each predecessor is represented as the integer index of the fact.
-                            var index = predecessor.GetInt32();
-                            var factReference = Graph.FactReferences[index];
-                            factReferences = factReferences.Add(factReference);
-                        }
-                        predecessors = predecessors.Add(new PredecessorMultiple(role, factReferences));
-                    }
-                    else
-                    {
-                        // The predecessor is represented as the integer index of the fact.
-                        var index = value.GetInt32();
-                        var factReference = Graph.FactReferences[index];
-                        predecessors = predecessors.Add(new PredecessorSingle(role, factReference));
-                    }
-                }
+                var predecessors = predecessorsElement.EnumerateObject()
+                    .Select(CreatePredecessor)
+                    .ToImmutableList();
 
                 var fieldsLine = GetLine(reader);
                 var fieldsElement = JsonSerializer.Deserialize<JsonElement>(fieldsLine);
 
                 // The properties of the JSON object are fields.
-                var fields = ImmutableList<Field>.Empty;
-                foreach (var property in fieldsElement.EnumerateObject())
-                {
-                    var name = property.Name;
-                    var value = property.Value;
-
-                    switch (value.ValueKind)
-                    {
-                        case JsonValueKind.String:
-                            fields = fields.Add(new Field(name, new FieldValueString(value.GetString())));
-                            break;
-                        case JsonValueKind.Number:
-                            fields = fields.Add(new Field(name, new FieldValueNumber(value.GetDouble())));
-                            break;
-                        case JsonValueKind.True:
-                            fields = fields.Add(new Field(name, new FieldValueBoolean(true)));
-                            break;
-                        case JsonValueKind.False:
-                            fields = fields.Add(new Field(name, new FieldValueBoolean(false)));
-                            break;
-                        case JsonValueKind.Null:
-                            fields = fields.Add(new Field(name, new FieldValueNull()));
-                            break;
-                        default:
-                            throw new Exception("Unexpected field value kind: " + value.ValueKind);
-                    }
-                }
+                var fields = fieldsElement.EnumerateObject()
+                    .Select(CreateField)
+                    .ToImmutableList();
 
                 // Skip lines until we get a blank.
                 // These will be signatures.
@@ -103,7 +56,7 @@ namespace Jinaga.Http
                 }
 
                 // Add a fact to the graph.
-                Fact fact = Fact.Create(type, fields, predecessors);
+                var fact = Fact.Create(type, fields, predecessors);
                 Graph = Graph.Add(fact);
             }
         }
@@ -116,6 +69,50 @@ namespace Jinaga.Http
                 throw new Exception("Unexpected end of stream.");
             }
             return line;
+        }
+
+        private Predecessor CreatePredecessor(JsonProperty property)
+        {
+            var role = property.Name;
+            var value = property.Value;
+
+            if (value.ValueKind == JsonValueKind.Array)
+            {
+                var factReferences = value.EnumerateArray()
+                    .Select(predecessor => Graph.FactReferences[predecessor.GetInt32()])
+                    .ToImmutableList();
+
+                return new PredecessorMultiple(role, factReferences);
+            }
+            else
+            {
+                var factReference = Graph.FactReferences[value.GetInt32()];
+                return new PredecessorSingle(role, factReference);
+            }
+        }
+
+        private Field CreateField(JsonProperty property)
+        {
+            return new Field(property.Name, CreateFieldValue(property.Value));
+        }
+
+        private FieldValue CreateFieldValue(JsonElement value)
+        {
+            switch (value.ValueKind)
+            {
+                case JsonValueKind.String:
+                    return new FieldValueString(value.GetString());
+                case JsonValueKind.Number:
+                    return new FieldValueNumber(value.GetDouble());
+                case JsonValueKind.True:
+                    return new FieldValueBoolean(true);
+                case JsonValueKind.False:
+                    return new FieldValueBoolean(false);
+                case JsonValueKind.Null:
+                    return new FieldValueNull();
+                default:
+                    throw new Exception("Unexpected field value kind: " + value.ValueKind);
+            }
         }
     }
 }
