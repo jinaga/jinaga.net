@@ -15,11 +15,11 @@ namespace Jinaga.Facts
             return utcDateTime.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
         }
 
-        public static string NullableDateTimeToIso8601String(DateTime? dateTime)
+        public static string? NullableDateTimeToNullableIso8601String(DateTime? dateTime)
         {
             return dateTime.HasValue
                 ? DateTimeToIso8601String(dateTime.Value)
-                : string.Empty;
+                : null;
         }
 
         public static DateTime FromIso8601String(string str)
@@ -43,11 +43,11 @@ namespace Jinaga.Facts
             return guid.ToString("D");
         }
 
-        public static string NullableGuidToString(Guid? guid)
+        public static string? NullableGuidToNullableString(Guid? guid)
         {
             return guid.HasValue
                 ? guid.Value.ToString("D")
-                : string.Empty;
+                : null;
         }
 
         public static Guid GuidFromString(string str)
@@ -86,6 +86,14 @@ namespace Jinaga.Facts
             StringValue = stringValue;
         }
 
+        // This method is called via a compiled expression
+        public static FieldValue From(string? nullableString)
+        {
+            return nullableString != null
+                ? new FieldValueString(nullableString)
+                : FieldValue.Null;
+        }
+
         public override string StringValue { get; }
         public override double DoubleValue => double.TryParse(StringValue, out var doubleValue) ? doubleValue : (double)default;
         public override bool BoolValue => bool.TryParse(StringValue, out var boolValue) ? boolValue : (bool)default;
@@ -99,6 +107,14 @@ namespace Jinaga.Facts
             DoubleValue = doubleValue;
         }
 
+        // This method is called via a compiled expression
+        public static FieldValue From(double? nullableDouble)
+        {
+            return nullableDouble.HasValue
+                ? new FieldValueNumber(nullableDouble.Value)
+                : FieldValue.Null;
+        }
+
         public override string StringValue => string.Format("{0}", DoubleValue);
         public override double DoubleValue { get; }
         public override bool BoolValue => DoubleValue != 0.0;
@@ -110,6 +126,14 @@ namespace Jinaga.Facts
         public FieldValueBoolean(bool boolValue)
         {
             BoolValue = boolValue;
+        }
+
+        // This method is called via a compiled expression
+        public static FieldValue From(bool? nullableBool)
+        {
+            return nullableBool.HasValue
+                ? new FieldValueBoolean(nullableBool.Value)
+                : FieldValue.Null;
         }
 
         public override string StringValue => BoolValue ? "true" : "false";
