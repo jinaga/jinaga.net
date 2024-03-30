@@ -57,18 +57,10 @@ namespace Jinaga.Facts
                 : Guid.Empty;
         }
 
-        public static Guid? NullableGuidFromString(string str)
-        {
-            return string.IsNullOrEmpty(str)
-                ? (Guid?)null
-                : Guid.TryParse(str, out var guid)
-                ? guid
-                : (Guid?)null;
-        }
-
         public abstract string StringValue { get; }
         public abstract double DoubleValue { get; }
         public abstract bool BoolValue { get; }
+        public virtual bool IsNull => false;
     }
 
     public class FieldValueUndefined : FieldValue
@@ -76,6 +68,7 @@ namespace Jinaga.Facts
         public override string StringValue => string.Empty;
         public override double DoubleValue => default;
         public override bool BoolValue => false;
+        public override bool IsNull => true;
     }
 
     public class FieldValueString : FieldValue
@@ -146,5 +139,6 @@ namespace Jinaga.Facts
         public override string StringValue => null!;
         public override double DoubleValue => default;
         public override bool BoolValue => false;
+        public override bool IsNull => true;
     }
 }

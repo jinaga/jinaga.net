@@ -145,8 +145,7 @@ namespace Jinaga.Test.Facts
             name.Value.Should().BeOfType<FieldValueString>().Which
                 .StringValue.Should().Be("IHS");
             var identifier = fact.Fields.Single(f => f.Name == "identifier");
-            identifier.Value.Should().BeOfType<FieldValueString>().Which
-                .StringValue.Should().Be(string.Empty);
+            identifier.Value.Should().BeOfType<FieldValueNull>();
         }
 
         [Fact]
