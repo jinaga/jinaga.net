@@ -14,7 +14,7 @@ public class GraphDeserializerTests
     {
         var deserializer = new GraphDeserializer();
 
-        deserializer.Facts.Should().BeEmpty();
+        deserializer.Graph.FactReferences.Should().BeEmpty();
     }
 
     [Fact]
@@ -24,7 +24,7 @@ public class GraphDeserializerTests
 
         WhenDeserialize(deserializer, "\"MyApp.Root\"\n{}\n{\"identifier\":\"root\"}\n\n");
 
-        deserializer.Facts.Should().HaveCount(1);
+        deserializer.Graph.FactReferences.Should().HaveCount(1);
     }
 
     [Fact]
@@ -34,7 +34,7 @@ public class GraphDeserializerTests
 
         WhenDeserialize(deserializer, "\"MyApp.Root\"\n{}\n{}\n\n\"MyApp.Child\"\n{\"root\":0}\n{}\n\n");
 
-        deserializer.Facts.Should().HaveCount(2);
+        deserializer.Graph.FactReferences.Should().HaveCount(2);
     }
 
     private void WhenDeserialize(GraphDeserializer deserializer, string text)

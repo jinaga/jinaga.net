@@ -5,7 +5,6 @@ using Jinaga.Records;
 using Jinaga.Services;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
@@ -34,7 +33,7 @@ namespace Jinaga.Http
         {
             var response = await webClient.Login(cancellationToken).ConfigureAwait(false);
             var graph = FactGraph.Empty
-                .Add(ReadFact(response.UserFact));
+                .Add(FactReader.ReadFact(response.UserFact));
             var profile = new UserProfile(response.Profile.DisplayName);
             return (graph, profile);
         }
@@ -63,7 +62,7 @@ namespace Jinaga.Http
             var response = await webClient.Feed(feed, bookmark, cancellationToken).ConfigureAwait(false);
             bookmark = response.bookmark;
             var references = response.references
-                .Select(r => ReadFactReference(r))
+                .Select(r => FactReader.ReadFactReference(r))
                 .ToImmutableList();
             return (references, bookmark);
         }
@@ -72,7 +71,7 @@ namespace Jinaga.Http
         {
             webClient.StreamFeed(feed, bookmark, cancellationToken, async (FeedResponse response) => {
                 var references = response.references
-                    .Select(r => ReadFactReference(r))
+                    .Select(r => FactReader.ReadFactReference(r))
                     .ToImmutableList();
                 await onResponse(references, response.bookmark).ConfigureAwait(false);
             }, onError);
@@ -84,14 +83,8 @@ namespace Jinaga.Http
             {
                 References = factReferences.Select(r => CreateFactReference(r)).ToList()
             };
-            LoadResponse response = await webClient.Load(request, cancellationToken).ConfigureAwait(false);
-            var builder = new FactGraphBuilder();
-            foreach (var factRecord in response.Facts)
-            {
-                var fact = ReadFact(factRecord);
-                builder.Add(fact);
-            }
-            return builder.Build();
+            FactGraph graph = await webClient.Load(request, cancellationToken).ConfigureAwait(false);
+            return graph;
         }
 
         private static FactRecord CreateFactRecord(Fact fact)
@@ -208,66 +201,6 @@ namespace Jinaga.Http
             {
                 return null;
             }
-        }
-
-        private static Fact ReadFact(FactRecord fact)
-        {
-            return Fact.Create(
-                fact.Type,
-                fact.Fields.Select(field => ReadField(field)).ToImmutableList(),
-                fact.Predecessors.Select(predecessor => ReadPredecessor(predecessor)).ToImmutableList()
-            );
-        }
-
-        private static Field ReadField(KeyValuePair<string, Records.FieldValue> field)
-        {
-            return new Field(field.Key, ReadFieldValue(field.Value));
-        }
-
-        private static Facts.FieldValue ReadFieldValue(Records.FieldValue value)
-        {
-            if (value is Records.FieldValueString stringValue)
-            {
-                return new Facts.FieldValueString(stringValue.Value);
-            }
-            else if (value is Records.FieldValueNumber numberValue)
-            {
-                return new Facts.FieldValueNumber(numberValue.Value);
-            }
-            else if (value is Records.FieldValueBoolean booleanValue)
-            {
-                return new Facts.FieldValueBoolean(booleanValue.Value);
-            }
-            else if (value is Records.FieldValueNull)
-            {
-                return Facts.FieldValue.Null;
-            }
-            else
-            {
-                throw new ArgumentException($"Unknown value type {value.GetType().Name}");
-            }
-        }
-
-        private static Predecessor ReadPredecessor(KeyValuePair<string, PredecessorSet> pair)
-        {
-            if (pair.Value is PredecessorSetSingle single)
-            {
-                return new PredecessorSingle(pair.Key, ReadFactReference(single.Reference));
-            }
-            else if (pair.Value is PredecessorSetMultiple multiple)
-            {
-                return new PredecessorMultiple(pair.Key, multiple.References
-                    .Select(r => ReadFactReference(r)).ToImmutableList());
-            }
-            else
-            {
-                throw new ArgumentException($"Unknown predecessor set type {pair.Value.GetType().Name}");
-            }
-        }
-
-        private static Facts.FactReference ReadFactReference(Records.FactReference reference)
-        {
-            return new Facts.FactReference(reference.Type, reference.Hash);
         }
     }
 }

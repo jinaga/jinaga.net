@@ -8,6 +8,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Jinaga.Facts;
 using Microsoft.Extensions.Logging;
 
 namespace Jinaga.Http
@@ -91,7 +92,7 @@ namespace Jinaga.Http
                 httpResponse => Task.FromResult(true));
         }
 
-        public Task<LoadResponse> PostLoad(string path, LoadRequest request)
+        public Task<FactGraph> PostLoad(string path, LoadRequest request)
         {
             return WithHttpClient(() =>
                 {
@@ -112,16 +113,21 @@ namespace Jinaga.Http
                         var graphDeserializer = new GraphDeserializer();
                         using var stream = await httpResponse.Content.ReadAsStreamAsync().ConfigureAwait(false);
                         graphDeserializer.Deserialize(stream);
-                        return new LoadResponse
-                        {
-                            Facts = graphDeserializer.Facts.ToList()
-                        };
+                        return graphDeserializer.Graph;
                     }
                     else
                     {
                         string body = await httpResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
                         var response = MessageSerializer.Deserialize<LoadResponse>(body);
-                        return response;
+                        var builder = new FactGraphBuilder();
+                        foreach (var factRecord in response.Facts)
+                        {
+                            var fact = FactReader.ReadFact(factRecord);
+                            builder.Add(fact);
+                        }
+
+                        FactGraph graph = builder.Build();
+                        return graph;
                     }
                 });
         }
