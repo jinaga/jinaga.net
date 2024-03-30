@@ -1,4 +1,3 @@
-using FluentAssertions;
 using Jinaga.DefaultImplementations;
 using Jinaga.Managers;
 using Jinaga.Facts;
