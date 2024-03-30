@@ -150,6 +150,11 @@ namespace Jinaga.Serialization
                         typeof(FieldValueString).GetMethod(nameof(FieldValueString.From)),
                         CallNullableDateTimeToNullableIso8601String(propertyGet)
                     )
+                : underlyingType == typeof(DateTimeOffset)
+                    ? Expression.Call(
+                        typeof(FieldValueString).GetMethod(nameof(FieldValueString.From)),
+                        CallNullableDateTimeOffsetToNullableIso8601String(propertyGet)
+                    )
                 : underlyingType == typeof(int)
                     ? Expression.Call(
                         typeof(FieldValueNumber).GetMethod(nameof(FieldValueNumber.From)),
@@ -216,6 +221,14 @@ namespace Jinaga.Serialization
         {
             return Expression.Call(
                 typeof(FieldValue).GetMethod(nameof(FieldValue.NullableDateTimeToNullableIso8601String)),
+                propertyGet
+            );
+        }
+
+        private static Expression CallNullableDateTimeOffsetToNullableIso8601String(MemberExpression propertyGet)
+        {
+            return Expression.Call(
+                typeof(FieldValue).GetMethod(nameof(FieldValue.NullableDateTimeOffsetToNullableIso8601String)),
                 propertyGet
             );
         }

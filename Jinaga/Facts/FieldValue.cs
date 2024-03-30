@@ -22,6 +22,13 @@ namespace Jinaga.Facts
                 : null;
         }
 
+        public static string? NullableDateTimeOffsetToNullableIso8601String(DateTimeOffset? dateTimeOffset)
+        {
+            return dateTimeOffset.HasValue
+                ? dateTimeOffset.Value.ToString("yyyy-MM-ddTHH:mm:ss.fffzzz")
+                : null;
+        }
+
         public static DateTime FromIso8601String(string str)
         {
             return DateTime.TryParse(str, out var dateTime)
