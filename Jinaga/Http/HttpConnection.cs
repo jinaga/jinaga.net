@@ -93,6 +93,7 @@ namespace Jinaga.Http
                     string json = MessageSerializer.Serialize(request);
                     httpRequest.Content = new ByteArrayContent(Encoding.UTF8.GetBytes(json));
                     httpRequest.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+                    httpRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
                     return httpRequest;
                 },
                 async httpResponse =>
