@@ -25,12 +25,34 @@ public class LocalWatchTest
         var j = GivenJinagaClient(network);
 
         var viewModel = new SchoolViewModel();
-        var watch = viewModel.Load(j, school.identifier);
+        var watch = viewModel.LoadLocal(j, school.identifier);
 
         try
         {
             await watch.Loaded;
             viewModel.Courses.Should().BeEmpty();
+        }
+        finally
+        {
+            watch.Stop();
+        }
+    }
+
+    [Fact]
+    public async Task RemoteWatch_FetchesCourses()
+    {
+        var school = new School(Guid.NewGuid());
+        var network = GivenPopulatedNetwork(school);
+        var j = GivenJinagaClient(network);
+
+        var viewModel = new SchoolViewModel();
+        var watch = viewModel.LoadRemove(j, school.identifier);
+
+        try
+        {
+            await watch.Loaded;
+            viewModel.Courses.Select(c => c.identifier).Should().BeEquivalentTo(
+                new[] { "Computer Science 101", "Computer Science 102" });
         }
         finally
         {
@@ -49,12 +71,37 @@ public class LocalWatchTest
         await j.Fact(course);
 
         var viewModel = new SchoolViewModel();
-        var watch = viewModel.Load(j, school.identifier);
+        var watch = viewModel.LoadLocal(j, school.identifier);
 
         try
         {
             await watch.Loaded;
             viewModel.Courses.Should().ContainSingle().Which.identifier.Should().Be("Math 101");
+        }
+        finally
+        {
+            watch.Stop();
+        }
+    }
+
+    [Fact]
+    public async Task RemoteWatch_MergesCourses()
+    {
+        var school = new School(Guid.NewGuid());
+        var network = GivenPopulatedNetwork(school);
+        var j = GivenJinagaClient(network);
+
+        var course = new Course(school, "Math 101");
+        await j.Fact(course);
+
+        var viewModel = new SchoolViewModel();
+        var watch = viewModel.LoadRemove(j, school.identifier);
+
+        try
+        {
+            await watch.Loaded;
+            viewModel.Courses.Select(c => c.identifier).Should().BeEquivalentTo(
+                new[] { "Computer Science 101", "Computer Science 102", "Math 101" });
         }
         finally
         {
@@ -70,7 +117,7 @@ public class LocalWatchTest
         var j = GivenJinagaClient(network);
 
         var viewModel = new SchoolViewModel();
-        var watch = viewModel.Load(j, school.identifier);
+        var watch = viewModel.LoadLocal(j, school.identifier);
 
         try
         {
@@ -89,6 +136,34 @@ public class LocalWatchTest
     }
 
     [Fact]
+    public async Task RemoteWatch_CourseAddedLater()
+    {
+        var school = new School(Guid.NewGuid());
+        var network = GivenPopulatedNetwork(school);
+        var j = GivenJinagaClient(network);
+
+        var viewModel = new SchoolViewModel();
+        var watch = viewModel.LoadRemove(j, school.identifier);
+
+        try
+        {
+            await watch.Loaded;
+            viewModel.Courses.Select(c => c.identifier).Should().BeEquivalentTo(
+                new[] { "Computer Science 101", "Computer Science 102" });
+
+            var course = new Course(school, "Math 101");
+            await j.Fact(course);
+
+            viewModel.Courses.Select(c => c.identifier).Should().BeEquivalentTo(
+                new[] { "Computer Science 101", "Computer Science 102", "Math 101" });
+        }
+        finally
+        {
+            watch.Stop();
+        }
+    }
+
+    [Fact]
     public async Task LocalWatch_RefreshHasNoEffect()
     {
         var school = new School(Guid.NewGuid());
@@ -96,16 +171,47 @@ public class LocalWatchTest
         var j = GivenJinagaClient(network);
 
         var viewModel = new SchoolViewModel();
-        var watch = viewModel.Load(j, school.identifier);
+        var watch = viewModel.LoadLocal(j, school.identifier);
 
         try
         {
             await watch.Loaded;
             viewModel.Courses.Should().BeEmpty();
 
+            WhenAddCourses(network, school);
+
             await watch.Refresh();
 
             viewModel.Courses.Should().BeEmpty();
+        }
+        finally
+        {
+            watch.Stop();
+        }
+    }
+
+    [Fact]
+    public async Task RemoteWatch_RefreshFetchesAdditionalCourses()
+    {
+        var school = new School(Guid.NewGuid());
+        var network = GivenPopulatedNetwork(school);
+        var j = GivenJinagaClient(network);
+
+        var viewModel = new SchoolViewModel();
+        var watch = viewModel.LoadRemove(j, school.identifier);
+
+        try
+        {
+            await watch.Loaded;
+            viewModel.Courses.Select(c => c.identifier).Should().BeEquivalentTo(
+                new[] { "Computer Science 101", "Computer Science 102" });
+
+            WhenAddCourses(network, school);
+
+            await watch.Refresh();
+
+            viewModel.Courses.Select(c => c.identifier).Should().BeEquivalentTo(
+                new[] { "Computer Science 101", "Computer Science 102", "Psychology 101", "Psychology 102" });
         }
         finally
         {
@@ -130,36 +236,53 @@ public class LocalWatchTest
         return new JinagaClient(new MemoryStore(), network, NullLoggerFactory.Instance);
     }
 
+    private void WhenAddCourses(FakeNetwork network, School school)
+    {
+        network.AddFeed("courses", new object[]
+        {
+            new Course(school, "Psychology 101"),
+            new Course(school, "Psychology 102")
+        });
+    }
+
     private class SchoolViewModel
     {
+        private static Specification<School, Course> CoursesInSchool = Given<School>.Match((school, facts) =>
+            from course in facts.OfType<Course>()
+            where course.school == school &&
+                !facts.Any<CourseDeleted>(deleted =>
+                    deleted.course == course &&
+                        !facts.Any<CourseRestored>(restored =>
+                            restored.deleted == deleted
+                        )
+                )
+            select course
+        );
+
         public List<Course> Courses { get; private set; } = new List<Course>();
 
-        public IObserver Load(JinagaClient j, Guid identifier)
+        public IObserver LoadLocal(JinagaClient j, Guid identifier)
         {
             var school = new School(identifier);
 
-            var coursesInSchool = Given<School>.Match((school, facts) =>
-                from course in facts.OfType<Course>()
-                where course.school == school &&
-                    !facts.Any<CourseDeleted>(deleted =>
-                        deleted.course == course &&
-                            !facts.Any<CourseRestored>(restored =>
-                                restored.deleted == deleted
-                            )
-                    )
-                select course
-            );
+            return j.Local.Watch(CoursesInSchool, school, CourseAdded);
+        }
 
-            var observer = j.Local.Watch(coursesInSchool, school, course =>
+        public IObserver LoadRemove(JinagaClient j, Guid identifier)
+        {
+            var school = new School(identifier);
+
+            return j.Watch(CoursesInSchool, school, CourseAdded);
+        }
+
+        private Action CourseAdded(Course course)
+        {
+            Courses.Add(course);
+
+            return () =>
             {
-                Courses.Add(course);
-
-                return () =>
-                {
-                    Courses.Remove(course);
-                };
-            });
-            return observer;
+                Courses.Remove(course);
+            };
         }
     }
 }

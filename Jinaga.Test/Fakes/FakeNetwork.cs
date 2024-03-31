@@ -22,6 +22,7 @@ internal class FakeNetwork : INetwork
     private ITestOutputHelper output;
     private readonly List<FakeFeed> feeds = new();
     private readonly Dictionary<FactReference, Fact> factByFactReference = new();
+    private string finalBookmark = "done";
 
     public FakeNetwork(ITestOutputHelper output)
     {
@@ -47,6 +48,15 @@ internal class FakeNetwork : INetwork
                 factByFactReference.Add(fact.Reference, fact);
             }
         }
+
+        // If the network already has the feed, then replace it.
+        // Bump the bookmark to force a reload.
+        var existingFeed = feeds.SingleOrDefault(f => f.Name == name);
+        if (existingFeed != null)
+        {
+            feeds.Remove(existingFeed);
+            finalBookmark = Guid.NewGuid().ToString();
+        }
         feeds.Add(new FakeFeed
         {
             Name = name,
@@ -67,9 +77,9 @@ internal class FakeNetwork : INetwork
 
     public async Task<(ImmutableList<FactReference> references, string bookmark)> FetchFeed(string feed, string bookmark, CancellationToken cancellationToken)
     {
-        if (bookmark == "done")
+        if (bookmark == finalBookmark)
         {
-            return (ImmutableList<FactReference>.Empty, "done");
+            return (ImmutableList<FactReference>.Empty, finalBookmark);
         }
         var fakeFeed = feeds.Single(f => f.Name == feed);
         var references = fakeFeed.Facts
@@ -79,14 +89,14 @@ internal class FakeNetwork : INetwork
         {
             await Task.Delay(fakeFeed.Delay);
         }
-        return (references, "done");
+        return (references, finalBookmark);
     }
 
     public void StreamFeed(string feed, string bookmark, CancellationToken cancellationToken, Func<ImmutableList<FactReference>, string, Task> onResponse, Action<Exception> onError)
     {
-        if (bookmark == "done")
+        if (bookmark == finalBookmark)
         {
-            onResponse(ImmutableList<FactReference>.Empty, "done");
+            onResponse(ImmutableList<FactReference>.Empty, finalBookmark);
             return;
         }
         var fakeFeed = feeds.Single(f => f.Name == feed);
@@ -98,12 +108,12 @@ internal class FakeNetwork : INetwork
             Task.Run(async () =>
             {
                 await Task.Delay(fakeFeed.Delay);
-                await onResponse(references, "done");
+                await onResponse(references, finalBookmark);
             });
         }
         else
         {
-            onResponse(references, "done");
+            onResponse(references, finalBookmark);
         }
     }
 
