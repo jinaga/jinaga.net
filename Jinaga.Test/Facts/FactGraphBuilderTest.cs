@@ -1,7 +1,5 @@
-﻿using FluentAssertions;
-using Jinaga.Facts;
+﻿using Jinaga.Facts;
 using System.Collections.Immutable;
-using Xunit;
 
 namespace Jinaga.Test.Facts
 {

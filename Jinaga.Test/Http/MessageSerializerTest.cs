@@ -1,8 +1,6 @@
 ﻿using System.Collections.Generic;
-using FluentAssertions;
 using Jinaga.Http;
 using Jinaga.Records;
-using Xunit;
 
 namespace Jinaga.Test.Http
 {

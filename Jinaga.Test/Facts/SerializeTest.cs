@@ -1,12 +1,10 @@
 using System;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using FluentAssertions;
 using Jinaga.Facts;
 using Jinaga.Serialization;
 using Jinaga.Test.Model;
 using Jinaga.Test.Model.Order;
-using Xunit;
 
 namespace Jinaga.Test.Facts
 {
@@ -147,8 +145,7 @@ namespace Jinaga.Test.Facts
             name.Value.Should().BeOfType<FieldValueString>().Which
                 .StringValue.Should().Be("IHS");
             var identifier = fact.Fields.Single(f => f.Name == "identifier");
-            identifier.Value.Should().BeOfType<FieldValueString>().Which
-                .StringValue.Should().Be(string.Empty);
+            identifier.Value.Should().BeOfType<FieldValueNull>();
         }
 
         [Fact]

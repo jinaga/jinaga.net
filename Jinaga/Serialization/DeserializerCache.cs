@@ -94,6 +94,15 @@ namespace Jinaga.Serialization
                 getFieldValueMethod,
                 Expression.Constant(name)
             );
+            Type underlyingType = Nullable.GetUnderlyingType(parameterType);
+            return underlyingType == null
+                ? CreateFieldValueExpression(parameterType, getFieldValue)
+                : CreateNullableFieldValueExpression(parameterType, underlyingType, getFieldValue);
+        }
+
+        private static Expression CreateFieldValueExpression(Type parameterType, MethodCallExpression getFieldValue)
+        {
+            // Call the appropriate method on FieldValue to get the value.
             if (parameterType == typeof(string))
             {
                 return Expression.Property(
@@ -105,17 +114,6 @@ namespace Jinaga.Serialization
             {
                 return Expression.Call(
                     typeof(FieldValue).GetMethod(nameof(FieldValue.FromIso8601String)),
-                    Expression.Property(
-                        getFieldValue,
-                        nameof(FieldValue.StringValue)
-                    )
-                );
-            }
-            else if (parameterType == typeof(DateTime?))
-            {
-                var fromNullableIso8601String = typeof(FieldValue).GetMethod(nameof(FieldValue.FromNullableIso8601String));
-                return Expression.Call(
-                    fromNullableIso8601String,
                     Expression.Property(
                         getFieldValue,
                         nameof(FieldValue.StringValue)
@@ -136,17 +134,6 @@ namespace Jinaga.Serialization
             {
                 return Expression.Call(
                     typeof(FieldValue).GetMethod(nameof(FieldValue.GuidFromString)),
-                    Expression.Property(
-                        getFieldValue,
-                        nameof(FieldValue.StringValue)
-                    )
-                );
-            }
-            else if (parameterType == typeof(Guid?))
-            {
-                var guidFromNullableString = typeof(FieldValue).GetMethod(nameof(FieldValue.NullableGuidFromString));
-                return Expression.Call(
-                    guidFromNullableString,
                     Expression.Property(
                         getFieldValue,
                         nameof(FieldValue.StringValue)
@@ -200,6 +187,182 @@ namespace Jinaga.Serialization
             else
             {
                 throw new ArgumentException($"Unknown field type {parameterType.Name}");
+            }
+        }
+
+        private static Expression CreateNullableFieldValueExpression(Type parameterType, Type underlyingType, MethodCallExpression getFieldValue)
+        {
+            /*
+            string? stringValue = getFieldValue.IsNull ? null : getFieldValue.StringValue;
+            */
+            if (underlyingType == typeof(string))
+            {
+                return Expression.Condition(
+                    Expression.Property(
+                        getFieldValue,
+                        nameof(FieldValue.IsNull)
+                    ),
+                    Expression.Constant(null, parameterType),
+                    Expression.Convert(
+                        Expression.Property(
+                            getFieldValue,
+                            nameof(FieldValue.StringValue)
+                        ),
+                        parameterType
+                    )
+                );
+            }
+            else if (underlyingType == typeof(DateTime))
+            {
+                var fromIso8601String = typeof(FieldValue).GetMethod(nameof(FieldValue.FromIso8601String));
+                return Expression.Condition(
+                    Expression.Property(
+                        getFieldValue,
+                        nameof(FieldValue.IsNull)
+                    ),
+                    Expression.Constant(null, parameterType),
+                    Expression.Convert(
+                        Expression.Call(
+                            fromIso8601String,
+                            Expression.Property(
+                                getFieldValue,
+                                nameof(FieldValue.StringValue)
+                            )
+                        ),
+                        parameterType
+                    )
+                );
+            }
+            else if (underlyingType == typeof(DateTimeOffset))
+            {
+                var fromIso8601String = typeof(FieldValue).GetMethod(nameof(FieldValue.FromIso8601String));
+                return Expression.Condition(
+                    Expression.Property(
+                        getFieldValue,
+                        nameof(FieldValue.IsNull)
+                    ),
+                    Expression.Constant(null, parameterType),
+                    Expression.Convert(
+                        Expression.Call(
+                            fromIso8601String,
+                            Expression.Property(
+                                getFieldValue,
+                                nameof(FieldValue.StringValue)
+                            )
+                        ),
+                        parameterType
+                    )
+                );
+            }
+            else if (underlyingType == typeof(Guid))
+            {
+                var guidFromString = typeof(FieldValue).GetMethod(nameof(FieldValue.GuidFromString));
+                return Expression.Condition(
+                    Expression.Property(
+                        getFieldValue,
+                        nameof(FieldValue.IsNull)
+                    ),
+                    Expression.Constant(null, parameterType),
+                    Expression.Convert(
+                        Expression.Call(
+                            guidFromString,
+                            Expression.Property(
+                                getFieldValue,
+                                nameof(FieldValue.StringValue)
+                            )
+                        ),
+                        parameterType
+                    )
+                );
+            }
+            else if (underlyingType == typeof(int))
+            {
+                return Expression.Condition(
+                    Expression.Property(
+                        getFieldValue,
+                        nameof(FieldValue.IsNull)
+                    ),
+                    Expression.Constant(null, parameterType),
+                    Expression.Convert(
+                        Expression.Property(
+                            getFieldValue,
+                            nameof(FieldValue.DoubleValue)
+                        ),
+                        parameterType
+                    )
+                );
+            }
+            else if (underlyingType == typeof(float))
+            {
+                return Expression.Condition(
+                    Expression.Property(
+                        getFieldValue,
+                        nameof(FieldValue.IsNull)
+                    ),
+                    Expression.Constant(null, parameterType),
+                    Expression.Convert(
+                        Expression.Property(
+                            getFieldValue,
+                            nameof(FieldValue.DoubleValue)
+                        ),
+                        parameterType
+                    )
+                );
+            }
+            else if (underlyingType == typeof(double))
+            {
+                return Expression.Condition(
+                    Expression.Property(
+                        getFieldValue,
+                        nameof(FieldValue.IsNull)
+                    ),
+                    Expression.Constant(null, parameterType),
+                    Expression.Convert(
+                        Expression.Property(
+                            getFieldValue,
+                            nameof(FieldValue.DoubleValue)
+                        ),
+                        parameterType
+                    )
+                );
+            }
+            else if (underlyingType == typeof(decimal))
+            {
+                return Expression.Condition(
+                    Expression.Property(
+                        getFieldValue,
+                        nameof(FieldValue.IsNull)
+                    ),
+                    Expression.Constant(null, parameterType),
+                    Expression.Convert(
+                        Expression.Property(
+                            getFieldValue,
+                            nameof(FieldValue.DoubleValue)
+                        ),
+                        parameterType
+                    )
+                );
+            }
+            else if (underlyingType == typeof(bool))
+            {
+                return Expression.Condition(
+                    Expression.Property(
+                        getFieldValue,
+                        nameof(FieldValue.IsNull)
+                    ),
+                    Expression.Constant(null, parameterType),
+                    Expression.Convert(
+                        Expression.Property(
+                            getFieldValue,
+                            nameof(FieldValue.BoolValue)
+                        ),
+                        parameterType
+                    )
+                );
+            }
+            else
+            {
+                throw new ArgumentException($"Unknown nullable field type {underlyingType.Name}");
             }
         }
 

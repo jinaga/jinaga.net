@@ -1,9 +1,4 @@
-﻿using FluentAssertions;
-using Jinaga.UnitTest;
-using System.Threading.Tasks;
-using Xunit;
-
-namespace Jinaga.Test;
+﻿namespace Jinaga.Test;
 
 public class JinagaClientTest
 {

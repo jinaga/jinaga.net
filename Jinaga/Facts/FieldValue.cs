@@ -15,11 +15,18 @@ namespace Jinaga.Facts
             return utcDateTime.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
         }
 
-        public static string NullableDateTimeToIso8601String(DateTime? dateTime)
+        public static string? NullableDateTimeToNullableIso8601String(DateTime? dateTime)
         {
             return dateTime.HasValue
                 ? DateTimeToIso8601String(dateTime.Value)
-                : string.Empty;
+                : null;
+        }
+
+        public static string? NullableDateTimeOffsetToNullableIso8601String(DateTimeOffset? dateTimeOffset)
+        {
+            return dateTimeOffset.HasValue
+                ? dateTimeOffset.Value.ToString("yyyy-MM-ddTHH:mm:ss.fffzzz")
+                : null;
         }
 
         public static DateTime FromIso8601String(string str)
@@ -43,11 +50,11 @@ namespace Jinaga.Facts
             return guid.ToString("D");
         }
 
-        public static string NullableGuidToString(Guid? guid)
+        public static string? NullableGuidToNullableString(Guid? guid)
         {
             return guid.HasValue
                 ? guid.Value.ToString("D")
-                : string.Empty;
+                : null;
         }
 
         public static Guid GuidFromString(string str)
@@ -57,18 +64,10 @@ namespace Jinaga.Facts
                 : Guid.Empty;
         }
 
-        public static Guid? NullableGuidFromString(string str)
-        {
-            return string.IsNullOrEmpty(str)
-                ? (Guid?)null
-                : Guid.TryParse(str, out var guid)
-                ? guid
-                : (Guid?)null;
-        }
-
         public abstract string StringValue { get; }
         public abstract double DoubleValue { get; }
         public abstract bool BoolValue { get; }
+        public virtual bool IsNull => false;
     }
 
     public class FieldValueUndefined : FieldValue
@@ -76,6 +75,7 @@ namespace Jinaga.Facts
         public override string StringValue => string.Empty;
         public override double DoubleValue => default;
         public override bool BoolValue => false;
+        public override bool IsNull => true;
     }
 
     public class FieldValueString : FieldValue
@@ -84,6 +84,14 @@ namespace Jinaga.Facts
         public FieldValueString(string stringValue)
         {
             StringValue = stringValue;
+        }
+
+        // This method is called via a compiled expression
+        public static FieldValue From(string? nullableString)
+        {
+            return nullableString != null
+                ? new FieldValueString(nullableString)
+                : FieldValue.Null;
         }
 
         public override string StringValue { get; }
@@ -99,6 +107,14 @@ namespace Jinaga.Facts
             DoubleValue = doubleValue;
         }
 
+        // This method is called via a compiled expression
+        public static FieldValue From(double? nullableDouble)
+        {
+            return nullableDouble.HasValue
+                ? new FieldValueNumber(nullableDouble.Value)
+                : FieldValue.Null;
+        }
+
         public override string StringValue => string.Format("{0}", DoubleValue);
         public override double DoubleValue { get; }
         public override bool BoolValue => DoubleValue != 0.0;
@@ -112,6 +128,14 @@ namespace Jinaga.Facts
             BoolValue = boolValue;
         }
 
+        // This method is called via a compiled expression
+        public static FieldValue From(bool? nullableBool)
+        {
+            return nullableBool.HasValue
+                ? new FieldValueBoolean(nullableBool.Value)
+                : FieldValue.Null;
+        }
+
         public override string StringValue => BoolValue ? "true" : "false";
         public override double DoubleValue => BoolValue ? 1.0 : 0.0;
         public override bool BoolValue { get; }
@@ -122,5 +146,6 @@ namespace Jinaga.Facts
         public override string StringValue => null!;
         public override double DoubleValue => default;
         public override bool BoolValue => false;
+        public override bool IsNull => true;
     }
 }

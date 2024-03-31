@@ -1,5 +1,4 @@
-﻿using FluentAssertions;
-using Jinaga.Facts;
+﻿using Jinaga.Facts;
 using Jinaga.Pipelines;
 using Jinaga.Projections;
 using Jinaga.Specifications;
@@ -8,7 +7,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
-using Xunit;
 using static Jinaga.Specifications.LinqProcessor;
 
 namespace Jinaga.Test.Specifications;

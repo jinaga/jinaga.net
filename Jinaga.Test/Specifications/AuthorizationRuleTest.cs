@@ -1,6 +1,4 @@
-﻿using Xunit;
-using System.Linq;
-using FluentAssertions;
+﻿using System.Linq;
 
 namespace Jinaga.Test.Specifications;
 

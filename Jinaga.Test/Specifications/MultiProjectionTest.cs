@@ -1,12 +1,9 @@
-using FluentAssertions;
 using Jinaga.Observers;
 using Jinaga.Test.Model.DWS;
-using Jinaga.UnitTest;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
-using Xunit;
 
 namespace Jinaga.Test.Specifications
 {

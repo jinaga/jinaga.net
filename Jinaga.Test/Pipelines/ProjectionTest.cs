@@ -1,8 +1,6 @@
 using System.Linq;
 using System;
 using Jinaga.Test.Model;
-using Xunit;
-using FluentAssertions;
 
 namespace Jinaga.Test.Pipelines
 {
