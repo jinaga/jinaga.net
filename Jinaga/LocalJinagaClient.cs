@@ -23,6 +23,46 @@ namespace Jinaga
         }
 
         /// <summary>
+        /// Process a new fact.
+        /// The fact is stored locally. It will not be sent upstream unless a successor is later uploaded.
+        /// Active observers are notified to update the user interface.
+        /// </summary>
+        /// <typeparam name="TFact">The type of the new fact</typeparam>
+        /// <param name="prototype">The new fact</param>
+        /// <returns>A copy of the fact as saved</returns>
+        /// <exception cref="ArgumentNullException">If the fact is null</exception>
+        public async Task<TFact> Fact<TFact>(TFact prototype) where TFact : class
+        {
+            try
+            {
+                logger.LogInformation("Fact creation starting");
+
+                if (prototype == null)
+                {
+                    throw new ArgumentNullException(nameof(prototype));
+                }
+
+                var graph = factManager.Serialize(prototype);
+                using (var source = new CancellationTokenSource())
+                {
+                    var token = source.Token;
+                    await factManager.SaveLocal(graph, token).ConfigureAwait(false);
+                }
+
+                var fact = factManager.Deserialize<TFact>(graph, graph.Last);
+
+                logger.LogInformation("Fact creation succeeded");
+
+                return fact;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Fact creation failed");
+                throw;
+            }
+        }
+
+        /// <summary>
         /// Retrieve results of a specification from the local cache.
         /// Unlike Query, Local.Query does not fetch new facts from the remote replicator.
         /// </summary>

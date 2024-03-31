@@ -24,6 +24,8 @@ internal class FakeNetwork : INetwork
     private readonly Dictionary<FactReference, Fact> factByFactReference = new();
     private string finalBookmark = "done";
 
+    public ImmutableList<Fact> UploadedFacts { get; private set; } = ImmutableList<Fact>.Empty;
+
     public FakeNetwork(ITestOutputHelper output)
     {
         this.output = output;
@@ -147,6 +149,7 @@ internal class FakeNetwork : INetwork
 
     public Task Save(ImmutableList<Fact> facts, CancellationToken cancellationToken)
     {
+        UploadedFacts = UploadedFacts.AddRange(facts);
         return Task.CompletedTask;
     }
 }

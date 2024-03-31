@@ -82,6 +82,13 @@ namespace Jinaga.Managers
             return added;
         }
 
+        public async Task<ImmutableList<Fact>> SaveLocal(FactGraph graph, CancellationToken cancellationToken)
+        {
+            var added = await store.Save(graph, cancellationToken).ConfigureAwait(false);
+            await observableSource.Notify(graph, added, cancellationToken).ConfigureAwait(false);
+            return added;
+        }
+
         public async Task Fetch(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
         {
             await networkManager.Fetch(givenTuple, specification, cancellationToken).ConfigureAwait(false);
