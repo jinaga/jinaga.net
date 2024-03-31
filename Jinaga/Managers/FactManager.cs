@@ -174,10 +174,17 @@ namespace Jinaga.Managers
             }
         }
 
-        public Observer StartObserver(FactReferenceTuple givenTuple, Specification specification, Func<object, Task<Func<Task>>> onAdded, bool keepAlive)
+        public IObserver StartObserver(FactReferenceTuple givenTuple, Specification specification, Func<object, Task<Func<Task>>> onAdded, bool keepAlive)
         {
             var observer = new Observer(specification, givenTuple, this, onAdded, loggerFactory);
             observer.Start(keepAlive);
+            return observer;
+        }
+
+        public IObserver StartObserverLocal(FactReferenceTuple givenTuple, Specification specification, Func<object, Task<Func<Task>>> onAdded)
+        {
+            var observer = new ObserverLocal(specification, givenTuple, this, onAdded, loggerFactory);
+            observer.Start();
             return observer;
         }
 

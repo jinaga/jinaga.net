@@ -137,6 +137,6 @@ internal class FakeNetwork : INetwork
 
     public Task Save(ImmutableList<Fact> facts, CancellationToken cancellationToken)
     {
-        throw new NotImplementedException();
+        return Task.CompletedTask;
     }
 }
