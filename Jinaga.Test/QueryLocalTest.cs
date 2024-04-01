@@ -62,7 +62,7 @@ namespace Jinaga.Test
             var specification = Given<FlightCancellation>.Match(
                 flightCancellation => flightCancellation.flight
             );
-            var flights = await j.QueryLocal(specification, cancellation);
+            var flights = await j.Local.Query(specification, cancellation);
 
             flights.Should().ContainSingle().Which.Should().BeEquivalentTo(flight);
         }
@@ -78,7 +78,7 @@ namespace Jinaga.Test
                 where flight.airlineDay == airlineDay
                 select flight
             );
-            var flights = await j.QueryLocal(specification, airlineDay);
+            var flights = await j.Local.Query(specification, airlineDay);
 
             flights.Should().ContainSingle().Which.Should().BeEquivalentTo(flight);
         }
@@ -100,7 +100,7 @@ namespace Jinaga.Test
                 select passenger
             );
 
-            var passengers = await j.QueryLocal(passengersForAirline, airline);
+            var passengers = await j.Local.Query(passengersForAirline, airline);
             passengers.Should().BeEquivalentTo(expectedPassengers);
         }
 
@@ -129,7 +129,7 @@ namespace Jinaga.Test
                 select flight
             );
 
-            var flights = await j.QueryLocal(specification, airlineDay);
+            var flights = await j.Local.Query(specification, airlineDay);
             flights.Should().ContainSingle().Which
                 .Should().BeEquivalentTo(flight);            
         }
@@ -144,7 +144,7 @@ namespace Jinaga.Test
             var initialName = await j.Fact(new PassengerName(passenger, "Joe", new PassengerName[] { }));
             var updatedName = await j.Fact(new PassengerName(passenger, "Joseph", new PassengerName[] { initialName }));
 
-            var currentNames = await j.QueryLocal(Given<Passenger>.Match((passenger, facts) =>
+            var currentNames = await j.Local.Query(Given<Passenger>.Match((passenger, facts) =>
                 from name in facts.OfType<PassengerName>()
                 where name.passenger == passenger
                 where !(
@@ -169,7 +169,7 @@ namespace Jinaga.Test
             var booking = await j.Fact(new Booking(flight, joe, DateTime.UtcNow));
             var cancellation = await j.Fact(new FlightCancellation(flight, DateTime.Now));
 
-            var bookingCancellations = await j.QueryLocal(Given<Airline>.Match((airline, facts) =>
+            var bookingCancellations = await j.Local.Query(Given<Airline>.Match((airline, facts) =>
                 from flight in facts.OfType<Flight>()
                 where flight.airlineDay.airline == airline
                 from booking in facts.OfType<Booking>()
@@ -212,7 +212,7 @@ namespace Jinaga.Test
                 }
             );
 
-            var posts = await j.QueryLocal(specification, site);
+            var posts = await j.Local.Query(specification, site);
 
             posts.Should().ContainSingle().Which
                 .titles.Should().ContainSingle().Which
@@ -231,7 +231,7 @@ namespace Jinaga.Test
                 select site.domain
             );
 
-            var result = await j.QueryLocal(specification, post);
+            var result = await j.Local.Query(specification, post);
 
             result.Should().ContainSingle().Which
                 .Should().Be("michaelperry.net");
@@ -253,7 +253,7 @@ namespace Jinaga.Test
                 }
             );
 
-            var result = await j.QueryLocal(specification, post);
+            var result = await j.Local.Query(specification, post);
 
             var subject = result.Should().ContainSingle().Subject;
             subject.siteName.Should().Be("michaelperry.net");
@@ -281,7 +281,7 @@ namespace Jinaga.Test
                 }
             );
 
-            var posts = await j.QueryLocal(specification, site);
+            var posts = await j.Local.Query(specification, site);
 
             posts.Should().ContainSingle().Which
                 .titles.Should().ContainSingle().Which
@@ -308,7 +308,7 @@ namespace Jinaga.Test
                 }
             );
 
-            var posts = await j.QueryLocal(specification, site);
+            var posts = await j.Local.Query(specification, site);
 
             posts.Should().ContainSingle().Which
                 .titles.Should().ContainSingle().Which
@@ -335,7 +335,7 @@ namespace Jinaga.Test
                 }
             );
 
-            var posts = await j.QueryLocal(specification, site);
+            var posts = await j.Local.Query(specification, site);
 
             posts.Should().ContainSingle().Which
                 .titles.Should().ContainSingle().Which
@@ -370,7 +370,7 @@ namespace Jinaga.Test
                 }
             );
 
-            var posts = await j.QueryLocal(specification, site, visitor);
+            var posts = await j.Local.Query(specification, site, visitor);
 
             var result = posts.Should().ContainSingle().Subject;
             result.titles.Should().ContainSingle().Which

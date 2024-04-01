@@ -39,7 +39,7 @@ public class NullTest
         await j.Fact(parent);
 
         // FAILS: System.Collections.Generic.KeyNotFoundException : The given key 'Test.Parent: ATfF6kzhSp7A+mAklTkoJsTjT8YYmbEuySlA46wyt2ZrZXyo2o/NeAB7PTt5Bg2m8T2aIsPtdbkH+d6RXJNVBA==' was not present in the dictionary.
-        var results = await j.QueryLocal(
+        var results = await j.Local.Query(
                             Given<Root>.Match((root, facts) =>
                                 facts.OfType<ParentFact>(parent => parent.Root == root)),
                             root);

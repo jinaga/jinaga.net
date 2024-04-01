@@ -82,6 +82,13 @@ namespace Jinaga.Managers
             return added;
         }
 
+        public async Task<ImmutableList<Fact>> SaveLocal(FactGraph graph, CancellationToken cancellationToken)
+        {
+            var added = await store.Save(graph, cancellationToken).ConfigureAwait(false);
+            await observableSource.Notify(graph, added, cancellationToken).ConfigureAwait(false);
+            return added;
+        }
+
         public async Task Fetch(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
         {
             await networkManager.Fetch(givenTuple, specification, cancellationToken).ConfigureAwait(false);
@@ -174,10 +181,17 @@ namespace Jinaga.Managers
             }
         }
 
-        public Observer StartObserver(FactReferenceTuple givenTuple, Specification specification, Func<object, Task<Func<Task>>> onAdded, bool keepAlive)
+        public IObserver StartObserver(FactReferenceTuple givenTuple, Specification specification, Func<object, Task<Func<Task>>> onAdded, bool keepAlive)
         {
             var observer = new Observer(specification, givenTuple, this, onAdded, loggerFactory);
             observer.Start(keepAlive);
+            return observer;
+        }
+
+        public IObserver StartObserverLocal(FactReferenceTuple givenTuple, Specification specification, Func<object, Task<Func<Task>>> onAdded)
+        {
+            var observer = new ObserverLocal(specification, givenTuple, this, onAdded, loggerFactory);
+            observer.Start();
             return observer;
         }
 
