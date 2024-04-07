@@ -30,6 +30,7 @@ namespace Jinaga.Http
                 var fact = graph.GetFact(factReference);
                 SerializeFact(fact);
             }
+            writer.Flush();
         }
 
         private void SerializeFact(Fact fact)

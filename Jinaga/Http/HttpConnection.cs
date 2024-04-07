@@ -100,7 +100,7 @@ namespace Jinaga.Http
 
                 var content = new StreamContent(stream =>
                 {
-                    var graphSerializer = new GraphSerializer(stream);
+                    using var graphSerializer = new GraphSerializer(stream);
                     graphSerializer.Serialize(graph);
                 });
 
