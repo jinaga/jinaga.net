@@ -178,9 +178,11 @@ namespace Jinaga.Http
                 logger.LogTrace("HTTP {method} {baseAddress}{path}", request.Method, httpClient.BaseAddress, request.RequestUri);
                 using var response = await httpClient.SendAsync(request).ConfigureAwait(false);
                 await CheckForError(response, stopwatch).ConfigureAwait(false);
-                var acceptedContentTypes = response.Content.Headers
+                var acceptedContentTypes = response.Headers
                     .Where(h => h.Key.ToLowerInvariant() == "accept-post")
                     .SelectMany(h => h.Value)
+                    .SelectMany(v => v.Split(','))
+                    .Select(v => v.Trim())
                     .ToImmutableList();
                 return acceptedContentTypes;
             }
