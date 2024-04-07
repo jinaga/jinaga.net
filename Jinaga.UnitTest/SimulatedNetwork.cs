@@ -32,7 +32,7 @@ namespace Jinaga.UnitTest
             return Task.FromResult((graph, profile));
         }
 
-        public Task Save(ImmutableList<Fact> facts, CancellationToken cancellationToken)
+        public Task Save(FactGraph graph, CancellationToken cancellationToken)
         {
             return Task.CompletedTask;
         }

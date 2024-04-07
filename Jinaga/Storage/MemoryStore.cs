@@ -332,12 +332,21 @@ namespace Jinaga.Storage
         {
             lock (this)
             {
-                var facts = feed.Skip(bookmark).Select(reference =>
-                    factsByReference[reference]
-                ).ToImmutableList();
+                var facts = feed.Skip(bookmark)
+                    .SelectMany(reference => ancestors[reference])
+                    .Distinct()
+                    .Select(reference => factsByReference[reference]);
+
+                // Write the facts and their ancestors to a fact graph.
+                var builder = new FactGraphBuilder();
+                foreach (var fact in facts)
+                {
+                    builder.Add(fact);
+                }
+                var graph = builder.Build();
 
                 return Task.FromResult(new QueuedFacts(
-                    facts, feed.Count.ToString()
+                    graph, feed.Count.ToString()
                 ));
             }
         }

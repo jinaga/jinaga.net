@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Immutable;
 using System.Diagnostics;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -90,6 +92,26 @@ namespace Jinaga.Http
                 httpResponse => Task.FromResult(true));
         }
 
+        public Task PostGraph(string path, FactGraph graph)
+        {
+            return WithHttpClient(() =>
+            {
+                var httpRequest = new HttpRequestMessage(HttpMethod.Post, path);
+
+                var content = new StreamContent(stream =>
+                {
+                    var graphSerializer = new GraphSerializer(stream);
+                    graphSerializer.Serialize(graph);
+                });
+
+                content.Headers.ContentType = new MediaTypeHeaderValue(JinagaGraphContentType);
+                httpRequest.Content = content;
+
+                return httpRequest;
+            },
+            httpResponse => Task.FromResult(true));
+        }
+
         public Task<FactGraph> PostLoad(string path, LoadRequest request)
         {
             return WithHttpClient(() =>
@@ -145,6 +167,28 @@ namespace Jinaga.Http
                 var response = MessageSerializer.Deserialize<TResponse>(body);
                 return response;
             });
+        }
+
+        public async Task<ImmutableList<string>> GetAcceptedContentTypes(string path)
+        {
+            try
+            {
+                var stopwatch = Stopwatch.StartNew();
+                using var request = new HttpRequestMessage(HttpMethod.Options, path);
+                logger.LogTrace("HTTP {method} {baseAddress}{path}", request.Method, httpClient.BaseAddress, request.RequestUri);
+                using var response = await httpClient.SendAsync(request).ConfigureAwait(false);
+                await CheckForError(response, stopwatch).ConfigureAwait(false);
+                var acceptedContentTypes = response.Headers
+                    .Where(h => h.Key == "Accept-Post")
+                    .SelectMany(h => h.Value)
+                    .ToImmutableList();
+                return acceptedContentTypes;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "HTTP error {message}", ex.Message);
+                throw;
+            }
         }
 
         private async Task<T> WithHttpClient<T>(

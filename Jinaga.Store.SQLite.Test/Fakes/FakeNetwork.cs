@@ -131,7 +131,7 @@ internal class FakeNetwork : INetwork
         return graph;
     }
 
-    public Task Save(ImmutableList<Fact> facts, CancellationToken cancellationToken)
+    public Task Save(FactGraph graph, CancellationToken cancellationToken)
     {
         throw new NotImplementedException();
     }

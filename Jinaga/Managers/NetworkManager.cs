@@ -48,19 +48,19 @@ namespace Jinaga.Managers
         {
             // Get the queued facts.
             var queue = await store.GetQueue().ConfigureAwait(false);
-            if (queue.Facts.Count == 0)
+            if (queue.Graph.FactReferences.Count == 0)
             {
                 SetSaveStatus(false, null, 0);
                 return;
             }
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-            logger.LogInformation("Save started with {0} facts.", queue.Facts.Count);
-            SetSaveStatus(true, null, queue.Facts.Count);
+            logger.LogInformation("Save started with {0} facts.", queue.Graph.FactReferences.Count);
+            SetSaveStatus(true, null, queue.Graph.FactReferences.Count);
 
             try
             {
                 // Send the facts using the network provider.
-                await network.Save(queue.Facts, cancellationToken).ConfigureAwait(false);
+                await network.Save(queue.Graph, cancellationToken).ConfigureAwait(false);
                 // Update the queue.
                 await store.SetQueueBookmark(queue.NextBookmark).ConfigureAwait(false);
                 logger.LogInformation("Save completed after {elapsedMilliseconds} ms.", stopwatch.ElapsedMilliseconds);
@@ -69,7 +69,7 @@ namespace Jinaga.Managers
             catch (Exception ex)
             {
                 logger.LogError(ex, "Save failed after {elapsedMilliseconds} ms.", stopwatch.ElapsedMilliseconds);
-                SetSaveStatus(false, ex, queue.Facts.Count);
+                SetSaveStatus(false, ex, queue.Graph.FactReferences.Count);
                 throw;
             }
         }
