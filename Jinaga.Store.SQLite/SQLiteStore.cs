@@ -609,17 +609,23 @@ namespace Jinaga.Store.SQLite
             );
 
             // Convert the fact records to facts.
-            var facts = factsFromDb.Deserialise().ToImmutableList();
+            var facts = factsFromDb.Deserialise();
+            var graphBuilder = new FactGraphBuilder();
+            foreach (var fact in facts)
+            {
+                graphBuilder.Add(fact);
+            }
+            var graph = graphBuilder.Build();
 
             // If there are facts, then the next bookmark is the largest fact ID.
-            if (facts.Count > 0)
+            if (graph.FactReferences.Count > 0)
             {
                 lastFactId = factsFromDb.Max(f => f.fact_id);
             }
 
             // Return the facts and the next bookmark.
-            logger.LogTrace("SQLite read {count} queued facts", facts.Count);
-            return Task.FromResult(new QueuedFacts(facts, lastFactId.ToString()));
+            logger.LogTrace("SQLite read {count} queued facts", graph.FactReferences.Count);
+            return Task.FromResult(new QueuedFacts(graph, lastFactId.ToString()));
         }
 
         public Task SetQueueBookmark(string bookmark)

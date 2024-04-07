@@ -1,16 +1,15 @@
 ﻿using Jinaga.Facts;
-using System.Collections.Immutable;
 
 namespace Jinaga.Services
 {
     public class QueuedFacts
     {
-        public ImmutableList<Fact> Facts { get; }
+        public FactGraph Graph { get; }
         public string NextBookmark { get; }
 
-        public QueuedFacts(ImmutableList<Fact> facts, string nextBookmark)
+        public QueuedFacts(FactGraph graph, string nextBookmark)
         {
-            Facts = facts;
+            Graph = graph;
             NextBookmark = nextBookmark;
         }
     }

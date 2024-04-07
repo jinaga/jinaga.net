@@ -35,7 +35,7 @@ namespace Jinaga.DefaultImplementations
             return Task.FromResult(FactGraph.Empty);
         }
 
-        public Task Save(ImmutableList<Fact> facts, CancellationToken cancellationToken)
+        public Task Save(FactGraph graph, CancellationToken cancellationToken)
         {
             return Task.CompletedTask;
         }

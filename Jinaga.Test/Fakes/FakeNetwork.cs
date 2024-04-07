@@ -147,9 +147,9 @@ internal class FakeNetwork : INetwork
         return graph;
     }
 
-    public Task Save(ImmutableList<Fact> facts, CancellationToken cancellationToken)
+    public Task Save(FactGraph graph, CancellationToken cancellationToken)
     {
-        UploadedFacts = UploadedFacts.AddRange(facts);
+        UploadedFacts = UploadedFacts.AddRange(graph.FactReferences.Select(graph.GetFact));
         return Task.CompletedTask;
     }
 }

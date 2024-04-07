@@ -37,7 +37,7 @@ namespace Jinaga.Test
             throw new InvalidOperationException("This network should never be used.");
         }
 
-        public Task Save(System.Collections.Immutable.ImmutableList<Fact> facts, CancellationToken cancellationToken)
+        public Task Save(FactGraph graph, CancellationToken cancellationToken)
         {
             // The network will be used to save facts, but we don't need to implement it for this test.
             return Task.CompletedTask;
