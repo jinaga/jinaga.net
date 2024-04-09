@@ -16,6 +16,7 @@ namespace Jinaga.Http
         public GraphSerializer(Stream stream)
         {
             writer = new StreamWriter(stream, Encoding.UTF8, 1024, leaveOpen: true);
+            writer.NewLine = "\n";
         }
 
         public void Dispose()
