@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -386,11 +387,23 @@ namespace Jinaga.Store.SQLite
                                 fact_type_id INTEGER NOT NULL,
                                 hash TEXT,
                                 data TEXT,
-                                date_learned TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP                         
+                                date_learned TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                queued INTEGER NOT NULL DEFAULT 1 CHECK(queued IN (0, 1))
                             )";
             string ux_fact = @"CREATE UNIQUE INDEX IF NOT EXISTS ux_fact ON fact (hash, fact_type_id)";
             conn.ExecuteNonQuery(table);
             conn.ExecuteNonQuery(ux_fact);
+
+            // Add a column to the fact table called 'queued'.
+            // This is used to determine whether the fact should be sent to the server.
+            // Default all existing rows to true.
+            string sql = @"PRAGMA table_info(fact)";
+            var columns = conn.ExecuteQueryRaw(sql);
+            if (!columns.Any(column => column["name"] == "queued"))
+            {
+                sql = @"ALTER TABLE fact ADD COLUMN queued INTEGER NOT NULL DEFAULT 1 CHECK(queued IN (0, 1))";
+                conn.ExecuteNonQuery(sql);
+            }
 
 
             //Edge
@@ -477,6 +490,5 @@ namespace Jinaga.Store.SQLite
 
 
         }
-
     }
 }
