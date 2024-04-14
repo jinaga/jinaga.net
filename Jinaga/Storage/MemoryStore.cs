@@ -338,7 +338,7 @@ namespace Jinaga.Storage
                 var facts = feed.Skip(bookmark)
                     .SelectMany(reference => ancestors[reference])
                     .Distinct()
-                    .SelectMany(reference => factsByReference[reference]);
+                    .Select(reference => factsByReference[reference]);
 
                 // Write the facts and their ancestors to a fact graph.
                 var builder = new FactGraphBuilder();
