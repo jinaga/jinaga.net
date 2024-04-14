@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace Jinaga
 {
-    public class LocalJinagaClient
+    public class LocalJinagaClient : IJinagaClient
     {
         private readonly FactManager factManager;
         private readonly ILogger logger;
