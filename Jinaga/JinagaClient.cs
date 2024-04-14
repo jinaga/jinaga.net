@@ -98,7 +98,7 @@ namespace Jinaga
     /// Provides access to Jinaga facts and results.
     /// Treat this object as a singleton.
     /// </summary>
-    public class JinagaClient
+    public class JinagaClient : IJinagaClient
     {
         /// <summary>
         /// Creates a Jinaga client with no persistent storage or network connection.

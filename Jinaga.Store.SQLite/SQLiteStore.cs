@@ -36,7 +36,7 @@ namespace Jinaga.Store.SQLite
 
         public bool IsPersistent => true;
 
-        Task<ImmutableList<Fact>> IStore.Save(FactGraph graph, CancellationToken cancellationToken)
+        Task<ImmutableList<Fact>> IStore.Save(FactGraph graph, bool queue, CancellationToken cancellationToken)
         {
             if (graph.FactReferences.IsEmpty)
             {
@@ -87,10 +87,10 @@ namespace Jinaga.Store.SQLite
                                     newFacts = newFacts.Add(fact);
                                     string data = Fact.Canonicalize(fact.Fields, fact.Predecessors);
                                     sql = @"
-                                        INSERT OR IGNORE INTO fact (fact_type_id, hash, data) 
-                                        VALUES (@0, @1, @2)
+                                        INSERT OR IGNORE INTO fact (fact_type_id, hash, data, queued) 
+                                        VALUES (@0, @1, @2, @3)
                                     ";
-                                    conn.ExecuteNonQuery(sql, factTypeId, fact.Reference.Hash, data);
+                                    conn.ExecuteNonQuery(sql, factTypeId, fact.Reference.Hash, data, queue ? 1 : 0);
                                     sql = @"
                                         SELECT fact_id 
                                         FROM fact 
@@ -588,6 +588,7 @@ namespace Jinaga.Store.SQLite
                         JOIN fact_type t
                             ON f.fact_type_id = t.fact_type_id
                         WHERE fact_id > {lastFactId}
+                            AND queued = 1
 
                         UNION
 
@@ -600,6 +601,7 @@ namespace Jinaga.Store.SQLite
                         JOIN fact_type t2 
                             ON t2.fact_type_id = f2.fact_type_id
                         WHERE f1.fact_id > {lastFactId}
+                            AND f1.queued = 1
 
                         ORDER BY fact_id
                     ";

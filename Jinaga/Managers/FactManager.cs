@@ -39,7 +39,7 @@ namespace Jinaga.Managers
         public async Task<(FactGraph graph, UserProfile profile)> Login(CancellationToken cancellationToken)
         {
             var (graph, profile) = await networkManager.Login(cancellationToken).ConfigureAwait(false);
-            await store.Save(graph, cancellationToken).ConfigureAwait(false);
+            await store.Save(graph, false, cancellationToken).ConfigureAwait(false);
             return (graph, profile);
         }
 
@@ -50,7 +50,7 @@ namespace Jinaga.Managers
 
         public async Task<ImmutableList<Fact>> Save(FactGraph graph, CancellationToken cancellationToken)
         {
-            var added = await store.Save(graph, cancellationToken).ConfigureAwait(false);
+            var added = await store.Save(graph, true, cancellationToken).ConfigureAwait(false);
             await observableSource.Notify(graph, added, cancellationToken).ConfigureAwait(false);
 
             // Don't wait on the network manager if we have persistent storage.
@@ -84,7 +84,7 @@ namespace Jinaga.Managers
 
         public async Task<ImmutableList<Fact>> SaveLocal(FactGraph graph, CancellationToken cancellationToken)
         {
-            var added = await store.Save(graph, cancellationToken).ConfigureAwait(false);
+            var added = await store.Save(graph, false, cancellationToken).ConfigureAwait(false);
             await observableSource.Notify(graph, added, cancellationToken).ConfigureAwait(false);
             return added;
         }

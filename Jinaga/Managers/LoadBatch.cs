@@ -67,7 +67,7 @@ namespace Jinaga.Managers
             var graph = await network.Load(factReferences.ToImmutableList(), cancellationToken).ConfigureAwait(false);
 
             // Save the facts.
-            var added = await store.Save(graph, cancellationToken).ConfigureAwait(false);
+            var added = await store.Save(graph, false, cancellationToken).ConfigureAwait(false);
 
             // Notify observers.
             await notifyObservers(graph, added, cancellationToken).ConfigureAwait(false);

@@ -2,6 +2,7 @@
 using Jinaga.Projections;
 using Jinaga.Services;
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
@@ -10,6 +11,8 @@ namespace Jinaga.DefaultImplementations
 {
     public class LocalNetwork : INetwork
     {
+        public ImmutableList<FactReference> SavedFactReferences { get; private set; } = ImmutableList<FactReference>.Empty;
+
         public Task<(FactGraph graph, UserProfile profile)> Login(CancellationToken cancellationToken)
         {
             throw new NotImplementedException();
@@ -37,6 +40,7 @@ namespace Jinaga.DefaultImplementations
 
         public Task Save(FactGraph graph, CancellationToken cancellationToken)
         {
+            SavedFactReferences = SavedFactReferences.AddRange(graph.FactReferences);
             return Task.CompletedTask;
         }
     }

@@ -97,7 +97,7 @@ namespace Jinaga.Managers
                 {
                     var factGraph = await network.Load(factReferences, cancellationToken);
                     var facts = factReferences.Select(reference => factGraph.GetFact(reference)).ToImmutableList();
-                    await store.Save(factGraph, cancellationToken).ConfigureAwait(false);
+                    await store.Save(factGraph, false, cancellationToken).ConfigureAwait(false);
                     await store.SaveBookmark(feed, newBookmark).ConfigureAwait(false);
                     bookmark = newBookmark;
                     await notifyObservers(factGraph, facts, cancellationToken).ConfigureAwait(false);

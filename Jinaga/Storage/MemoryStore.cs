@@ -24,7 +24,7 @@ namespace Jinaga.Storage
 
         public bool IsPersistent => false;
 
-        public Task<ImmutableList<Fact>> Save(FactGraph graph, CancellationToken cancellationToken)
+        public Task<ImmutableList<Fact>> Save(FactGraph graph, bool queue, CancellationToken cancellationToken)
         {
             lock (this)
             {
@@ -35,9 +35,12 @@ namespace Jinaga.Storage
                 factsByReference = factsByReference.AddRange(newFacts
                     .Select(fact => new KeyValuePair<FactReference, Fact>(fact.Reference, fact))
                 );
-                feed = feed.AddRange(newFacts
-                    .Select(fact => fact.Reference)
-                );
+                if (queue)
+                {
+                    feed = feed.AddRange(newFacts
+                        .Select(fact => fact.Reference)
+                    );
+                }
                 var newPredecessors = newFacts
                     .Select(fact => (
                         factReference: fact.Reference,

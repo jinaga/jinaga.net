@@ -12,7 +12,7 @@ namespace Jinaga.Services
     {
         bool IsPersistent { get; }
 
-        Task<ImmutableList<Fact>> Save(FactGraph graph, CancellationToken cancellationToken);
+        Task<ImmutableList<Fact>> Save(FactGraph graph, bool queue, CancellationToken cancellationToken);
         Task<ImmutableList<Product>> Read(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken);
         Task<FactGraph> Load(ImmutableList<FactReference> references, CancellationToken cancellationToken);
         Task<string> LoadBookmark(string feed);
