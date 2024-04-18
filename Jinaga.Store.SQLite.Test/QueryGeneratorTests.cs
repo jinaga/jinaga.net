@@ -517,19 +517,25 @@ public class QueryGeneratorTests
         sqlQueryTree.SqlQuery.Sql.Should().Be(
             "SELECT " +
                 "f1.hash as hash1, f1.fact_id as id1, f1.data as data1, " +  // session
-                "f2.hash as hash2, f2.fact_id as id2, f2.data as data2, " +  // school
-                "f3.hash as hash3, f3.fact_id as id3, f3.data as data3 " +   // saved
+                "f2.hash as hash2, f2.fact_id as id2, f2.data as data2, " +  // saved
+                "f4.hash as hash4, f4.fact_id as id4, f4.data as data4 " +   // school
             "FROM fact f1 " +  // session
             "JOIN edge e1 " +  // saved->session
                 "ON e1.predecessor_fact_id = f1.fact_id " +
                 "AND e1.role_id = ?3 " +
-            "JOIN fact f2 " +  // school
+            "JOIN fact f2 " +  // saved
                 "ON f2.fact_id = e1.successor_fact_id " +
-            "JOIN edge e2 " +  // saved->details->school
-                "ON e2.predecessor_fact_id = f3.fact_id " +
+            "JOIN edge e2 " +  // saved->details
+                "ON e2.successor_fact_id = f2.fact_id " +
                 "AND e2.role_id = ?4 " +
-            "JOIN fact f3 " +  // saved
-                "ON f3.fact_id = e2.successor_fact_id " +
-            "WHERE f1.fact_type_id = ?1 AND f1.hash = ?2");
+            "JOIN fact f3 " +  // details
+                "ON f3.fact_id = e2.predecessor_fact_id " +
+            "JOIN edge e3 " +  // details->school
+                "ON e3.successor_fact_id = f3.fact_id " +
+                "AND e3.role_id = ?5 " +
+            "JOIN fact f4 " +  // school
+                "ON f4.fact_id = e2.predecessor_fact_id " +
+            "WHERE f1.fact_type_id = ?1 AND f1.hash = ?2 " +
+                "AND f4.fact_type_id = ?6 AND f4.hash = ?7");
     }
 }
