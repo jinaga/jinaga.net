@@ -1,3 +1,4 @@
+using Jianga.Store.SQLite.Test.Models;
 using Jinaga.Facts;
 using Jinaga.Store.SQLite.Test.Models;
 using System.Collections.Immutable;
@@ -500,5 +501,85 @@ public class QueryGeneratorTests
             ") " +
             "ORDER BY f3.fact_id ASC"
         );
+    }
+
+    [Fact]
+    public void ShouldHandleSpecificationWithTwoPaths()
+    {
+        var specification = Given<DeviceSession, OrderSourceKey>.Match((session, school, facts) =>
+            facts.OfType<SavedOrder>()
+                .Where(saved => saved.Session == session)
+                .Where(saved => saved.Details.School == school)
+                .Where(saved => !facts.OfType<SavedOrder>()
+                    .Where(s => s.History.Contains(saved))
+                    .Any()
+                )
+                .Where(saved => !facts.OfType<ReceivedOrder>()
+                    .Where(s => s.Order == saved.Details.Order)
+                    .Any()
+                )
+        );
+
+        var expected =
+        """
+        (session: Qma.DeviceSession, school: Qma.Order.Source.Key) {
+            saved: Qma.Order.Saved [
+                saved->Session: Qma.DeviceSession = session
+                saved->Details: Qma.Order.Details->School: Qma.Order.Source.Key = school
+                !E {
+                    s: Qma.Order.Saved [
+                        s->History: Qma.Order.Saved = saved
+                    ]
+                }
+                !E {
+                    s: Qma.Order.Received [
+                        s->Order: Qma.Order = saved->Details: Qma.Order.Details->Order: Qma.Order
+                    ]
+                }
+            ]
+        } => saved
+
+        """.Replace("\r\n", "\n");
+
+        var actual = specification.ToDescriptiveString().Replace("\r\n", "\n");
+
+        actual.Should().Be(expected);
+
+        SqlQueryTree sqlQueryTree = specification.ToSql();
+
+        sqlQueryTree.SqlQuery.Sql.Should().Be(
+            "SELECT " +
+                "f1.hash as hash1, f1.fact_id as id1, f1.data as data1, " +  // session
+                "f2.hash as hash2, f2.fact_id as id2, f2.data as data2, " +  // school
+                "f3.hash as hash3, f3.fact_id as id3, f3.data as data3 " +   // saved
+            "FROM fact f1 " +  // session
+            "JOIN edge e1 " +  // saved->session
+                "ON e1.predecessor_fact_id = f1.fact_id " +
+                "AND e1.role_id = ?3 " +
+            "JOIN fact f2 " +  // school
+                "ON f2.fact_id = e1.successor_fact_id " +
+            "JOIN edge e2 " +  // saved->details->school
+                "ON e2.predecessor_fact_id = f3.fact_id " +
+                "AND e2.role_id = ?4 " +
+            "JOIN fact f3 " +  // saved
+                "ON f3.fact_id = e2.successor_fact_id " +
+            "WHERE f1.fact_type_id = ?1 AND f1.hash = ?2 " +
+            "AND f2.fact_type_id = ?5 AND f2.hash = ?6 " +
+            "AND NOT EXISTS (" +
+                "SELECT 1 " +
+                "FROM edge e3 " +  // saved->history
+                "JOIN fact f4 " +  // saved
+                    "ON f4.fact_id = e3.successor_fact_id " +
+                "JOIN edge e4 " +  // saved->history->saved
+                    "ON e4.predecessor_fact_id = f4.fact_id " +
+                    "AND e4.successor_fact_id = f3.fact_id " +
+                    "AND e4.role_id = ?7 " +
+                "WHERE e3.predecessor_fact_id = f3.fact_id " +
+                    "AND e3.role_id = ?8" +
+            ") " +
+            "AND NOT EXISTS (" +
+                "SELECT 1 " +
+                "FROM edge e5 " +  // received->order
+                "JOIN fact f6 ");
     }
 }
