@@ -162,9 +162,9 @@ internal static class SpecificationExtensions
             }
             foreach (var existentialCondition in match.ExistentialConditions)
             {
-                typesByLabel = typesByLabel.AddRange(existentialCondition.Matches
+                var extendedTypesByLabel = typesByLabel.AddRange(existentialCondition.Matches
                     .Select(match => KeyValuePair.Create(match.Unknown.Name, match.Unknown.Type)));
-                roles = roles.AddRange(GetAllRolesFromMatches(typesByLabel, existentialCondition.Matches));
+                roles = roles.AddRange(GetAllRolesFromMatches(extendedTypesByLabel, existentialCondition.Matches));
             }
         }
         return roles;

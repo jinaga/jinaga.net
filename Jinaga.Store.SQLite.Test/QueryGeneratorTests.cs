@@ -1,3 +1,4 @@
+using Jianga.Store.SQLite.Test.Models;
 using Jinaga.Facts;
 using Jinaga.Store.SQLite.Test.Models;
 using System.Collections.Immutable;
@@ -500,5 +501,42 @@ public class QueryGeneratorTests
             ") " +
             "ORDER BY f3.fact_id ASC"
         );
+    }
+
+    [Fact]
+    public void ShouldHandleSpecificationWithTwoPaths()
+    {
+        var specification = Given<DeviceSession, OrderSourceKey>.Match((session, school, facts) =>
+            facts.OfType<SavedOrder>()
+                .Where(saved => saved.Session == session)
+                .Where(saved => saved.Details.School == school)
+        );
+
+        SqlQueryTree sqlQueryTree = specification.ToSql();
+
+        sqlQueryTree.SqlQuery.Sql.Should().Be(
+            "SELECT " +
+                "f1.hash as hash1, f1.fact_id as id1, f1.data as data1, " +  // session
+                "f3.hash as hash3, f3.fact_id as id3, f3.data as data3, " +  // details
+                "f2.hash as hash2, f2.fact_id as id2, f2.data as data2 " +   // saved
+            "FROM fact f1 " +  // session
+            "JOIN edge e1 " +  // saved->session
+                "ON e1.predecessor_fact_id = f1.fact_id " +
+                "AND e1.role_id = ?3 " +
+            "JOIN fact f2 " +  // saved
+                "ON f2.fact_id = e1.successor_fact_id " +
+            "JOIN edge e3 " +  // saved->details
+                "ON e3.successor_fact_id = f2.fact_id " +
+                "AND e3.role_id = ?7 " +
+            "JOIN fact f4 " +  // details
+                "ON f4.fact_id = e3.predecessor_fact_id " +
+            "JOIN edge e2 " +  // details->school
+                "ON e2.successor_fact_id = f4.fact_id " +
+                "AND e2.role_id = ?6 " +
+            "JOIN fact f3 " +  // school
+                "ON f3.fact_id = e2.predecessor_fact_id " +
+            "WHERE f1.fact_type_id = ?1 AND f1.hash = ?2 " +
+                "AND f3.fact_type_id = ?4 AND f3.hash = ?5 " +
+            "ORDER BY f2.fact_id ASC");
     }
 }

@@ -116,8 +116,25 @@ namespace Jinaga.Store.SQLite.Generation
         private static ImmutableList<string> GenerateJoins(ImmutableList<EdgeDescription> edges, HashSet<int> writtenFactIndexes)
         {
             var joins = ImmutableList<string>.Empty;
-            foreach (var edge in edges)
+            var remainingEdges = edges;
+            while (remainingEdges.Count > 0)
             {
+                // Find an edge for which either a predecessor or successor fact has been written.
+                var edgeIndex = remainingEdges.FindIndex(edge =>
+                    writtenFactIndexes.Contains(edge.PredecessorFactIndex) ||
+                    writtenFactIndexes.Contains(edge.SuccessorFactIndex)
+                );
+
+                // If no such edge exists, then the graph is not connected.
+                if (edgeIndex < 0)
+                {
+                    throw new ArgumentException("The specification is not connected");
+                }
+
+                // Write the edge.
+                var edge = remainingEdges[edgeIndex];
+                remainingEdges = remainingEdges.RemoveAt(edgeIndex);
+
                 if (writtenFactIndexes.Contains(edge.PredecessorFactIndex))
                 {
                     if (writtenFactIndexes.Contains(edge.SuccessorFactIndex))
