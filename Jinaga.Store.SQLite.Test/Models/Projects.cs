@@ -1,10 +1,10 @@
 ﻿namespace Jinaga.Store.SQLite.Test.Models;
 
 [FactType("Company")]
-internal record Company() { }
+internal record ProjectCompany() { }
 
 [FactType("Department")]
-internal record Department(Company company) { }
+internal record Department(ProjectCompany company) { }
 
 [FactType("Project")]
 internal record Project(Department department) { }
