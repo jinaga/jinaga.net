@@ -225,9 +225,12 @@ namespace Jinaga.Managers
             var freezePendingTasks = pendingTasks;
             if (freezePendingTasks.Count > 0)
             {
-                await Task.WhenAll(freezePendingTasks
+                var tasks = freezePendingTasks
                     .Select(handle => handle.Task)
-                );
+                    .ToList();
+                if (tasks.Any(t => t == null))
+                    throw new InvalidOperationException("TaskHandle.Task is null.");
+                await Task.WhenAll(tasks);
             }
         }
 
