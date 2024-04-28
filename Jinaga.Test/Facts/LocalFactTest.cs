@@ -6,7 +6,7 @@ using Jinaga.Test.Model;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit.Abstractions;
 
-namespace Jianga.Test.Facts;
+namespace Jinaga.Test.Facts;
 
 public class LocalFactTest
 {

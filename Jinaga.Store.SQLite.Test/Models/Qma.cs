@@ -50,7 +50,7 @@ public record SavedOrder(
 
 /// <summary>When added, indicates that the given order is ready to sync.</summary>
 [FactType("Qma.Order.ReadyToSync")]
-public record OrderReadyToSync(OrderDetails OrderDetails);
+public record OrderReadyToSync(SavedOrder SavedOrder);
 
 /// <summary>A unique identifier representing an order.</summary>
 /// <remarks>Including the <see cref="AppEnvironment"/> simplifies queries, which nearly always need to filter based on environment, as well as simplifying many facts, like <see cref="OrderReceived"/>.</remarks>
