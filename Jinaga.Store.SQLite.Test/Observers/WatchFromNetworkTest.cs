@@ -1,5 +1,5 @@
 ﻿using Jinaga.Store.SQLite.Test.Fakes;
-using Jinaga.Store.SQLite.Test.Model;
+using Jinaga.Store.SQLite.Test.Models;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit.Abstractions;
 
@@ -44,7 +44,7 @@ public class WatchFromNetworkTest
     public async Task Watch_SingleUnnamedOffice()
     {
         var network = new FakeNetwork(output);
-        var contoso = new Company("contoso");
+        var contoso = new CorpCompany("contoso");
         var dallas = new City("Dallas");
         var dallasOffice = new Office(contoso, dallas);
         network.AddFeed("offices", new object[]
@@ -73,7 +73,7 @@ public class WatchFromNetworkTest
     public async Task Watch_SingleNamedOffice()
     {
         var network = new FakeNetwork(output);
-        var contoso = new Company("contoso");
+        var contoso = new CorpCompany("contoso");
         var dallas = new City("Dallas");
         var dallasOffice = new Office(contoso, dallas);
         var dallasOfficeName = new OfficeName(dallasOffice, "Dallas", new OfficeName[0]);
@@ -107,7 +107,7 @@ public class WatchFromNetworkTest
     public async Task Watch_SingleOfficeThreeNames()
     {
         var network = new FakeNetwork(output);
-        var contoso = new Company("contoso");
+        var contoso = new CorpCompany("contoso");
         var dallas = new City("Dallas");
         var dallasOffice = new Office(contoso, dallas);
         var dallasOfficeName1 = new OfficeName(dallasOffice, "Dallas One", new OfficeName[0]);
@@ -158,7 +158,7 @@ public class WatchFromNetworkTest
 
         public IObserver Load(JinagaClient j, string identifier)
         {
-            var officesInCompany = Given<Company>.Match((company, facts) =>
+            var officesInCompany = Given<CorpCompany>.Match((company, facts) =>
                 from office in facts.OfType<Office>()
                 where office.company == company
                 where !office.IsClosed
@@ -175,7 +175,7 @@ public class WatchFromNetworkTest
                 }
             );
 
-            var company = new Company(identifier);
+            var company = new CorpCompany(identifier);
             var watch = j.Watch(officesInCompany, company, projection =>
             {
                 var officeViewModel = new OfficeViewModel

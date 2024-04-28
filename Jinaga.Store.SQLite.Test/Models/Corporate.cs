@@ -1,11 +1,11 @@
-﻿namespace Jinaga.Store.SQLite.Test.Model;
+﻿namespace Jinaga.Store.SQLite.Test.Models;
 
 
 [FactType("Corporate.Company")]
-public record Company(string identifier);
+public record CorpCompany(string identifier);
 
 [FactType("Corporate.Office")]
-public record Office(Company company, City city)
+public record Office(CorpCompany company, City city)
 {
     public Condition IsClosed => new Condition(facts =>
         facts.Any<OfficeClosure>(closure => closure.office == this)
