@@ -364,7 +364,8 @@ public class StoreTest
         var sqliteStore = GivenSQLiteStore();
         var network = GivenLocalNetwork();
         var jinagaClient = GivenJinagaClient(sqliteStore, network);
-        await jinagaClient.Fact(new Airline("IA"));
+        string randomString = Guid.NewGuid().ToString();
+        await jinagaClient.Fact(new Airline(randomString));
 
         // Verify that the fact was sent.
         await jinagaClient.Unload();
