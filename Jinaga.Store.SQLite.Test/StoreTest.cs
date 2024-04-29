@@ -357,6 +357,8 @@ public class StoreTest
         // Delete the database file if present.
         if (File.Exists(SQLitePath))
             File.Delete(SQLitePath);
+        if (File.Exists(SQLitePath))
+            throw new Exception("File not deleted");
 
         // Write a fact to the store.
         var sqliteStore = GivenSQLiteStore();
