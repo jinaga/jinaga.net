@@ -1,9 +1,11 @@
 using System;
-using Jinaga;
+
+using Microsoft.Extensions.Logging.Abstractions;
+
 using Jinaga.Storage;
 using Jinaga.Test.Fakes;
 using Jinaga.Test.Model;
-using Microsoft.Extensions.Logging.Abstractions;
+
 using Xunit.Abstractions;
 
 namespace Jinaga.Test.Facts;
