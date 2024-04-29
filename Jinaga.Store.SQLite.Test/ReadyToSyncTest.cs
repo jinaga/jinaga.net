@@ -1,9 +1,10 @@
-using Jinaga;
+using Microsoft.Extensions.Logging.Abstractions;
+
 using Jinaga.DefaultImplementations;
 using Jinaga.Services;
-using Jinaga.Store.SQLite;
 using Jinaga.Store.SQLite.Test.Models;
-using Microsoft.Extensions.Logging.Abstractions;
+
+namespace Jinaga.Store.SQLite.Test;
 
 public class ReadyToSyncTest
 {
