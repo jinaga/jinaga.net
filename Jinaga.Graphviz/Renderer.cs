@@ -10,20 +10,6 @@ namespace Jinaga.Graphviz;
 
 public static class Renderer
 {
-    public static ImmutableList<string> ListTypes(params Type[] types)
-    {
-        var toVisit = types
-            .Where(t => t.GetCustomAttributes(typeof(FactTypeAttribute), false).Any())
-            .ToImmutableList();
-        var visited = ImmutableList<Type>.Empty;
-        var lines = ImmutableList<string>.Empty;
-        while (toVisit.Any())
-        {
-            (toVisit, visited, lines) = VisitFactType(toVisit, visited, lines);
-        }
-        return lines;
-    }
-
     public static HtmlString RenderTypes(params Type[] types)
     {
         string[] prefix = new[]
