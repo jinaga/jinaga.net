@@ -62,6 +62,10 @@ public static class Renderer
             };
         
         var left = factClass.FactTypeName();
+        if (!predecessors.Any())
+        {
+            return (toVisit.Skip(1).ToImmutableList(), visited.Add(factClass), lines.Add($"\"{left}\""));
+        }
         var newLines = predecessors
             .Select(predecessor => $"\"{left}\" -> \"{predecessor.FactType}\" [label=\"{predecessor.Name}\"]");
         var newToVisit = predecessors
