@@ -17,8 +17,8 @@ public static class JinagaClientExtensions
         string[] prefix = new[]
         {
             "digraph {",
-            "rankdir=BT",
-            "node [shape=none]"
+            "    rankdir=BT",
+            "    node [shape=none]"
         };
         string[] suffix = new[]
         {
@@ -90,9 +90,9 @@ public static class JinagaClientExtensions
         }
     }
 
-    private static IEnumerable<string> FactToDigraph(Fact fact, bool hilight)
+    private static IEnumerable<string> FactToDigraph(Fact fact, bool highlight)
     {
-        yield return NodeLine(fact, hilight);
+        yield return NodeLine(fact, highlight);
         foreach (var predecessor in fact.Predecessors)
         {
             var references = predecessor switch
@@ -103,21 +103,21 @@ public static class JinagaClientExtensions
             };
             foreach (var reference in references)
             {
-                yield return $"\"{fact.Reference.Hash}\" -> \"{reference.Hash}\" [label=\"{predecessor.Role}\"]";
+                yield return $"    \"{fact.Reference.Hash}\" -> \"{reference.Hash}\" [label=\" {predecessor.Role}\"]";
             }
         }
     }
 
-    private static string NodeLine(Fact fact, bool hilight)
+    private static string NodeLine(Fact fact, bool highlight)
     {
         var fieldRows = fact.Fields
             .Select(field => $"<TR><TD>{Uri.EscapeDataString(field.Name)}</TD><TD>{SerializeFieldValue(field.Value)}</TD></TR>")
             .ToArray();
         var fieldText = String.Join("", fieldRows);
         string typeRow = @$"<TR><TD COLSPAN=""2"">{Uri.EscapeDataString(fact.Reference.Type)}</TD></TR>";
-        int border = hilight ? 1 : 0;
+        int border = highlight ? 1 : 0;
         string factLabel = @$"<TABLE BORDER=""{border}"" CELLBORDER=""1"" CELLSPACING=""0"">{typeRow}{fieldText}</TABLE>";
-        return $"\"{fact.Reference.Hash}\" [label=<{factLabel}>]";
+        return $"    \"{fact.Reference.Hash}\" [label=<{factLabel}>]";
     }
     
     private static string SerializeFieldValue(FieldValue value)

@@ -15,7 +15,7 @@ public static class Renderer
         string[] prefix = new[]
         {
             "digraph {",
-            "rankdir=BT",
+            "    rankdir=BT",
         };
         string[] suffix = new[]
         {
@@ -50,10 +50,10 @@ public static class Renderer
         var left = factClass.FactTypeName();
         if (!predecessors.Any())
         {
-            return (toVisit.Skip(1).ToImmutableList(), visited.Add(factClass), lines.Add($"\"{left}\""));
+            return (toVisit.Skip(1).ToImmutableList(), visited.Add(factClass), lines.Add($"    \"{left}\""));
         }
         var newLines = predecessors
-            .Select(predecessor => $"\"{left}\" -> \"{predecessor.FactType}\" [label=\"{predecessor.Name}\"]");
+            .Select(predecessor => $"    \"{left}\" -> \"{predecessor.FactType}\" [label=\"{predecessor.Name}\"]");
         var newToVisit = predecessors
             .Select(predecessor => predecessor.Type)
             .Where(type => !toVisit.Contains(type) && !visited.Contains(type));
