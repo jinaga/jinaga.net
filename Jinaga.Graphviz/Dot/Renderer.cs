@@ -52,7 +52,7 @@ public static class Renderer
             return (toVisit.Skip(1).ToImmutableList(), visited.Add(factClass), lines.Add($"    \"{left}\""));
         }
         var newLines = predecessors
-            .Select(predecessor => $"    \"{left}\" -> \"{predecessor.FactType}\" [label=\"{predecessor.Name}\"]");
+            .Select(predecessor => $"    \"{left}\" -> \"{predecessor.FactType}\" [label=\" {predecessor.Name}\"]");
         var newToVisit = predecessors
             .Select(predecessor => predecessor.Type)
             .Where(type => !toVisit.Contains(type) && !visited.Contains(type));
