@@ -9,15 +9,18 @@ namespace Jinaga.Facts
     {
         public static FactGraph Empty = new FactGraph(
             ImmutableDictionary<FactReference, Fact>.Empty,
+            ImmutableDictionary<FactReference, ImmutableList<FactSignature>>.Empty,
             ImmutableList<FactReference>.Empty
         );
 
         private readonly ImmutableDictionary<FactReference, Fact> factsByReference;
+        private readonly ImmutableDictionary<FactReference, ImmutableList<FactSignature>> signaturesByReference;
         private readonly ImmutableList<FactReference> topologicalOrder;
 
-        private FactGraph(ImmutableDictionary<FactReference, Fact> factsByReference, ImmutableList<FactReference> topologicalOrder)
+        private FactGraph(ImmutableDictionary<FactReference, Fact> factsByReference, ImmutableDictionary<FactReference, ImmutableList<FactSignature>> signaturesByReference, ImmutableList<FactReference> topologicalOrder)
         {
             this.factsByReference = factsByReference;
+            this.signaturesByReference = signaturesByReference;
             this.topologicalOrder = topologicalOrder;
         }
 
@@ -38,8 +41,65 @@ namespace Jinaga.Facts
 
             return new FactGraph(
                 factsByReference.Add(fact.Reference, fact),
+                signaturesByReference,
                 topologicalOrder.Add(fact.Reference)
             );
+        }
+
+        public FactGraph Add(Fact fact, IEnumerable<FactSignature> signatures)
+        {
+            if (signaturesByReference.ContainsKey(fact.Reference))
+            {
+                // Find the existing signatures for the fact, if any
+                if (signaturesByReference.TryGetValue(fact.Reference, out var existingSignatures))
+                {
+                    // If every new signature is already in the list, then return the existing graph
+                    if (signatures.All(s => existingSignatures.Contains(s)))
+                    {
+                        return this;
+                    }
+                    else
+                    {
+                        // Merge the new signatures with the existing ones
+                        var mergedSignatures = existingSignatures.AddRange(signatures);
+                        return new FactGraph(
+                            factsByReference,
+                            signaturesByReference.SetItem(fact.Reference, mergedSignatures),
+                            topologicalOrder
+                        );
+                    }
+                }
+                else
+                {
+                    // Add the new signatures
+                    return new FactGraph(
+                        factsByReference,
+                        signaturesByReference.Add(fact.Reference, signatures.ToImmutableList()),
+                        topologicalOrder
+                    );
+                }
+            }
+            else
+            {
+                if (signatures.Any())
+                {
+                    // Add the fact and the new signatures
+                    return new FactGraph(
+                        factsByReference.Add(fact.Reference, fact),
+                        signaturesByReference.Add(fact.Reference, signatures.ToImmutableList()),
+                        topologicalOrder.Add(fact.Reference)
+                    );
+                }
+                else
+                {
+                    // Add the fact without any signatures
+                    return new FactGraph(
+                        factsByReference.Add(fact.Reference, fact),
+                        signaturesByReference,
+                        topologicalOrder.Add(fact.Reference)
+                    );
+                }
+            }
         }
 
         public FactGraph AddGraph(FactGraph factGraph)
@@ -56,6 +116,7 @@ namespace Jinaga.Facts
 
             return new FactGraph(
                 factsByReference.AddRange(newFacts.Select(fact => new KeyValuePair<FactReference, Fact>(fact.Reference, fact))),
+                signaturesByReference,
                 topologicalOrder.AddRange(newFacts.Select(fact => fact.Reference))
             );
         }
@@ -64,6 +125,7 @@ namespace Jinaga.Facts
         public FactReference Last => topologicalOrder.Last();
 
         public Fact GetFact(FactReference reference) => factsByReference[reference];
+        public ImmutableList<FactSignature> GetSignatures(FactReference reference) => signaturesByReference[reference];
 
         public IEnumerable<FactReference> Predecessors(FactReference reference, string role, string targetType)
         {

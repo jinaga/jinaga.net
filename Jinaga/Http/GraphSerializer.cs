@@ -12,6 +12,7 @@ namespace Jinaga.Http
     {
         private readonly StreamWriter writer;
         private ImmutableDictionary<FactReference, int> factIndex = ImmutableDictionary<FactReference, int>.Empty;
+        private ImmutableDictionary<string, int> publicKeyIndex = ImmutableDictionary<string, int>.Empty;
 
         public GraphSerializer(Stream stream)
         {
@@ -28,17 +29,42 @@ namespace Jinaga.Http
         {
             foreach (var factReference in graph.FactReferences)
             {
+                var signatures = graph.GetSignatures(factReference);
+                SerializePublicKeys(signatures);
                 var fact = graph.GetFact(factReference);
-                SerializeFact(fact);
+                SerializeFact(fact, signatures);
             }
             writer.Flush();
         }
 
-        private void SerializeFact(Fact fact)
+        private void SerializePublicKeys(ImmutableList<FactSignature> signatures)
         {
+            var encoder = JavaScriptEncoder.Default;
+
+            foreach (var signature in signatures)
+            {
+                if (!publicKeyIndex.ContainsKey(signature.PublicKey))
+                {
+                    writer.WriteLine($"PK{publicKeyIndex.Count}");
+                    publicKeyIndex = publicKeyIndex.Add(signature.PublicKey, publicKeyIndex.Count);
+                    writer.WriteLine($"\"{encoder.Encode(signature.PublicKey)}\"");
+                    writer.WriteLine();
+                }
+            }
+        }
+
+        private void SerializeFact(Fact fact, ImmutableList<FactSignature> signatures)
+        {
+            var encoder = JavaScriptEncoder.Default;
+
             writer.WriteLine(JsonSerializer.Serialize(fact.Reference.Type));
             writer.WriteLine(SerializePredecessors(fact.Predecessors));
             writer.WriteLine(SerializeFields(fact.Fields));
+            foreach (var signature in signatures)
+            {
+                writer.WriteLine($"PK{publicKeyIndex[signature.PublicKey]}");
+                writer.WriteLine($"\"{encoder.Encode(signature.Signature)}\"");
+            }
             writer.WriteLine();
 
             factIndex = factIndex.Add(fact.Reference, factIndex.Count);
