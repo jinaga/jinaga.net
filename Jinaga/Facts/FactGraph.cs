@@ -125,7 +125,17 @@ namespace Jinaga.Facts
         public FactReference Last => topologicalOrder.Last();
 
         public Fact GetFact(FactReference reference) => factsByReference[reference];
-        public ImmutableList<FactSignature> GetSignatures(FactReference reference) => signaturesByReference[reference];
+        public ImmutableList<FactSignature> GetSignatures(FactReference reference)
+        {
+            if (signaturesByReference.TryGetValue(reference, out var signatures))
+            {
+                return signatures;
+            }
+            else
+            {
+                return ImmutableList<FactSignature>.Empty;
+            }
+        }
 
         public IEnumerable<FactReference> Predecessors(FactReference reference, string role, string targetType)
         {
