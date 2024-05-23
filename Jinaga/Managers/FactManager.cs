@@ -65,7 +65,7 @@ namespace Jinaga.Managers
             var field = new Field("publicKey", new Facts.FieldValueString(pem));
             var user = Fact.Create("Jinaga.User", ImmutableList.Create(field), ImmutableList<Predecessor>.Empty);
             var graph = FactGraph.Empty.Add(user);
-            await store.Save(graph, default).ConfigureAwait(false);
+            await store.Save(graph, false, default).ConfigureAwait(false);
             return graph;
         }
 
