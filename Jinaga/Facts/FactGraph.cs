@@ -114,9 +114,34 @@ namespace Jinaga.Facts
                 return this;
             }
 
+            var mergedSignatures = signaturesByReference.Keys
+                .Union(factGraph.signaturesByReference.Keys)
+                .ToImmutableDictionary(
+                    reference => reference,
+                    reference =>
+                    {
+                        if (signaturesByReference.TryGetValue(reference, out var leftSignatures))
+                        {
+                            if (factGraph.signaturesByReference.TryGetValue(reference, out var rightSignatures))
+                            {
+                                return leftSignatures.AddRange(rightSignatures);
+                            }
+                            else
+                            {
+                                return leftSignatures;
+                            }
+                        }
+                        else
+                        {
+                            return factGraph.signaturesByReference[reference];
+                        }
+                    }
+                );
+
+
             return new FactGraph(
                 factsByReference.AddRange(newFacts.Select(fact => new KeyValuePair<FactReference, Fact>(fact.Reference, fact))),
-                signaturesByReference,
+                mergedSignatures,
                 topologicalOrder.AddRange(newFacts.Select(fact => fact.Reference))
             );
         }
