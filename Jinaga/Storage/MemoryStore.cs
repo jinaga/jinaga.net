@@ -15,6 +15,7 @@ namespace Jinaga.Storage
     public class MemoryStore : IStore
     {
         private volatile ImmutableDictionary<FactReference, Fact> factsByReference = ImmutableDictionary<FactReference, Fact>.Empty;
+        private volatile ImmutableDictionary<FactReference, ImmutableList<FactSignature>> siguaturesByReference = ImmutableDictionary<FactReference, ImmutableList<FactSignature>>.Empty;
         private ImmutableList<Edge> edges = ImmutableList<Edge>.Empty;
         private volatile ImmutableDictionary<FactReference, ImmutableList<FactReference>> ancestors = ImmutableDictionary<FactReference, ImmutableList<FactReference>>.Empty;
         private volatile ImmutableDictionary<string, string> bookmarks = ImmutableDictionary<string, string>.Empty;
@@ -62,6 +63,31 @@ namespace Jinaga.Storage
                             .Distinct()
                             .ToImmutableList()
                     );
+                }
+                foreach (var reference in graph.FactReferences)
+                {
+                    var graphSignatures = graph.GetSignatures(reference);
+                    if (graphSignatures.Count == 0)
+                        continue;
+
+                    if (siguaturesByReference.TryGetValue(reference, out var existingSignatures))
+                    {
+                        var merged = existingSignatures
+                            .Concat(graphSignatures)
+                            .Distinct()
+                            .ToImmutableList();
+                        siguaturesByReference = siguaturesByReference.SetItem(
+                            reference,
+                            merged
+                        );
+                    }
+                    else
+                    {
+                        siguaturesByReference = siguaturesByReference.Add(
+                            reference,
+                            graphSignatures
+                        );
+                    }
                 }
                 return Task.FromResult(newFacts);
             }
@@ -344,7 +370,14 @@ namespace Jinaga.Storage
                 var builder = new FactGraphBuilder();
                 foreach (var fact in facts)
                 {
-                    builder.Add(fact);
+                    if (siguaturesByReference.TryGetValue(fact.Reference, out var signatures))
+                    {
+                        builder.Add(new FactEnvelope(fact, signatures));
+                    }
+                    else
+                    {
+                        builder.Add(fact);
+                    }
                 }
                 var graph = builder.Build();
 

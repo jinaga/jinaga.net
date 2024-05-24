@@ -1,3 +1,5 @@
+using System;
+
 namespace Jinaga.Facts
 {
     public class FactSignature
@@ -9,6 +11,18 @@ namespace Jinaga.Facts
         {
             PublicKey = publicKey;
             Signature = signature;
+        }
+
+        public override bool Equals(object obj)
+        {
+            return obj is FactSignature signature &&
+                   PublicKey == signature.PublicKey &&
+                   Signature == signature.Signature;
+        }
+
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(PublicKey, Signature);
         }
     }
 }

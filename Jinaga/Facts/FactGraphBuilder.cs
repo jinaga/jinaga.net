@@ -1,4 +1,5 @@
-﻿using System.Collections.Immutable;
+﻿using System;
+using System.Collections.Immutable;
 using System.Linq;
 
 namespace Jinaga.Facts
@@ -6,7 +7,7 @@ namespace Jinaga.Facts
     public class FactGraphBuilder
     {
         private FactGraph factGraph = FactGraph.Empty;
-        private ImmutableList<Fact> reserve = ImmutableList<Fact>.Empty;
+        private ImmutableList<FactEnvelope> reserve = ImmutableList<FactEnvelope>.Empty;
 
         public void Add(Fact fact)
         {
@@ -16,16 +17,28 @@ namespace Jinaga.Facts
             }
             else
             {
-                reserve = reserve.Add(fact);
+                reserve = reserve.Add(new FactEnvelope(fact, ImmutableList<FactSignature>.Empty));
             }
         }
-        
+
+        public void Add(FactEnvelope envelope)
+        {
+            if (factGraph.CanAdd(envelope.Fact))
+            {
+                factGraph = factGraph.Add(envelope.Fact, envelope.Signatures);
+            }
+            else
+            {
+                reserve = reserve.Add(envelope);
+            }
+        }
+
         public FactGraph Build()
         {
             while (reserve.Any())
             {
                 var retry = reserve;
-                reserve = ImmutableList<Fact>.Empty;
+                reserve = ImmutableList<FactEnvelope>.Empty;
                 foreach (var fact in retry)
                 {
                     Add(fact);
