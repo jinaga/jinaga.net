@@ -36,6 +36,7 @@ namespace Jinaga.Managers
         private SerializerCache serializerCache = SerializerCache.Empty;
         private DeserializerCache deserializerCache = DeserializerCache.Empty;
         private readonly ConditionalWeakTable<object, FactGraph> graphByFact = new ConditionalWeakTable<object, FactGraph>();
+        private KeyPair? singleUseKeyPair;
 
         public async Task<(FactGraph graph, UserProfile profile)> Login(CancellationToken cancellationToken)
         {
@@ -51,13 +52,16 @@ namespace Jinaga.Managers
             // Generate a User fact.
             var field = new Field("publicKey", new Facts.FieldValueString(keyPair.PublicKey));
             var user = Fact.Create("Jinaga.User", ImmutableList.Create(field), ImmutableList<Predecessor>.Empty);
-            var graph = FactGraph.Empty.Add(user);
+            var signature = keyPair.SignFact(user);
+            var graph = FactGraph.Empty.Add(user, new[] { signature });
             await store.Save(graph, false, default).ConfigureAwait(false);
+            singleUseKeyPair = keyPair;
             return graph;
         }
 
         public void EndSingleUse()
         {
+            singleUseKeyPair = null;
         }
 
         public async Task Push(CancellationToken cancellationToken)
@@ -163,7 +167,7 @@ namespace Jinaga.Managers
         {
             lock (this)
             {
-                var collector = new Collector(serializerCache, graphByFact);
+                var collector = new Collector(serializerCache, graphByFact, singleUseKeyPair);
                 collector.Serialize(prototype);
                 serializerCache = collector.SerializerCache;
                 return collector.Graph;
