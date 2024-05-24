@@ -18,6 +18,7 @@ internal class FakeNetwork : INetwork
     private ITestOutputHelper output;
     private readonly List<FakeFeed> feeds = new();
     private readonly Dictionary<FactReference, Fact> factByFactReference = new();
+    private readonly Dictionary<FactReference, FactEnvelope> envelopeByFactReference = new();
 
     public FakeNetwork(ITestOutputHelper output)
     {
@@ -41,6 +42,13 @@ internal class FakeNetwork : INetwork
             if (!factByFactReference.ContainsKey(fact.Reference))
             {
                 factByFactReference.Add(fact.Reference, fact);
+            }
+        }
+        foreach (var fact in serializedFacts)
+        {
+            if (!envelopeByFactReference.ContainsKey(fact.Reference))
+            {
+                envelopeByFactReference.Add(fact.Reference, new FactEnvelope(fact, new()));
             }
         }
         feeds.Add(new FakeFeed
@@ -119,15 +127,15 @@ internal class FakeNetwork : INetwork
 
     private FactGraph AddFact(FactGraph graph, FactReference factReference)
     {
-        var fact = factByFactReference[factReference];
-        foreach (var predecessor in fact.Predecessors)
+        var envelope = envelopeByFactReference[factReference];
+        foreach (var predecessor in envelope.Fact.Predecessors)
         {
             foreach (var predecessorReference in predecessor.AllReferences)
             {
                 graph = AddFact(graph, predecessorReference);
             }
         }
-        graph = graph.Add(fact);
+        graph = graph.Add(envelope);
         return graph;
     }
 
