@@ -10,7 +10,9 @@ internal record NullableDecimal(decimal? Value);
 internal record NullableInteger(int? Value);
 
 [FactType("Tests.Nullable.String")]
+#pragma warning disable CS8632 // The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
 internal record NullableString(string? Value);
+#pragma warning restore CS8632 // The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
 
 [FactType("Tests.Nullable.DateTime")]
 internal record NullableDateTime(DateTime? Value);
