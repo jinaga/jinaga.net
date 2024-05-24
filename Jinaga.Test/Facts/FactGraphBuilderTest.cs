@@ -17,7 +17,7 @@ namespace Jinaga.Test.Facts
         public void Builder_SingleFact()
         {
             var builder = new FactGraphBuilder();
-            builder.Add(Fact.Create(
+            WhenAddFact(builder, Fact.Create(
                 "Test.Root",
                 ImmutableList.Create(
                     new Field("identifier",
@@ -32,13 +32,13 @@ namespace Jinaga.Test.Facts
         public void Builder_InOrder()
         {
             var builder = new FactGraphBuilder();
-            builder.Add(Fact.Create(
+            WhenAddFact(builder, Fact.Create(
                 "Test.Root",
                 ImmutableList.Create(
                     new Field("identifier",
                         new FieldValueString("testroot"))),
                 ImmutableList<Predecessor>.Empty));
-            builder.Add(Fact.Create(
+            WhenAddFact(builder, Fact.Create(
                 "Test.Successor",
                 ImmutableList.Create(
                     new Field("identifier",
@@ -56,7 +56,7 @@ namespace Jinaga.Test.Facts
         public void Builder_OutOfOrder()
         {
             var builder = new FactGraphBuilder();
-            builder.Add(Fact.Create(
+            WhenAddFact(builder, Fact.Create(
                 "Test.Successor",
                 ImmutableList.Create(
                     new Field("identifier",
@@ -64,7 +64,7 @@ namespace Jinaga.Test.Facts
                 ImmutableList.Create(
                     (Predecessor)new PredecessorSingle("root",
                         new FactReference("Test.Root", "52bexk3CJadZJk31WH3KhvQAGr6CNHLdGIL+0vW7auWFznhfcpE/FKAQgC7syq+4aP78XgWhhJUevNoYyC25BA==")))));
-            builder.Add(Fact.Create(
+            WhenAddFact(builder, Fact.Create(
                 "Test.Root",
                 ImmutableList.Create(
                     new Field("identifier",
@@ -80,7 +80,7 @@ namespace Jinaga.Test.Facts
         public void Buidler_Incomplete()
         {
             var builder = new FactGraphBuilder();
-            builder.Add(Fact.Create(
+            WhenAddFact(builder, Fact.Create(
                 "Test.Successor",
                 ImmutableList.Create(
                     new Field("identifier",
@@ -90,6 +90,11 @@ namespace Jinaga.Test.Facts
                         new FactReference("Test.Root", "52bexk3CJadZJk31WH3KhvQAGr6CNHLdGIL+0vW7auWFznhfcpE/FKAQgC7syq+4aP78XgWhhJUevNoYyC25BA==")))));
             var graph = builder.Build();
             graph.FactReferences.Should().BeEmpty();
+        }
+
+        private static void WhenAddFact(FactGraphBuilder builder, Fact fact)
+        {
+            builder.Add(new FactEnvelope(fact, ImmutableList<FactSignature>.Empty));
         }
     }
 }

@@ -143,7 +143,7 @@ namespace Jinaga.Http
                         foreach (var factRecord in response.Facts)
                         {
                             var fact = FactReader.ReadFact(factRecord);
-                            builder.Add(fact);
+                            builder.Add(new FactEnvelope(fact, ImmutableList<FactSignature>.Empty));
                         }
 
                         FactGraph graph = builder.Build();

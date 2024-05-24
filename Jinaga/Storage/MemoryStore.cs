@@ -255,7 +255,14 @@ namespace Jinaga.Storage
             var builder = new FactGraphBuilder();
             foreach (var fact in facts)
             {
-                builder.Add(fact);
+                if (siguaturesByReference.TryGetValue(fact.Reference, out var signatures))
+                {
+                    builder.Add(new FactEnvelope(fact, signatures));
+                }
+                else
+                {
+                    builder.Add(new FactEnvelope(fact, ImmutableList<FactSignature>.Empty));
+                }
             }
             var graph = builder.Build();
             return Task.FromResult(graph);
@@ -376,7 +383,7 @@ namespace Jinaga.Storage
                     }
                     else
                     {
-                        builder.Add(fact);
+                        builder.Add(new FactEnvelope(fact, ImmutableList<FactSignature>.Empty));
                     }
                 }
                 var graph = builder.Build();
