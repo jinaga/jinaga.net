@@ -25,7 +25,7 @@ namespace Jinaga.Facts
         {
             if (factGraph.CanAdd(envelope.Fact))
             {
-                factGraph = factGraph.Add(envelope.Fact, envelope.Signatures);
+                factGraph = factGraph.Add(envelope);
             }
             else
             {

@@ -8,28 +8,25 @@ namespace Jinaga.Facts
     public class FactGraph
     {
         public static FactGraph Empty = new FactGraph(
-            ImmutableDictionary<FactReference, Fact>.Empty,
-            ImmutableDictionary<FactReference, ImmutableList<FactSignature>>.Empty,
+            ImmutableDictionary<FactReference, FactEnvelope>.Empty,
             ImmutableList<FactReference>.Empty
         );
 
-        private readonly ImmutableDictionary<FactReference, Fact> factsByReference;
-        private readonly ImmutableDictionary<FactReference, ImmutableList<FactSignature>> signaturesByReference;
+        private readonly ImmutableDictionary<FactReference, FactEnvelope> envelopeByReference;
         private readonly ImmutableList<FactReference> topologicalOrder;
 
-        private FactGraph(ImmutableDictionary<FactReference, Fact> factsByReference, ImmutableDictionary<FactReference, ImmutableList<FactSignature>> signaturesByReference, ImmutableList<FactReference> topologicalOrder)
+        private FactGraph(ImmutableDictionary<FactReference, FactEnvelope> envelopeByReference, ImmutableList<FactReference> topologicalOrder)
         {
-            this.factsByReference = factsByReference;
-            this.signaturesByReference = signaturesByReference;
+            this.envelopeByReference = envelopeByReference;
             this.topologicalOrder = topologicalOrder;
         }
 
         public bool CanAdd(Fact fact) =>
-            fact.GetAllPredecessorReferences().All(p => factsByReference.ContainsKey(p));
+            fact.GetAllPredecessorReferences().All(p => envelopeByReference.ContainsKey(p));
 
         public FactGraph Add(Fact fact)
         {
-            if (factsByReference.ContainsKey(fact.Reference))
+            if (envelopeByReference.TryGetValue(fact.Reference, out var envelope))
             {
                 return this;
             }
@@ -40,132 +37,66 @@ namespace Jinaga.Facts
             }
 
             return new FactGraph(
-                factsByReference.Add(fact.Reference, fact),
-                signaturesByReference,
+                envelopeByReference.Add(fact.Reference, new FactEnvelope(fact, ImmutableList<FactSignature>.Empty)),
                 topologicalOrder.Add(fact.Reference)
             );
         }
 
-        public FactGraph Add(Fact fact, IEnumerable<FactSignature> signatures)
+        public FactGraph Add(FactEnvelope envelope)
         {
-            if (signaturesByReference.ContainsKey(fact.Reference))
+            if (envelopeByReference.TryGetValue(envelope.Fact.Reference, out var existingEnvelope))
             {
-                // Find the existing signatures for the fact, if any
-                if (signaturesByReference.TryGetValue(fact.Reference, out var existingSignatures))
+                // Find which signatures are new
+                var newSignatures = envelope.Signatures.Where(s =>
+                    !existingEnvelope.Signatures.Contains(s));
+                // If every new signature is already in the list, then return the existing graph
+                if (!newSignatures.Any())
                 {
-                    // If every new signature is already in the list, then return the existing graph
-                    if (signatures.All(s => existingSignatures.Contains(s)))
-                    {
-                        return this;
-                    }
-                    else
-                    {
-                        // Merge the new signatures with the existing ones
-                        var mergedSignatures = existingSignatures.AddRange(signatures);
-                        return new FactGraph(
-                            factsByReference,
-                            signaturesByReference.SetItem(fact.Reference, mergedSignatures),
-                            topologicalOrder
-                        );
-                    }
+                    return this;
                 }
                 else
                 {
-                    // Add the new signatures
+                    // Merge the new signatures with the existing ones
+                    var mergedSignatures = existingEnvelope.Signatures
+                        .AddRange(newSignatures);
                     return new FactGraph(
-                        factsByReference,
-                        signaturesByReference.Add(fact.Reference, signatures.ToImmutableList()),
+                        envelopeByReference.SetItem(
+                            envelope.Fact.Reference,
+                            new FactEnvelope(envelope.Fact, mergedSignatures)),
                         topologicalOrder
                     );
                 }
             }
             else
             {
-                if (signatures.Any())
-                {
-                    // Add the fact and the new signatures
-                    return new FactGraph(
-                        factsByReference.Add(fact.Reference, fact),
-                        signaturesByReference.Add(fact.Reference, signatures.ToImmutableList()),
-                        topologicalOrder.Add(fact.Reference)
-                    );
-                }
-                else
-                {
-                    // Add the fact without any signatures
-                    return new FactGraph(
-                        factsByReference.Add(fact.Reference, fact),
-                        signaturesByReference,
-                        topologicalOrder.Add(fact.Reference)
-                    );
-                }
+                // Add the fact envelope
+                return new FactGraph(
+                    envelopeByReference.Add(envelope.Fact.Reference, envelope),
+                    topologicalOrder.Add(envelope.Fact.Reference)
+                );
             }
         }
 
         public FactGraph AddGraph(FactGraph factGraph)
         {
-            var newFacts = factGraph.topologicalOrder
-                .Select(reference => factGraph.factsByReference[reference])
-                .Where(fact => !factsByReference.ContainsKey(fact.Reference))
-                .ToImmutableList();
-
-            if (newFacts.Count == 0)
+            FactGraph graph = this;
+            foreach (var reference in factGraph.topologicalOrder)
             {
-                return this;
+                graph = graph.Add(factGraph.envelopeByReference[reference]);
             }
-
-            var mergedSignatures = signaturesByReference.Keys
-                .Union(factGraph.signaturesByReference.Keys)
-                .ToImmutableDictionary(
-                    reference => reference,
-                    reference =>
-                    {
-                        if (signaturesByReference.TryGetValue(reference, out var leftSignatures))
-                        {
-                            if (factGraph.signaturesByReference.TryGetValue(reference, out var rightSignatures))
-                            {
-                                return leftSignatures.AddRange(rightSignatures);
-                            }
-                            else
-                            {
-                                return leftSignatures;
-                            }
-                        }
-                        else
-                        {
-                            return factGraph.signaturesByReference[reference];
-                        }
-                    }
-                );
-
-
-            return new FactGraph(
-                factsByReference.AddRange(newFacts.Select(fact => new KeyValuePair<FactReference, Fact>(fact.Reference, fact))),
-                mergedSignatures,
-                topologicalOrder.AddRange(newFacts.Select(fact => fact.Reference))
-            );
+            return graph;
         }
 
         public ImmutableList<FactReference> FactReferences => topologicalOrder;
         public FactReference Last => topologicalOrder.Last();
 
-        public Fact GetFact(FactReference reference) => factsByReference[reference];
-        public ImmutableList<FactSignature> GetSignatures(FactReference reference)
-        {
-            if (signaturesByReference.TryGetValue(reference, out var signatures))
-            {
-                return signatures;
-            }
-            else
-            {
-                return ImmutableList<FactSignature>.Empty;
-            }
-        }
+        public Fact GetFact(FactReference reference) => envelopeByReference[reference].Fact;
+        public ImmutableList<FactSignature> GetSignatures(FactReference reference) => envelopeByReference[reference].Signatures;
 
         public IEnumerable<FactReference> Predecessors(FactReference reference, string role, string targetType)
         {
-            var fact = factsByReference[reference];
-            return fact.Predecessors
+            var envelope = envelopeByReference[reference];
+            return envelope.Fact.Predecessors
                 .Where(p => p.Role == role)
                 .SelectMany(p => p.AllReferences)
                 .Where(r => r.Type == targetType);
@@ -174,14 +105,14 @@ namespace Jinaga.Facts
         public FactGraph GetSubgraph(FactReference reference)
         {
             var subgraph = Empty;
-            Fact fact = GetFact(reference);
+            var envelope = envelopeByReference[reference];
             // Recursively add all predecessors
-            foreach (var predecessorReference in fact.GetAllPredecessorReferences())
+            foreach (var predecessorReference in envelope.Fact.GetAllPredecessorReferences())
             {
                 subgraph = subgraph.AddGraph(GetSubgraph(predecessorReference));
             }
             // Add this fact
-            subgraph = subgraph.Add(fact);
+            subgraph = subgraph.Add(envelope);
             return subgraph;
         }
 

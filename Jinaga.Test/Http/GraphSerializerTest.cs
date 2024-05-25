@@ -81,15 +81,14 @@ public class GraphSerializerTest
         );
 
         var rootSignature = new FactSignature("public", "signature");
-        var childSignatures = new []
-        {
+        var childSignatures = ImmutableList.Create(
             new FactSignature("public", "signature1"),
             new FactSignature("public2", "signature2")
-        };
+        );
 
         var graph = FactGraph.Empty
-            .Add(root, new [] { rootSignature })
-            .Add(child, childSignatures);
+            .Add(new FactEnvelope(root, ImmutableList.Create(rootSignature)))
+            .Add(new FactEnvelope(child, childSignatures));
 
         WhenSerializeGraph(stream, graph);
 

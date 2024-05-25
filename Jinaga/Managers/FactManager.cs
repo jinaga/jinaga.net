@@ -53,7 +53,7 @@ namespace Jinaga.Managers
             var field = new Field("publicKey", new Facts.FieldValueString(keyPair.PublicKey));
             var user = Fact.Create("Jinaga.User", ImmutableList.Create(field), ImmutableList<Predecessor>.Empty);
             var signature = keyPair.SignFact(user);
-            var graph = FactGraph.Empty.Add(user, new[] { signature });
+            var graph = FactGraph.Empty.Add(new FactEnvelope(user, ImmutableList.Create(signature)));
             await store.Save(graph, false, default).ConfigureAwait(false);
             singleUseKeyPair = keyPair;
             return graph;

@@ -52,7 +52,7 @@ namespace Jinaga.Serialization
                     if (keyPair != null)
                     {
                         var signature = keyPair.SignFact(fact);
-                        Graph = Graph.Add(fact, new [] { signature });
+                        Graph = Graph.Add(new FactEnvelope(fact, ImmutableList.Create(signature)));
                     }
                     else
                     {
