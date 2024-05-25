@@ -12,5 +12,10 @@ namespace Jinaga.Facts
             Fact = fact;
             Signatures = signatures;
         }
+
+        public FactEnvelope AddSignature(FactSignature signature)
+        {
+            return new FactEnvelope(Fact, Signatures.Add(signature));
+        }
     }
 }

@@ -90,6 +90,7 @@ namespace Jinaga.Facts
         public ImmutableList<FactReference> FactReferences => topologicalOrder;
         public FactReference Last => topologicalOrder.Last();
 
+        public FactEnvelope GetEnvelope(FactReference factReference) => envelopeByReference[factReference];
         public Fact GetFact(FactReference reference) => envelopeByReference[reference].Fact;
         public ImmutableList<FactSignature> GetSignatures(FactReference reference) => envelopeByReference[reference].Signatures;
 

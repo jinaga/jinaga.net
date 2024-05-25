@@ -47,7 +47,7 @@ namespace Jinaga.Store.SQLite
                 ImmutableList<Fact> newFacts = ImmutableList<Fact>.Empty;
                 foreach (var factReference in graph.FactReferences)
                 {
-                    var fact = graph.GetFact(factReference);
+                    var envelope = graph.GetEnvelope(factReference);
 
                     connFactory.WithTxn(
                         (conn, id) =>
@@ -60,20 +60,20 @@ namespace Jinaga.Store.SQLite
                                     FROM fact_type 
                                     WHERE name = @0
                                 ";
-                                var factTypeId = conn.ExecuteScalar(sql, fact.Reference.Type);
+                                var factTypeId = conn.ExecuteScalar(sql, envelope.Fact.Reference.Type);
                                 if (factTypeId == "")
                                 {
                                     sql = @"
                                         INSERT OR IGNORE INTO fact_type (name) 
                                         VALUES (@0)
                                     ";
-                                    conn.ExecuteNonQuery(sql, fact.Reference.Type);
+                                    conn.ExecuteNonQuery(sql, envelope.Fact.Reference.Type);
                                     sql = @"
                                         SELECT fact_type_id 
                                         FROM fact_type 
                                         WHERE name = @0
                                     ";
-                                    factTypeId = conn.ExecuteScalar(sql, fact.Reference.Type);
+                                    factTypeId = conn.ExecuteScalar(sql, envelope.Fact.Reference.Type);
                                 }
 
                                 // Select or insert into Fact table.  Gets a FactId
@@ -81,25 +81,25 @@ namespace Jinaga.Store.SQLite
                                     SELECT fact_id FROM fact 
                                     WHERE hash = @0 AND fact_type_id = @1
                                 ";
-                                var factId = conn.ExecuteScalar(sql, fact.Reference.Hash, factTypeId);
+                                var factId = conn.ExecuteScalar(sql, envelope.Fact.Reference.Hash, factTypeId);
                                 if (factId == "")
                                 {
-                                    newFacts = newFacts.Add(fact);
-                                    string data = Fact.Canonicalize(fact.Fields, fact.Predecessors);
+                                    newFacts = newFacts.Add(envelope.Fact);
+                                    string data = Fact.Canonicalize(envelope.Fact.Fields, envelope.Fact.Predecessors);
                                     sql = @"
                                         INSERT OR IGNORE INTO fact (fact_type_id, hash, data, queued) 
                                         VALUES (@0, @1, @2, @3)
                                     ";
-                                    conn.ExecuteNonQuery(sql, factTypeId, fact.Reference.Hash, data, queue ? 1 : 0);
+                                    conn.ExecuteNonQuery(sql, factTypeId, envelope.Fact.Reference.Hash, data, queue ? 1 : 0);
                                     sql = @"
                                         SELECT fact_id 
                                         FROM fact 
                                         WHERE hash = @0 AND fact_type_id = @1
                                     ";
-                                    factId = conn.ExecuteScalar(sql, fact.Reference.Hash, factTypeId);
+                                    factId = conn.ExecuteScalar(sql, envelope.Fact.Reference.Hash, factTypeId);
 
                                     // For each predecessor of the inserted fact ...
-                                    foreach (var predecessor in fact.Predecessors)
+                                    foreach (var predecessor in envelope.Fact.Predecessors)
                                     {
                                         // Select or insert into Role table.  Gets a RoleId
                                         sql = @"
@@ -144,6 +144,38 @@ namespace Jinaga.Store.SQLite
                                                 break;
                                         }
                                     };
+                                }
+
+                                foreach (var signature in envelope.Signatures)
+                                {
+                                    // Select or insert into the public_key table.  Gets a public_key_id.
+                                    sql = @"
+                                        SELECT public_key_id 
+                                        FROM public_key 
+                                        WHERE public_key = @0
+                                    ";
+                                    var publicKeyId = conn.ExecuteScalar(sql, signature.PublicKey);
+                                    if (publicKeyId == "")
+                                    {
+                                        sql = @"
+                                            INSERT OR IGNORE INTO public_key (public_key) 
+                                            VALUES (@0)
+                                        ";
+                                        conn.ExecuteNonQuery(sql, signature.PublicKey);
+                                        sql = @"
+                                            SELECT public_key_id 
+                                            FROM public_key 
+                                            WHERE public_key = @0
+                                        ";
+                                        publicKeyId = conn.ExecuteScalar(sql, signature.PublicKey);
+                                    }
+
+                                    // Insert into the signature table if it doesn't already exist.
+                                    sql = @"
+                                        INSERT OR IGNORE INTO signature (fact_id, public_key_id, signature) 
+                                        VALUES (@0, @1, @2)
+                                    ";
+                                    conn.ExecuteNonQuery(sql, factId, publicKeyId, signature.Signature);
                                 }
                                 return 0;
                             },
@@ -228,24 +260,36 @@ namespace Jinaga.Store.SQLite
                             }
 
                             string sql = $@"
-                                SELECT f.hash, 
+                                SELECT
+                                    f.fact_id,
+                                    f.hash, 
                                     f.data,
-                                    t.name
+                                    t.name,
+                                    p.public_key,
+                                    s.signature
                                 FROM fact f 
                                 JOIN fact_type t 
-                                    ON f.fact_type_id = t.fact_type_id    
+                                    ON f.fact_type_id = t.fact_type_id
+                                LEFT JOIN signature s
+                                    ON s.fact_id = f.fact_id
+                                LEFT JOIN public_key p
+                                    ON p.public_key_id = s.public_key_id
                                 WHERE (f.hash,t.name) 
                                     IN (VALUES {String.Join(",", referenceValues)} )
 
                             UNION 
 
-                                SELECT f2.hash, 
+                                SELECT
+                                    f2.fact_id,
+                                    f2.hash, 
                                     f2.data,
-                                    t2.name
+                                    t2.name,
+                                    p.public_key,
+                                    s.signature
                                 FROM fact f1 
                                 JOIN fact_type t1 
                                     ON 
-                                        f1.fact_type_id = t1.fact_type_id    
+                                        f1.fact_type_id = t1.fact_type_id
                                             AND
                                         (f1.hash,t1.name) IN (VALUES {String.Join(",", referenceValues)} ) 
                                 JOIN ancestor a 
@@ -254,9 +298,13 @@ namespace Jinaga.Store.SQLite
                                     ON f2.fact_id = a.ancestor_fact_id 
                                 JOIN fact_type t2 
                                     ON t2.fact_type_id = f2.fact_type_id
+                                LEFT JOIN signature s
+                                    ON s.fact_id = f2.fact_id
+                                LEFT JOIN public_key p
+                                    ON p.public_key_id = s.public_key_id
                             ";
 
-                            return conn.ExecuteQuery<FactFromDb>(sql, parameters.ToArray());
+                            return conn.ExecuteQuery<FactWithIdAndSignatureFromDb>(sql, parameters.ToArray());
                         },
                     true   //exponentional backoff
                 );
@@ -265,9 +313,9 @@ namespace Jinaga.Store.SQLite
 
                 FactGraphBuilder fb = new FactGraphBuilder() ;
             
-                foreach (Fact fact in factsFromDb.Deserialise()) 
+                foreach (FactEnvelope envelope in factsFromDb.Deserialise()) 
                 {
-                    fb.Add(fact);
+                    fb.Add(envelope);
                 }
 
                 return Task.FromResult(fb.Build());
@@ -583,16 +631,20 @@ namespace Jinaga.Store.SQLite
                 {
                     string sql;
                     sql = $@"
-                        SELECT f.fact_id, f.hash, f.data, t.name
+                        SELECT f.fact_id, f.hash, f.data, t.name, p.public_key, s.signature
                         FROM fact f
                         JOIN fact_type t
                             ON f.fact_type_id = t.fact_type_id
-                        WHERE fact_id > {lastFactId}
+                        LEFT JOIN signature s
+                            ON s.fact_id = f.fact_id
+                        LEFT JOIN public_key p
+                            ON p.public_key_id = s.public_key_id
+                        WHERE f.fact_id > {lastFactId}
                             AND queued = 1
 
                         UNION
 
-                        SELECT f2.fact_id, f2.hash, f2.data, t2.name
+                        SELECT f2.fact_id, f2.hash, f2.data, t2.name, p.public_key, s.signature
                         FROM fact f1
                         JOIN ancestor a 
                             ON a.fact_id = f1.fact_id 
@@ -600,22 +652,26 @@ namespace Jinaga.Store.SQLite
                             ON f2.fact_id = a.ancestor_fact_id 
                         JOIN fact_type t2 
                             ON t2.fact_type_id = f2.fact_type_id
+                        LEFT JOIN signature s
+                            ON s.fact_id = f2.fact_id
+                        LEFT JOIN public_key p
+                            ON p.public_key_id = s.public_key_id
                         WHERE f1.fact_id > {lastFactId}
                             AND f1.queued = 1
 
-                        ORDER BY fact_id
+                        ORDER BY 1
                     ";
-                    return conn.ExecuteQuery<FactWithIdFromDb>(sql);
+                    return conn.ExecuteQuery<FactWithIdAndSignatureFromDb>(sql);
                 },
                 true
             );
 
             // Convert the fact records to facts.
-            var facts = factsFromDb.Deserialise();
+            var envelopes = factsFromDb.Deserialise();
             var graphBuilder = new FactGraphBuilder();
-            foreach (var fact in facts)
+            foreach (FactEnvelope envelope in envelopes)
             {
-                graphBuilder.Add(fact);
+                graphBuilder.Add(envelope);
             }
             var graph = graphBuilder.Build();
 
@@ -661,6 +717,12 @@ namespace Jinaga.Store.SQLite
             public int fact_id { get; set; }
         }
 
+        public class FactWithIdAndSignatureFromDb : FactWithIdFromDb
+        {
+            public string public_key { get; set; }
+            public string signature { get; set; }
+        }
+
         public class ReferenceFromDb
         {
             public string hash { get; set; }
@@ -673,67 +735,92 @@ namespace Jinaga.Store.SQLite
     public static class MyExtensions
     {
 
-        public static IEnumerable<Fact> Deserialise(this IEnumerable<FactFromDb> factsFromDb) 
+        public static IEnumerable<FactEnvelope> Deserialise(this IEnumerable<FactWithIdAndSignatureFromDb> factsFromDb) 
         {
-
+            FactEnvelope envelope = null;
+            int factId = 0;
             foreach (var FactFromDb in factsFromDb)
             {
-                ImmutableList<Field> fields = ImmutableList<Field>.Empty;
-                ImmutableList<Predecessor> predecessors = ImmutableList<Predecessor>.Empty;
-
-                using (JsonDocument document = JsonDocument.Parse(FactFromDb.data))
+                if (factId != 0 && factId != FactFromDb.fact_id)
                 {
-                    JsonElement root = document.RootElement;
-
-                    JsonElement fieldsElement = root.GetProperty("fields");
-                    foreach (var field in fieldsElement.EnumerateObject())
-                    {
-                        switch (field.Value.ValueKind)
-                        {
-                            case JsonValueKind.String:
-                                fields = fields.Add(new Field(field.Name, new FieldValueString(field.Value.GetString())));
-                                break;
-                            case JsonValueKind.Number:
-                                fields = fields.Add(new Field(field.Name, new FieldValueNumber(field.Value.GetDouble())));
-                                break;
-                            case JsonValueKind.True:
-                            case JsonValueKind.False:
-                                fields = fields.Add(new Field(field.Name, new FieldValueBoolean(field.Value.GetBoolean())));
-                                break;
-                            case JsonValueKind.Null:
-                                fields = fields.Add(new Field(field.Name, FieldValue.Null));
-                                break;
-                        }
-                    }
-
-                    string hash;
-                    string type;
-                    JsonElement predecessorsElement = root.GetProperty("predecessors");
-                    foreach (var predecessor in predecessorsElement.EnumerateObject())
-                    {
-                        switch (predecessor.Value.ValueKind)
-                        {
-                            case JsonValueKind.Object:
-                                hash = predecessor.Value.GetProperty("hash").GetString();
-                                type = predecessor.Value.GetProperty("type").GetString();
-                                predecessors = predecessors.Add(new PredecessorSingle(predecessor.Name, new FactReference(type, hash)));
-                                break;
-                            case JsonValueKind.Array:
-                                ImmutableList<FactReference> factReferences = ImmutableList<FactReference>.Empty;
-                                foreach (var factReference in predecessor.Value.EnumerateArray())
-                                {
-                                    hash = factReference.GetProperty("hash").GetString();
-                                    type = factReference.GetProperty("type").GetString();
-                                    factReferences = factReferences.Add(new FactReference(type, hash));
-                                }
-                                predecessors = predecessors.Add(new PredecessorMultiple(predecessor.Name, factReferences));
-                                break;
-                        }
-                    }
+                    // We've reached a new fact. Return the previous one.
+                    yield return envelope;
+                    envelope = null;
+                    factId = 0;
                 }
 
-                yield return Fact.Create(FactFromDb.name, fields, predecessors);
-            }            
+                if (envelope == null)
+                {
+                    ImmutableList<Field> fields = ImmutableList<Field>.Empty;
+                    ImmutableList<Predecessor> predecessors = ImmutableList<Predecessor>.Empty;
+
+                    using (JsonDocument document = JsonDocument.Parse(FactFromDb.data))
+                    {
+                        JsonElement root = document.RootElement;
+
+                        JsonElement fieldsElement = root.GetProperty("fields");
+                        foreach (var field in fieldsElement.EnumerateObject())
+                        {
+                            switch (field.Value.ValueKind)
+                            {
+                                case JsonValueKind.String:
+                                    fields = fields.Add(new Field(field.Name, new FieldValueString(field.Value.GetString())));
+                                    break;
+                                case JsonValueKind.Number:
+                                    fields = fields.Add(new Field(field.Name, new FieldValueNumber(field.Value.GetDouble())));
+                                    break;
+                                case JsonValueKind.True:
+                                case JsonValueKind.False:
+                                    fields = fields.Add(new Field(field.Name, new FieldValueBoolean(field.Value.GetBoolean())));
+                                    break;
+                                case JsonValueKind.Null:
+                                    fields = fields.Add(new Field(field.Name, FieldValue.Null));
+                                    break;
+                            }
+                        }
+
+                        string hash;
+                        string type;
+                        JsonElement predecessorsElement = root.GetProperty("predecessors");
+                        foreach (var predecessor in predecessorsElement.EnumerateObject())
+                        {
+                            switch (predecessor.Value.ValueKind)
+                            {
+                                case JsonValueKind.Object:
+                                    hash = predecessor.Value.GetProperty("hash").GetString();
+                                    type = predecessor.Value.GetProperty("type").GetString();
+                                    predecessors = predecessors.Add(new PredecessorSingle(predecessor.Name, new FactReference(type, hash)));
+                                    break;
+                                case JsonValueKind.Array:
+                                    ImmutableList<FactReference> factReferences = ImmutableList<FactReference>.Empty;
+                                    foreach (var factReference in predecessor.Value.EnumerateArray())
+                                    {
+                                        hash = factReference.GetProperty("hash").GetString();
+                                        type = factReference.GetProperty("type").GetString();
+                                        factReferences = factReferences.Add(new FactReference(type, hash));
+                                    }
+                                    predecessors = predecessors.Add(new PredecessorMultiple(predecessor.Name, factReferences));
+                                    break;
+                            }
+                        }
+                    }
+
+                    var fact = Fact.Create(FactFromDb.name, fields, predecessors);
+                    envelope = new FactEnvelope(fact, ImmutableList<FactSignature>.Empty);
+                    factId = FactFromDb.fact_id;
+                }
+
+                // Add the signature to the envelope.
+                if (FactFromDb.public_key != null)
+                {
+                    var signature = new FactSignature(FactFromDb.public_key, FactFromDb.signature);
+                    envelope = envelope.AddSignature(signature);
+                }
+            }
+            if (envelope != null)
+            {
+                yield return envelope;
+            }
         }
     }
 
