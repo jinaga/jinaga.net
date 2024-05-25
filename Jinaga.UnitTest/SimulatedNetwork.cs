@@ -27,7 +27,7 @@ namespace Jinaga.UnitTest
                 ImmutableList.Create(new Field("publicKey", new FieldValueString(publicKey))),
                 ImmutableList<Predecessor>.Empty);
             var graph = FactGraph.Empty
-                .Add(userFact);
+                .Add(new FactEnvelope(userFact, ImmutableList<FactSignature>.Empty));
             var profile = new UserProfile("Simulated user");
             return Task.FromResult((graph, profile));
         }

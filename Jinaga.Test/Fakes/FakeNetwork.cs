@@ -144,7 +144,7 @@ internal class FakeNetwork : INetwork
                 graph = AddFact(graph, predecessorReference);
             }
         }
-        graph = graph.Add(fact);
+        graph = graph.Add(new FactEnvelope(fact, ImmutableList<FactSignature>.Empty));
         return graph;
     }
 

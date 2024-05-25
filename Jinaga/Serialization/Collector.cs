@@ -49,15 +49,10 @@ namespace Jinaga.Serialization
                     var runtimeType = runtimeFact.GetType();
                     var fact = SerializeToFact(runtimeType, runtimeFact);
                     reference = fact.Reference;
-                    if (keyPair != null)
-                    {
-                        var signature = keyPair.SignFact(fact);
-                        Graph = Graph.Add(new FactEnvelope(fact, ImmutableList.Create(signature)));
-                    }
-                    else
-                    {
-                        Graph = Graph.Add(fact);
-                    }
+                    ImmutableList<FactSignature> signatures = keyPair != null
+                        ? ImmutableList.Create(keyPair.SignFact(fact))
+                        : ImmutableList<FactSignature>.Empty;
+                    Graph = Graph.Add(new FactEnvelope(fact, signatures));
                 }
 
                 visiting = visiting.Remove(runtimeFact);

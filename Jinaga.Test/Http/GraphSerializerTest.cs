@@ -29,7 +29,8 @@ public class GraphSerializerTest
             ),
             ImmutableList<Predecessor>.Empty
         );
-        var graph = FactGraph.Empty.Add(root);
+        var graph = FactGraph.Empty
+            .Add(new FactEnvelope(root, ImmutableList<FactSignature>.Empty));
 
         WhenSerializeGraph(stream, graph);
 
@@ -54,8 +55,8 @@ public class GraphSerializerTest
             )
         );
         var graph = FactGraph.Empty
-            .Add(root)
-            .Add(child);
+            .Add(new FactEnvelope(root, ImmutableList<FactSignature>.Empty))
+            .Add(new FactEnvelope(child, ImmutableList<FactSignature>.Empty));
 
         WhenSerializeGraph(stream, graph);
 
