@@ -24,24 +24,6 @@ namespace Jinaga.Facts
         public bool CanAdd(Fact fact) =>
             fact.GetAllPredecessorReferences().All(p => envelopeByReference.ContainsKey(p));
 
-        public FactGraph Add(Fact fact)
-        {
-            if (envelopeByReference.TryGetValue(fact.Reference, out var envelope))
-            {
-                return this;
-            }
-
-            if (!CanAdd(fact))
-            {
-                throw new ArgumentException("The fact graph does not contain all of the predecessors of the fact.");
-            }
-
-            return new FactGraph(
-                envelopeByReference.Add(fact.Reference, new FactEnvelope(fact, ImmutableList<FactSignature>.Empty)),
-                topologicalOrder.Add(fact.Reference)
-            );
-        }
-
         public FactGraph Add(FactEnvelope envelope)
         {
             if (envelopeByReference.TryGetValue(envelope.Fact.Reference, out var existingEnvelope))

@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
 using System.Linq;
 
 namespace Jinaga.Facts
@@ -8,18 +7,6 @@ namespace Jinaga.Facts
     {
         private FactGraph factGraph = FactGraph.Empty;
         private ImmutableList<FactEnvelope> reserve = ImmutableList<FactEnvelope>.Empty;
-
-        public void Add(Fact fact)
-        {
-            if (factGraph.CanAdd(fact))
-            {
-                factGraph = factGraph.Add(fact);
-            }
-            else
-            {
-                reserve = reserve.Add(new FactEnvelope(fact, ImmutableList<FactSignature>.Empty));
-            }
-        }
 
         public void Add(FactEnvelope envelope)
         {
