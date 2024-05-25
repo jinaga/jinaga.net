@@ -57,7 +57,7 @@ namespace Jinaga.Http
 
                 // Add a fact to the graph.
                 var fact = Fact.Create(type, fields, predecessors);
-                Graph = Graph.Add(fact);
+                Graph = Graph.Add(new FactEnvelope(fact, ImmutableList<FactSignature>.Empty));
             }
         }
 

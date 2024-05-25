@@ -6,26 +6,26 @@ namespace Jinaga.Facts
     public class FactGraphBuilder
     {
         private FactGraph factGraph = FactGraph.Empty;
-        private ImmutableList<Fact> reserve = ImmutableList<Fact>.Empty;
+        private ImmutableList<FactEnvelope> reserve = ImmutableList<FactEnvelope>.Empty;
 
-        public void Add(Fact fact)
+        public void Add(FactEnvelope envelope)
         {
-            if (factGraph.CanAdd(fact))
+            if (factGraph.CanAdd(envelope.Fact))
             {
-                factGraph = factGraph.Add(fact);
+                factGraph = factGraph.Add(envelope);
             }
             else
             {
-                reserve = reserve.Add(fact);
+                reserve = reserve.Add(envelope);
             }
         }
-        
+
         public FactGraph Build()
         {
             while (reserve.Any())
             {
                 var retry = reserve;
-                reserve = ImmutableList<Fact>.Empty;
+                reserve = ImmutableList<FactEnvelope>.Empty;
                 foreach (var fact in retry)
                 {
                     Add(fact);

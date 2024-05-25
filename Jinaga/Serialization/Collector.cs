@@ -1,3 +1,4 @@
+using Jinaga.Cryptography;
 using Jinaga.Facts;
 using System;
 using System.Collections.Immutable;
@@ -13,16 +14,18 @@ namespace Jinaga.Serialization
         public int FactVisitsCount { get; private set; } = 0;
         public SerializerCache SerializerCache { get; private set; }
         private readonly ConditionalWeakTable<object, FactGraph> graphByFact;
+        private readonly KeyPair? keyPair;
 
         private ImmutableHashSet<object> visiting =
             ImmutableHashSet<object>.Empty;
         private ImmutableDictionary<object, FactReference> referenceByObject =
             ImmutableDictionary<object, FactReference>.Empty;
 
-        public Collector(SerializerCache serializerCache, ConditionalWeakTable<object, FactGraph> graphByFact)
+        public Collector(SerializerCache serializerCache, ConditionalWeakTable<object, FactGraph> graphByFact, KeyPair? keyPair = null)
         {
             SerializerCache = serializerCache;
             this.graphByFact = graphByFact;
+            this.keyPair = keyPair;
         }
 
         public FactReference Serialize(object runtimeFact)
@@ -46,8 +49,10 @@ namespace Jinaga.Serialization
                     var runtimeType = runtimeFact.GetType();
                     var fact = SerializeToFact(runtimeType, runtimeFact);
                     reference = fact.Reference;
-
-                    Graph = Graph.Add(fact);
+                    ImmutableList<FactSignature> signatures = keyPair != null
+                        ? ImmutableList.Create(keyPair.SignFact(fact))
+                        : ImmutableList<FactSignature>.Empty;
+                    Graph = Graph.Add(new FactEnvelope(fact, signatures));
                 }
 
                 visiting = visiting.Remove(runtimeFact);

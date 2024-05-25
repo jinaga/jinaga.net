@@ -18,7 +18,7 @@ namespace Jinaga.Test.Facts
                 ImmutableList<Field>.Empty.Add(new Field("identifier", new FieldValueString("value"))),
                 ImmutableList<Predecessor>.Empty
             );
-            var graph = FactGraph.Empty.Add(fact);
+            var graph = FactGraph.Empty.Add(new FactEnvelope(fact, ImmutableList<FactSignature>.Empty));
             var airline = Deserialize<Airline>(graph, fact.Reference);
 
             airline.identifier.Should().Be("value");
@@ -47,9 +47,9 @@ namespace Jinaga.Test.Facts
             );
 
             var graph = FactGraph.Empty
-                .Add(catalog)
-                .Add(product)
-                .Add(price);
+                .Add(new FactEnvelope(catalog, ImmutableList<FactSignature>.Empty))
+                .Add(new FactEnvelope(product, ImmutableList<FactSignature>.Empty))
+                .Add(new FactEnvelope(price, ImmutableList<FactSignature>.Empty));
             var priceRecord = Deserialize<Price>(graph, graph.Last);
 
             priceRecord.value.Should().Be(123.45m);
@@ -69,7 +69,9 @@ namespace Jinaga.Test.Facts
                 ImmutableList<Field>.Empty.Add(new Field("date", new FieldValueString(now.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ")))),
                 ImmutableList<Predecessor>.Empty.Add(new PredecessorSingle("airline", fact.Reference))
             );
-            var graph = FactGraph.Empty.Add(fact).Add(successor);
+            var graph = FactGraph.Empty
+                .Add(new FactEnvelope(fact, ImmutableList<FactSignature>.Empty))
+                .Add(new FactEnvelope(successor, ImmutableList<FactSignature>.Empty));
             var airlineDay = Deserialize<AirlineDay>(graph, successor.Reference);
 
             airlineDay.date.Kind.Should().Be(DateTimeKind.Utc);

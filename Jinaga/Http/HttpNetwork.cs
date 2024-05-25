@@ -30,8 +30,9 @@ namespace Jinaga.Http
         public async Task<(FactGraph graph, UserProfile profile)> Login(CancellationToken cancellationToken)
         {
             var response = await webClient.Login(cancellationToken).ConfigureAwait(false);
+            var userFact = FactReader.ReadFact(response.UserFact);
             var graph = FactGraph.Empty
-                .Add(FactReader.ReadFact(response.UserFact));
+                .Add(new FactEnvelope(userFact, ImmutableList<FactSignature>.Empty));
             var profile = new UserProfile(response.Profile.DisplayName);
             return (graph, profile);
         }

@@ -194,6 +194,20 @@ namespace Jinaga
             }
         }
 
+        public async Task<T> SingleUse<T>(Func<User, Task<T>> func)
+        {
+            try
+            {
+                var graph = await factManager.BeginSingleUse().ConfigureAwait(false);
+                var principal = factManager.Deserialize<User>(graph, graph.Last);
+                return await func(principal).ConfigureAwait(false);
+            }
+            finally
+            {
+                factManager.EndSingleUse();
+            }
+        }
+
         /// <summary>
         /// If any facts are in the queue, send them to the replicator.
         /// </summary>

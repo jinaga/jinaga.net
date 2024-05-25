@@ -442,9 +442,26 @@ namespace Jinaga.Store.SQLite
 
 
             //Signature
+            // An earlier version of the schema did not have the signature column.
+            // If the signature column does not exist, drop the table and recreate it.
+            sql = @"SELECT name FROM sqlite_master WHERE type='table' AND name='signature';";
+            var tableExists = conn.ExecuteQueryRaw(sql).Any();
+
+            if (tableExists)
+            {
+                sql = @"PRAGMA table_info(signature)";
+                columns = conn.ExecuteQueryRaw(sql);
+                if (!columns.Any(column => column["name"] == "signature"))
+                {
+                    sql = @"DROP TABLE signature";
+                    conn.ExecuteNonQuery(sql);
+                }
+            }
+
             table = @"CREATE TABLE IF NOT EXISTS main.signature (
                                 fact_id INTEGER NOT NULL,
                                 public_key_id INTEGER NOT NULL,
+                                signature TEXT NOT NULL,
                                 date_learned TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP     
                             )";
             string ux_signature = @"CREATE UNIQUE INDEX IF NOT EXISTS ux_signature ON signature (fact_id, public_key_id)";
