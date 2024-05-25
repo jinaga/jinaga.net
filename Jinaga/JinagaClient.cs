@@ -366,49 +366,6 @@ namespace Jinaga
         }
 
         /// <summary>
-        /// Retrieve results of a specification from the local cache.
-        /// Unlike Query, QueryLocal does not fetch new facts from the remote replicator.
-        /// </summary>
-        /// <typeparam name="TFact">The type of the starting point</typeparam>
-        /// <typeparam name="TProjection">The type of the results</typeparam>
-        /// <param name="specification">Defines which facts to match and how to project them</param>
-        /// <param name="given">The starting point for the query</param>
-        /// <param name="cancellationToken">To cancel the operation</param>
-        /// <returns>The results</returns>
-        /// <exception cref="ArgumentNullException">If the given is null</exception>
-        [Obsolete("Use Local.Query instead.")]
-        public Task<ImmutableList<TProjection>> QueryLocal<TFact, TProjection>(
-            Specification<TFact, TProjection> specification,
-            TFact given,
-            CancellationToken cancellationToken = default) where TFact : class
-        {
-            return Local.Query(specification, given, cancellationToken);
-        }
-
-        /// <summary>
-        /// Retrieve results of a specification from the local cache.
-        /// Unlike Query, QueryLocal does not fetch new facts from the remote replicator.
-        /// </summary>
-        /// <typeparam name="TFact1">The type of the first starting point</typeparam>
-        /// <typeparam name="TFact2">The type of the second starting point</typeparam>
-        /// <typeparam name="TProjection">The type of the results</typeparam>
-        /// <param name="specification">Defines which facts to match and how to project them</param>
-        /// <param name="given1">The first starting point for the query</param>
-        /// <param name="given2">The second starting point for the query</param>
-        /// <param name="cancellationToken">To cancel the operation</param>
-        /// <returns>The results</returns>
-        /// <exception cref="ArgumentNullException">If either given is null</exception>
-        [Obsolete("Use Local.Query instead.")]
-        public Task<ImmutableList<TProjection>> QueryLocal<TFact1, TFact2, TProjection>(
-            Specification<TFact1, TFact2, TProjection> specification,
-            TFact1 given1,
-            TFact2 given2,
-            CancellationToken cancellationToken = default) where TFact1 : class where TFact2 : class
-        {
-            return Local.Query(specification, given1, given2, cancellationToken);
-        }
-
-        /// <summary>
         /// Observe the results of a specification, including changes.
         /// Unlike Query, Watch sets up an observer which responds to new facts.
         /// </summary>
