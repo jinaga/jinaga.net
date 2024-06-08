@@ -1,17 +1,30 @@
-using System;
+﻿using System;
 using System.Linq;
 
 namespace Jinaga.Test.Model
 {
 
     [FactType("Corporate.Company")]
-    public record Company(string identifier);
+    public record Company(string identifier)
+    {
+        public IQueryable<Office> Offices => Relation.Define(facts =>
+            facts.OfType<Office>(office => office.company == this &&
+                !office.IsClosed
+            )
+        );
+    }
 
     [FactType("Corporate.Office")]
     public record Office(Company company, City city)
     {
         public Condition IsClosed => Condition.Define(facts =>
             facts.Any<OfficeClosure>(closure => closure.office == this)
+        );
+
+        public IQueryable<Headcount> Headcount => Relation.Define(facts =>
+            facts.OfType<Headcount>(headcount => headcount.office == this &&
+                headcount.IsCurrent
+            )
         );
     }
 

@@ -765,6 +765,48 @@ namespace Jinaga.Test.Specifications.Specifications
         }
 
         [Fact]
+        public void Specification_RelationInProjection()
+        {
+            var specification = Given<Company>.Match((company, facts) =>
+                company.Offices.Select(office =>
+                    new
+                    {
+                        office,
+                        headcount = office.Headcount.Select(headcount => headcount.value)
+                    }
+                )
+            );
+
+            specification.ToString().ReplaceLineEndings().Should().Be(
+                """
+                (company: Corporate.Company) {
+                    office: Corporate.Office [
+                        office->company: Corporate.Company = company
+                        !E {
+                            closure: Corporate.Office.Closure [
+                                closure->office: Corporate.Office = office
+                            ]
+                        }
+                    ]
+                } => {
+                    headcount = {
+                        headcount: Corporate.Headcount [
+                            headcount->office: Corporate.Office = office
+                            !E {
+                                next: Corporate.Headcount [
+                                    next->prior: Corporate.Headcount = headcount
+                                ]
+                            }
+                        ]
+                    } => headcount.value
+                    office = office
+                }
+
+                """
+                );
+        }
+
+        [Fact]
         public void Specification_DeeplyNestedProjection()
         {
             var specification = Given<Company>.Match((company, facts) =>
