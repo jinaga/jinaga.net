@@ -468,6 +468,40 @@ namespace Jinaga.Test.Specifications.Specifications
         }
 
         [Fact]
+        public void CanJoinViaRelation()
+        {
+            var testSpecification = Given<Airline>.Match((airline, facts) =>
+                from flight in airline.Flights
+                from booking in flight.Bookings
+                select booking
+            );
+
+            var referenceSpecification = Given<Airline>.Match((airline, facts) =>
+                from flight in facts.OfType<Flight>()
+                where flight.airlineDay.airline == airline
+
+                where !(
+                    from cancellation in facts.OfType<FlightCancellation>()
+                    where cancellation.flight == flight
+                    select cancellation
+                ).Any()
+
+                from booking in facts.OfType<Booking>()
+                where booking.flight == flight
+
+                where !(
+                    from refund in facts.OfType<Refund>()
+                    where refund.booking == booking
+                    select refund
+                ).Any()
+
+                select booking
+            );
+
+            testSpecification.ToString().Should().Be(referenceSpecification.ToString());
+        }
+
+        [Fact]
         public void CanPutWhereAfterSelectMany()
         {
             var testSpecification = Given<Airline>.Match((airline, facts) =>

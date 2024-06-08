@@ -14,5 +14,10 @@ namespace Jinaga
         }
 
         public static implicit operator bool(Condition c) => true;
+
+        public static Condition Define(Expression<Func<FactRepository, bool>> body)
+        {
+            return new Condition(body);
+        }
     }
 }

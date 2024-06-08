@@ -259,6 +259,21 @@ namespace Jinaga.Repository
                     }
                 }
             }
+            else if (expression is MemberExpression memberExpression)
+            {
+                if (memberExpression.Member is PropertyInfo propertyInfo)
+                {
+                    if (propertyInfo.PropertyType.IsGenericType &&
+                        propertyInfo.PropertyType.GetGenericTypeDefinition() == typeof(IQueryable<>))
+                    {
+                        object target = InstanceOfFact(propertyInfo.DeclaringType);
+                        var relation = (Relation)propertyInfo.GetGetMethod().Invoke(target, new object[0]);
+                        var projection = ProcessProjection(memberExpression.Expression, symbolTable);
+                        var childSymbolTable = SymbolTable.Empty.Set("this", projection);
+                        return ProcessSource(relation.Body.Body, childSymbolTable);
+                    }
+                }
+            }
             throw new SpecificationException($"Unsupported type of specification {expression}.");
         }
 

@@ -16,5 +16,11 @@ namespace Jinaga.Test.Model
         public Condition ShortIsCancelled => new Condition(facts =>
             facts.OfType<FlightCancellation>(cancellation => cancellation.flight == this).Any()
         );
+
+        public IQueryable<Booking> Bookings => Relation.Define(facts =>
+            facts.OfType<Booking>(booking => booking.flight == this &&
+                !facts.Any<Refund>(refund => refund.booking == booking)
+            )
+        );
     }
 }
