@@ -26,6 +26,12 @@ namespace Jinaga.Test.Model
                 headcount.IsCurrent
             )
         );
+
+        public Relation<Manager> Managers => Relation.Define(facts =>
+            facts.OfType<Manager>(manager => manager.office == this &&
+                !manager.IsTerminated
+            )
+        );
     }
 
     [FactType("Corporate.Office.Name")]
@@ -57,6 +63,17 @@ namespace Jinaga.Test.Model
         public Condition IsTerminated => Condition.Define(facts => (
             facts.OfType<ManagerTerminated>(termination => termination.Manager == this)
         ).Any());
+
+        public Relation<ManagerName> Names => Relation.Define(facts =>
+            facts.OfType<ManagerName>(name => name.manager == this &&
+                name.IsCurrent)
+        );
+
+        public Relation<string> NameValues => Relation.Define(facts =>
+            facts.OfType<ManagerName>(name => name.manager == this &&
+                name.IsCurrent
+            ).Select(name => name.value)
+        );
     }
 
     [FactType("Corporate.Manager.Name")]
