@@ -103,11 +103,29 @@ namespace Jinaga.Repository
             }
             else if (expression is MemberExpression memberExpression)
             {
+                // Handle relations.
+                if (memberExpression.Member is PropertyInfo propertyInfo)
+                {
+                    if (propertyInfo.PropertyType.IsGenericType &&
+                        (propertyInfo.PropertyType.GetGenericTypeDefinition() == typeof(Relation<>) ||
+                         propertyInfo.PropertyType.GetGenericTypeDefinition() == typeof(IQueryable<>)))
+                    {
+                        object target = InstanceOfFact(propertyInfo.DeclaringType);
+                        var relation = (IQueryable)propertyInfo.GetGetMethod().Invoke(target, new object[0]);
+                        var projection = ProcessProjection(memberExpression.Expression, symbolTable);
+                        var childSymbolTable = SymbolTable.Empty.Set("this", projection);
+                        return ProcessProjection(relation.Expression, childSymbolTable);
+                    }
+                }
+
+                // Handle fields.
                 var head = ProcessProjection(memberExpression.Expression, symbolTable);
                 if (head is CompoundProjection compoundProjection)
                 {
                     return compoundProjection.GetProjection(memberExpression.Member.Name);
                 }
+
+                // Handle simple projections.
                 else if (head is SimpleProjection simpleProjection)
                 {
                     if (!memberExpression.Type.IsFactType())
@@ -259,6 +277,22 @@ namespace Jinaga.Repository
                     }
                 }
             }
+            else if (expression is MemberExpression memberExpression)
+            {
+                if (memberExpression.Member is PropertyInfo propertyInfo)
+                {
+                    if (propertyInfo.PropertyType.IsGenericType &&
+                        (propertyInfo.PropertyType.GetGenericTypeDefinition() == typeof(IQueryable<>) ||
+                         propertyInfo.PropertyType.GetGenericTypeDefinition() == typeof(Relation<>)))
+                    {
+                        object target = InstanceOfFact(propertyInfo.DeclaringType);
+                        var relation = (IQueryable)propertyInfo.GetGetMethod().Invoke(target, new object[0]);
+                        var projection = ProcessProjection(memberExpression.Expression, symbolTable);
+                        var childSymbolTable = SymbolTable.Empty.Set("this", projection);
+                        return ProcessSource(relation.Expression, childSymbolTable);
+                    }
+                }
+            }
             throw new SpecificationException($"Unsupported type of specification {expression}.");
         }
 
@@ -333,7 +367,7 @@ namespace Jinaga.Repository
                     object target = InstanceOfFact(propertyInfo.DeclaringType);
                     var condition = (Condition)propertyInfo.GetGetMethod().Invoke(target, new object[0]);
                     var projection = ProcessProjection(member.Expression, symbolTable);
-                    var childSymbolTable = symbolTable.Set("this", projection);
+                    var childSymbolTable = SymbolTable.Empty.Set("this", projection);
                     return ProcessPredicate(condition.Body.Body, childSymbolTable);
                 }
             }

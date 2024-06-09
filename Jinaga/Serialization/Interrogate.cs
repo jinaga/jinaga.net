@@ -53,6 +53,14 @@ namespace Jinaga.Serialization
 
         public static bool IsHelper(Type propertyType)
         {
+            if (propertyType.IsGenericType)
+            {
+                var genericTypeDefinition = propertyType.GetGenericTypeDefinition();
+                return
+                    genericTypeDefinition == typeof(Relation<>) ||
+                    genericTypeDefinition == typeof(IQueryable<>);
+            }
+
             return
                 propertyType == typeof(FactGraph) ||
                 propertyType == typeof(Condition);

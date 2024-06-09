@@ -13,7 +13,7 @@ public record AirlineDay(Airline airline, DateTime date);
 [FactType("Skylane.Flight")]
 public record Flight(AirlineDay airlineDay, int flightNumber)
 {
-    public Condition IsCancelled => new Condition(facts =>
+    public Condition IsCancelled => Condition.Define(facts =>
         (
             from cancellation in facts.OfType<FlightCancellation>()
             where cancellation.flight == this
@@ -21,7 +21,7 @@ public record Flight(AirlineDay airlineDay, int flightNumber)
         ).Any()
     );
 
-    public Condition ShortIsCancelled => new Condition(facts =>
+    public Condition ShortIsCancelled => Condition.Define(facts =>
         facts.OfType<FlightCancellation>(cancellation => cancellation.flight == this).Any()
     );
 }

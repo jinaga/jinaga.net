@@ -5,13 +5,32 @@ namespace Jinaga.Test.Model
 {
 
     [FactType("Corporate.Company")]
-    public record Company(string identifier);
+    public record Company(string identifier)
+    {
+        public IQueryable<Office> Offices => Relation.Define(facts =>
+            facts.OfType<Office>(office => office.company == this &&
+                !office.IsClosed
+            )
+        );
+    }
 
     [FactType("Corporate.Office")]
     public record Office(Company company, City city)
     {
-        public Condition IsClosed => new Condition(facts =>
+        public Condition IsClosed => Condition.Define(facts =>
             facts.Any<OfficeClosure>(closure => closure.office == this)
+        );
+
+        public Relation<Headcount> Headcount => Relation.Define(facts =>
+            facts.OfType<Headcount>(headcount => headcount.office == this &&
+                headcount.IsCurrent
+            )
+        );
+
+        public Relation<Manager> Managers => Relation.Define(facts =>
+            facts.OfType<Manager>(manager => manager.office == this &&
+                !manager.IsTerminated
+            )
         );
     }
 
@@ -31,7 +50,7 @@ namespace Jinaga.Test.Model
     [FactType("Corporate.Headcount")]
     public record Headcount(Office office, int value, Headcount[] prior)
     {
-        public Condition IsCurrent => new Condition(facts => !(
+        public Condition IsCurrent => Condition.Define(facts => !(
             from next in facts.OfType<Headcount>()
             where next.prior.Contains(this)
             select next
@@ -41,15 +60,26 @@ namespace Jinaga.Test.Model
     [FactType("Corporate.Manager")]
     public record Manager(Office office, int employeeNumber)
     {
-        public Condition IsTerminated => new Condition(facts => (
+        public Condition IsTerminated => Condition.Define(facts => (
             facts.OfType<ManagerTerminated>(termination => termination.Manager == this)
         ).Any());
+
+        public Relation<ManagerName> Names => Relation.Define(facts =>
+            facts.OfType<ManagerName>(name => name.manager == this &&
+                name.IsCurrent)
+        );
+
+        public Relation<string> NameValues => Relation.Define(facts =>
+            facts.OfType<ManagerName>(name => name.manager == this &&
+                name.IsCurrent
+            ).Select(name => name.value)
+        );
     }
 
     [FactType("Corporate.Manager.Name")]
     public record ManagerName(Manager manager, string value, ManagerName[] prior)
     {
-        public Condition IsCurrent => new Condition(facts => !(
+        public Condition IsCurrent => Condition.Define(facts => !(
             facts.OfType<ManagerName>(next => next.prior.Contains(this))
         ).Any());
     }

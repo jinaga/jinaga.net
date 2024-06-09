@@ -7,7 +7,7 @@ public record Company(string identifier);
 [FactType("Corporate.Office")]
 public record Office(Company company, City city)
 {
-    public Condition IsClosed => new Condition(facts =>
+    public Condition IsClosed => Condition.Define(facts =>
         facts.Any<OfficeClosure>(closure => closure.office == this)
     );
 }
@@ -28,7 +28,7 @@ public record City(string name);
 [FactType("Corporate.Headcount")]
 public record Headcount(Office office, int value, Headcount[] prior)
 {
-    public Condition IsCurrent => new Condition(facts => !(
+    public Condition IsCurrent => Condition.Define(facts => !(
         from next in facts.OfType<Headcount>()
         where next.prior.Contains(this)
         select next
@@ -38,7 +38,7 @@ public record Headcount(Office office, int value, Headcount[] prior)
 [FactType("Corporate.Manager")]
 public record Manager(Office office, int employeeNumber)
 {
-    public Condition IsTerminated => new Condition(facts =>
+    public Condition IsTerminated => Condition.Define(facts =>
         facts.OfType<ManagerTerminated>(termination => termination.Manager == this)
     .Any());
 }
@@ -46,7 +46,7 @@ public record Manager(Office office, int employeeNumber)
 [FactType("Corporate.Manager.Name")]
 public record ManagerName(Manager manager, string value, ManagerName[] prior)
 {
-    public Condition IsCurrent => new Condition(facts => !
+    public Condition IsCurrent => Condition.Define(facts => !
         facts.OfType<ManagerName>(next => next.prior.Contains(this))
     .Any());
 }

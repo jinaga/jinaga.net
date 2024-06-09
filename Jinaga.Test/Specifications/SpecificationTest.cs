@@ -468,6 +468,40 @@ namespace Jinaga.Test.Specifications.Specifications
         }
 
         [Fact]
+        public void CanJoinViaRelation()
+        {
+            var testSpecification = Given<Airline>.Match((airline, facts) =>
+                from flight in airline.Flights
+                from booking in flight.Bookings
+                select booking
+            );
+
+            var referenceSpecification = Given<Airline>.Match((airline, facts) =>
+                from flight in facts.OfType<Flight>()
+                where flight.airlineDay.airline == airline
+
+                where !(
+                    from cancellation in facts.OfType<FlightCancellation>()
+                    where cancellation.flight == flight
+                    select cancellation
+                ).Any()
+
+                from booking in facts.OfType<Booking>()
+                where booking.flight == flight
+
+                where !(
+                    from refund in facts.OfType<Refund>()
+                    where refund.booking == booking
+                    select refund
+                ).Any()
+
+                select booking
+            );
+
+            testSpecification.ToString().Should().Be(referenceSpecification.ToString());
+        }
+
+        [Fact]
         public void CanPutWhereAfterSelectMany()
         {
             var testSpecification = Given<Airline>.Match((airline, facts) =>
@@ -731,6 +765,48 @@ namespace Jinaga.Test.Specifications.Specifications
         }
 
         [Fact]
+        public void Specification_RelationInProjection()
+        {
+            var specification = Given<Company>.Match((company, facts) =>
+                company.Offices.Select(office =>
+                    new
+                    {
+                        office,
+                        headcount = office.Headcount.Select(headcount => headcount.value)
+                    }
+                )
+            );
+
+            specification.ToString().ReplaceLineEndings().Should().Be(
+                """
+                (company: Corporate.Company) {
+                    office: Corporate.Office [
+                        office->company: Corporate.Company = company
+                        !E {
+                            closure: Corporate.Office.Closure [
+                                closure->office: Corporate.Office = office
+                            ]
+                        }
+                    ]
+                } => {
+                    headcount = {
+                        headcount: Corporate.Headcount [
+                            headcount->office: Corporate.Office = office
+                            !E {
+                                next: Corporate.Headcount [
+                                    next->prior: Corporate.Headcount = headcount
+                                ]
+                            }
+                        ]
+                    } => headcount.value
+                    office = office
+                }
+
+                """
+                );
+        }
+
+        [Fact]
         public void Specification_DeeplyNestedProjection()
         {
             var specification = Given<Company>.Match((company, facts) =>
@@ -782,6 +858,150 @@ namespace Jinaga.Test.Specifications.Specifications
                             }
                         ]
                     } => {
+                        name = {
+                            name: Corporate.Manager.Name [
+                                name->manager: Corporate.Manager = manager
+                                !E {
+                                    next: Corporate.Manager.Name [
+                                        next->prior: Corporate.Manager.Name = name
+                                    ]
+                                }
+                            ]
+                        } => name.value
+                    }
+                    office = office
+                }
+
+                """
+                );
+        }
+
+        [Fact]
+        public void Specification_DeeplyNestedRelations()
+        {
+            var specification = Given<Company>.Match((company, facts) =>
+                company.Offices.Select(office =>
+                    new
+                    {
+                        office,
+                        managers = office.Managers.Select(manager =>
+                            new
+                            {
+                                manager,
+                                name = manager.Names.Select(name => name.value)
+                            }
+                        )
+                    }
+                )
+            );
+
+            specification.ToString().ReplaceLineEndings().Should().Be(
+                """
+                (company: Corporate.Company) {
+                    office: Corporate.Office [
+                        office->company: Corporate.Company = company
+                        !E {
+                            closure: Corporate.Office.Closure [
+                                closure->office: Corporate.Office = office
+                            ]
+                        }
+                    ]
+                } => {
+                    managers = {
+                        manager: Corporate.Manager [
+                            manager->office: Corporate.Office = office
+                            !E {
+                                termination: Corporate.Manager.Terminated [
+                                    termination->Manager: Corporate.Manager = manager
+                                ]
+                            }
+                        ]
+                    } => {
+                        manager = manager
+                        name = {
+                            name: Corporate.Manager.Name [
+                                name->manager: Corporate.Manager = manager
+                                !E {
+                                    next: Corporate.Manager.Name [
+                                        next->prior: Corporate.Manager.Name = name
+                                    ]
+                                }
+                            ]
+                        } => name.value
+                    }
+                    office = office
+                }
+
+                """
+                );
+        }
+
+        [Fact]
+        public void Specification_SimpleValueRelation()
+        {
+            var specification = Given<Manager>.Match((manager, facts) =>
+                manager.NameValues
+            );
+
+            specification.ToString().ReplaceLineEndings().Should().Be(
+                """
+                (manager: Corporate.Manager) {
+                    name: Corporate.Manager.Name [
+                        name->manager: Corporate.Manager = manager
+                        !E {
+                            next: Corporate.Manager.Name [
+                                next->prior: Corporate.Manager.Name = name
+                            ]
+                        }
+                    ]
+                } => name.value
+
+                """
+                );
+        }
+
+        [Fact]
+        public void Specification_RelationsSelectingValues()
+        {
+            var specification = Given<Company>.Match((company, facts) =>
+                company.Offices.Select(office =>
+                    new
+                    {
+                        office,
+                        managers = office.Managers.Select(manager =>
+                            new
+                            {
+                                manager,
+                                name = manager.NameValues
+                            }
+                        )
+                    }
+                )
+            );
+
+            specification.ToString().ReplaceLineEndings().Should().Be(
+                """
+                (company: Corporate.Company) {
+                    office: Corporate.Office [
+                        office->company: Corporate.Company = company
+                        !E {
+                            closure: Corporate.Office.Closure [
+                                closure->office: Corporate.Office = office
+                            ]
+                        }
+                    ]
+                } => {
+                    managers = {
+                        manager: Corporate.Manager [
+                            manager->office: Corporate.Office = office
+                            !E {
+                                termination: Corporate.Manager.Terminated [
+                                    termination->Manager: Corporate.Manager = manager
+                                ]
+                            }
+                        ]
+                    } => {
+                        manager = manager
                         name = {
                             name: Corporate.Manager.Name [
                                 name->manager: Corporate.Manager = manager
