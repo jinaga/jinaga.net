@@ -367,7 +367,7 @@ namespace Jinaga.Repository
                     object target = InstanceOfFact(propertyInfo.DeclaringType);
                     var condition = (Condition)propertyInfo.GetGetMethod().Invoke(target, new object[0]);
                     var projection = ProcessProjection(member.Expression, symbolTable);
-                    var childSymbolTable = symbolTable.Set("this", projection);
+                    var childSymbolTable = SymbolTable.Empty.Set("this", projection);
                     return ProcessPredicate(condition.Body.Body, childSymbolTable);
                 }
             }
