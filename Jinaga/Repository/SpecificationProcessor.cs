@@ -111,10 +111,10 @@ namespace Jinaga.Repository
                          propertyInfo.PropertyType.GetGenericTypeDefinition() == typeof(IQueryable<>)))
                     {
                         object target = InstanceOfFact(propertyInfo.DeclaringType);
-                        var relation = (Relation)propertyInfo.GetGetMethod().Invoke(target, new object[0]);
+                        var relation = (IQueryable)propertyInfo.GetGetMethod().Invoke(target, new object[0]);
                         var projection = ProcessProjection(memberExpression.Expression, symbolTable);
                         var childSymbolTable = SymbolTable.Empty.Set("this", projection);
-                        return ProcessProjection(relation.Body.Body, childSymbolTable);
+                        return ProcessProjection(relation.Expression, childSymbolTable);
                     }
                 }
 
@@ -286,10 +286,10 @@ namespace Jinaga.Repository
                          propertyInfo.PropertyType.GetGenericTypeDefinition() == typeof(Relation<>)))
                     {
                         object target = InstanceOfFact(propertyInfo.DeclaringType);
-                        var relation = (Relation)propertyInfo.GetGetMethod().Invoke(target, new object[0]);
+                        var relation = (IQueryable)propertyInfo.GetGetMethod().Invoke(target, new object[0]);
                         var projection = ProcessProjection(memberExpression.Expression, symbolTable);
                         var childSymbolTable = SymbolTable.Empty.Set("this", projection);
-                        return ProcessSource(relation.Body.Body, childSymbolTable);
+                        return ProcessSource(relation.Expression, childSymbolTable);
                     }
                 }
             }
