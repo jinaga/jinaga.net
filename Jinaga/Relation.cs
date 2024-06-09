@@ -16,7 +16,7 @@ namespace Jinaga
             Body = body;
         }
 
-        public static IQueryable<T> Define<T>(Expression<Func<FactRepository, IQueryable<T>>> value)
+        public static Relation<T> Define<T>(Expression<Func<FactRepository, IQueryable<T>>> value)
         {
             return new Relation<T>(value);
         }

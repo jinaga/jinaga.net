@@ -264,7 +264,8 @@ namespace Jinaga.Repository
                 if (memberExpression.Member is PropertyInfo propertyInfo)
                 {
                     if (propertyInfo.PropertyType.IsGenericType &&
-                        propertyInfo.PropertyType.GetGenericTypeDefinition() == typeof(IQueryable<>))
+                        (propertyInfo.PropertyType.GetGenericTypeDefinition() == typeof(IQueryable<>) ||
+                         propertyInfo.PropertyType.GetGenericTypeDefinition() == typeof(Relation<>)))
                     {
                         object target = InstanceOfFact(propertyInfo.DeclaringType);
                         var relation = (Relation)propertyInfo.GetGetMethod().Invoke(target, new object[0]);

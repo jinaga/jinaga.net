@@ -21,7 +21,7 @@ namespace Jinaga.Test.Model
             facts.Any<OfficeClosure>(closure => closure.office == this)
         );
 
-        public IQueryable<Headcount> Headcount => Relation.Define(facts =>
+        public Relation<Headcount> Headcount => Relation.Define(facts =>
             facts.OfType<Headcount>(headcount => headcount.office == this &&
                 headcount.IsCurrent
             )
