@@ -28,20 +28,20 @@ namespace Jinaga
         {
         }
 
-        public Type ElementType => throw new NotImplementedException();
+        public Type ElementType => typeof(T);
 
-        public Expression Expression => throw new NotImplementedException();
+        public Expression Expression => Body.Body;
 
         public IQueryProvider Provider => throw new NotImplementedException();
 
         public IEnumerator<T> GetEnumerator()
         {
-            throw new NotImplementedException();
+            return Enumerable.Empty<T>().GetEnumerator();
         }
 
         IEnumerator IEnumerable.GetEnumerator()
         {
-            throw new NotImplementedException();
+            return GetEnumerator();
         }
     }
 }
