@@ -79,48 +79,63 @@ namespace Jinaga.Managers
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
             SetLoadStatus(true, null);
 
-            try
+            // Retry once. A feed might be cached and need to be removed and re-added.
+            int retryCount = 1;
+
+            while (true)
             {
-                var reducedSpecification = specification.Reduce();
-                var feeds = await GetFeedsFromCache(givenTuple, reducedSpecification, cancellationToken).ConfigureAwait(false);
-                logger.LogInformation("Fetch from {0} feeds.", feeds.Count);
-
-                // Fork to fetch from each feed.
-                var tasks = feeds.Select(feed =>
-                {
-                    lock (this)
-                    {
-                        if (activeFeeds.TryGetValue(feed, out var task))
-                        {
-                            return task;
-                        }
-                        else
-                        {
-                            task = Task.Run(() => ProcessFeed(feed, cancellationToken));
-                            activeFeeds = activeFeeds.Add(feed, task);
-                            return task;
-                        }
-                    }
-                });
-
                 try
                 {
-                    await Task.WhenAll(tasks).ConfigureAwait(false);
-                    logger.LogInformation("Fetch completed after {elapsedMilliseconds} ms.", stopwatch.ElapsedMilliseconds);
-                    SetLoadStatus(false, null);
+                    var reducedSpecification = specification.Reduce();
+                    var feeds = await GetFeedsFromCache(givenTuple, reducedSpecification, cancellationToken).ConfigureAwait(false);
+                    logger.LogInformation("Fetch from {0} feeds.", feeds.Count);
+
+                    // Fork to fetch from each feed.
+                    var tasks = feeds.Select(feed =>
+                    {
+                        lock (this)
+                        {
+                            if (activeFeeds.TryGetValue(feed, out var task))
+                            {
+                                return task;
+                            }
+                            else
+                            {
+                                task = Task.Run(() => ProcessFeed(feed, cancellationToken));
+                                activeFeeds = activeFeeds.Add(feed, task);
+                                return task;
+                            }
+                        }
+                    });
+
+                    try
+                    {
+                        await Task.WhenAll(tasks).ConfigureAwait(false);
+                        logger.LogInformation("Fetch completed after {elapsedMilliseconds} ms.", stopwatch.ElapsedMilliseconds);
+                        SetLoadStatus(false, null);
+                    }
+                    catch
+                    {
+                        // If any feed fails, then remove the specification from the cache.
+                        RemoveFeedsFromCache(givenTuple, reducedSpecification);
+                        throw;
+                    }
+                    break;
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // If any feed fails, then remove the specification from the cache.
-                    RemoveFeedsFromCache(givenTuple, reducedSpecification);
-                    throw;
+                    retryCount--;
+                    if (retryCount > 0)
+                    {
+                        logger.LogWarning(ex, "Fetch failed after {elapsedMilliseconds} ms. Retrying.", stopwatch.ElapsedMilliseconds);
+                    }
+                    else
+                    {
+                        logger.LogError(ex, "Fetch failed after {elapsedMilliseconds} ms.", stopwatch.ElapsedMilliseconds);
+                        SetLoadStatus(false, ex);
+                        throw;
+                    }
                 }
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Fetch failed after {elapsedMilliseconds} ms.", stopwatch.ElapsedMilliseconds);
-                SetLoadStatus(false, ex);
-                throw;
             }
         }
 
