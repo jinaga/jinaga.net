@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -86,41 +87,8 @@ namespace Jinaga.Managers
             {
                 try
                 {
-                    var reducedSpecification = specification.Reduce();
-                    var feeds = await GetFeedsFromCache(givenTuple, reducedSpecification, cancellationToken).ConfigureAwait(false);
-                    logger.LogInformation("Fetch from {0} feeds.", feeds.Count);
-
-                    // Fork to fetch from each feed.
-                    var tasks = feeds.Select(feed =>
-                    {
-                        lock (this)
-                        {
-                            if (activeFeeds.TryGetValue(feed, out var task))
-                            {
-                                return task;
-                            }
-                            else
-                            {
-                                task = Task.Run(() => ProcessFeed(feed, cancellationToken));
-                                activeFeeds = activeFeeds.Add(feed, task);
-                                return task;
-                            }
-                        }
-                    });
-
-                    try
-                    {
-                        await Task.WhenAll(tasks).ConfigureAwait(false);
-                        logger.LogInformation("Fetch completed after {elapsedMilliseconds} ms.", stopwatch.ElapsedMilliseconds);
-                        SetLoadStatus(false, null);
-                    }
-                    catch
-                    {
-                        // If any feed fails, then remove the specification from the cache.
-                        RemoveFeedsFromCache(givenTuple, reducedSpecification);
-                        throw;
-                    }
-                    break;
+                    await FetchInternal(givenTuple, specification, stopwatch, cancellationToken).ConfigureAwait(false);
+                    return;
                 }
                 catch (Exception ex)
                 {
@@ -139,10 +107,75 @@ namespace Jinaga.Managers
             }
         }
 
+        private async Task FetchInternal(FactReferenceTuple givenTuple, Specification specification, Stopwatch stopwatch, CancellationToken cancellationToken)
+        {
+            var reducedSpecification = specification.Reduce();
+            var feeds = await GetFeedsFromCache(givenTuple, reducedSpecification, cancellationToken).ConfigureAwait(false);
+            logger.LogInformation("Fetch from {0} feeds.", feeds.Count);
+
+            // Fork to fetch from each feed.
+            var tasks = feeds.Select(feed =>
+            {
+                lock (this)
+                {
+                    if (activeFeeds.TryGetValue(feed, out var task))
+                    {
+                        return task;
+                    }
+                    else
+                    {
+                        task = Task.Run(() => ProcessFeed(feed, cancellationToken));
+                        activeFeeds = activeFeeds.Add(feed, task);
+                        return task;
+                    }
+                }
+            });
+
+            try
+            {
+                await Task.WhenAll(tasks).ConfigureAwait(false);
+                logger.LogInformation("Fetch completed after {elapsedMilliseconds} ms.", stopwatch.ElapsedMilliseconds);
+                SetLoadStatus(false, null);
+            }
+            catch
+            {
+                // If any feed fails, then remove the specification from the cache.
+                RemoveFeedsFromCache(givenTuple, reducedSpecification);
+                throw;
+            }
+        }
+
         public async Task<ImmutableList<string>> Subscribe(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
         {
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
+            // Retry once. A feed might be cached and need to be removed and re-added.
+            int retryCount = 1;
+
+            while (true)
+            {
+                try
+                {
+                    return await SubscribeInternal(givenTuple, specification, stopwatch, cancellationToken).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    retryCount--;
+                    if (retryCount > 0)
+                    {
+                        logger.LogWarning(ex, "Subscribe failed after {elapsedMilliseconds} ms. Retrying.", stopwatch.ElapsedMilliseconds);
+                    }
+                    else
+                    {
+                        logger.LogError(ex, "Subscribe failed after {elapsedMilliseconds} ms.", stopwatch.ElapsedMilliseconds);
+                        throw;
+                    }
+                }
+            }
+        }
+
+        private async Task<ImmutableList<string>> SubscribeInternal(FactReferenceTuple givenTuple, Specification specification, Stopwatch stopwatch, CancellationToken cancellationToken)
+        {
             var reducedSpecification = specification.Reduce();
             var feeds = await GetFeedsFromCache(givenTuple, reducedSpecification, cancellationToken).ConfigureAwait(false);
             logger.LogInformation("Subscribe to {0} feeds.", feeds.Count);
