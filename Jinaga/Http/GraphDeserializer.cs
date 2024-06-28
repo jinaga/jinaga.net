@@ -32,6 +32,10 @@ namespace Jinaga.Http
                     continue;
                 }
                 var type = JsonSerializer.Deserialize<string>(typeLine);
+                if (type == null)
+                {
+                    throw new Exception("Expected a string for the type.");
+                }
 
                 var predecessorsLine = GetLine(reader);
                 var predecessorsElement = JsonSerializer.Deserialize<JsonElement>(predecessorsLine);
@@ -115,7 +119,7 @@ namespace Jinaga.Http
             switch (value.ValueKind)
             {
                 case JsonValueKind.String:
-                    return new FieldValueString(value.GetString());
+                    return new FieldValueString(value.GetString() ?? "");
                 case JsonValueKind.Number:
                     return new FieldValueNumber(value.GetDouble());
                 case JsonValueKind.True:
