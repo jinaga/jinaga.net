@@ -9,6 +9,23 @@
 		<SingleProject>true</SingleProject>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
+	    <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
+
+		<PackageId>Jinaga.Maui</PackageId>
+		<Authors>Michael L Perry</Authors>
+		<Company>Jinaga LLC</Company>
+		<PackageIcon>JinagaIcon.png</PackageIcon>
+		<PackageLicenseExpression>MIT</PackageLicenseExpression>
+		<Copyright>Copyright (c) 2024 Michael L Perry</Copyright>
+		<ProjectUrl>https://jinaga.net</ProjectUrl>
+		<RepositoryUrl>https://github.com/jinaga/jinaga.net</RepositoryUrl>
+		<PackageTags>Data;Synchronization;Offline;Occasionally connected</PackageTags>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<Description>
+		Data management for web and mobile applications.
+		Connect your client to a replicator to replace your hand-written API and database.
+		Jinaga supports occasionally connected clients with local storage in SQLite.
+		</Description>
 
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">11.0</SupportedOSPlatformVersion>
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">13.1</SupportedOSPlatformVersion>
@@ -18,6 +35,11 @@
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'tizen'">6.5</SupportedOSPlatformVersion>
         <SkipValidateMauiImplicitPackageReferences>true</SkipValidateMauiImplicitPackageReferences>
 	</PropertyGroup>
+
+	<ItemGroup>
+		<None Include="..\README.md" Pack="true" PackagePath="\" />
+		<None Include="..\JinagaIcon.png" Pack="True" PackagePath="\" />
+	</ItemGroup>
 
 	<ItemGroup>
 		<PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
