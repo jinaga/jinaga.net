@@ -6,7 +6,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Html.Abstractions" Version="2.2.0" />
-    <PackageReference Include="MinVer" Version="4.3.0">
+    <PackageReference Include="MinVer" Version="5.0.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
@@ -17,7 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Update="Nerdbank.GitVersioning" Version="3.5.119" />
+    <PackageReference Update="Nerdbank.GitVersioning" Version="3.6.139" />
   </ItemGroup>
 
   <PropertyGroup>
@@ -28,7 +28,7 @@
     <Company>Jinaga LLC</Company>
     <PackageIcon>JinagaIcon.png</PackageIcon>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <Copyright>Copyright (c) 2023 Michael L Perry</Copyright>
+    <Copyright>Copyright (c) 2024 Michael L Perry</Copyright>
     <ProjectUrl>https://jinaga.net</ProjectUrl>
     <RepositoryUrl>https://github.com/jinaga/jinaga.net</RepositoryUrl>
     <PackageTags>Data;Synchronization;Offline;Occasionally connected</PackageTags>
@@ -44,7 +44,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="..\JinagaIcon.png"  Pack="True" PackagePath="\" />
+    <None Include="..\JinagaIcon.png" Pack="True" PackagePath="\" />
   </ItemGroup>
 
   <PropertyGroup>
