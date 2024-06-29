@@ -107,7 +107,7 @@ public class OAuthClient
         return token;
     }
 
-    public async Task<TokenResponse> RequestNewToken(string refreshToken)
+    public async Task<TokenResponse?> RequestNewToken(string refreshToken)
     {
         if (accessTokenUrl == null || clientId == null)
             throw new Exception("Create a file called Settings.Local.cs and set the AccessTokenUrl and ClientId properties."

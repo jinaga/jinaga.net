@@ -16,7 +16,7 @@ public class OAuth2HttpAuthenticationProvider : IHttpAuthenticationProvider
     private readonly ILogger<OAuth2HttpAuthenticationProvider> logger;
 
     private readonly SemaphoreSlim semaphore = new(1);
-    volatile private AuthenticationToken authenticationToken;
+    volatile private AuthenticationToken? authenticationToken;
 
     internal bool IsLoggedIn => authenticationToken != null;
 
@@ -145,10 +145,10 @@ public class OAuth2HttpAuthenticationProvider : IHttpAuthenticationProvider
 
     private async Task LoadToken()
     {
-        string tokenJson = await SecureStorage.GetAsync(AuthenticationTokenKey).ConfigureAwait(false);
+        string? tokenJson = await SecureStorage.GetAsync(AuthenticationTokenKey).ConfigureAwait(false);
         if (tokenJson != null)
         {
-            AuthenticationToken authenticationToken = JsonSerializer.Deserialize<AuthenticationToken>(tokenJson);
+            AuthenticationToken? authenticationToken = JsonSerializer.Deserialize<AuthenticationToken>(tokenJson);
             this.authenticationToken = authenticationToken;
         }
     }

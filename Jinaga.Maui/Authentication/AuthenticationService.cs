@@ -1,6 +1,4 @@
-﻿using Microsoft.Maui.Storage;
-
-namespace Jinaga.Maui.Authentication;
+﻿namespace Jinaga.Maui.Authentication;
 public class AuthenticationService
 {
     private const string PublicKeyKey = "Jinaga.PublicKey";
@@ -9,7 +7,7 @@ public class AuthenticationService
     private readonly JinagaClient jinagaClient;
     private readonly Func<JinagaClient, User, UserProfile, Task> updateUserName;
 
-    private volatile User user;
+    private volatile User? user;
 
     private readonly SemaphoreSlim semaphore = new(1);
 
@@ -20,14 +18,14 @@ public class AuthenticationService
         updateUserName = authenticationSettings.UpdateUserName;
     }
 
-    public async Task<User> Initialize()
+    public async Task<User?> Initialize()
     {
         authenticationProvider.Initialize();
         await LoadUser().ConfigureAwait(false);
         return await GetUser(jinagaClient).ConfigureAwait(false);
     }
 
-    public async Task<User> Login(string provider)
+    public async Task<User?> Login(string provider)
     {
         var loggedIn = await authenticationProvider.Login(provider).ConfigureAwait(false);
         if (!loggedIn)
@@ -43,7 +41,7 @@ public class AuthenticationService
         await ClearUser().ConfigureAwait(false);
     }
 
-    private Task<User> GetUser(JinagaClient jinagaClient)
+    private Task<User?> GetUser(JinagaClient jinagaClient)
     {
         return Lock(async () =>
         {
@@ -69,7 +67,7 @@ public class AuthenticationService
         });
     }
 
-    private Task ClearUser()
+    private Task<bool> ClearUser()
     {
         return Lock(async () =>
         {
@@ -81,7 +79,7 @@ public class AuthenticationService
 
     private async Task LoadUser()
     {
-        string publicKey = await SecureStorage.GetAsync(PublicKeyKey).ConfigureAwait(false);
+        string? publicKey = await SecureStorage.GetAsync(PublicKeyKey).ConfigureAwait(false);
         if (publicKey != null)
         {
             user = new User(publicKey);
