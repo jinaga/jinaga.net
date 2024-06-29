@@ -1,4 +1,6 @@
-﻿namespace Jinaga.Maui.Authentication;
+﻿using Microsoft.Maui.Storage;
+
+namespace Jinaga.Maui.Authentication;
 public class AuthenticationService
 {
     private const string PublicKeyKey = "Jinaga.PublicKey";

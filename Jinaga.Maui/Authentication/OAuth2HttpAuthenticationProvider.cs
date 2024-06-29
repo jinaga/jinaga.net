@@ -1,5 +1,7 @@
 using Jinaga.Http;
 using Microsoft.Extensions.Logging;
+using Microsoft.Maui.Authentication;
+using Microsoft.Maui.Storage;
 using System.Diagnostics;
 using System.Globalization;
 using System.Net.Http.Headers;
