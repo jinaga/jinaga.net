@@ -1,7 +1,5 @@
 using Jinaga.Http;
 using Microsoft.Extensions.Logging;
-using Microsoft.Maui.Authentication;
-using Microsoft.Maui.Storage;
 using System.Diagnostics;
 using System.Globalization;
 using System.Net.Http.Headers;
@@ -13,6 +11,7 @@ public class OAuth2HttpAuthenticationProvider : IHttpAuthenticationProvider
 {
     private const string AuthenticationTokenKey = "Jinaga.AuthenticationToken";
 
+    private readonly IWebAuthenticator webAuthenticator;
     private readonly OAuthClient oauthClient;
     private readonly ILogger<OAuth2HttpAuthenticationProvider> logger;
 
@@ -21,8 +20,9 @@ public class OAuth2HttpAuthenticationProvider : IHttpAuthenticationProvider
 
     internal bool IsLoggedIn => authenticationToken != null;
 
-    public OAuth2HttpAuthenticationProvider(OAuthClient oauthClient, ILogger<OAuth2HttpAuthenticationProvider> logger)
+    public OAuth2HttpAuthenticationProvider(IWebAuthenticator webAuthenticator, OAuthClient oauthClient, ILogger<OAuth2HttpAuthenticationProvider> logger)
     {
+        this.webAuthenticator = webAuthenticator;
         this.oauthClient = oauthClient;
         this.logger = logger;
     }
@@ -77,15 +77,9 @@ public class OAuth2HttpAuthenticationProvider : IHttpAuthenticationProvider
 
             var client = oauthClient;
             string requestUrl = client.BuildRequestUrl(provider);
-#if WINDOWS
-            var authResult = await WinUIEx.WebAuthenticator.AuthenticateAsync(
+            var authResult = await webAuthenticator.AuthenticateAsync(
                 new Uri(requestUrl),
                 new Uri(client.CallbackUrl)).ConfigureAwait(false);
-#else
-            var authResult = await WebAuthenticator.Default.AuthenticateAsync(
-                new Uri(requestUrl),
-                new Uri(client.CallbackUrl)).ConfigureAwait(false);
-#endif
             if (authResult == null)
             {
                 logger.LogInformation("Authentication cancelled");
