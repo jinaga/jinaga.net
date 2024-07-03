@@ -60,10 +60,7 @@ public class DistributionRuleTest
                     ]
                 } => comment
                 with (site: Blog.Site, author: Jinaga.User) {
-                    user: Jinaga.User [
-                        user = author
-                    ]
-                } => user
+                } => author
             }
             """.Replace("\r\n", "\n"));
     }
@@ -103,10 +100,8 @@ public class DistributionRuleTest
                 comment.author == author
             select comment
         ))
-        .With(Given<Model.Site, User>.Match((site, author, facts) =>
-            from user in facts.OfType<User>()
-            where user == author
-            select user
+        .With(Given<Model.Site, User>.Match((site, author) =>
+            author
         ))
         ;
 }

@@ -15,7 +15,7 @@ namespace Jinaga.Repository
         private ImmutableList<Label> labels = ImmutableList<Label>.Empty;
         private ImmutableList<Label> givenLabels = ImmutableList<Label>.Empty;
 
-        public static (ImmutableList<Label> given, ImmutableList<Match> matches, Projections.Projection projection) Queryable<TProjection>(LambdaExpression specExpression)
+        public static (ImmutableList<Label> given, ImmutableList<Match> matches, Projection projection) Queryable<TProjection>(LambdaExpression specExpression)
         {
             var processor = new SpecificationProcessor();
             var symbolTable = processor.Given(specExpression.Parameters
@@ -25,13 +25,22 @@ namespace Jinaga.Repository
             return (processor.givenLabels, result.Matches, result.Projection);
         }
 
-        public static (ImmutableList<Label> given, ImmutableList<Match> matches, Projections.Projection projection) Scalar<TProjection>(LambdaExpression specExpression)
+        public static (ImmutableList<Label> given, ImmutableList<Match> matches, Projection projection) Scalar<TProjection>(LambdaExpression specExpression)
         {
             var processor = new SpecificationProcessor();
             var symbolTable = processor.Given(specExpression.Parameters);
             SourceContext result = processor.ProcessShorthand(specExpression.Body, symbolTable);
             processor.ValidateMatches(result.Matches);
             return (processor.givenLabels, result.Matches, result.Projection);
+        }
+
+        public static (ImmutableList<Label> given, ImmutableList<Match> matches, Projection projection) Select<TProjection>(LambdaExpression specSelector)
+        {
+            var processor = new SpecificationProcessor();
+            var symbolTable = processor.Given(specSelector.Parameters
+                .Take(specSelector.Parameters.Count - 1));
+            var result = processor.ProcessProjection(specSelector.Body, symbolTable);
+            return (processor.givenLabels, ImmutableList<Match>.Empty, result);
         }
 
         private SymbolTable Given(IEnumerable<ParameterExpression> parameters)
@@ -68,10 +77,13 @@ namespace Jinaga.Repository
                     )
                 );
             }
-            throw new SpecificationException($"A shorthand specification must select predecessors: {expression}");
+            else
+            {
+                return new SourceContext(ImmutableList<Match>.Empty, new SimpleProjection(reference.Label.Name, expression.Type));
+            }
         }
 
-        private Projections.Projection ProcessProjection(Expression expression, SymbolTable symbolTable)
+        private Projection ProcessProjection(Expression expression, SymbolTable symbolTable)
         {
             if (expression is ParameterExpression parameterExpression)
             {
@@ -424,7 +436,7 @@ namespace Jinaga.Repository
                     }
                 }
             }
-            throw new SpecificationException($"Unsuported reference {expression}."); ;
+            throw new SpecificationException($"Unsupported reference {expression}."); ;
         }
 
         private void ValidateMatches(ImmutableList<Match> matches)
@@ -445,7 +457,7 @@ namespace Jinaga.Repository
             }
         }
 
-        private KeyValuePair<string, Projections.Projection> ProcessProjectionMember(MemberBinding binding, SymbolTable symbolTable)
+        private KeyValuePair<string, Projection> ProcessProjectionMember(MemberBinding binding, SymbolTable symbolTable)
         {
             if (binding is MemberAssignment assignment)
             {
@@ -472,7 +484,7 @@ namespace Jinaga.Repository
             }
         }
 
-        private static string LabelOfProjection(Projections.Projection projection)
+        private static string LabelOfProjection(Projection projection)
         {
             // Expect the projection to be a simple one.
             if (projection is SimpleProjection simpleProjection)

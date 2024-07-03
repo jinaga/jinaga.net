@@ -8,6 +8,58 @@ namespace Jinaga.Test.Specifications.Specifications
     public class SpecificationTest
     {
         [Fact]
+        public void CanSpecifyIdentity()
+        {
+            Specification<Airline, Airline> specification = Given<Airline>.Select((airline, facts) => airline);
+            specification.ToString().ReplaceLineEndings().Should().Be(
+                """
+                (airline: Skylane.Airline) {
+                } => airline
+
+                """
+                );
+        }
+
+        [Fact]
+        public void CanSpecifyIdentityWithShorthand()
+        {
+            Specification<Airline, Airline> specification = Given<Airline>.Match(airline => airline);
+            specification.ToString().ReplaceLineEndings().Should().Be(
+                """
+                (airline: Skylane.Airline) {
+                } => airline
+
+                """
+                );
+        }
+
+        [Fact]
+        public void CanSpecifyIdentityTwoParameters()
+        {
+            Specification<Airline, User, User> specification = Given<Airline, User>.Select((airline, user, facts) => user);
+            specification.ToString().ReplaceLineEndings().Should().Be(
+                """
+                (airline: Skylane.Airline, user: Jinaga.User) {
+                } => user
+
+                """
+                );
+        }
+
+        [Fact]
+        public void CanSpecifyIdentityTwoParametersWithShorthand()
+        {
+            Specification<Airline, User, User> specification = Given<Airline, User>.Match((airline, user) => user);
+            specification.ToString().ReplaceLineEndings().Should().Be(
+                """
+                (airline: Skylane.Airline, user: Jinaga.User) {
+                } => user
+
+                """
+                );
+        }
+
+        [Fact]
         public void CanSpecifySuccessors()
         {
             Specification<Airline, Flight> specification = Given<Airline>.Match((airline, facts) =>
@@ -800,6 +852,46 @@ namespace Jinaga.Test.Specifications.Specifications
                         ]
                     } => headcount.value
                     office = office
+                }
+
+                """
+                );
+        }
+
+        [Fact]
+        public void Specification_ProjectionsFromIdentity()
+        {
+            var specification = Given<Office>.Select((office, facts) =>
+                new
+                {
+                    Managers = office.Managers,
+                    Headcount = office.Headcount
+                });
+
+            specification.ToString().ReplaceLineEndings().Should().Be(
+                """
+                (office: Corporate.Office) {
+                } => {
+                    Headcount = {
+                        headcount: Corporate.Headcount [
+                            headcount->office: Corporate.Office = office
+                            !E {
+                                next: Corporate.Headcount [
+                                    next->prior: Corporate.Headcount = headcount
+                                ]
+                            }
+                        ]
+                    } => headcount
+                    Managers = {
+                        manager: Corporate.Manager [
+                            manager->office: Corporate.Office = office
+                            !E {
+                                termination: Corporate.Manager.Terminated [
+                                    termination->Manager: Corporate.Manager = manager
+                                ]
+                            }
+                        ]
+                    } => manager
                 }
 
                 """
