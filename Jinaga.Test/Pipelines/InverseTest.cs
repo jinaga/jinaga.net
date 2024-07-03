@@ -7,6 +7,15 @@ namespace Jinaga.Test.Pipelines
     public class InverseTest
     {
         [Fact]
+        public void Inverse_Identity()
+        {
+            var specification = Given<Company>.Match(company => company);
+
+            var inverses = specification.ComputeInverses();
+            inverses.Should().BeEmpty();
+        }
+
+        [Fact]
         public void Inverse_SuccessorStep()
         {
             var specification = Given<Company>.Match((company, facts) =>
@@ -301,6 +310,72 @@ namespace Jinaga.Test.Pipelines
                             company = office->company: Corporate.Company
                         ]
                     } => name
+
+                    """
+                });
+        }
+
+        [Fact]
+        public void Inverse_ProjectionFromIdentity()
+        {
+            var specification = Given<Office>.Select((office, facts) => new
+            {
+                Managers = office.Managers,
+                Headcount = office.Headcount
+            });
+
+            var inverses = specification.ComputeInverses();
+
+            inverses.Select(i => i.InverseSpecification.ToString().ReplaceLineEndings())
+                .Should().BeEquivalentTo(new[] {
+                    """
+                    (headcount: Corporate.Headcount [
+                        !E {
+                            next: Corporate.Headcount [
+                                next->prior: Corporate.Headcount = headcount
+                            ]
+                        }
+                    ]) {
+                        office: Corporate.Office [
+                            office = headcount->office: Corporate.Office
+                        ]
+                    } => headcount
+
+                    """,
+                    """
+                    (next: Corporate.Headcount) {
+                        headcount: Corporate.Headcount [
+                            headcount = next->prior: Corporate.Headcount
+                        ]
+                        office: Corporate.Office [
+                            office = headcount->office: Corporate.Office
+                        ]
+                    } => headcount
+
+                    """,
+                    """
+                    (manager: Corporate.Manager [
+                        !E {
+                            termination: Corporate.Manager.Terminated [
+                                termination->Manager: Corporate.Manager = manager
+                            ]
+                        }
+                    ]) {
+                        office: Corporate.Office [
+                            office = manager->office: Corporate.Office
+                        ]
+                    } => manager
+
+                    """,
+                    """
+                    (termination: Corporate.Manager.Terminated) {
+                        manager: Corporate.Manager [
+                            manager = termination->Manager: Corporate.Manager
+                        ]
+                        office: Corporate.Office [
+                            office = manager->office: Corporate.Office
+                        ]
+                    } => manager
 
                     """
                 });

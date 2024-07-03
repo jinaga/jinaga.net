@@ -436,7 +436,7 @@ namespace Jinaga.Repository
                     }
                 }
             }
-            throw new SpecificationException($"Unsuported reference {expression}."); ;
+            throw new SpecificationException($"Unsupported reference {expression}."); ;
         }
 
         private void ValidateMatches(ImmutableList<Match> matches)
