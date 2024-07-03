@@ -31,6 +31,15 @@ namespace Jinaga
                 .ToImmutableList();
             return new Specification<TFact, TProjection>(specificationGivens, matches, projection);
         }
+
+        public static Specification<TFact, TProjection> Select<TProjection>(Expression<Func<TFact, FactRepository, TProjection>> specSelector)
+        {
+            (var givens, var matches, var projection) = SpecificationProcessor.Select<TProjection>(specSelector);
+            var specificationGivens = givens
+                .Select(g => new SpecificationGiven(g, ImmutableList<ExistentialCondition>.Empty))
+                .ToImmutableList();
+            return new Specification<TFact, TProjection>(specificationGivens, matches, projection);
+        }
     }
 
     public static class Given<TFact1, TFact2>
@@ -49,6 +58,15 @@ namespace Jinaga
         public static Specification<TFact1, TFact2, TProjection> Match<TProjection>(Expression<Func<TFact1, TFact2, TProjection>> specExpression)
         {
             (var givens, var matches, var projection) = SpecificationProcessor.Scalar<TProjection>((LambdaExpression)specExpression);
+            var specificationGivens = givens
+                .Select(g => new SpecificationGiven(g, ImmutableList<ExistentialCondition>.Empty))
+                .ToImmutableList();
+            return new Specification<TFact1, TFact2, TProjection>(specificationGivens, matches, projection);
+        }
+
+        public static Specification<TFact1, TFact2, TProjection> Select<TProjection>(Expression<Func<TFact1, TFact2, FactRepository, TProjection>> specSelector)
+        {
+            (var givens, var matches, var projection) = SpecificationProcessor.Select<TProjection>(specSelector);
             var specificationGivens = givens
                 .Select(g => new SpecificationGiven(g, ImmutableList<ExistentialCondition>.Empty))
                 .ToImmutableList();
