@@ -23,7 +23,7 @@
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
 
-    <PackageId>Jinaga.Graphviz</PackageId>
+    <PackageId>Jinaga.Notebooks</PackageId>
     <Authors>Michael L Perry</Authors>
     <Company>Jinaga LLC</Company>
     <PackageIcon>JinagaIcon.png</PackageIcon>

@@ -33,7 +33,7 @@ jobs:
         dotnet build Jinaga --no-restore
         dotnet build Jinaga.UnitTest --no-restore
         dotnet build Jinaga.Test --no-restore
-        dotnet build Jinaga.Graphviz --no-restore
+        dotnet build Jinaga.Notebooks --no-restore
         dotnet build Jinaga.Tool --no-restore
         dotnet build Jinaga.Store.SQLite --no-restore
         dotnet build Jinaga.Store.SQLite.Test --no-restore
