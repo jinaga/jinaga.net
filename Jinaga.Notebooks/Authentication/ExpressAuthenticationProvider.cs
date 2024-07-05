@@ -5,28 +5,28 @@ using Jinaga.Http;
 namespace Jinaga.Notebooks.Authentication;
 
 /// <summary>
-/// An authentication provider that uses a bearer token to authenticate.
+/// An authentication provider that uses a cookie to authenticate with an Express server.
 /// </summary>
-class TokenAuthenticationProvider : IHttpAuthenticationProvider
+public class ExpressAuthenticationHandler : IHttpAuthenticationProvider
 {
-    private string token;
+    public readonly string cookie;
 
     /// <summary>
-    /// Create an authentication provider that uses a bearer token.
+    /// Create an authentication provider that uses the connect.sid cookie.
     /// </summary>
-    /// <param name="token">The bearer token (without the word "Bearer")</param>
-    public TokenAuthenticationProvider(string token)
+    /// <param name="cookie">The value of the connect.sid cookie</param>
+    public ExpressAuthenticationHandler(string cookie)
     {
-        this.token = token;
+        this.cookie = cookie;
     }
 
     /// <summary>
-    /// Set the Authorization header to include the bearer token.
+    /// Set the Cookie header to include the connect.sid cookie.
     /// </summary>
     /// <param name="headers">The headers of the HTTP request</param>
     public void SetRequestHeaders(HttpRequestHeaders headers)
     {
-        headers.Add("Authorization", $"Bearer {token}");
+        headers.Add("Cookie", $"connect.sid={cookie}");
     }
 
     /// <summary>
