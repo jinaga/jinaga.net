@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using Microsoft.AspNetCore.Html;
 
-namespace Jinaga.Graphviz;
+namespace Jinaga.Notebooks;
 
 static class GraphvizRenderer
 {

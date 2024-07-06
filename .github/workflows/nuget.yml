@@ -25,7 +25,7 @@ jobs:
       run: |
         dotnet pack ./Jinaga/ -c Release -o ./packages
         dotnet pack ./Jinaga.UnitTest/ -c Release -o ./packages
-        dotnet pack ./Jinaga.Graphviz/ -c Release -o ./packages
+        dotnet pack ./Jinaga.Notebooks/ -c Release -o ./packages
         dotnet pack ./Jinaga.Store.SQLite/ -c Release -o ./packages
         dotnet pack ./Jinaga.Maui/ -c Release -o ./packages
     - name: Publish Nuget to GitHub registry

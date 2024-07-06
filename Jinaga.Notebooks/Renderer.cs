@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Html;
 using System;
 
-namespace Jinaga.Graphviz;
+namespace Jinaga.Notebooks;
 
 public static class Renderer
 {

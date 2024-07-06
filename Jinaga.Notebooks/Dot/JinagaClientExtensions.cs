@@ -7,7 +7,7 @@ using System.Linq;
 using System.Reflection;
 using System.Web;
 
-namespace Jinaga.Graphviz.Dot;
+namespace Jinaga.Notebooks.Dot;
 
 public static class JinagaClientExtensions
 {

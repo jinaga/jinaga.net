@@ -5,7 +5,7 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Reflection;
 
-namespace Jinaga.Graphviz.Dot;
+namespace Jinaga.Notebooks.Dot;
 
 public static class Renderer
 {

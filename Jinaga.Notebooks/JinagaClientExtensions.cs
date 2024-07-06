@@ -1,7 +1,7 @@
 using System;
 using Microsoft.AspNetCore.Html;
 
-namespace Jinaga.Graphviz;
+namespace Jinaga.Notebooks;
 
 public static class JinagaClientExtensions
 {
