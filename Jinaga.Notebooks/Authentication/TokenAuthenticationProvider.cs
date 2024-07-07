@@ -7,7 +7,7 @@ namespace Jinaga.Notebooks.Authentication;
 /// <summary>
 /// An authentication provider that uses a bearer token to authenticate.
 /// </summary>
-class TokenAuthenticationProvider : IHttpAuthenticationProvider
+public class TokenAuthenticationProvider : IHttpAuthenticationProvider
 {
     private string token;
 
