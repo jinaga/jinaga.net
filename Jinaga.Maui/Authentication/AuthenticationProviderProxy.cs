@@ -21,7 +21,7 @@ public class AuthenticationProviderProxy : IHttpAuthenticationProvider
         provider.SetRequestHeaders(headers);
     }
 
-    public Task<bool> Reauthenticate()
+    public Task<JinagaAuthenticationState> Reauthenticate()
     {
         if (provider == null)
         {

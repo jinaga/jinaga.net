@@ -1,11 +1,4 @@
-﻿using Jinaga.Facts;
-using Jinaga.Projections;
-using Jinaga.Serialization;
-using Jinaga.Services;
-using System.Collections.Immutable;
-using Xunit.Abstractions;
-
-namespace Jinaga.Store.SQLite.Test.Fakes;
+﻿namespace Jinaga.Store.SQLite.Test.Fakes;
 internal class FakeFeed
 {
     public required string Name { get; set; }

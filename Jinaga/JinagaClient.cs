@@ -44,19 +44,40 @@ namespace Jinaga
     }
 
     /// <summary>
+    /// The state of user authentication.
+    /// </summary>
+    public enum JinagaAuthenticationState
+    {
+        /// <summary>
+        /// The user is not authenticated.
+        /// </summary>
+        NotAuthenticated,
+        /// <summary>
+        /// The user is authenticated.
+        /// </summary>
+        Authenticated,
+        /// <summary>
+        /// The user was authenticated, but the authentication has expired.
+        /// Inform the user that they need to log in again.
+        /// </summary>
+        AuthenticationExpired
+    }
+
+    /// <summary>
     /// Information about Jinaga background processes.
     /// </summary>
     public class JinagaStatus
     {
-        public static readonly JinagaStatus Default = new JinagaStatus(false, null, false, null, 0);
+        public static readonly JinagaStatus Default = new JinagaStatus(false, null, false, null, 0, JinagaAuthenticationState.NotAuthenticated);
 
-        public JinagaStatus(bool isLoading, Exception? lastLoadError, bool isSaving, Exception? lastSaveError, int queueLength)
+        public JinagaStatus(bool isLoading, Exception? lastLoadError, bool isSaving, Exception? lastSaveError, int queueLength, JinagaAuthenticationState authenticationState)
         {
             IsLoading = isLoading;
             LastLoadError = lastLoadError;
             IsSaving = isSaving;
             LastSaveError = lastSaveError;
             QueueLength = queueLength;
+            AuthenticationState = authenticationState;
         }
 
         /// <summary>
@@ -80,15 +101,24 @@ namespace Jinaga
         /// The number of facts that are currently queued to be saved to the remote replicator.
         /// </summary>
         public int QueueLength { get; }
+        /// <summary>
+        /// The state of user authentication.
+        /// </summary>
+        internal JinagaAuthenticationState AuthenticationState { get; }
 
         public JinagaStatus WithLoadStatus(bool isLoading, Exception? lastLoadError)
         {
-            return new JinagaStatus(isLoading, lastLoadError, IsSaving, LastSaveError, QueueLength);
+            return new JinagaStatus(isLoading, lastLoadError, IsSaving, LastSaveError, QueueLength, AuthenticationState);
         }
 
         public JinagaStatus WithSaveStatus(bool isSaving, Exception? lastSaveError, int queueLength)
         {
-            return new JinagaStatus(IsLoading, LastLoadError, isSaving, lastSaveError, queueLength);
+            return new JinagaStatus(IsLoading, LastLoadError, isSaving, lastSaveError, queueLength, AuthenticationState);
+        }
+
+        public JinagaStatus WithAuthenticationState(JinagaAuthenticationState authenticationState)
+        {
+            return new JinagaStatus(IsLoading, LastLoadError, IsSaving, LastSaveError, QueueLength, authenticationState);
         }
     }
 

@@ -1,7 +1,5 @@
 using Jianga.Store.SQLite.Test.Models;
-using Jinaga.Facts;
 using Jinaga.Store.SQLite.Test.Models;
-using System.Collections.Immutable;
 
 namespace Jinaga.Store.SQLite.Test;
 

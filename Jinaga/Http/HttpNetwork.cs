@@ -24,7 +24,7 @@ namespace Jinaga.Http
                 },
                 () => authenticationProvider != null
                     ? authenticationProvider.Reauthenticate()
-                    : Task.FromResult(false)));
+                    : Task.FromResult(JinagaAuthenticationState.NotAuthenticated)));
         }
 
         public async Task<(FactGraph graph, UserProfile profile)> Login(CancellationToken cancellationToken)

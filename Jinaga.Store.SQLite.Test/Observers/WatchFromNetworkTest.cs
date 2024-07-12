@@ -1,7 +1,5 @@
 ﻿using Jinaga.Store.SQLite.Test.Fakes;
 using Jinaga.Store.SQLite.Test.Model;
-using Microsoft.Extensions.Logging.Abstractions;
-using Xunit.Abstractions;
 
 namespace Jinaga.Store.SQLite.Test.Observers;
 public class WatchFromNetworkTest

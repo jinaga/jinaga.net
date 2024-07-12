@@ -22,10 +22,10 @@ namespace Jinaga.Http
         private readonly HttpClient httpClient;
         private readonly ILoggerFactory loggerFactory;
         private readonly Action<HttpRequestHeaders> setRequestHeaders;
-        private readonly Func<Task<bool>> reauthenticate;
+        private readonly Func<Task<JinagaAuthenticationState>> reauthenticate;
         private readonly ILogger logger;
 
-        public HttpConnection(Uri baseUrl, ILoggerFactory loggerFactory, Action<HttpRequestHeaders> setRequestHeaders, Func<Task<bool>> reauthenticate)
+        public HttpConnection(Uri baseUrl, ILoggerFactory loggerFactory, Action<HttpRequestHeaders> setRequestHeaders, Func<Task<JinagaAuthenticationState>> reauthenticate)
         {
             this.httpClient = new HttpClient();
             logger = loggerFactory.CreateLogger<HttpConnection>();
@@ -208,7 +208,9 @@ namespace Jinaga.Http
                     response.StatusCode == HttpStatusCode.ProxyAuthenticationRequired)
                 {
                     logger.LogTrace("HTTP response {statusCode}: Re-authenticating", response.StatusCode);
-                    if (await reauthenticate().ConfigureAwait(false))
+                    var authenticationState = await reauthenticate().ConfigureAwait(false);
+                    // TODO: Set status
+                    if (authenticationState == JinagaAuthenticationState.Authenticated)
                     {
                         using var retryRequest = createRequest();
                         setRequestHeaders(retryRequest.Headers);
@@ -254,7 +256,9 @@ namespace Jinaga.Http
                         response.StatusCode == HttpStatusCode.ProxyAuthenticationRequired)
                     {
                         logger.LogTrace("HTTP response {statusCode}: Re-authenticating", response.StatusCode);
-                        if (await reauthenticate().ConfigureAwait(false))
+                        var authenticationState = await reauthenticate().ConfigureAwait(false);
+                        // TODO: Set status
+                        if (authenticationState == JinagaAuthenticationState.Authenticated)
                         {
                             using var retryRequest = createRequest();
                             setRequestHeaders(retryRequest.Headers);

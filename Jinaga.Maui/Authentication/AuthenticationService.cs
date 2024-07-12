@@ -1,8 +1,8 @@
 ﻿using System.Globalization;
 using System.Net.Http.Headers;
 using Jinaga.Http;
-using Jinaga.Maui.Binding;
 using Microsoft.Extensions.Logging;
+using Microsoft.Maui.Authentication;
 
 namespace Jinaga.Maui.Authentication;
 
@@ -182,13 +182,13 @@ public class AuthenticationService : IHttpAuthenticationProvider
     /// Reauthenticate the user. Called when a request fails with a 401 Unauthorized status.
     /// </summary>
     /// <returns>True if the token was successfully refreshed</returns>
-    public async Task<bool> Reauthenticate()
+    public async Task<JinagaAuthenticationState> Reauthenticate()
     {
         var cachedAuthenticationToken = authenticationState.Token;
         if (cachedAuthenticationToken == null)
         {
             // Not logged in.
-            return false;
+            return JinagaAuthenticationState.NotAuthenticated;
         }
 
         try
@@ -205,7 +205,7 @@ public class AuthenticationService : IHttpAuthenticationProvider
                 }
                 await tokenStorage.SaveTokenAndUser(authenticationResult).ConfigureAwait(false);
                 logger.LogInformation("Token refresh failed. Cleared authentication token.");
-                return false;
+                return JinagaAuthenticationState.AuthenticationExpired;
             }
             else
             {
@@ -218,13 +218,13 @@ public class AuthenticationService : IHttpAuthenticationProvider
                 }
                 await tokenStorage.SaveTokenAndUser(authenticationResult).ConfigureAwait(false);
                 logger.LogInformation("Token refresh succeeded.");
-                return true;
+                return JinagaAuthenticationState.Authenticated;
             }
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error while refreshing token.");
-            return false;
+            return JinagaAuthenticationState.NotAuthenticated;
         }
     }
 

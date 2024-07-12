@@ -1,9 +1,3 @@
-using Jinaga.Facts;
-using Jinaga.Projections;
-using Jinaga.Store.SQLite.Builder;
-using Jinaga.Store.SQLite.Generation;
-using System.Collections.Immutable;
-
 namespace Jinaga.Store.SQLite.Test;
 
 internal static class SpecificationExtensions

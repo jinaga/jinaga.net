@@ -1,15 +1,4 @@
-using Jinaga.DefaultImplementations;
-using Jinaga.Managers;
-using Jinaga.Facts;
-using Jinaga.Services;
 using Jinaga.Store.SQLite.Test.Models;
-using System.Collections.Immutable;
-using System.Diagnostics;
-
-using Xunit.Abstractions;
-using Jinaga.Storage;
-using System.Globalization;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Jinaga.Store.SQLite.Test;
 

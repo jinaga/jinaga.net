@@ -1,6 +1,7 @@
 ﻿using Jinaga.Http;
 using Jinaga.Maui.Authentication;
 using Jinaga.Maui.Binding;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Jinaga.Maui;
 public static class ConfigurationExtensions
