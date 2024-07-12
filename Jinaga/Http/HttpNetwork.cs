@@ -14,6 +14,8 @@ namespace Jinaga.Http
     {
         private readonly WebClient webClient;
 
+        public event INetwork.AuthenticationStateChanged? OnAuthenticationStateChanged;
+
         public HttpNetwork(Uri baseUrl, IHttpAuthenticationProvider? authenticationProvider, ILoggerFactory loggerFactory)
         {
             webClient = new WebClient(new HttpConnection(baseUrl, loggerFactory,
@@ -24,7 +26,12 @@ namespace Jinaga.Http
                 },
                 () => authenticationProvider != null
                     ? authenticationProvider.Reauthenticate()
-                    : Task.FromResult(JinagaAuthenticationState.NotAuthenticated)));
+                    : Task.FromResult(JinagaAuthenticationState.NotAuthenticated),
+                authenticationState =>
+                {
+                    OnAuthenticationStateChanged?.Invoke(authenticationState);
+                }
+            ));
         }
 
         public async Task<(FactGraph graph, UserProfile profile)> Login(CancellationToken cancellationToken)

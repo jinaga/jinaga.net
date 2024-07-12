@@ -9,6 +9,9 @@ namespace Jinaga.Services
 {
     public interface INetwork
     {
+        delegate void AuthenticationStateChanged(JinagaAuthenticationState state);
+        event AuthenticationStateChanged? OnAuthenticationStateChanged;
+
         Task<(FactGraph graph, UserProfile profile)> Login(CancellationToken cancellationToken);
         Task<ImmutableList<string>> Feeds(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken);
         Task<(ImmutableList<Facts.FactReference> references, string bookmark)> FetchFeed(string feed, string bookmark, CancellationToken cancellationToken);
