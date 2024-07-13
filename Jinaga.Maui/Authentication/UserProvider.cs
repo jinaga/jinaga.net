@@ -1,7 +1,7 @@
 ﻿using System.Collections.Immutable;
 using Microsoft.Extensions.Logging;
 
-namespace Jinaga.Maui.Binding;
+namespace Jinaga.Maui.Authentication;
 
 /// <summary>
 /// Manage user state within an application. Register the UserProvider

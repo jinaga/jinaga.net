@@ -2,7 +2,7 @@
 
 namespace Jinaga.Maui.Authentication;
 
-internal class AuthenticationToken
+public class AuthenticationToken
 {
     [JsonPropertyName("accessToken")]
     public string AccessToken { get; set; } = string.Empty;

@@ -24,6 +24,10 @@ internal class FakeNetwork : INetwork
     private readonly Dictionary<FactReference, Fact> factByFactReference = new();
     private string finalBookmark = "done";
 
+#pragma warning disable CS0067
+    public event INetwork.AuthenticationStateChanged OnAuthenticationStateChanged;
+#pragma warning restore CS0067
+
     public FactGraph UploadedGraph { get; private set; } = FactGraph.Empty;
     public ImmutableList<Fact> UploadedFacts => UploadedGraph.FactReferences.Select(UploadedGraph.GetFact).ToImmutableList();
 

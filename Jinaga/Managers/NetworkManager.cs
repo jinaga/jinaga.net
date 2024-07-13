@@ -38,6 +38,8 @@ namespace Jinaga.Managers
             this.store = store;
             this.logger = loggerFactory.CreateLogger<NetworkManager>();
             this.notifyObservers = notifyObservers;
+
+            network.OnAuthenticationStateChanged += SetAuthenticationState;
         }
 
         public async Task<(FactGraph graph, UserProfile profile)> Login(CancellationToken cancellationToken)
@@ -377,6 +379,15 @@ namespace Jinaga.Managers
             lock (this)
             {
                 status = status.WithSaveStatus(isSaving, lastSaveError, queueLength);
+                OnStatusChanged?.Invoke(status);
+            }
+        }
+
+        private void SetAuthenticationState(JinagaAuthenticationState authenticationState)
+        {
+            lock (this)
+            {
+                status = status.WithAuthenticationState(authenticationState);
                 OnStatusChanged?.Invoke(status);
             }
         }

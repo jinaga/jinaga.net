@@ -19,6 +19,10 @@ internal class FakeNetwork : INetwork
     private readonly List<FakeFeed> feeds = new();
     private readonly Dictionary<FactReference, FactEnvelope> envelopeByFactReference = new();
 
+#pragma warning disable CS0067
+    public event INetwork.AuthenticationStateChanged? OnAuthenticationStateChanged;
+#pragma warning restore CS0067
+
     public FakeNetwork(ITestOutputHelper output)
     {
         this.output = output;

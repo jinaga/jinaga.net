@@ -13,6 +13,10 @@ namespace Jinaga.DefaultImplementations
         public ImmutableList<FactReference> SavedFactReferences => UploadedGraph.FactReferences;
         public FactGraph UploadedGraph { get; private set; } = FactGraph.Empty;
 
+#pragma warning disable CS0067
+        public event INetwork.AuthenticationStateChanged? OnAuthenticationStateChanged;
+#pragma warning restore CS0067
+
         public Task<(FactGraph graph, UserProfile profile)> Login(CancellationToken cancellationToken)
         {
             throw new NotImplementedException();

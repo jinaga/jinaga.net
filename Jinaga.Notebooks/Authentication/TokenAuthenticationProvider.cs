@@ -34,8 +34,8 @@ public class TokenAuthenticationProvider : IHttpAuthenticationProvider
     /// does not support re-authentication.
     /// </summary>
     /// <returns>True if the provider was able to reauthenticate</returns>
-    public Task<bool> Reauthenticate()
+    public Task<JinagaAuthenticationState> Reauthenticate()
     {
-        return Task.FromResult(false);
+        return Task.FromResult(JinagaAuthenticationState.NotAuthenticated);
     }
 }

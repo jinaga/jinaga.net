@@ -6,6 +6,6 @@ namespace Jinaga.Http
     public interface IHttpAuthenticationProvider
     {
         void SetRequestHeaders(HttpRequestHeaders headers);
-        Task<bool> Reauthenticate();
+        Task<JinagaAuthenticationState> Reauthenticate();
     }
 }
