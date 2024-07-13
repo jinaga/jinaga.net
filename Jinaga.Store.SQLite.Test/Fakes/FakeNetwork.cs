@@ -1,4 +1,11 @@
-﻿namespace Jinaga.Store.SQLite.Test.Fakes;
+﻿using Jinaga.Facts;
+using Jinaga.Projections;
+using Jinaga.Serialization;
+using Jinaga.Services;
+using System.Collections.Immutable;
+using Xunit.Abstractions;
+
+namespace Jinaga.Store.SQLite.Test.Fakes;
 internal class FakeFeed
 {
     public required string Name { get; set; }
@@ -11,6 +18,10 @@ internal class FakeNetwork : INetwork
     private ITestOutputHelper output;
     private readonly List<FakeFeed> feeds = new();
     private readonly Dictionary<FactReference, FactEnvelope> envelopeByFactReference = new();
+
+#pragma warning disable CS0067
+    public event INetwork.AuthenticationStateChanged? OnAuthenticationStateChanged;
+#pragma warning restore CS0067
 
     public FakeNetwork(ITestOutputHelper output)
     {

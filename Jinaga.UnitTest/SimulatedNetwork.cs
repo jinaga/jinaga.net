@@ -12,6 +12,10 @@ namespace Jinaga.UnitTest
     {
         private readonly string publicKey;
 
+#pragma warning disable CS0067
+        public event INetwork.AuthenticationStateChanged OnAuthenticationStateChanged;
+#pragma warning restore CS0067
+
         public SimulatedNetwork(string publicKey)
         {
             this.publicKey = publicKey;

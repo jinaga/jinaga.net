@@ -1,3 +1,5 @@
+using Jinaga;
+
 namespace Jianga.Store.SQLite.Test.Models;
 
 /// <summary>Represents an organization, or business unit within an organization, that might need separate data.</summary>

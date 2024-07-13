@@ -1,3 +1,7 @@
+using Jinaga.DefaultImplementations;
+using Jinaga.Services;
+using Microsoft.Extensions.Logging.Abstractions;
+
 namespace Jinaga.Store.SQLite.Test.Users;
 public class SingleUsePrincipalTest
 {
