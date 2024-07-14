@@ -275,6 +275,7 @@ public class AuthenticationService : IHttpAuthenticationProvider
         try
         {
             await oauthClient.RevokeToken(cachedAuthenticationToken.AccessToken, cachedAuthenticationToken.RefreshToken).ConfigureAwait(false);
+            logger.LogInformation("Revoked token");
         }
         catch (Exception ex)
         {
