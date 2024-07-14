@@ -14,4 +14,9 @@ public interface INavigationLifecycleManager
     /// </summary>
     /// <param name="viewModel">The view model to stop managing</param>
     void Hidden(ILifecycleManaged viewModel);
+    /// <summary>
+    /// Unload all view models that are not visible.
+    /// Call this method when the user logs out.
+    /// </summary>
+    void UnloadInvisible();
 }

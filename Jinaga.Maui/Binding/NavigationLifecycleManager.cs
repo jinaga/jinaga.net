@@ -37,6 +37,15 @@ public class NavigationLifecycleManager : INavigationLifecycleManager
         }
     }
 
+    public void UnloadInvisible()
+    {
+        foreach (var viewModel in loadedViewModels.Except(visibleViewModels))
+        {
+            viewModel.Unload();
+            loadedViewModels = loadedViewModels.Remove(viewModel);
+        }
+    }
+
     // Invariants:
     // All visible view models are loaded.
     // No descendants of a visible view model are loaded, unless
