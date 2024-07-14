@@ -8,7 +8,7 @@ namespace Jinaga.Maui.Authentication;
 /// as a singleton in the service collection. Inject the UserProvider
 /// into the application components that need to set or know the current user.
 /// </summary>
-public class UserProvider
+public class UserProvider : IUserProvider
 {
     private readonly ILogger<UserProvider> logger;
 
@@ -28,7 +28,7 @@ public class UserProvider
     /// <summary>
     /// Save the handler so that it can be removed from the user provider.
     /// </summary>
-    public class Handler
+    public class Handler : IUserProviderHandler
     {
         internal Func<User, Action> WithUser { get; }
         private Action Clear { get; set; } = () => { };
@@ -84,8 +84,8 @@ public class UserProvider
     /// operations performed by the handler.
     /// </summary>
     /// <param name="withUser"></param>
-    /// <returns></returns>
-    public Handler AddHandler(Func<User, Action> withUser)
+    /// <returns>A handler</returns>
+    public IUserProviderHandler AddHandler(Func<User, Action> withUser)
     {
         lock (syncRoot)
         {
@@ -103,14 +103,18 @@ public class UserProvider
     /// Remove a handler that was previously registered with <see cref="AddHandler(Func{User, Action})"/>.
     /// </summary>
     /// <param name="handler">The handler that was returned from AddHandler.</param>
-    public void RemoveHandler(Handler handler)
+    public void RemoveHandler(IUserProviderHandler handler)
     {
+        if (handler is not Handler handlerImpl)
+        {
+            throw new ArgumentException("Handler was not created by this UserProvider");
+        }
         lock (syncRoot)
         {
-            handlers = handlers.Remove(handler);
+            handlers = handlers.Remove(handlerImpl);
             if (user != null)
             {
-                handler.InvokeClear();
+                handlerImpl.InvokeClear();
             }
         }
     }

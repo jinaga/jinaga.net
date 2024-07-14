@@ -12,7 +12,7 @@ namespace Jinaga.Maui.Authentication;
 public class AuthenticationService : IHttpAuthenticationProvider
 {
     private readonly ITokenStorage tokenStorage;
-    private readonly UserProvider userProvider;
+    private readonly IUserProvider userProvider;
     private readonly IWebAuthenticator webAuthenticator;
     private readonly OAuthClient oauthClient;
     private readonly JinagaClient jinagaClient;
@@ -34,7 +34,7 @@ public class AuthenticationService : IHttpAuthenticationProvider
     /// <param name="authenticationSettings">Application-provided settings for authentication</param>
     /// <param name="logger">Log activities</param>
     /// <param name="authenticationProviderProxy">Proxies this authentication service to support API calls</param>
-    public AuthenticationService(ITokenStorage tokenStorage, UserProvider userProvider, IWebAuthenticator webAuthenticator, OAuthClient oauthClient, JinagaClient jinagaClient, AuthenticationSettings authenticationSettings, ILogger<AuthenticationService> logger, AuthenticationProviderProxy authenticationProviderProxy)
+    public AuthenticationService(ITokenStorage tokenStorage, IUserProvider userProvider, IWebAuthenticator webAuthenticator, OAuthClient oauthClient, JinagaClient jinagaClient, AuthenticationSettings authenticationSettings, ILogger<AuthenticationService> logger, AuthenticationProviderProxy authenticationProviderProxy)
     {
         this.tokenStorage = tokenStorage;
         this.userProvider = userProvider;

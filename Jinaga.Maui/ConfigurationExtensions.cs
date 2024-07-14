@@ -21,7 +21,7 @@ public static class ConfigurationExtensions
     public static IServiceCollection AddJinagaAuthentication(this IServiceCollection services)
     {
         services.AddSingleton<ITokenStorage, SecureTokenStorage>();
-        services.AddSingleton<UserProvider>();
+        services.AddSingleton<IUserProvider, UserProvider>();
         services.AddSingleton<AuthenticationProviderProxy>();
         services.AddSingleton<IHttpAuthenticationProvider>(
             s => s.GetRequiredService<AuthenticationProviderProxy>());
