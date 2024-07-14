@@ -26,7 +26,7 @@ public static class ConfigurationExtensions
         services.AddSingleton<IHttpAuthenticationProvider>(
             s => s.GetRequiredService<AuthenticationProviderProxy>());
         services.AddSingleton<OAuthClient>();
-        services.AddSingleton<AuthenticationService>();
+        services.AddSingleton<IAuthenticationService, AuthenticationService>();
         return services;
     }
 

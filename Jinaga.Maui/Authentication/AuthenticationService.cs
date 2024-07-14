@@ -9,7 +9,7 @@ namespace Jinaga.Maui.Authentication;
 /// <summary>
 /// Provides authentication services, including token management and user authentication.
 /// </summary>
-public class AuthenticationService : IHttpAuthenticationProvider
+public class AuthenticationService : IHttpAuthenticationProvider, IAuthenticationService
 {
     private readonly ITokenStorage tokenStorage;
     private readonly UserProvider userProvider;
@@ -103,7 +103,7 @@ public class AuthenticationService : IHttpAuthenticationProvider
     /// </summary>
     /// <param name="provider">The identifier of the authentication provider to use</param>
     /// <returns>True if the user successfully authenticated</returns>
-    public async Task<bool> Login(string provider)
+    public async Task<bool> LogIn(string provider)
     {
         lock (stateLock)
         {
