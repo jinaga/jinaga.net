@@ -1,5 +1,6 @@
 ﻿using System.Collections.Immutable;
 using System.Net;
+using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -10,6 +11,7 @@ public class OAuthClient
 {
     private readonly ImmutableDictionary<string, string> authUrlByProvider;
     private readonly string accessTokenUrl;
+    private readonly string revokeUrl;
     private readonly string callbackUrl;
     private readonly string clientId;
     private readonly string scope;
@@ -25,6 +27,7 @@ public class OAuthClient
     {
         authUrlByProvider = authenticationSettings.AuthUrlByProvider;
         accessTokenUrl = authenticationSettings.AccessTokenUrl;
+        revokeUrl = authenticationSettings.RevokeUrl;
         callbackUrl = authenticationSettings.CallbackUrl;
         clientId = authenticationSettings.ClientId;
         scope = authenticationSettings.Scope;
@@ -142,6 +145,36 @@ public class OAuthClient
         }
 
         return token;
+    }
+
+    public async Task RevokeToken(string accessToken, string refreshToken)
+    {
+        var requestBody = new FormUrlEncodedContent(
+        [
+            new KeyValuePair<string, string>("token", refreshToken),
+            new KeyValuePair<string, string>("token_type_hint", "refresh_token")
+        ]);
+
+        var request = new HttpRequestMessage(HttpMethod.Post, revokeUrl);
+        request.Content = requestBody;
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+        var client = httpClientFactory.CreateClient();
+        client.Timeout = TimeSpan.FromSeconds(30);
+        var response = await client.SendAsync(request);
+        if (!response.IsSuccessStatusCode)
+        {
+            string errorContent;
+            try
+            {
+                errorContent = await response.Content.ReadAsStringAsync();
+                throw new Exception($"Failed to revoke the token: {(int)response.StatusCode} {response.ReasonPhrase}: {errorContent}");
+            }
+            catch (Exception)
+            {
+                throw new Exception($"Failed to revoke the token: {(int)response.StatusCode} {response.ReasonPhrase}");
+            }
+        }
     }
 
     private static string GenerateRandomString()

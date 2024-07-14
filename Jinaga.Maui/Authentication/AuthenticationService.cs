@@ -155,7 +155,7 @@ public class AuthenticationService : IHttpAuthenticationProvider
             return;
         }
 
-        await InvalidateToken(cachedAuthenticationToken).ConfigureAwait(false);
+        await RevokeToken(cachedAuthenticationToken).ConfigureAwait(false);
         lock (stateLock)
         {
             authenticationState = AuthenticationResult.Empty;
@@ -270,10 +270,16 @@ public class AuthenticationService : IHttpAuthenticationProvider
         return token;
     }
 
-    private Task InvalidateToken(AuthenticationToken cachedAuthenticationToken)
+    private async Task RevokeToken(AuthenticationToken cachedAuthenticationToken)
     {
-        // TODO: Implement token invalidation.
-        return Task.CompletedTask;
+        try
+        {
+            await oauthClient.RevokeToken(cachedAuthenticationToken.AccessToken, cachedAuthenticationToken.RefreshToken).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to revoke token");
+        }
     }
 
     private static bool IsExpired(AuthenticationToken token)
