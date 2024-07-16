@@ -104,7 +104,7 @@ namespace Jinaga
         /// <summary>
         /// The state of user authentication.
         /// </summary>
-        internal JinagaAuthenticationState AuthenticationState { get; }
+        public JinagaAuthenticationState AuthenticationState { get; }
 
         public JinagaStatus WithLoadStatus(bool isLoading, Exception? lastLoadError)
         {
