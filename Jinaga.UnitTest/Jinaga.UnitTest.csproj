@@ -1,22 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <PackageReference Include="MinVer" Version="5.0.0">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\Jinaga\Jinaga.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
     <None Include="..\README.md" Pack="true" PackagePath="\" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Update="Nerdbank.GitVersioning" Version="3.6.139" />
   </ItemGroup>
 
   <PropertyGroup>
@@ -40,6 +25,10 @@
       Jinaga supports occasionally connected clients with local storage in SQLite.
     </Description>
   </PropertyGroup>
+
+  <ItemGroup>
+		<PackageReference Include="Jinaga" Version="1.*" />
+  </ItemGroup>
 
   <ItemGroup>
     <None Include="..\JinagaIcon.png" Pack="True" PackagePath="\" />

@@ -23,25 +23,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Jinaga\Jinaga.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
     <None Include="..\README.md" Pack="true" PackagePath="\" />
     <None Include="..\JinagaIcon.png" Pack="True" PackagePath="\" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="MinVer" Version="5.0.0">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
+		<PackageReference Include="Jinaga" Version="1.*" />
     <PackageReference Include="SQLitePCLRaw.bundle_green" Version="2.1.8" />
-    <PackageReference Include="System.Text.Json" Version="8.0.4" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Update="Nerdbank.GitVersioning" Version="3.6.139" />
   </ItemGroup>
 
 </Project>

@@ -12,17 +12,22 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
       with:
         fetch-depth: "0"
 
     - name: Setup .NET Core 8
-      uses: actions/setup-dotnet@v1
+      uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 8.x.x
 
+    - name: Set up GitHub Packages authentication
+      run: |
+        dotnet nuget update source "GitHub" --username ${{ github.actor }} --password ${{ secrets.GITHUB_TOKEN }} --store-password-in-clear-text
+
     - name: Restore dependencies
       run: dotnet restore
+
     - name: Build
       run: |
         dotnet build Jinaga --no-restore
@@ -33,6 +38,7 @@ jobs:
         dotnet build Jinaga.Store.SQLite --no-restore
         dotnet build Jinaga.Store.SQLite.Test --no-restore
         dotnet build Jinaga.Maui --no-restore
+
     - name: Test
       run: |
         dotnet test Jinaga.Test --no-build --verbosity normal
