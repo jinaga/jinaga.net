@@ -3,7 +3,6 @@ name: NuGet Package Tool
 on:
   workflow_dispatch:
 
-
 jobs:
   build:
 
@@ -13,14 +12,18 @@ jobs:
     - uses: actions/checkout@v2
       with:
         fetch-depth: "0"
+
     - name: Setup .NET
       uses: actions/setup-dotnet@v1
       with:
         dotnet-version: 8.0.x
+
     - name: Restore dependencies
       run: dotnet restore ./Jinaga.Tool/
+
     - name: Pack
       run: |
         dotnet pack ./Jinaga.Tool/ -c Release -o ./packages
-    - name: Publish Nuget to GitHub registry
-      run: dotnet nuget push ./packages/*.nupkg -k ${{secrets.NUGET_API_KEY}} -s https://api.nuget.org/v3/index.json --skip-duplicate --no-symbols
+
+    - name: Publish NuGet to GitHub Packages registry
+      run: dotnet nuget push ./packages/*.nupkg --api-key ${{ secrets.GITHUB_TOKEN }} --source https://nuget.pkg.github.com/Jinaga/index.json --skip-duplicate --no-symbols
