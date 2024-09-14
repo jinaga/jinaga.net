@@ -31,14 +31,10 @@
 	<ItemGroup>
 		<PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
 		<PackageReference Include="Microsoft.Maui.Essentials" Version="8.0.70" />
-		<PackageReference Include="MinVer" Version="5.0.0">
-			<PrivateAssets>all</PrivateAssets>
-			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-		</PackageReference>
 	</ItemGroup>
 
 	<ItemGroup>
-	  <ProjectReference Include="..\Jinaga\Jinaga.csproj" />
+		<PackageReference Include="Jinaga" Version="1.*" />
 	</ItemGroup>
 
 </Project>
