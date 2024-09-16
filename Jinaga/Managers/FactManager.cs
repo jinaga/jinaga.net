@@ -22,6 +22,7 @@ namespace Jinaga.Managers
         private readonly ILoggerFactory loggerFactory;
         private readonly ObservableSource observableSource;
 
+        private bool unloaded = false;
         private ImmutableList<TaskHandle> pendingTasks = ImmutableList<TaskHandle>.Empty;
 
         public FactManager(IStore store, NetworkManager networkManager, ILoggerFactory loggerFactory)
@@ -40,6 +41,7 @@ namespace Jinaga.Managers
 
         public async Task<(FactGraph graph, UserProfile profile)> Login(CancellationToken cancellationToken)
         {
+            VerifyNotUnloaded();
             var (graph, profile) = await networkManager.Login(cancellationToken).ConfigureAwait(false);
             await store.Save(graph, false, cancellationToken).ConfigureAwait(false);
             return (graph, profile);
@@ -47,6 +49,7 @@ namespace Jinaga.Managers
 
         public async Task<FactGraph> BeginSingleUse()
         {
+            VerifyNotUnloaded();
             var keyPair = KeyPair.Generate();
 
             // Generate a User fact.
@@ -66,11 +69,13 @@ namespace Jinaga.Managers
 
         public async Task Push(CancellationToken cancellationToken)
         {
+            VerifyNotUnloaded();
             await networkManager.Save(cancellationToken).ConfigureAwait(false);
         }
 
         public async Task<ImmutableList<Fact>> Save(FactGraph graph, CancellationToken cancellationToken)
         {
+            VerifyNotUnloaded();
             var added = await store.Save(graph, true, cancellationToken).ConfigureAwait(false);
             await observableSource.Notify(graph, added, cancellationToken).ConfigureAwait(false);
 
@@ -105,6 +110,7 @@ namespace Jinaga.Managers
 
         public async Task<ImmutableList<Fact>> SaveLocal(FactGraph graph, CancellationToken cancellationToken)
         {
+            VerifyNotUnloaded();
             var added = await store.Save(graph, false, cancellationToken).ConfigureAwait(false);
             await observableSource.Notify(graph, added, cancellationToken).ConfigureAwait(false);
             return added;
@@ -112,11 +118,13 @@ namespace Jinaga.Managers
 
         public async Task Fetch(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
         {
+            VerifyNotUnloaded();
             await networkManager.Fetch(givenTuple, specification, cancellationToken).ConfigureAwait(false);
         }
 
         public async Task<ImmutableList<string>> Subscribe(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
         {
+            VerifyNotUnloaded();
             return await networkManager.Subscribe(givenTuple, specification, cancellationToken).ConfigureAwait(false);
         }
 
@@ -141,6 +149,7 @@ namespace Jinaga.Managers
 
         public async Task<ImmutableList<Product>> Query(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
         {
+            VerifyNotUnloaded();
             await networkManager.Fetch(givenTuple, specification, cancellationToken).ConfigureAwait(false);
             return await store.Read(givenTuple, specification, cancellationToken).ConfigureAwait(false);
         }
@@ -204,6 +213,7 @@ namespace Jinaga.Managers
 
         public IObserver StartObserver(FactReferenceTuple givenTuple, Specification specification, Func<object, Task<Func<Task>>> onAdded, bool keepAlive)
         {
+            VerifyNotUnloaded();
             var observer = new Observer(specification, givenTuple, this, onAdded, loggerFactory);
             observer.Start(keepAlive);
             return observer;
@@ -211,6 +221,7 @@ namespace Jinaga.Managers
 
         public IObserver StartObserverLocal(FactReferenceTuple givenTuple, Specification specification, Func<object, Task<Func<Task>>> onAdded)
         {
+            VerifyNotUnloaded();
             var observer = new ObserverLocal(specification, givenTuple, this, onAdded, loggerFactory);
             observer.Start();
             return observer;
@@ -243,6 +254,8 @@ namespace Jinaga.Managers
 
         public async Task Unload()
         {
+            VerifyNotUnloaded();
+            unloaded = true;
             var freezePendingTasks = pendingTasks;
             if (freezePendingTasks.Count > 0)
             {
@@ -265,6 +278,14 @@ namespace Jinaga.Managers
             lock (this)
             {
                 pendingTasks = pendingTasks.Remove(handle);
+            }
+        }
+
+        private void VerifyNotUnloaded()
+        {
+            if (unloaded)
+            {
+                throw new InvalidOperationException("Use of a JinagaClient after calling Unload.");
             }
         }
     }
