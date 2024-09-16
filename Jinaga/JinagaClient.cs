@@ -128,7 +128,7 @@ namespace Jinaga
     /// Provides access to Jinaga facts and results.
     /// Treat this object as a singleton.
     /// </summary>
-    public class JinagaClient : IJinagaClient
+    public class JinagaClient : IJinagaClient, IAsyncDisposable
     {
         /// <summary>
         /// Creates a Jinaga client with no persistent storage or network connection.
@@ -159,6 +159,8 @@ namespace Jinaga
         private readonly FactManager factManager;
         private readonly NetworkManager networkManager;
         private readonly ILogger<JinagaClient> logger;
+
+        private bool disposed = false;
 
         /// <summary>
         /// Event that fires when the status of the client changes.
@@ -905,6 +907,19 @@ namespace Jinaga
             {
                 logger.LogError(ex, "Unload failed");
                 throw;
+            }
+        }
+
+        /// <summary>
+        /// Dispose of resources asynchronously.
+        /// </summary>
+        /// <returns>A task that represents the asynchronous dispose operation.</returns>
+        public async ValueTask DisposeAsync()
+        {
+            if (!disposed)
+            {
+                disposed = true;
+                await Unload().ConfigureAwait(false);
             }
         }
 
