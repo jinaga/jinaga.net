@@ -1,8 +1,6 @@
 name: "NuGet Package"
 
 on:
-  release:
-    types: [published]
   workflow_dispatch:
 
 jobs:
