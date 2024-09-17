@@ -55,10 +55,17 @@ var observer = j.Watch(contoso, employeesOfCompany, employee =>
 });
 ```
 
-Finally, if you want to be notified in real time of new information, just subscribe.
+Finally, if you want to be notified in real time of new information, just change `Watch` to `Subscribe`.
 
 ```C#
-var subscription = j.Subscribe(contoso, employeesOfCompany);
+var subscription = j.Subscribe(contoso, employeesOfCompany, employee =>
+{
+    var component = AddEmployeeComponent(employee);
+    return () =>
+    {
+        RemoveEmployeeComponent(component);
+    };
+});
 ```
 
 The client will open a persistent connection with the server.
@@ -98,43 +105,23 @@ And the back ends are intended to interconnect to form a decision substrate.
 
 ![Jinaga Roadmap](./Documentation/JinagaRoadmap.svg)
 
-### APIs
-
-The primary APIs for Jinaga are:
-
-- `j.Fact` - Add and publish a fact
-- `j.Query` - Project the facts matching a specification
-- `j.Watch` - Continually update a projection
-- `j.Subscribe` - Receive continuous updates from peers
-
-The `Subscribe` API is not fully implemented in Jinaga.JS, and not implemented yet in Jinaga.NET.
-The JS version uses polling rather than the intended mechanism of Web Sockets or HTTP/2 Server Push.
-
 ### Storage
 
-Jinaga.NET currently has only memory storage, which is packaged with the core library.
-The next storage solutions to implement are SQLite to support Xamarin mobile apps and PostgreSQL to support Docker deployment.
+Jiaga.NET currently has support for SQLite and memory storage.
+The next storage solution to implement is PostgreSQL to support Docker deployment.
 After that, the MS SQL Server implementation will support enterprise solutions that need to keep the journal transactionally consistent with the projection.
-
-### Rules
-
-Authorization rules -- which limit the users who can create facts -- are implemented in Jinaga.JS, but not yet in Jinaga.NET.
-Distribution rules -- which limit the specifications that a user can query -- are not yet implemented in either.
 
 ## Release
 
 This repository uses [Nerdbank.GitVersioning](https://github.com/dotnet/Nerdbank.GitVersioning) to manage version numbers.
-To release a new version of the Jinaga.NET library, create a new tag in the format `1.2.3`.
-Then create a new release based on that tag.
-The release will be published to [NuGet](https://www.nuget.org/packages/Jinaga/).
+To release a new version of the Jinaga.NET library, create a new release in the format `yyyymmdd.i`.
+For example, `20240917.1`.
+All of the packages will be versioned separately.
+Their version numbers will not be updated if they have not changed.
+The packages will be published to [NuGet](https://www.nuget.org/packages/Jinaga/).
 
-To accomplish this from the command line, use a combination of `git` and `gh` commands.
+To accomplish this from the command line, use the following `gh` command.
 
 ```powershell
-$VERSION = "1.2.3"
-git checkout main
-git pull
-git tag $VERSION
-git push --tags
-gh release create $VERSION --generate-notes --verify-tag
+gh release create 20240917.1 --generate-notes
 ```

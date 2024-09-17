@@ -21,6 +21,10 @@ jobs:
       with:
         dotnet-version: 8.0.x
 
+    - name: Set up GitHub Packages authentication
+      run: |
+        dotnet nuget update source "GitHub" --username ${{ github.actor }} --password ${{ secrets.GITHUB_TOKEN }} --store-password-in-clear-text
+
     - name: Restore dependencies
       run: dotnet restore
 
