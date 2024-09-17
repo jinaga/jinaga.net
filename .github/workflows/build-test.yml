@@ -14,7 +14,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
       with:
-        fetch-depth: 1  # Fetch only the latest commit
+        fetch-depth: "0"
 
     - name: Setup .NET Core 8
       uses: actions/setup-dotnet@v4
