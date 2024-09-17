@@ -128,7 +128,7 @@ namespace Jinaga
     /// Provides access to Jinaga facts and results.
     /// Treat this object as a singleton.
     /// </summary>
-    public class JinagaClient : IJinagaClient
+    public class JinagaClient : IJinagaClient, IAsyncDisposable
     {
         /// <summary>
         /// Creates a Jinaga client with no persistent storage or network connection.
@@ -159,6 +159,8 @@ namespace Jinaga
         private readonly FactManager factManager;
         private readonly NetworkManager networkManager;
         private readonly ILogger<JinagaClient> logger;
+
+        private bool disposed = false;
 
         /// <summary>
         /// Event that fires when the status of the client changes.
@@ -197,6 +199,9 @@ namespace Jinaga
             Local = new LocalJinagaClient(factManager, loggerFactory);
         }
 
+        /// <summary>
+        /// Operate on the local store without making a network connection.
+        /// </summary>
         public LocalJinagaClient Local { get; }
 
         /// <summary>
@@ -224,6 +229,14 @@ namespace Jinaga
             }
         }
 
+        /// <summary>
+        /// Create some facts owned by a single-use principal. A key pair is
+        /// generated for the principal and used to sign the facts. The private
+        /// key is discarded after the facts are saved.
+        /// </summary>
+        /// <typeparam name="T">The type to return from the function</typeparam>
+        /// <param name="func">A function that saves a set of facts and returns one or more of them</param>
+        /// <returns>The result of the function</returns>
         public async Task<T> SingleUse<T>(Func<User, Task<T>> func)
         {
             try
@@ -905,6 +918,19 @@ namespace Jinaga
             {
                 logger.LogError(ex, "Unload failed");
                 throw;
+            }
+        }
+
+        /// <summary>
+        /// Dispose of resources asynchronously.
+        /// </summary>
+        /// <returns>A task that represents the asynchronous dispose operation.</returns>
+        public async ValueTask DisposeAsync()
+        {
+            if (!disposed)
+            {
+                disposed = true;
+                await Unload().ConfigureAwait(false);
             }
         }
 
