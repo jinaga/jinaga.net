@@ -28,7 +28,9 @@
   </ItemGroup>
 
   <ItemGroup>
-		<PackageReference Include="Jinaga" Version="1.*" />
+		<ProjectReference Include="..\Jinaga\Jinaga.csproj" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="SQLitePCLRaw.bundle_green" Version="2.1.8" />
   </ItemGroup>
 

@@ -34,7 +34,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Jinaga" Version="1.*" />
+		<ProjectReference Include="..\Jinaga\Jinaga.csproj" />
 	</ItemGroup>
 
 </Project>
