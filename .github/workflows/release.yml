@@ -35,7 +35,8 @@ jobs:
 
     - name: Pack
       run: |
-        dotnet pack ./Jinaga/ -c Release -o ./packages
+        dotnet pack ./Jinaga/ -c Release -o ./packages /p:IncludeSymbols=true /p:SymbolPackageFormat=snupkg
+        dotnet pack ./Jinaga.Notebooks/ -c Release -o ./packages /p:IncludeSymbols=true /p:SymbolPackageFormat=snupkg
 
-    - name: Publish Nuget to GitHub registry
-      run: dotnet nuget push ./packages/*.nupkg -k ${{secrets.NUGET_API_KEY}} -s https://api.nuget.org/v3/index.json --skip-duplicate --no-symbols
+    - name: Publish NuGet packages
+      run: dotnet nuget push ./packages/*.nupkg ./packages/*.snupkg -k ${{secrets.NUGET_API_KEY}} -s https://api.nuget.org/v3/index.json --skip-duplicate
