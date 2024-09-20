@@ -22,6 +22,7 @@ public static class Renderer
         };
         var toVisit = types
             .Where(t => t.GetCustomAttributes(typeof(FactTypeAttribute), false).Any())
+            .Distinct()
             .ToImmutableList();
         var visited = ImmutableList<Type>.Empty;
         var lines = ImmutableList<string>.Empty;
