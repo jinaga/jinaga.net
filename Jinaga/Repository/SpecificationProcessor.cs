@@ -1,6 +1,8 @@
 ﻿using Jinaga.Pipelines;
 using Jinaga.Projections;
 using Jinaga.Specifications;
+using Microsoft.FSharp.Linq.RuntimeHelpers;
+using Microsoft.FSharp.Quotations;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
@@ -477,6 +479,57 @@ namespace Jinaga.Repository
                 unaryExpression.Operand is LambdaExpression lambdaExpression)
             {
                 return lambdaExpression;
+            }
+            else if (argument is MethodCallExpression methodCallExpression)
+            {
+                if (methodCallExpression.Method.DeclaringType == typeof(LeafExpressionConverter) &&
+                    methodCallExpression.Method.Name == nameof(LeafExpressionConverter.QuotationToLambdaExpression))
+                {
+                    var exprArgument = methodCallExpression.Arguments[0];
+                    // The exprArgument is a call to the function Microsoft.FSharp.Linq.RuntimeHelpers.LeafExpressionConverter.SubstHelper
+                    // which takes three parameters
+                    if (exprArgument is MethodCallExpression substHelperCall &&
+                        substHelperCall.Method.DeclaringType == typeof(LeafExpressionConverter) &&
+                        substHelperCall.Method.Name == nameof(LeafExpressionConverter.SubstHelper))
+                    {
+                        var helperExpr = substHelperCall.Arguments[0]; // FSharpExpr
+                        // The helperExpr is a ConstantExpression with the value of the FSharpExpr
+                        if (helperExpr is ConstantExpression constantExpression)
+                        {
+                            var fsharpExpr = constantExpression.Value;
+                            if (fsharpExpr is FSharpExpr fsharpExprValue)
+                            {
+                                var result = LeafExpressionConverter.QuotationToExpression(fsharpExprValue);
+                                // The result is a LambdaExpression
+                                if (result is LambdaExpression lambdaExpressionResult)
+                                {
+                                    return lambdaExpressionResult;
+                                }
+                                else
+                                {
+                                    throw new ArgumentException($"Expected a LambdaExpression, but got {result}.");
+                                }
+                            }
+                            else
+                            {
+                                throw new ArgumentException($"Expected a FSharpExpr, but got {fsharpExpr}.");
+                            }
+                        }
+                        else
+                        {
+                            throw new ArgumentException($"Expected a ConstantExpression, but got {helperExpr}.");
+                        }
+                    }
+                    else
+                    {
+                        throw new ArgumentException($"Expected a call to LeafExpressionConverter.SubstHelper, but got {exprArgument}.");
+                    }
+                }
+                else
+                {
+                    string actualMethodCall = $"{methodCallExpression.Method.DeclaringType.Name}.{methodCallExpression.Method.Name}";
+                    throw new ArgumentException($"Expected a call to LeafExpressionConverter.QuotationToLambdaExpression, but got {actualMethodCall}.");
+                }
             }
             else
             {
