@@ -21,10 +21,12 @@ type Employee =
 
 [<Fact>]
 let ``My test`` () =
+    let specificationExpression =
+        fun (company : Company) (facts : Repository.FactRepository) ->
+            facts.OfType<Employee>().Where(fun x -> x.Company = company)
     let employeesOfCompany =
-        Given<Company>.Match(
-            (fun (company : Company) (facts : Repository.FactRepository) ->
-            facts.OfType<Employee>().Where(fun x -> x.Company = company))
+        Given<Company>.Match<Employee>(
+            specificationExpression
         )
 
     let j = JinagaClient.Create()

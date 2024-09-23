@@ -10,7 +10,7 @@ using System.Reflection;
 
 namespace Jinaga.Repository
 {
-    class SpecificationProcessor
+    public class SpecificationProcessor
     {
         private ImmutableList<Label> labels = ImmutableList<Label>.Empty;
         private ImmutableList<Label> givenLabels = ImmutableList<Label>.Empty;
