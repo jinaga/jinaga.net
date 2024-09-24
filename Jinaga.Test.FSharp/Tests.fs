@@ -4,29 +4,28 @@ open System
 open System.Linq
 open Jinaga
 open Xunit
+open System.Linq.Expressions
 
 [<FactType("Corporate.Company")>]
 type Company =
-  {
-    Identifier : string
-  }
+    {
+        Identifier : string
+    }
 
 [<FactType("Corporate.Employee")>]
 type Employee =
-  {
-    Company : Company
-    EmployeeNumber : int
-  }
+    {
+        Company : Company
+        EmployeeNumber : int
+    }
 
 
 [<Fact>]
 let ``My test`` () =
-    let specificationExpression =
-        fun (company : Company) (facts : Repository.FactRepository) ->
-            facts.OfType<Employee>().Where(fun x -> x.Company = company)
     let employeesOfCompany =
         Given<Company>.Match<Employee>(
-            specificationExpression
+            fun company facts ->
+                facts.OfType<Employee>(fun x -> x.Company = company)
         )
 
     let j = JinagaClient.Create()
