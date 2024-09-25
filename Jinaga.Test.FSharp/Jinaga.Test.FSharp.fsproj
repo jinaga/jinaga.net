@@ -18,4 +18,7 @@
     <ProjectReference Include="..\Jinaga\Jinaga.csproj" />
     <Compile Include="SpeficationTests.fs" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Jinaga.FSharp\Jinaga.FSharp.fsproj" />
+  </ItemGroup>
 </Project>
