@@ -20,5 +20,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Jinaga.FSharp\Jinaga.FSharp.fsproj" />
+    <Compile Include="Model\Airline.fs" />
   </ItemGroup>
 </Project>

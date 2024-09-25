@@ -1,12 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <OutputType>Library</OutputType>
     <TargetFramework>net6.0</TargetFramework>
   </PropertyGroup>
-
   <ItemGroup>
     <ProjectReference Include="../Jinaga/Jinaga.csproj" />
   </ItemGroup>
-
+  <ItemGroup>
+    <Compile Include="../Jinaga.FSharp.Test/Airline.fs" />
+  </ItemGroup>
 </Project>
