@@ -6,15 +6,91 @@ open System.Linq.Expressions
 open Jinaga.Pipelines
 open Jinaga.Projections
 open Jinaga.Specifications
+open Jinaga.Repository
+open System.Linq
+
+type Label(recommendedName: string, factType: string) =
+    member val Name = recommendedName
+    member val FactType = factType
+
+type SimpleProjection(tag: string, factType: Type) =
+    member val Tag = tag
+    member val FactType = factType
+
+type CompoundProjection(fields: ImmutableDictionary<string, obj>, factType: Type) =
+    member val Fields = fields
+    member val FactType = factType
+    member this.GetProjection(name: string) = fields.[name]
+
+type FieldProjection(tag: string, factType: Type, fieldName: string, fieldType: Type) =
+    member val Tag = tag
+    member val FactType = factType
+    member val FieldName = fieldName
+    member val FieldType = fieldType
+
+type CollectionProjection(matches: ImmutableList<Match>, projection: Projection, collectionType: Type) =
+    member val Matches = matches
+    member val Projection = projection
+    member val CollectionType = collectionType
+
+type HashProjection(tag: string, factType: Type) =
+    member val Tag = tag
+    member val FactType = factType
+
+type ReferenceContext(label: Label, roles: ImmutableList<Role>) =
+    member val Label = label
+    member val Roles = roles with get, set
+    static member From(label: Label) = ReferenceContext(label, ImmutableList<Role>.Empty)
+    member this.Push(role: Role) = ReferenceContext(this.Label, this.Roles.Add(role))
+
+type Role(name: string, targetType: string) =
+    member val Name = name
+    member val TargetType = targetType
+
+type SourceContext(matches: ImmutableList<Match>, projection: Projection) =
+    member val Matches = matches
+    member val Projection = projection
+
+type Match(unknown: Label, pathConditions: ImmutableList<obj>) =
+    member val Unknown = unknown
+    member val PathConditions = pathConditions
+
+type SymbolTable(values: ImmutableDictionary<string, Projection>) =
+    let values = values
+
+    new() = SymbolTable(ImmutableDictionary<string, Projection>.Empty)
+
+    member this.Set(name: string, value: Projection) =
+        SymbolTable(values.SetItem(name, value))
+
+    member this.Get(name: string) =
+        match values.TryGetValue(name) with
+        | true, value -> value
+        | false, _ -> raise (Exception(sprintf "No value named %s." name))
+
+    static member Empty = SymbolTable()
 
 type SpecificationProcessor() =
     let mutable labels = ImmutableList<Label>.Empty
     let mutable givenLabels = ImmutableList<Label>.Empty
 
+    member private this.ValidateMatches(matches: ImmutableList<Match>) =
+        // Look for matches with no path conditions.
+        let mutable priorMatch: Match option = None
+        for m in matches do
+            if not (m.PathConditions.Any()) then
+                let unknown = match.Unknown.Name
+                let prior = 
+                    match priorMatch with
+                    | Some priorMatch -> sprintf "prior variable \"%s\"" priorMatch.Unknown.Name
+                    | None -> sprintf "parameter \"%s\"" (givenLabels.First().Name)
+                raise (SpecificationException(sprintf "The variable \"%s\" should be joined to the %s." unknown prior))
+            priorMatch <- Some m
+
     static member Queryable<'TProjection> (specExpression: LambdaExpression) =
         let processor = SpecificationProcessor()
         let symbolTable = processor.Given(specExpression.Parameters |> Seq.take (specExpression.Parameters.Count - 1))
-        let result = processor.ProcessSource(specExpression.Body, symbolTable)
+        let result = processor.ProcessSource(specExpression.Body, symbolTable, "")
         processor.ValidateMatches(result.Matches)
         (processor.givenLabels, result.Matches, result.Projection)
 
@@ -102,12 +178,12 @@ type SpecificationProcessor() =
                     let specification = specification.Apply(arguments)
                     CollectionProjection(specification.Matches, specification.Projection, methodCallExpression.Type)
                 elif methodCallExpression.Arguments.Count = 1 && typeof<IQueryable>.IsAssignableFrom(methodCallExpression.Arguments.[0].Type) then
-                    let value = this.ProcessSource(methodCallExpression.Arguments.[0], symbolTable)
+                    let value = this.ProcessSource(methodCallExpression.Arguments.[0], symbolTable, "")
                     CollectionProjection(value.Matches, value.Projection, methodCallExpression.Type)
                 else
                     raise (SpecificationException(sprintf "Unsupported type of projection %A" expression))
             elif expression.Type.IsGenericType && expression.Type.GetGenericTypeDefinition() = typeof<IQueryable<_>> then
-                let value = this.ProcessSource(expression, symbolTable)
+                let value = this.ProcessSource(expression, symbolTable, "")
                 CollectionProjection(value.Matches, value.Projection, expression.Type)
             elif methodCallExpression.Method.DeclaringType = typeof<JinagaClient> && methodCallExpression.Method.Name = nameof(JinagaClient.Hash) && methodCallExpression.Arguments.Count = 1 then
                 let value = this.ProcessProjection(methodCallExpression.Arguments.[0], symbolTable)
@@ -159,8 +235,8 @@ type SpecificationProcessor() =
             elif methodCallExpression.Method.DeclaringType = typeof<FactRepository> then
                 if methodCallExpression.Method.Name = nameof(FactRepository.OfType) && methodCallExpression.Arguments.Count = 0 then
                     let factType = methodCallExpression.Method.GetGenericArguments().[0]
-                    let type = factType.FactTypeName()
-                    let label = Label(recommendedLabel, type)
+                    let t = factType.FactTypeName()
+                    let label = Label(recommendedLabel, t)
                     LinqProcessor.FactsOfType(label, factType)
                 elif methodCallExpression.Method.Name = nameof(FactRepository.OfType) && methodCallExpression.Arguments.Count = 1 then
                     let lambda = SpecificationProcessor.GetLambda(methodCallExpression.Arguments.[0])
@@ -182,7 +258,7 @@ type SpecificationProcessor() =
                     let relation = propertyInfo.GetGetMethod().Invoke(target, [||]) :?> IQueryable
                     let projection = this.ProcessProjection(memberExpression.Expression, symbolTable)
                     let childSymbolTable = SymbolTable.Empty.Set("this", projection)
-                    this.ProcessSource(relation.Expression, childSymbolTable)
+                    this.ProcessSource(relation.Expression, childSymbolTable, recommendedLabel)
                 else
                     raise (SpecificationException(sprintf "Unsupported type of specification %A" expression))
             else
@@ -200,7 +276,7 @@ type SpecificationProcessor() =
         | :? MethodCallExpression as methodCallExpression ->
             if methodCallExpression.Method.DeclaringType = typeof<Queryable> then
                 if methodCallExpression.Method.Name = nameof(Queryable.Any) && methodCallExpression.Arguments.Count = 1 then
-                    let source = this.ProcessSource(methodCallExpression.Arguments.[0], symbolTable)
+                    let source = this.ProcessSource(methodCallExpression.Arguments.[0], symbolTable, "")
                     LinqProcessor.Any(source)
                 elif methodCallExpression.Method.Name = nameof(Queryable.Any) && methodCallExpression.Arguments.Count = 2 then
                     let lambda = SpecificationProcessor.GetLambda(methodCallExpression.Arguments.[1])
@@ -254,39 +330,4 @@ type SpecificationProcessor() =
                 let type = parameterExpression.Type.FactTypeName()
                 ReferenceContext.From(Label(simpleProjection.Tag, type))
             | _ -> raise (SpecificationException(sprintf "Unsupported reference %A" expression))
-        | :? ConstantExpression ->
-            let projection = symbolTable.Get("this")
-            match projection with
-            | :? SimpleProjection as simpleProjection ->
-                let type = expression.Type.FactTypeName()
-                ReferenceContext.From(Label(simpleProjection.Tag, type))
-            | _ -> raise (SpecificationException(sprintf "Unsupported reference %A" expression))
-        | :? MemberExpression as memberExpression ->
-            if memberExpression.Expression.Type.IsFactType() then
-                let head = this.ProcessReference(memberExpression.Expression, symbolTable)
-                head.Push(Role(memberExpression.Member.Name, memberExpression.Type.FactTypeName()))
-            else
-                let head = this.ProcessProjection(memberExpression.Expression, symbolTable)
-                match head with
-                | :? CompoundProjection as compoundProjection ->
-                    let member = compoundProjection.GetProjection(memberExpression.Member.Name)
-                    match member with
-                    | :? SimpleProjection as simpleProjection ->
-                        let type = memberExpression.Type.FactTypeName()
-                        ReferenceContext.From(Label(simpleProjection.Tag, type))
-                    | _ -> raise (SpecificationException(sprintf "Unsupported reference %A" expression))
-                | _ -> raise (SpecificationException(sprintf "Unsupported reference %A" expression))
-        | _ -> raise (SpecificationException(sprintf "Unsupported reference %A" expression))
-
-    member private this.ValidateMatches(matches: ImmutableList<Match>) =
-        // Look for matches with no path conditions.
-        let mutable priorMatch: Match option = None
-        for match in matches do
-            if not (match.PathConditions.Any()) then
-                let unknown = match.Unknown.Name
-                let prior = 
-                    match priorMatch with
-                    | Some priorMatch -> sprintf "prior variable \"%s\"" priorMatch.Unknown.Name
-                    | None -> sprintf "parameter \"%s\"" (givenLabels.First().Name)
-                raise (SpecificationException(sprintf "The variable \"%s\" should be joined to the %s." unknown prior))
-            priorMatch <- Some match
+        | :? ConstantExpression

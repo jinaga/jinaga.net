@@ -5,8 +5,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../Jinaga/Jinaga.csproj" />
-  </ItemGroup>
-  <ItemGroup>
-    <Compile Include="../Jinaga.FSharp.Test/Airline.fs" />
+    <Compile Include="Specification.fs" />
+    <Compile Include="SpecificationProcessor.fs" />
   </ItemGroup>
 </Project>
