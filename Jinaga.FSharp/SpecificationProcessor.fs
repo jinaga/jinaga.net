@@ -8,6 +8,7 @@ open Jinaga.Projections
 open Jinaga.Specifications
 open Jinaga.Repository
 open System.Linq
+open Jinaga
 
 type Label(recommendedName: string, factType: string) =
     member val Name = recommendedName
@@ -87,26 +88,6 @@ type SpecificationProcessor() =
                 raise (SpecificationException(sprintf "The variable \"%s\" should be joined to the %s." unknown prior))
             priorMatch <- Some m
 
-    static member Queryable<'TProjection> (specExpression: LambdaExpression) =
-        let processor = SpecificationProcessor()
-        let symbolTable = processor.Given(specExpression.Parameters |> Seq.take (specExpression.Parameters.Count - 1))
-        let result = processor.ProcessSource(specExpression.Body, symbolTable, "")
-        processor.ValidateMatches(result.Matches)
-        (processor.givenLabels, result.Matches, result.Projection)
-
-    static member Scalar<'TProjection> (specExpression: LambdaExpression) =
-        let processor = SpecificationProcessor()
-        let symbolTable = processor.Given(specExpression.Parameters)
-        let result = processor.ProcessShorthand(specExpression.Body, symbolTable)
-        processor.ValidateMatches(result.Matches)
-        (processor.givenLabels, result.Matches, result.Projection)
-
-    static member Select<'TProjection> (specSelector: LambdaExpression) =
-        let processor = SpecificationProcessor()
-        let symbolTable = processor.Given(specSelector.Parameters |> Seq.take (specSelector.Parameters.Count - 1))
-        let result = processor.ProcessProjection(specSelector.Body, symbolTable)
-        (processor.givenLabels, ImmutableList<Match>.Empty, result)
-
     member private this.Given(parameters: seq<ParameterExpression>) =
         givenLabels <- parameters
             |> Seq.map (fun parameter -> this.NewLabel(parameter.Name, parameter.Type.FactTypeName()))
@@ -137,7 +118,11 @@ type SpecificationProcessor() =
         | :? ParameterExpression as parameterExpression ->
             symbolTable.Get(parameterExpression.Name)
         | :? NewExpression as newExpression ->
-            let names = if newExpression.Members <> null then newExpression.Members |> Seq.map (fun member -> member.Name) else newExpression.Constructor.GetParameters() |> Seq.map (fun parameter -> parameter.Name)
+            let names =
+                if newExpression.Members <> null then
+                    newExpression.Members |> Seq.map (fun m -> m.Name)
+                else
+                    newExpression.Constructor.GetParameters() |> Seq.map (fun parameter -> parameter.Name)
             let values = newExpression.Arguments |> Seq.map (fun arg -> this.ProcessProjection(arg, symbolTable))
             let fields = names.Zip(values, (fun name value -> KeyValuePair.Create(name, value))) |> ImmutableDictionary.ToImmutableDictionary
             CompoundProjection(fields, newExpression.Type)
@@ -302,13 +287,13 @@ type SpecificationProcessor() =
             else
                 raise (SpecificationException(sprintf "Unsupported predicate type %A" body))
         | :? UnaryExpression as unaryExpression when unaryExpression.Operand :? MemberExpression && unaryExpression.NodeType = ExpressionType.Convert ->
-            let member = unaryExpression.Operand :?> MemberExpression
-            if member.Member :? PropertyInfo then
-                let propertyInfo = member.Member :?> PropertyInfo
+            let m = unaryExpression.Operand :?> MemberExpression
+            if m.Member :? PropertyInfo then
+                let propertyInfo = m.Member :?> PropertyInfo
                 if propertyInfo.PropertyType = typeof<Condition> && unaryExpression.Type = typeof<bool> then
                     let target = SpecificationProcessor.InstanceOfFact(propertyInfo.DeclaringType)
                     let condition = propertyInfo.GetGetMethod().Invoke(target, [||]) :?> Condition
-                    let projection = this.ProcessProjection(member.Expression, symbolTable)
+                    let projection = this.ProcessProjection(m.Expression, symbolTable)
                     let childSymbolTable = SymbolTable.Empty.Set("this", projection)
                     this.ProcessPredicate(condition.Body.Body, childSymbolTable)
                 else
@@ -327,7 +312,49 @@ type SpecificationProcessor() =
             let projection = symbolTable.Get(parameterExpression.Name)
             match projection with
             | :? SimpleProjection as simpleProjection ->
-                let type = parameterExpression.Type.FactTypeName()
-                ReferenceContext.From(Label(simpleProjection.Tag, type))
-            | _ -> raise (SpecificationException(sprintf "Unsupported reference %A" expression))
-        | :? ConstantExpression
+                let factType = parameterExpression.Type.FactTypeName()
+                ReferenceContext.From(Label(simpleProjection.Tag, factType))
+            | _ -> raise (SpecificationException(sprintf "Unsupported projection %A." projection))
+        | :? ConstantExpression ->
+            let projection = symbolTable.Get("this")
+            match projection with
+            | :? SimpleProjection as simpleProjection ->
+                let factType = expression.Type.FactTypeName()
+                ReferenceContext.From(Label(simpleProjection.Tag, factType))
+            | _ -> raise (SpecificationException(sprintf "Unsupported projection %A." projection))
+        | :? MemberExpression as memberExpression ->
+            if memberExpression.Expression.Type.IsFactType() then
+                let head = this.ProcessReference(memberExpression.Expression, symbolTable)
+                head.Push(Role(memberExpression.Member.Name, memberExpression.Type.FactTypeName()))
+            else
+                let head = this.ProcessProjection(memberExpression.Expression, symbolTable)
+                match head with
+                | :? CompoundProjection as compoundProjection ->
+                    let m = compoundProjection.GetProjection(memberExpression.Member.Name)
+                    match m with
+                    | :? SimpleProjection as simpleProjection ->
+                        let factType = memberExpression.Type.FactTypeName()
+                        ReferenceContext.From(Label(simpleProjection.Tag, factType))
+                    | _ -> raise (SpecificationException(sprintf "Unsupported member projection %A." m))
+                | _ -> raise (SpecificationException(sprintf "Unsupported head projection %A." head))
+        | _ -> raise (SpecificationException(sprintf "Unsupported reference %A." expression))
+
+    static member Queryable<'TProjection> (specExpression: LambdaExpression) =
+        let processor = SpecificationProcessor()
+        let symbolTable = processor.Given(specExpression.Parameters |> Seq.take (specExpression.Parameters.Count - 1))
+        let result = processor.ProcessSource(specExpression.Body, symbolTable, "")
+        processor.ValidateMatches(result.Matches)
+        (processor.givenLabels, result.Matches, result.Projection)
+
+    static member Scalar<'TProjection> (specExpression: LambdaExpression) =
+        let processor = SpecificationProcessor()
+        let symbolTable = processor.Given(specExpression.Parameters)
+        let result = processor.ProcessShorthand(specExpression.Body, symbolTable)
+        processor.ValidateMatches(result.Matches)
+        (processor.givenLabels, result.Matches, result.Projection)
+
+    static member Select<'TProjection> (specSelector: LambdaExpression) =
+        let processor = SpecificationProcessor()
+        let symbolTable = processor.Given(specSelector.Parameters |> Seq.take (specSelector.Parameters.Count - 1))
+        let result = processor.ProcessProjection(specSelector.Body, symbolTable)
+        (processor.givenLabels, ImmutableList<Match>.Empty, result)
