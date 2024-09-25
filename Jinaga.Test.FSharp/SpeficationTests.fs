@@ -2,12 +2,7 @@ module SpecificationTests
 
 open Jinaga
 open Xunit
-
-[<FactType("Skylane.Airline")>]
-type Airline =
-    {
-        identifier: string
-    }
+open Jinaga.FSharp.Test.Model
 
 [<Fact>]
 let CanSpecifyIdentity() =

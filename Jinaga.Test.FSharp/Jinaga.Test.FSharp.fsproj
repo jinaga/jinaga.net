@@ -5,9 +5,7 @@
     <GenerateProgramFile>false</GenerateProgramFile>
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
-  <ItemGroup>
-    <Compile Include="Tests.fs" />
-  </ItemGroup>
+  <ItemGroup />
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="6.0.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
@@ -16,10 +14,11 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Jinaga\Jinaga.csproj" />
-    <Compile Include="SpeficationTests.fs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Jinaga.FSharp\Jinaga.FSharp.fsproj" />
     <Compile Include="Model\Airline.fs" />
+    <Compile Include="Tests.fs" />
+    <Compile Include="SpeficationTests.fs" />
   </ItemGroup>
 </Project>
