@@ -10,6 +10,7 @@ open Jinaga.Repository
 open System.Linq
 open Jinaga
 open System.Reflection
+open System.Collections.Generic
 
 type SymbolTable(values: ImmutableDictionary<string, Projection>) =
     let values = values
@@ -56,7 +57,7 @@ type SpecificationProcessor() =
         source
 
     member private this.ProcessShorthand(expression: Expression, symbolTable: SymbolTable) =
-        let reference = this.ProcessReference(expression, symbolTable)
+        let reference: ReferenceContext = this.ProcessReference(expression, symbolTable)
         if reference.Roles.Any() then
             let lastRole = reference.Roles.Last()
             let unknown = Label(lastRole.Name, lastRole.TargetType)
@@ -82,7 +83,7 @@ type SpecificationProcessor() =
             let fields = names.Zip(values, (fun name value -> KeyValuePair.Create(name, value))) |> ImmutableDictionary.ToImmutableDictionary
             CompoundProjection(fields, newExpression.Type)
         | :? MemberInitExpression as memberInit ->
-            let parameters = memberInit.NewExpression.Constructor.GetParameters() |> Seq.zip memberInit.NewExpression.Arguments |> Seq.map (fun (parameter, arg) -> KeyValuePair.Create(parameter.Name, this.ProcessProjection(arg, symbolTable)))
+            let parameters = memberInit.NewExpression.Constructor.GetParameters() |> Seq.zip memberInit.NewExpression.Arguments |> Seq.map (fun (arg, parameter) -> KeyValuePair.Create(parameter.Name, this.ProcessProjection(arg, symbolTable)))
             let fields = memberInit.Bindings |> Seq.map (fun binding -> this.ProcessProjectionMember(binding, symbolTable))
             let childProjections = parameters.Concat(fields) |> ImmutableDictionary.ToImmutableDictionary
             CompoundProjection(childProjections, memberInit.Type)
@@ -100,7 +101,7 @@ type SpecificationProcessor() =
                     match head with
                     | :? CompoundProjection as compoundProjection -> compoundProjection.GetProjection(memberExpression.Member.Name)
                     | :? SimpleProjection as simpleProjection ->
-                        if not memberExpression.Type.IsFactType() then
+                        if not (memberExpression.Type.IsFactType()) then
                             FieldProjection(simpleProjection.Tag, memberExpression.Expression.Type, memberExpression.Member.Name, memberExpression.Type)
                         else
                             raise (SpecificationException(sprintf "Cannot select %s directly. Give the fact a label first." memberExpression.Member.Name))
