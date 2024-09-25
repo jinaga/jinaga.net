@@ -4,7 +4,7 @@ using System.Collections.Immutable;
 
 namespace Jinaga.Specifications
 {
-    internal class ReferenceContext
+    public class ReferenceContext
     {
         public ReferenceContext(Label label, ImmutableList<Role> roles)
         {

@@ -9,52 +9,7 @@ open Jinaga.Specifications
 open Jinaga.Repository
 open System.Linq
 open Jinaga
-
-type Label(recommendedName: string, factType: string) =
-    member val Name = recommendedName
-    member val FactType = factType
-
-type SimpleProjection(tag: string, factType: Type) =
-    member val Tag = tag
-    member val FactType = factType
-
-type CompoundProjection(fields: ImmutableDictionary<string, obj>, factType: Type) =
-    member val Fields = fields
-    member val FactType = factType
-    member this.GetProjection(name: string) = fields.[name]
-
-type FieldProjection(tag: string, factType: Type, fieldName: string, fieldType: Type) =
-    member val Tag = tag
-    member val FactType = factType
-    member val FieldName = fieldName
-    member val FieldType = fieldType
-
-type CollectionProjection(matches: ImmutableList<Match>, projection: Projection, collectionType: Type) =
-    member val Matches = matches
-    member val Projection = projection
-    member val CollectionType = collectionType
-
-type HashProjection(tag: string, factType: Type) =
-    member val Tag = tag
-    member val FactType = factType
-
-type ReferenceContext(label: Label, roles: ImmutableList<Role>) =
-    member val Label = label
-    member val Roles = roles with get, set
-    static member From(label: Label) = ReferenceContext(label, ImmutableList<Role>.Empty)
-    member this.Push(role: Role) = ReferenceContext(this.Label, this.Roles.Add(role))
-
-type Role(name: string, targetType: string) =
-    member val Name = name
-    member val TargetType = targetType
-
-type SourceContext(matches: ImmutableList<Match>, projection: Projection) =
-    member val Matches = matches
-    member val Projection = projection
-
-type Match(unknown: Label, pathConditions: ImmutableList<obj>) =
-    member val Unknown = unknown
-    member val PathConditions = pathConditions
+open System.Reflection
 
 type SymbolTable(values: ImmutableDictionary<string, Projection>) =
     let values = values
@@ -80,7 +35,7 @@ type SpecificationProcessor() =
         let mutable priorMatch: Match option = None
         for m in matches do
             if not (m.PathConditions.Any()) then
-                let unknown = match.Unknown.Name
+                let unknown = m.Unknown.Name
                 let prior = 
                     match priorMatch with
                     | Some priorMatch -> sprintf "prior variable \"%s\"" priorMatch.Unknown.Name

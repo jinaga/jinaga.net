@@ -6,7 +6,7 @@ using System.Linq;
 
 namespace Jinaga.Specifications
 {
-    internal class LinqProcessor
+    public class LinqProcessor
     {
         public static SourceContext FactsOfType(Label unknown, Type type)
         {

@@ -2,7 +2,7 @@
 
 namespace Jinaga.Specifications
 {
-    internal class PredicateContext
+    public class PredicateContext
     {
         public ImmutableList<ConditionContext> Conditions { get; }
         
