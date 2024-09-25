@@ -53,6 +53,11 @@ let rec translateExpression (expr: Expr) : Expression =
     | Patterns.Value(value, _) ->
         Expression.Constant(value)
 
+    | Patterns.Application(funcExpr, argExpr) ->
+        let translatedFunc = translateExpression funcExpr
+        let translatedArg = translateExpression argExpr
+        Expression.Invoke(translatedFunc, translatedArg)
+
     | Patterns.LetRecursive _ -> failwith "LetRecursive is not supported in C# expression trees"
     
     | _ -> failwithf "Unsupported expression type: %A" expr
@@ -68,9 +73,18 @@ and translateLambda (expr: Expr) : LambdaExpression =
 and translateParameter (param: Var) : ParameterExpression =
     Expression.Parameter(param.Type, param.Name)
 
-type Given2<'TFact when 'TFact : not struct>() =
+type Given<'TFact when 'TFact : not struct>() =
     static member Match<'TProjection>(specExpression: Expr<'TFact -> FactRepository -> IQueryable<'TProjection>>) : Specification<'TFact, 'TProjection> =
-        let struct (givens, matches, projection) = SpecificationProcessor.Queryable<'TProjection>(translateLambda specExpression)
+        let lambdaExpression = LeafExpressionConverter.QuotationToLambdaExpression(specExpression)
+        let struct (givens, matches, projection) = SpecificationProcessor.Queryable<'TProjection>(lambdaExpression)
+        let specificationGivens = 
+            givens
+            |> Seq.map (fun g -> SpecificationGiven(g, ImmutableList<ExistentialCondition>.Empty))
+            |> ImmutableList.ToImmutableList
+        Specification<'TFact, 'TProjection>(specificationGivens, matches, projection)
+
+    static member Match<'TProjection>(specExpression: Expression<Func<'TFact, FactRepository, IQueryable<'TProjection>>>) : Specification<'TFact, 'TProjection> =
+        let struct (givens, matches, projection) = SpecificationProcessor.Queryable<'TProjection>(specExpression)
         let specificationGivens = 
             givens
             |> Seq.map (fun g -> SpecificationGiven(g, ImmutableList<ExistentialCondition>.Empty))
@@ -90,13 +104,13 @@ type Given2<'TFact when 'TFact : not struct>() =
 [<Fact>]
 let ``My test`` () =
     let employeesOfCompany =
-        Given2<Company>.Match<Employee>(
-            <@ fun company facts ->
+        Given<Company>.Match<Employee>(
+            fun company facts ->
                 query {
                     for employee in facts.OfType<Employee>() do
                     where (employee.Company = company)
                     select employee
-                } @>
+                }
         )
 
     let j = JinagaClient.Create()
