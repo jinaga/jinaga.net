@@ -24,6 +24,10 @@ module SpecificationProcessor =
     let WhereMethodName = "Where"
     [<Literal>]
     let SelectMethodName = "Select"
+    [<Literal>]
+    let SelectManyMethodName = "SelectMany"
+    [<Literal>]
+    let HashMethodName = "Hash"
 
     type SymbolTable(values: ImmutableDictionary<string, Projection>) =
         let values = values
@@ -139,7 +143,7 @@ module SpecificationProcessor =
                 elif expression.Type.IsGenericType && expression.Type.GetGenericTypeDefinition() = typeof<IQueryable<_>> then
                     let value = this.ProcessSource(expression, symbolTable, "")
                     CollectionProjection(value.Matches, value.Projection, expression.Type)
-                elif methodCallExpression.Method.DeclaringType = typeof<JinagaClient> && methodCallExpression.Method.Name = nameof(JinagaClient.Hash) && methodCallExpression.Arguments.Count = 1 then
+                elif methodCallExpression.Method.DeclaringType = typeof<JinagaClient> && methodCallExpression.Method.Name = HashMethodName && methodCallExpression.Arguments.Count = 1 then
                     let value = this.ProcessProjection(methodCallExpression.Arguments.[0], symbolTable)
                     match value with
                     | :? SimpleProjection as simpleProjection -> HashProjection(simpleProjection.Tag, methodCallExpression.Arguments.[0].Type)
@@ -166,14 +170,14 @@ module SpecificationProcessor =
                         let childSymbolTable = symbolTable.Set(parameterName, source.Projection)
                         let projection = this.ProcessProjection(selector.Body, childSymbolTable)
                         LinqProcessor.Select(source, projection)
-                    elif methodCallExpression.Method.Name = nameof(Queryable.SelectMany) && methodCallExpression.Arguments.Count = 2 then
+                    elif methodCallExpression.Method.Name = SelectManyMethodName && methodCallExpression.Arguments.Count = 2 then
                         let collectionSelector = SpecificationProcessor.GetLambda(methodCallExpression.Arguments.[1])
                         let collectionSelectorParameterName = collectionSelector.Parameters.[0].Name
                         let source = this.ProcessSource(methodCallExpression.Arguments.[0], symbolTable, collectionSelectorParameterName)
                         let collectionSelectorSymbolTable = symbolTable.Set(collectionSelectorParameterName, source.Projection)
                         let selector = this.ProcessSource(collectionSelector.Body, collectionSelectorSymbolTable, recommendedLabel)
                         LinqProcessor.SelectMany(source, selector)
-                    elif methodCallExpression.Method.Name = nameof(Queryable.SelectMany) && methodCallExpression.Arguments.Count = 3 then
+                    elif methodCallExpression.Method.Name = SelectManyMethodName && methodCallExpression.Arguments.Count = 3 then
                         let collectionSelector = SpecificationProcessor.GetLambda(methodCallExpression.Arguments.[1])
                         let collectionSelectorParameterName = collectionSelector.Parameters.[0].Name
                         let resultSelector = SpecificationProcessor.GetLambda(methodCallExpression.Arguments.[2])
