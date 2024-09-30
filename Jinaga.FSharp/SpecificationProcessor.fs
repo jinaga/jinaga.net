@@ -51,8 +51,8 @@ module SpecificationProcessor =
         static member Empty = SymbolTable()
 
     type SpecificationProcessor() =
-        let mutable labels = ImmutableList<Label>.Empty
-        let mutable givenLabels = ImmutableList<Label>.Empty
+        let mutable labels = []
+        let mutable (givenLabels: Label list) = []
 
         member private this.ValidateMatches(matches: ImmutableList<Match>) =
             // Look for matches with no path conditions.
@@ -63,20 +63,20 @@ module SpecificationProcessor =
                     let prior = 
                         match priorMatch with
                         | Some priorMatch -> sprintf "prior variable \"%s\"" priorMatch.Unknown.Name
-                        | None -> sprintf "parameter \"%s\"" (givenLabels.First().Name)
+                        | None -> sprintf "parameter \"%s\"" (givenLabels.Head.Name)
                     raise (SpecificationException(sprintf "The variable \"%s\" should be joined to the %s." unknown prior))
                 priorMatch <- Some m
 
         member private this.Given(parameters: seq<ParameterExpression>) =
             givenLabels <- parameters
                 |> Seq.map (fun parameter -> this.NewLabel(parameter.Name, parameter.Type.FactTypeName()))
-                |> ImmutableList.ToImmutableList
+                |> List.ofSeq
             parameters
             |> Seq.fold (fun (table: SymbolTable) parameter -> table.Set(parameter.Name, SimpleProjection(parameter.Name, parameter.Type))) (SymbolTable.Empty : SymbolTable)
 
         member private this.NewLabel(recommendedName: string, factType: string) =
             let source = Label(recommendedName, factType)
-            labels <- labels.Add(source)
+            labels <- source :: labels
             source
 
         member private this.ProcessShorthand(expression: Expression, symbolTable: SymbolTable) =
