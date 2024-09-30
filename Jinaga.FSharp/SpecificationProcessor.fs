@@ -317,6 +317,35 @@ module SpecificationProcessor =
             | _ ->
                 raise (SpecificationException($"Unsupported projection member {binding}."))
 
+        static member private GetLambda (argument: Expression) =
+            match argument with
+            | :? UnaryExpression as unaryExpression ->
+                match unaryExpression.Operand with
+                | :? LambdaExpression as lambdaExpression -> lambdaExpression
+                | _ -> failwith $"Expected a lambda expression for {argument}."
+            | _ -> failwith $"Expected a unary lambda expression for {argument}."
+
+
+        static member private InstanceOfFact (factType: Type) =
+            let constructor = factType.GetConstructors() |> Seq.head
+            let parameters = 
+                constructor.GetParameters()
+                |> Seq.map (fun p -> p.ParameterType)
+                |> Seq.map (fun t -> 
+                    if t.IsValueType then 
+                        Activator.CreateInstance(t)
+                    else 
+                        SpecificationProcessor.InstanceOfFact(t))
+                |> Seq.toArray
+            Activator.CreateInstance(factType, parameters)
+
+        static member private LabelOfProjection (projection: Projection) =
+            match projection with
+            | :? SimpleProjection as simpleProjection -> simpleProjection.Tag
+            | _ -> failwith $"Expected a simple projection, but got {projection.GetType().Name}."
+
+
+
         static member Queryable<'TProjection> (specExpression: LambdaExpression) =
             let processor = SpecificationProcessor()
             let symbolTable = processor.Given(specExpression.Parameters |> Seq.take (specExpression.Parameters.Count - 1))
