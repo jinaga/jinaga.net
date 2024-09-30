@@ -5,7 +5,6 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../Jinaga/Jinaga.csproj" />
-    <Compile Include="Specification.fs" />
     <Compile Include="SpecificationProcessor.fs" />
   </ItemGroup>
 </Project>
