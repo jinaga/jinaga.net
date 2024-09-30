@@ -75,6 +75,32 @@ module SpecificationProcessor =
         | :? MethodCallExpression as mce -> Some mce
         | _ -> None
 
+    let private getLambda (argument: Expression) =
+        match argument with
+        | :? UnaryExpression as unaryExpression ->
+            match unaryExpression.Operand with
+            | :? LambdaExpression as lambdaExpression -> lambdaExpression
+            | _ -> failwith $"Expected a lambda expression for {argument}."
+        | _ -> failwith $"Expected a unary lambda expression for {argument}."
+
+    let rec private instanceOfFact (factType: Type) =
+        let constructor = factType.GetConstructors() |> Seq.head
+        let parameters = 
+            constructor.GetParameters()
+            |> Seq.map (fun p -> p.ParameterType)
+            |> Seq.map (fun t -> 
+                if t.IsValueType then 
+                    Activator.CreateInstance(t)
+                else 
+                    instanceOfFact t)
+            |> Seq.toArray
+        Activator.CreateInstance(factType, parameters)
+
+    let private labelOfProjection (projection: Projection) =
+        match projection with
+        | :? SimpleProjection as simpleProjection -> simpleProjection.Tag
+        | _ -> failwith $"Expected a simple projection, but got {projection.GetType().Name}."
+
     type SpecificationProcessor() =
         let mutable labels = []
         let mutable (givenLabels: Label list) = []
@@ -139,7 +165,7 @@ module SpecificationProcessor =
                 match me.Member with
                 | :? PropertyInfo as propertyInfo ->
                     if propertyInfo.PropertyType.IsGenericType && (propertyInfo.PropertyType.GetGenericTypeDefinition() = typeof<Relation<_>> || propertyInfo.PropertyType.GetGenericTypeDefinition() = typeof<IQueryable<_>>) then
-                        let target = SpecificationProcessor.InstanceOfFact(propertyInfo.DeclaringType)
+                        let target = instanceOfFact(propertyInfo.DeclaringType)
                         let relation = propertyInfo.GetGetMethod().Invoke(target, [||]) :?> IQueryable
                         let projection = this.ProcessProjection(me.Expression, symbolTable)
                         let childSymbolTable = SymbolTable.Empty.Set("this", projection)
@@ -159,7 +185,7 @@ module SpecificationProcessor =
                 if mce.Method.DeclaringType = typeof<FactRepository> && mce.Method.Name = ObservableMethodName then
                     if mce.Arguments.Count = 2 && typeof<Specification>.IsAssignableFrom(mce.Arguments.[1].Type) then
                         let start = this.ProcessProjection(mce.Arguments.[0], symbolTable)
-                        let label = SpecificationProcessor.LabelOfProjection(start)
+                        let label = labelOfProjection(start)
                         let lambdaExpression = Expression.Lambda<Func<obj>>(mce.Arguments.[1])
                         let specification = lambdaExpression.Compile().Invoke() :?> Specification
                         let arguments = [label] |> ImmutableList.CreateRange
@@ -187,30 +213,30 @@ module SpecificationProcessor =
             | :? MethodCallExpression as methodCallExpression ->
                 if methodCallExpression.Method.DeclaringType = typeof<Queryable> then
                     if methodCallExpression.Method.Name = WhereMethodName && methodCallExpression.Arguments.Count = 2 then
-                        let (lambda: LambdaExpression) = SpecificationProcessor.GetLambda(methodCallExpression.Arguments.[1])
+                        let (lambda: LambdaExpression) = getLambda(methodCallExpression.Arguments.[1])
                         let parameterName = lambda.Parameters.[0].Name
                         let source = this.ProcessSource(methodCallExpression.Arguments.[0], symbolTable, parameterName)
                         let childSymbolTable = symbolTable.Set(parameterName, source.Projection)
                         let predicate = this.ProcessPredicate(lambda.Body, childSymbolTable)
                         LinqProcessor.Where(source, predicate)
                     elif methodCallExpression.Method.Name = SelectMethodName && methodCallExpression.Arguments.Count = 2 then
-                        let selector = SpecificationProcessor.GetLambda(methodCallExpression.Arguments.[1])
+                        let selector = getLambda(methodCallExpression.Arguments.[1])
                         let parameterName = selector.Parameters.[0].Name
                         let source = this.ProcessSource(methodCallExpression.Arguments.[0], symbolTable, parameterName)
                         let childSymbolTable = symbolTable.Set(parameterName, source.Projection)
                         let projection = this.ProcessProjection(selector.Body, childSymbolTable)
                         LinqProcessor.Select(source, projection)
                     elif methodCallExpression.Method.Name = SelectManyMethodName && methodCallExpression.Arguments.Count = 2 then
-                        let collectionSelector = SpecificationProcessor.GetLambda(methodCallExpression.Arguments.[1])
+                        let collectionSelector = getLambda(methodCallExpression.Arguments.[1])
                         let collectionSelectorParameterName = collectionSelector.Parameters.[0].Name
                         let source = this.ProcessSource(methodCallExpression.Arguments.[0], symbolTable, collectionSelectorParameterName)
                         let collectionSelectorSymbolTable = symbolTable.Set(collectionSelectorParameterName, source.Projection)
                         let selector = this.ProcessSource(collectionSelector.Body, collectionSelectorSymbolTable, recommendedLabel)
                         LinqProcessor.SelectMany(source, selector)
                     elif methodCallExpression.Method.Name = SelectManyMethodName && methodCallExpression.Arguments.Count = 3 then
-                        let collectionSelector = SpecificationProcessor.GetLambda(methodCallExpression.Arguments.[1])
+                        let collectionSelector = getLambda(methodCallExpression.Arguments.[1])
                         let collectionSelectorParameterName = collectionSelector.Parameters.[0].Name
-                        let resultSelector = SpecificationProcessor.GetLambda(methodCallExpression.Arguments.[2])
+                        let resultSelector = getLambda(methodCallExpression.Arguments.[2])
                         let resultSelectorParameterName = resultSelector.Parameters.[1].Name
                         let source = this.ProcessSource(methodCallExpression.Arguments.[0], symbolTable, collectionSelectorParameterName)
                         let collectionSelectorSymbolTable = symbolTable.Set(collectionSelectorParameterName, source.Projection)
@@ -227,7 +253,7 @@ module SpecificationProcessor =
                         let label = Label(recommendedLabel, t)
                         LinqProcessor.FactsOfType(label, factType)
                     elif methodCallExpression.Method.Name = OfTypeMethodName && methodCallExpression.Arguments.Count = 1 then
-                        let lambda = SpecificationProcessor.GetLambda(methodCallExpression.Arguments.[0])
+                        let lambda = getLambda(methodCallExpression.Arguments.[0])
                         let parameterName = lambda.Parameters.[0].Name
                         let genericArgument = methodCallExpression.Method.GetGenericArguments().[0]
                         let source = LinqProcessor.FactsOfType(Label(parameterName, genericArgument.FactTypeName()), genericArgument)
@@ -242,7 +268,7 @@ module SpecificationProcessor =
                 if memberExpression.Member :? PropertyInfo then
                     let propertyInfo = memberExpression.Member :?> PropertyInfo
                     if propertyInfo.PropertyType.IsGenericType && (propertyInfo.PropertyType.GetGenericTypeDefinition() = typeof<IQueryable<_>> || propertyInfo.PropertyType.GetGenericTypeDefinition() = typeof<Relation<_>>) then
-                        let target = SpecificationProcessor.InstanceOfFact(propertyInfo.DeclaringType)
+                        let target = instanceOfFact(propertyInfo.DeclaringType)
                         let relation = propertyInfo.GetGetMethod().Invoke(target, [||]) :?> IQueryable
                         let projection = this.ProcessProjection(memberExpression.Expression, symbolTable)
                         let childSymbolTable = SymbolTable.Empty.Set("this", projection)
@@ -267,7 +293,7 @@ module SpecificationProcessor =
                         let source = this.ProcessSource(methodCallExpression.Arguments.[0], symbolTable, "")
                         LinqProcessor.Any(source)
                     elif methodCallExpression.Method.Name = nameof(Queryable.Any) && methodCallExpression.Arguments.Count = 2 then
-                        let lambda = SpecificationProcessor.GetLambda(methodCallExpression.Arguments.[1])
+                        let lambda = getLambda(methodCallExpression.Arguments.[1])
                         let parameterName = lambda.Parameters.[0].Name
                         let source = this.ProcessSource(methodCallExpression.Arguments.[0], symbolTable, parameterName)
                         let childSymbolTable = symbolTable.Set(parameterName, source.Projection)
@@ -280,7 +306,7 @@ module SpecificationProcessor =
                     let right = this.ProcessReference(methodCallExpression.Arguments.[1], symbolTable)
                     LinqProcessor.Compare(left, right)
                 elif methodCallExpression.Method.DeclaringType = typeof<FactRepository> && methodCallExpression.Method.Name = AnyMethodName then
-                    let lambda = SpecificationProcessor.GetLambda(methodCallExpression.Arguments.[0])
+                    let lambda = getLambda(methodCallExpression.Arguments.[0])
                     let parameterName = lambda.Parameters.[0].Name
                     let factType = lambda.Parameters.[0].Type
                     let source = LinqProcessor.FactsOfType(Label(parameterName, factType.FactTypeName()), factType)
@@ -294,7 +320,7 @@ module SpecificationProcessor =
                 if m.Member :? PropertyInfo then
                     let propertyInfo = m.Member :?> PropertyInfo
                     if propertyInfo.PropertyType = typeof<Condition> && unaryExpression.Type = typeof<bool> then
-                        let target = SpecificationProcessor.InstanceOfFact(propertyInfo.DeclaringType)
+                        let target = instanceOfFact(propertyInfo.DeclaringType)
                         let condition = propertyInfo.GetGetMethod().Invoke(target, [||]) :?> Condition
                         let projection = this.ProcessProjection(m.Expression, symbolTable)
                         let childSymbolTable = SymbolTable.Empty.Set("this", projection)
@@ -350,35 +376,6 @@ module SpecificationProcessor =
                 KeyValuePair.Create(name, value)
             | _ ->
                 raise (SpecificationException($"Unsupported projection member {binding}."))
-
-        static member private GetLambda (argument: Expression) =
-            match argument with
-            | :? UnaryExpression as unaryExpression ->
-                match unaryExpression.Operand with
-                | :? LambdaExpression as lambdaExpression -> lambdaExpression
-                | _ -> failwith $"Expected a lambda expression for {argument}."
-            | _ -> failwith $"Expected a unary lambda expression for {argument}."
-
-
-        static member private InstanceOfFact (factType: Type) =
-            let constructor = factType.GetConstructors() |> Seq.head
-            let parameters = 
-                constructor.GetParameters()
-                |> Seq.map (fun p -> p.ParameterType)
-                |> Seq.map (fun t -> 
-                    if t.IsValueType then 
-                        Activator.CreateInstance(t)
-                    else 
-                        SpecificationProcessor.InstanceOfFact(t))
-                |> Seq.toArray
-            Activator.CreateInstance(factType, parameters)
-
-        static member private LabelOfProjection (projection: Projection) =
-            match projection with
-            | :? SimpleProjection as simpleProjection -> simpleProjection.Tag
-            | _ -> failwith $"Expected a simple projection, but got {projection.GetType().Name}."
-
-
 
         static member Queryable<'TProjection> (specExpression: LambdaExpression) =
             let processor = SpecificationProcessor()
