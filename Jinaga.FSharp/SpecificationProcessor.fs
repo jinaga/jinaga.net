@@ -27,7 +27,13 @@ module SpecificationProcessor =
     [<Literal>]
     let SelectManyMethodName = "SelectMany"
     [<Literal>]
+    let ContainsMethodName = "Contains"
+    [<Literal>]
+    let AnyMethodName = "Any"
+    [<Literal>]
     let HashMethodName = "Hash"
+    [<Literal>]
+    let OfTypeMethodName = "OfType"
 
     type SymbolTable(values: ImmutableDictionary<string, Projection>) =
         let values = values
@@ -136,7 +142,7 @@ module SpecificationProcessor =
                         let specification = specification.Apply(arguments)
                         CollectionProjection(specification.Matches, specification.Projection, methodCallExpression.Type)
                     elif methodCallExpression.Arguments.Count = 1 && typeof<IQueryable>.IsAssignableFrom(methodCallExpression.Arguments.[0].Type) then
-                        let value = this.ProcessSource(methodCallExpression.Arguments.[0], symbolTable, "")
+                        let (value: SourceContext) = this.ProcessSource(methodCallExpression.Arguments.[0], symbolTable, "")
                         CollectionProjection(value.Matches, value.Projection, methodCallExpression.Type)
                     else
                         raise (SpecificationException(sprintf "Unsupported type of projection %A" expression))
@@ -157,7 +163,7 @@ module SpecificationProcessor =
             | :? MethodCallExpression as methodCallExpression ->
                 if methodCallExpression.Method.DeclaringType = typeof<Queryable> then
                     if methodCallExpression.Method.Name = WhereMethodName && methodCallExpression.Arguments.Count = 2 then
-                        let lambda = SpecificationProcessor.GetLambda(methodCallExpression.Arguments.[1])
+                        let (lambda: LambdaExpression) = SpecificationProcessor.GetLambda(methodCallExpression.Arguments.[1])
                         let parameterName = lambda.Parameters.[0].Name
                         let source = this.ProcessSource(methodCallExpression.Arguments.[0], symbolTable, parameterName)
                         let childSymbolTable = symbolTable.Set(parameterName, source.Projection)
@@ -191,12 +197,12 @@ module SpecificationProcessor =
                     else
                         raise (SpecificationException(sprintf "Unsupported type of specification %A" expression))
                 elif methodCallExpression.Method.DeclaringType = typeof<FactRepository> then
-                    if methodCallExpression.Method.Name = nameof(FactRepository.OfType) && methodCallExpression.Arguments.Count = 0 then
+                    if methodCallExpression.Method.Name = OfTypeMethodName && methodCallExpression.Arguments.Count = 0 then
                         let factType = methodCallExpression.Method.GetGenericArguments().[0]
                         let t = factType.FactTypeName()
                         let label = Label(recommendedLabel, t)
                         LinqProcessor.FactsOfType(label, factType)
-                    elif methodCallExpression.Method.Name = nameof(FactRepository.OfType) && methodCallExpression.Arguments.Count = 1 then
+                    elif methodCallExpression.Method.Name = OfTypeMethodName && methodCallExpression.Arguments.Count = 1 then
                         let lambda = SpecificationProcessor.GetLambda(methodCallExpression.Arguments.[0])
                         let parameterName = lambda.Parameters.[0].Name
                         let genericArgument = methodCallExpression.Method.GetGenericArguments().[0]
@@ -245,11 +251,11 @@ module SpecificationProcessor =
                         LinqProcessor.Any(LinqProcessor.Where(source, predicate))
                     else
                         raise (SpecificationException(sprintf "Unsupported predicate type %A" body))
-                elif methodCallExpression.Method.DeclaringType = typeof<Enumerable> && methodCallExpression.Method.Name = nameof(Enumerable.Contains) && methodCallExpression.Arguments.Count = 2 then
+                elif methodCallExpression.Method.DeclaringType = typeof<Enumerable> && methodCallExpression.Method.Name = ContainsMethodName && methodCallExpression.Arguments.Count = 2 then
                     let left = this.ProcessReference(methodCallExpression.Arguments.[0], symbolTable)
                     let right = this.ProcessReference(methodCallExpression.Arguments.[1], symbolTable)
                     LinqProcessor.Compare(left, right)
-                elif methodCallExpression.Method.DeclaringType = typeof<FactRepository> && methodCallExpression.Method.Name = nameof(FactRepository.Any) then
+                elif methodCallExpression.Method.DeclaringType = typeof<FactRepository> && methodCallExpression.Method.Name = AnyMethodName then
                     let lambda = SpecificationProcessor.GetLambda(methodCallExpression.Arguments.[0])
                     let parameterName = lambda.Parameters.[0].Name
                     let factType = lambda.Parameters.[0].Type
@@ -355,17 +361,17 @@ module SpecificationProcessor =
             let symbolTable = processor.Given(specExpression.Parameters |> Seq.take (specExpression.Parameters.Count - 1))
             let result = processor.ProcessSource(specExpression.Body, symbolTable, "")
             processor.ValidateMatches(result.Matches)
-            (processor.givenLabels, result.Matches, result.Projection)
+            (processor.Given, result.Matches, result.Projection)
 
         static member Scalar<'TProjection> (specExpression: LambdaExpression) =
             let processor = SpecificationProcessor()
             let symbolTable = processor.Given(specExpression.Parameters)
             let result = processor.ProcessShorthand(specExpression.Body, symbolTable)
             processor.ValidateMatches(result.Matches)
-            (processor.givenLabels, result.Matches, result.Projection)
+            (processor.Given, result.Matches, result.Projection)
 
         static member Select<'TProjection> (specSelector: LambdaExpression) =
             let processor = SpecificationProcessor()
             let symbolTable = processor.Given(specSelector.Parameters |> Seq.take (specSelector.Parameters.Count - 1))
             let result = processor.ProcessProjection(specSelector.Body, symbolTable)
-            (processor.givenLabels, ImmutableList<Match>.Empty, result)
+            (processor.Given, ImmutableList<Match>.Empty, result)
