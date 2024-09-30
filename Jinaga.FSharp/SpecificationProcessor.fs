@@ -50,6 +50,31 @@ module SpecificationProcessor =
 
         static member Empty = SymbolTable()
 
+    let (|ParameterExpr|_|) (expr: Expression) =
+        match expr with
+        | :? ParameterExpression as pe -> Some pe
+        | _ -> None
+
+    let (|NewExpr|_|) (expr: Expression) =
+        match expr with
+        | :? NewExpression as ne -> Some ne
+        | _ -> None
+
+    let (|MemberInitExpr|_|) (expr: Expression) =
+        match expr with
+        | :? MemberInitExpression as mie -> Some mie
+        | _ -> None
+
+    let (|MemberExpr|_|) (expr: Expression) =
+        match expr with
+        | :? MemberExpression as me -> Some me
+        | _ -> None
+
+    let (|MethodCallExpr|_|) (expr: Expression) =
+        match expr with
+        | :? MethodCallExpression as mce -> Some mce
+        | _ -> None
+
     type SpecificationProcessor() =
         let mutable labels = []
         let mutable (givenLabels: Label list) = []
@@ -94,65 +119,64 @@ module SpecificationProcessor =
 
         member private this.ProcessProjection(expression: Expression, symbolTable: SymbolTable) =
             match expression with
-            | :? ParameterExpression as parameterExpression ->
-                symbolTable.Get(parameterExpression.Name)
-            | :? NewExpression as newExpression ->
+            | ParameterExpr pe ->
+                symbolTable.Get(pe.Name)
+            | NewExpr ne ->
                 let names =
-                    if newExpression.Members <> null then
-                        newExpression.Members |> Seq.map (fun m -> m.Name)
+                    if ne.Members <> null then
+                        ne.Members |> Seq.map (fun m -> m.Name)
                     else
-                        newExpression.Constructor.GetParameters() |> Seq.map (fun parameter -> parameter.Name)
-                let values = newExpression.Arguments |> Seq.map (fun arg -> this.ProcessProjection(arg, symbolTable))
+                        ne.Constructor.GetParameters() |> Seq.map (fun parameter -> parameter.Name)
+                let values = ne.Arguments |> Seq.map (fun arg -> this.ProcessProjection(arg, symbolTable))
                 let fields = names.Zip(values, (fun name value -> KeyValuePair.Create(name, value))) |> ImmutableDictionary.ToImmutableDictionary
-                CompoundProjection(fields, newExpression.Type)
-            | :? MemberInitExpression as memberInit ->
-                let parameters = memberInit.NewExpression.Constructor.GetParameters() |> Seq.zip memberInit.NewExpression.Arguments |> Seq.map (fun (arg, parameter) -> KeyValuePair.Create(parameter.Name, this.ProcessProjection(arg, symbolTable)))
-                let fields = memberInit.Bindings |> Seq.map (fun binding -> this.ProcessProjectionMember(binding, symbolTable))
+                CompoundProjection(fields, ne.Type)
+            | MemberInitExpr mie ->
+                let parameters = mie.NewExpression.Constructor.GetParameters() |> Seq.zip mie.NewExpression.Arguments |> Seq.map (fun (arg, parameter) -> KeyValuePair.Create(parameter.Name, this.ProcessProjection(arg, symbolTable)))
+                let fields = mie.Bindings |> Seq.map (fun binding -> this.ProcessProjectionMember(binding, symbolTable))
                 let childProjections = parameters.Concat(fields) |> ImmutableDictionary.ToImmutableDictionary
-                CompoundProjection(childProjections, memberInit.Type)
-            | :? MemberExpression as memberExpression ->
-                if memberExpression.Member :? PropertyInfo then
-                    let propertyInfo = memberExpression.Member :?> PropertyInfo
+                CompoundProjection(childProjections, mie.Type)
+            | MemberExpr me ->
+                match me.Member with
+                | :? PropertyInfo as propertyInfo ->
                     if propertyInfo.PropertyType.IsGenericType && (propertyInfo.PropertyType.GetGenericTypeDefinition() = typeof<Relation<_>> || propertyInfo.PropertyType.GetGenericTypeDefinition() = typeof<IQueryable<_>>) then
                         let target = SpecificationProcessor.InstanceOfFact(propertyInfo.DeclaringType)
                         let relation = propertyInfo.GetGetMethod().Invoke(target, [||]) :?> IQueryable
-                        let projection = this.ProcessProjection(memberExpression.Expression, symbolTable)
+                        let projection = this.ProcessProjection(me.Expression, symbolTable)
                         let childSymbolTable = SymbolTable.Empty.Set("this", projection)
                         this.ProcessProjection(relation.Expression, childSymbolTable)
                     else
-                        let head = this.ProcessProjection(memberExpression.Expression, symbolTable)
+                        let head = this.ProcessProjection(me.Expression, symbolTable)
                         match head with
-                        | :? CompoundProjection as compoundProjection -> compoundProjection.GetProjection(memberExpression.Member.Name)
+                        | :? CompoundProjection as compoundProjection -> compoundProjection.GetProjection(me.Member.Name)
                         | :? SimpleProjection as simpleProjection ->
-                            if not (memberExpression.Type.IsFactType()) then
-                                FieldProjection(simpleProjection.Tag, memberExpression.Expression.Type, memberExpression.Member.Name, memberExpression.Type)
+                            if not (me.Type.IsFactType()) then
+                                FieldProjection(simpleProjection.Tag, me.Expression.Type, me.Member.Name, me.Type)
                             else
-                                raise (SpecificationException(sprintf "Cannot select %s directly. Give the fact a label first." memberExpression.Member.Name))
+                                raise (SpecificationException(sprintf "Cannot select %s directly. Give the fact a label first." me.Member.Name))
                         | _ -> raise (SpecificationException(sprintf "Unsupported type of projection %A" expression))
-                else
-                    raise (SpecificationException(sprintf "Unsupported type of projection %A" expression))
-            | :? MethodCallExpression as methodCallExpression ->
-                if methodCallExpression.Method.DeclaringType = typeof<FactRepository> && methodCallExpression.Method.Name = ObservableMethodName then
-                    if methodCallExpression.Arguments.Count = 2 && typeof<Specification>.IsAssignableFrom(methodCallExpression.Arguments.[1].Type) then
-                        let start = this.ProcessProjection(methodCallExpression.Arguments.[0], symbolTable)
+                | _ -> raise (SpecificationException(sprintf "Unsupported type of projection %A" expression))
+            | MethodCallExpr mce ->
+                if mce.Method.DeclaringType = typeof<FactRepository> && mce.Method.Name = ObservableMethodName then
+                    if mce.Arguments.Count = 2 && typeof<Specification>.IsAssignableFrom(mce.Arguments.[1].Type) then
+                        let start = this.ProcessProjection(mce.Arguments.[0], symbolTable)
                         let label = SpecificationProcessor.LabelOfProjection(start)
-                        let lambdaExpression = Expression.Lambda<Func<obj>>(methodCallExpression.Arguments.[1])
+                        let lambdaExpression = Expression.Lambda<Func<obj>>(mce.Arguments.[1])
                         let specification = lambdaExpression.Compile().Invoke() :?> Specification
                         let arguments = [label] |> ImmutableList.CreateRange
                         let specification = specification.Apply(arguments)
-                        CollectionProjection(specification.Matches, specification.Projection, methodCallExpression.Type)
-                    elif methodCallExpression.Arguments.Count = 1 && typeof<IQueryable>.IsAssignableFrom(methodCallExpression.Arguments.[0].Type) then
-                        let (value: SourceContext) = this.ProcessSource(methodCallExpression.Arguments.[0], symbolTable, "")
-                        CollectionProjection(value.Matches, value.Projection, methodCallExpression.Type)
+                        CollectionProjection(specification.Matches, specification.Projection, mce.Type)
+                    elif mce.Arguments.Count = 1 && typeof<IQueryable>.IsAssignableFrom(mce.Arguments.[0].Type) then
+                        let (value: SourceContext) = this.ProcessSource(mce.Arguments.[0], symbolTable, "")
+                        CollectionProjection(value.Matches, value.Projection, mce.Type)
                     else
                         raise (SpecificationException(sprintf "Unsupported type of projection %A" expression))
                 elif expression.Type.IsGenericType && expression.Type.GetGenericTypeDefinition() = typeof<IQueryable<_>> then
                     let value = this.ProcessSource(expression, symbolTable, "")
                     CollectionProjection(value.Matches, value.Projection, expression.Type)
-                elif methodCallExpression.Method.DeclaringType = typeof<JinagaClient> && methodCallExpression.Method.Name = HashMethodName && methodCallExpression.Arguments.Count = 1 then
-                    let value = this.ProcessProjection(methodCallExpression.Arguments.[0], symbolTable)
+                elif mce.Method.DeclaringType = typeof<JinagaClient> && mce.Method.Name = HashMethodName && mce.Arguments.Count = 1 then
+                    let value = this.ProcessProjection(mce.Arguments.[0], symbolTable)
                     match value with
-                    | :? SimpleProjection as simpleProjection -> HashProjection(simpleProjection.Tag, methodCallExpression.Arguments.[0].Type)
+                    | :? SimpleProjection as simpleProjection -> HashProjection(simpleProjection.Tag, mce.Arguments.[0].Type)
                     | _ -> raise (SpecificationException(sprintf "Cannot hash %s." (value.ToDescriptiveString())))
                 else
                     raise (SpecificationException(sprintf "Unsupported type of projection %A" expression))
