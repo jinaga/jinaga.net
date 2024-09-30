@@ -132,7 +132,7 @@ module SpecificationProcessor =
                         let label = SpecificationProcessor.LabelOfProjection(start)
                         let lambdaExpression = Expression.Lambda<Func<obj>>(methodCallExpression.Arguments.[1])
                         let specification = lambdaExpression.Compile().Invoke() :?> Specification
-                        let arguments = ImmutableList.Create(label)
+                        let arguments = [label] |> ImmutableList.CreateRange
                         let specification = specification.Apply(arguments)
                         CollectionProjection(specification.Matches, specification.Projection, methodCallExpression.Type)
                     elif methodCallExpression.Arguments.Count = 1 && typeof<IQueryable>.IsAssignableFrom(methodCallExpression.Arguments.[0].Type) then
