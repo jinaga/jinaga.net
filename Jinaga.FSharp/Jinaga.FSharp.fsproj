@@ -6,5 +6,6 @@
   <ItemGroup>
     <ProjectReference Include="../Jinaga/Jinaga.csproj" />
     <Compile Include="SpecificationProcessor.fs" />
+    <Compile Include="Specification.fs" />
   </ItemGroup>
 </Project>

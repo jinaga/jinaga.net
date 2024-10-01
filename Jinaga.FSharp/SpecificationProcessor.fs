@@ -12,7 +12,7 @@ open Jinaga
 open System.Reflection
 open System.Collections.Generic
 
-module SpecificationProcessor =
+module SpecificationProcessorFS =
 
     [<Literal>]
     let ObservableMethodName = "Observable"
@@ -101,9 +101,11 @@ module SpecificationProcessor =
         | :? SimpleProjection as simpleProjection -> simpleProjection.Tag
         | _ -> failwith $"Expected a simple projection, but got {projection.GetType().Name}."
 
-    type SpecificationProcessor() =
+    type SpecificationProcessorFS() =
         let mutable labels = []
         let mutable (givenLabels: Label list) = []
+
+        member this.GivenLabels = givenLabels
 
         member private this.ValidateMatches(matches: ImmutableList<Match>) =
             // Look for matches with no path conditions.
@@ -378,21 +380,21 @@ module SpecificationProcessor =
                 raise (SpecificationException($"Unsupported projection member {binding}."))
 
         static member Queryable<'TProjection> (specExpression: LambdaExpression) =
-            let processor = SpecificationProcessor()
+            let processor = SpecificationProcessorFS()
             let symbolTable = processor.Given(specExpression.Parameters |> Seq.take (specExpression.Parameters.Count - 1))
             let result = processor.ProcessSource(specExpression.Body, symbolTable, "")
             processor.ValidateMatches(result.Matches)
-            (processor.Given, result.Matches, result.Projection)
+            (processor.GivenLabels, result.Matches, result.Projection)
 
         static member Scalar<'TProjection> (specExpression: LambdaExpression) =
-            let processor = SpecificationProcessor()
+            let processor = SpecificationProcessorFS()
             let symbolTable = processor.Given(specExpression.Parameters)
             let result = processor.ProcessShorthand(specExpression.Body, symbolTable)
             processor.ValidateMatches(result.Matches)
-            (processor.Given, result.Matches, result.Projection)
+            (processor.GivenLabels, result.Matches, result.Projection)
 
         static member Select<'TProjection> (specSelector: LambdaExpression) =
-            let processor = SpecificationProcessor()
+            let processor = SpecificationProcessorFS()
             let symbolTable = processor.Given(specSelector.Parameters |> Seq.take (specSelector.Parameters.Count - 1))
             let result = processor.ProcessProjection(specSelector.Body, symbolTable)
-            (processor.Given, ImmutableList<Match>.Empty, result)
+            (processor.GivenLabels, ImmutableList<Match>.Empty, result)
