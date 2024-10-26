@@ -9,6 +9,47 @@ This example demonstrates how to use the `ExportFactsToJson` and `ExportFactsToF
 
 ## Example Code
 
+First, create an extension method to configure the Jinaga client in your application:
+
+```csharp
+public static class ServiceCollectionExtensions
+{
+    public static MauiAppBuilder UseJinagaClient(this MauiAppBuilder builder, Action<JinagaOptions> configureOptions)
+    {
+        builder.Services.AddSingleton(services =>
+        {
+            var options = new JinagaOptions();
+            configureOptions(options);
+            return new JinagaClient(options);
+        });
+
+        return builder;
+    }
+}
+```
+
+Then use this extension method in your MauiProgram.cs:
+
+```csharp
+public static class MauiProgram
+{
+    public static MauiApp CreateMauiApp()
+    {
+        var builder = MauiApp.CreateBuilder();
+        builder
+            .UseMauiApp<App>()
+            .UseJinagaClient(options =>
+            {
+                // Configure Jinaga options here
+            });
+
+        return builder.Build();
+    }
+}
+```
+
+Then use dependency injection in your page:
+
 ```csharp
 using System;
 using System.IO;
@@ -23,44 +64,69 @@ namespace MyMauiApp
     {
         private readonly JinagaClient jinagaClient;
 
-        public MainPage()
+        public MainPage(JinagaClient jinagaClient)
         {
             InitializeComponent();
-            jinagaClient = new JinagaClient(new JinagaOptions
-            {
-                // Configure Jinaga options here
-            });
+            this.jinagaClient = jinagaClient;
         }
 
         private async void OnExportFactsToJsonClicked(object sender, EventArgs e)
         {
-            using (var memoryStream = new MemoryStream())
+            var tempFile = Path.GetTempFileName();
+            try
             {
-                await jinagaClient.ExportFactsToJson(memoryStream);
-                memoryStream.Seek(0, SeekOrigin.Begin);
-                var json = new StreamReader(memoryStream).ReadToEnd();
-
-                await Share.Default.RequestAsync(new ShareTextRequest
+                // Export facts to the temporary file
+                using (var fileStream = File.OpenWrite(tempFile))
                 {
-                    Text = json,
-                    Title = "Exported Facts (JSON)"
+                    await jinagaClient.ExportFactsToJson(fileStream);
+                }
+
+                // Share the file
+                await Share.Default.RequestAsync(new ShareFileRequest
+                {
+                    Title = "Exported Facts (JSON)",
+                    File = new ShareFile(tempFile)
                 });
+
+                // Clean up
+                File.Delete(tempFile);
+            }
+            catch
+            {
+                // Clean up the temporary file if something went wrong
+                if (File.Exists(tempFile))
+                    File.Delete(tempFile);
+                throw;
             }
         }
 
         private async void OnExportFactsToFactualClicked(object sender, EventArgs e)
         {
-            using (var memoryStream = new MemoryStream())
+            var tempFile = Path.GetTempFileName();
+            try
             {
-                await jinagaClient.ExportFactsToFactual(memoryStream);
-                memoryStream.Seek(0, SeekOrigin.Begin);
-                var factual = new StreamReader(memoryStream).ReadToEnd();
-
-                await Share.Default.RequestAsync(new ShareTextRequest
+                // Export facts to the temporary file
+                using (var fileStream = File.OpenWrite(tempFile))
                 {
-                    Text = factual,
-                    Title = "Exported Facts (Factual)"
+                    await jinagaClient.ExportFactsToFactual(fileStream);
+                }
+
+                // Share the file
+                await Share.Default.RequestAsync(new ShareFileRequest
+                {
+                    Title = "Exported Facts (Factual)",
+                    File = new ShareFile(tempFile)
                 });
+
+                // Clean up
+                File.Delete(tempFile);
+            }
+            catch
+            {
+                // Clean up the temporary file if something went wrong
+                if (File.Exists(tempFile))
+                    File.Delete(tempFile);
+                throw;
             }
         }
     }
@@ -69,9 +135,18 @@ namespace MyMauiApp
 
 ## Explanation
 
-1. The `MainPage` class initializes a `JinagaClient` instance with the necessary options.
-2. The `OnExportFactsToJsonClicked` method exports facts to JSON format and shares them using `Share.Default.RequestAsync`.
-3. The `OnExportFactsToFactualClicked` method exports facts to Factual format and shares them using `Share.Default.RequestAsync`.
+1. The `UseJinagaClient` extension method in ServiceCollectionExtensions.cs registers a singleton instance of `JinagaClient` with the dependency injection container.
+2. The `MainPage` class receives a `JinagaClient` instance through constructor injection.
+3. The `OnExportFactsToJsonClicked` method:
+   - Creates a temporary file using Path.GetTempFileName()
+   - Exports facts to the file in JSON format
+   - Shares the file using `Share.Default.RequestAsync`
+   - Cleans up the temporary file after sharing
+4. The `OnExportFactsToFactualClicked` method:
+   - Creates a temporary file using Path.GetTempFileName()
+   - Exports facts to the file in Factual format
+   - Shares the file using `Share.Default.RequestAsync`
+   - Cleans up the temporary file after sharing
 
 ## Usage
 
