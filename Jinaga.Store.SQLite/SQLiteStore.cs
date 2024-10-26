@@ -729,6 +729,31 @@ namespace Jinaga.Store.SQLite
             public string name { get; set; }
         }
 
+        public async Task<IEnumerable<Fact>> GetAllFacts()
+        {
+            var factsFromDb = connFactory.WithConn(
+                (conn, id) =>
+                {
+                    string sql;
+                    sql = $@"
+                        SELECT f.fact_id, f.hash, f.data, t.name, p.public_key, s.signature
+                        FROM fact f
+                        JOIN fact_type t
+                            ON f.fact_type_id = t.fact_type_id
+                        LEFT JOIN signature s
+                            ON s.fact_id = f.fact_id
+                        LEFT JOIN public_key p
+                            ON p.public_key_id = s.public_key_id
+                    ";
+                    return conn.ExecuteQuery<FactWithIdAndSignatureFromDb>(sql);
+                },
+                true
+            );
+
+            var envelopes = factsFromDb.Deserialise();
+            var facts = envelopes.Select(envelope => envelope.Fact);
+            return facts;
+        }
     }
 
 

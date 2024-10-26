@@ -197,12 +197,18 @@ namespace Jinaga
             logger = loggerFactory.CreateLogger<JinagaClient>();
 
             Local = new LocalJinagaClient(factManager, loggerFactory);
+            Internal = new JinagaInternal(store);
         }
 
         /// <summary>
         /// Operate on the local store without making a network connection.
         /// </summary>
         public LocalJinagaClient Local { get; }
+
+        /// <summary>
+        /// Provides internal methods for exporting the SQLite store contents.
+        /// </summary>
+        public JinagaInternal Internal { get; }
 
         /// <summary>
         /// Get information about the logged in user.
@@ -410,7 +416,7 @@ namespace Jinaga
 
         /// <summary>
         /// Observe the results of a specification, including changes.
-        /// Unlike Query, Watch sets up an observer which responds to new facts.
+        /// Unlike Query, results of Watch are updated with new facts.
         /// </summary>
         /// <typeparam name="TFact">The type of the starting point</typeparam>
         /// <typeparam name="TProjection">The type of the results</typeparam>
@@ -436,7 +442,7 @@ namespace Jinaga
 
         /// <summary>
         /// Observe the results of a specification, including changes.
-        /// Unlike Query, Watch sets up an observer which responds to new facts.
+        /// Unlike Query, results of Watch are updated with new facts.
         /// </summary>
         /// <typeparam name="TFact">The type of the starting point</typeparam>
         /// <typeparam name="TProjection">The type of the results</typeparam>
@@ -466,7 +472,7 @@ namespace Jinaga
 
         /// <summary>
         /// Observe the results of a specification, including changes.
-        /// Unlike Query, Watch sets up an observer which responds to new facts.
+        /// Unlike Query, results of Watch are updated with new facts.
         /// </summary>
         /// <typeparam name="TFact">The type of the starting point</typeparam>
         /// <typeparam name="TProjection">The type of the results</typeparam>
@@ -491,7 +497,7 @@ namespace Jinaga
 
         /// <summary>
         /// Observe the results of a specification, including changes.
-        /// Unlike Query, Watch sets up an observer which responds to new facts.
+        /// Unlike Query, results of Watch are updated with new facts.
         /// </summary>
         /// <typeparam name="TFact">The type of the starting point</typeparam>
         /// <typeparam name="TProjection">The type of the results</typeparam>
@@ -521,7 +527,7 @@ namespace Jinaga
 
         /// <summary>
         /// Observe the results of a specification, including changes.
-        /// Unlike Query, Watch sets up an observer which responds to new facts.
+        /// Unlike Query, results of Watch are updated with new facts.
         /// </summary>
         /// <typeparam name="TFact1">The type of the first starting point</typeparam>
         /// <typeparam name="TFact2">The type of the second starting point</typeparam>
@@ -551,7 +557,7 @@ namespace Jinaga
 
         /// <summary>
         /// Observe the results of a specification, including changes.
-        /// Unlike Query, Watch sets up an observer which responds to new facts.
+        /// Unlike Query, results of Watch are updated with new facts.
         /// </summary>
         /// <typeparam name="TFact1">The type of the first starting point</typeparam>
         /// <typeparam name="TFact2">The type of the second starting point</typeparam>
@@ -585,7 +591,7 @@ namespace Jinaga
 
         /// <summary>
         /// Observe the results of a specification, including changes.
-        /// Unlike Query, Watch sets up an observer which responds to new facts.
+        /// Unlike Query, results of Watch are updated with new facts.
         /// </summary>
         /// <typeparam name="TFact1">The type of the first starting point</typeparam>
         /// <typeparam name="TFact2">The type of the second starting point</typeparam>
@@ -614,7 +620,7 @@ namespace Jinaga
 
         /// <summary>
         /// Observe the results of a specification, including changes.
-        /// Unlike Query, Watch sets up an observer which responds to new facts.
+        /// Unlike Query, results of Watch are updated with new facts.
         /// </summary>
         /// <typeparam name="TFact1">The type of the first starting point</typeparam>
         /// <typeparam name="TFact2">The type of the second starting point</typeparam>
@@ -656,7 +662,7 @@ namespace Jinaga
 
         /// <summary>
         /// Observe the results of a specification, including changes from the remote replicator.
-        /// Unlike Watch, Subscribe creates a persistent connection to the replicator.
+        /// Unlike Watch, results of Subscribe are updated with new facts from the remote replicator.
         /// </summary>
         /// <typeparam name="TFact">The type of the starting point</typeparam>
         /// <typeparam name="TProjection">The type of the results</typeparam>
@@ -682,7 +688,7 @@ namespace Jinaga
 
         /// <summary>
         /// Observe the results of a specification, including changes from the remote replicator.
-        /// Unlike Watch, Subscribe creates a persistent connection to the replicator.
+        /// Unlike Watch, results of Subscribe are updated with new facts from the remote replicator.
         /// </summary>
         /// <typeparam name="TFact">The type of the starting point</typeparam>
         /// <typeparam name="TProjection">The type of the results</typeparam>
@@ -712,7 +718,7 @@ namespace Jinaga
 
         /// <summary>
         /// Observe the results of a specification, including changes from the remote replicator.
-        /// Unlike Watch, Subscribe creates a persistent connection to the replicator.
+        /// Unlike Watch, results of Subscribe are updated with new facts from the remote replicator.
         /// </summary>
         /// <typeparam name="TFact">The type of the starting point</typeparam>
         /// <typeparam name="TProjection">The type of the results</typeparam>
@@ -737,7 +743,7 @@ namespace Jinaga
 
         /// <summary>
         /// Observe the results of a specification, including changes from the remote replicator.
-        /// Unlike Watch, Subscribe creates a persistent connection to the replicator.
+        /// Unlike Watch, results of Subscribe are updated with new facts from the remote replicator.
         /// </summary>
         /// <typeparam name="TFact">The type of the starting point</typeparam>
         /// <typeparam name="TProjection">The type of the results</typeparam>
@@ -767,7 +773,7 @@ namespace Jinaga
 
         /// <summary>
         /// Observe the results of a specification, including changes from the remote replicator.
-        /// Unlike Watch, Subscribe creates a persistent connection to the replicator.
+        /// Unlike Watch, results of Subscribe are updated with new facts from the remote replicator.
         /// </summary>
         /// <typeparam name="TFact1">The type of the first starting point</typeparam>
         /// <typeparam name="TFact2">The type of the second starting point</typeparam>
@@ -797,7 +803,7 @@ namespace Jinaga
 
         /// <summary>
         /// Observe the results of a specification, including changes from the remote replicator.
-        /// Unlike Watch, Subscribe creates a persistent connection to the replicator.
+        /// Unlike Watch, results of Subscribe are updated with new facts from the remote replicator.
         /// </summary>
         /// <typeparam name="TFact1">The type of the first starting point</typeparam>
         /// <typeparam name="TFact2">The type of the second starting point</typeparam>
@@ -831,7 +837,7 @@ namespace Jinaga
 
         /// <summary>
         /// Observe the results of a specification, including changes from the remote replicator.
-        /// Unlike Watch, Subscribe creates a persistent connection to the replicator.
+        /// Unlike Watch, results of Subscribe are updated with new facts from the remote replicator.
         /// </summary>
         /// <typeparam name="TFact1">The type of the first starting point</typeparam>
         /// <typeparam name="TFact2">The type of the second starting point</typeparam>
@@ -860,7 +866,7 @@ namespace Jinaga
 
         /// <summary>
         /// Observe the results of a specification, including changes from the remote replicator.
-        /// Unlike Watch, Subscribe creates a persistent connection to the replicator.
+        /// Unlike Watch, results of Subscribe are updated with new facts from the remote replicator.
         /// </summary>
         /// <typeparam name="TFact1">The type of the first starting point</typeparam>
         /// <typeparam name="TFact2">The type of the second starting point</typeparam>
@@ -979,6 +985,71 @@ namespace Jinaga
                 logger.LogError(ex, "Query failed after {ElapsedMilliseconds} ms", stopwatch.ElapsedMilliseconds);
                 throw;
             }
+        }
+    }
+
+    /// <summary>
+    /// Provides internal methods for exporting the SQLite store contents.
+    /// </summary>
+    public class JinagaInternal
+    {
+        private readonly IStore store;
+
+        public JinagaInternal(IStore store)
+        {
+            this.store = store;
+        }
+
+        /// <summary>
+        /// Export all facts from the SQLite store to JSON format.
+        /// </summary>
+        /// <returns>A JSON string representing all facts in the store</returns>
+        public async Task<string> ExportFactsToJson()
+        {
+            var facts = await store.GetAllFacts();
+            return JsonSerializer.Serialize(facts);
+        }
+
+        /// <summary>
+        /// Export all facts from the SQLite store to Factual format.
+        /// </summary>
+        /// <returns>A Factual string representing all facts in the store</returns>
+        public async Task<string> ExportFactsToFactual()
+        {
+            var facts = await store.GetAllFacts();
+            var factual = new StringBuilder();
+            var factMap = new Dictionary<string, string>();
+
+            foreach (var fact in facts)
+            {
+                var factName = $"f{factMap.Count + 1}";
+                factMap[fact.Hash] = factName;
+                factual.AppendLine($"let {factName}: {fact.Type} = {{");
+
+                foreach (var field in fact.Fields)
+                {
+                    factual.AppendLine($"    {field.Key}: {JsonSerializer.Serialize(field.Value)},");
+                }
+
+                foreach (var predecessor in fact.Predecessors)
+                {
+                    if (predecessor.Value.Count == 1)
+                    {
+                        var predecessorName = factMap[predecessor.Value[0].Hash];
+                        factual.AppendLine($"    {predecessor.Key}: {predecessorName},");
+                    }
+                    else if (predecessor.Value.Count > 1)
+                    {
+                        var predecessorNames = predecessor.Value.Select(p => factMap[p.Hash]);
+                        factual.AppendLine($"    {predecessor.Key}: [{string.Join(", ", predecessorNames)}],");
+                    }
+                }
+
+                factual.AppendLine("}");
+                factual.AppendLine();
+            }
+
+            return factual.ToString();
         }
     }
 }
