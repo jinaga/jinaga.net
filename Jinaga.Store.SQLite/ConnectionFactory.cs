@@ -178,7 +178,6 @@ namespace Jinaga.Store.SQLite
 
             public IEnumerable<T> ExecuteQuery<T>(string sql, params object[] parameters) where T : class, new()
             {
-                IList<T> result = new List<T>();
                 var stmt = SQLite.Prepare2(_db, sql);
                 try
                 {
@@ -192,15 +191,13 @@ namespace Jinaga.Store.SQLite
                     var r = SQLite.Step(stmt);
                     while (r == SQLite.Result.Row)
                     {
-                        //yield return stmt.row<T>();
-                        result.Add(stmt.row<T>());
+                        yield return stmt.row<T>();
                         r = SQLite.Step(stmt);
                     }
-                    if (r == SQLite.Result.Done)
+                    if (r != SQLite.Result.Done)
                     {
-                        return result;
+                        throw SQLiteException.New(r, $"ExecuteQuery<T>/1: {r} - {SQLite.GetErrmsg(_db)}");                  
                     }
-                    throw SQLiteException.New(r, $"ExecuteQuery<T>/1: {r} - {SQLite.GetErrmsg(_db)}");                  
                 }
                 finally
                 {
@@ -215,7 +212,6 @@ namespace Jinaga.Store.SQLite
 
             public IEnumerable<ImmutableDictionary<string, string>> ExecuteQueryRaw(string sql, params object[] parameters)
             {
-                var result = new List<ImmutableDictionary<string, string>>();
                 var stmt = SQLite.Prepare2(_db, sql);
                 try
                 {
@@ -229,15 +225,13 @@ namespace Jinaga.Store.SQLite
                     var r = SQLite.Step(stmt);
                     while (r == SQLite.Result.Row)
                     {
-                        //yield return stmt.row<T>();
-                        result.Add(stmt.rawRow());
+                        yield return stmt.rawRow();
                         r = SQLite.Step(stmt);
                     }
-                    if (r == SQLite.Result.Done)
+                    if (r != SQLite.Result.Done)
                     {
-                        return result;
+                        throw SQLiteException.New(r, $"ExecuteQueryRaw/1: {r} - {SQLite.GetErrmsg(_db)}");
                     }
-                    throw SQLiteException.New(r, $"ExecuteQueryRaw/1: {r} - {SQLite.GetErrmsg(_db)}");
                 }
                 finally
                 {
