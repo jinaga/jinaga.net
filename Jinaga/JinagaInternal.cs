@@ -170,28 +170,55 @@ namespace Jinaga
             {
                 var factName = $"f{factMap.Count + 1}";
                 factMap[fact.Reference] = factName;
-                factual.AppendLine($"let {factName}: {fact.Reference.Type} = {{");
+                factual.Append($"let {factName}: {fact.Reference.Type} = {{");
+                var first = true;
 
                 foreach (var field in fact.Fields)
                 {
-                    factual.AppendLine($"    {field.Name}: {JsonSerializer.Serialize(field.Value)},");
+                    if (first)
+                    {
+                        factual.AppendLine();
+                    }
+                    else
+                    {
+                        factual.AppendLine(",");
+                    }
+                    first = false;
+                    factual.Append($"    {field.Name}: {JsonSerialize(field.Value)}");
                 }
 
                 foreach (var predecessor in fact.Predecessors)
                 {
+                    if (first)
+                    {
+                        factual.AppendLine();
+                    }
+                    else
+                    {
+                        factual.AppendLine(",");
+                    }
+                    first = false;
                     if (predecessor is PredecessorSingle predecessorSingle)
                     {
                         var predecessorName = factMap[predecessorSingle.Reference];
-                        factual.AppendLine($"    {predecessorSingle.Role}: {predecessorName},");
+                        factual.Append($"    {predecessorSingle.Role}: {predecessorName}");
                     }
                     else if (predecessor is PredecessorMultiple predecessorMultiple)
                     {
                         var predecessorNames = predecessorMultiple.References.Select(p => factMap[p]);
-                        factual.AppendLine($"    {predecessorMultiple.Role}: [{string.Join(", ", predecessorNames)}],");
+                        factual.Append($"    {predecessorMultiple.Role}: [{string.Join(", ", predecessorNames)}]");
                     }
                 }
 
-                factual.AppendLine("}");
+                if (first)
+                {
+                    factual.AppendLine("}");
+                }
+                else
+                {
+                    factual.AppendLine();
+                    factual.AppendLine("}");
+                }
                 factual.AppendLine();
             }
 

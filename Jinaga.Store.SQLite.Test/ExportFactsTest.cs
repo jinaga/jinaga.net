@@ -99,10 +99,32 @@ namespace Jinaga.Store.SQLite.Test
 
             var factual = await jinagaClient.Internal.ExportFactsToFactual();
 
-            factual.Should().Contain("let f1: Blog.Site = {");
-            factual.Should().Contain("let f2: Blog.Post = {");
-            factual.Should().Contain("let f3: Blog.Post.Title = {");
-            factual.Should().Contain("let f4: Blog.Post.Title = {");
+            factual.Should().Be(
+                """
+                let f1: Blog.Site = {
+                    domain: "qedcode.com"
+                }
+
+                let f2: Blog.Post = {
+                    createdAt: "2022-08-16T15:23:13.231Z",
+                    site: f1
+                }
+
+                let f3: Blog.Post.Title = {
+                    value: "Introducing Jinaga Replicator",
+                    post: f2,
+                    prior: []
+                }
+
+                let f4: Blog.Post.Title = {
+                    value: "Introduction to the Jinaga Replicator",
+                    post: f2,
+                    prior: [f3]
+                }
+
+
+                """
+            );
         }
 
         private static JinagaClient GivenJinagaClient()
