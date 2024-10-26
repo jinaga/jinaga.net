@@ -1,6 +1,8 @@
+using Jinaga.DefaultImplementations;
+using Jinaga.Facts;
 using Jinaga.Store.SQLite.Test.Models;
+using Microsoft.Extensions.Logging.Abstractions;
 using System.Text.Json;
-using Xunit;
 
 namespace Jinaga.Store.SQLite.Test
 {
