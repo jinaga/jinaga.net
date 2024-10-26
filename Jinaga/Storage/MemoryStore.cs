@@ -404,5 +404,37 @@ namespace Jinaga.Storage
                 return Task.CompletedTask;
             }
         }
+
+        public Task<IEnumerable<Fact>> GetAllFacts()
+        {
+            // Ensure that facts are returned in topological order.
+            // Predecessors must be returned before their successors.
+            var orderedFacts = new List<Fact>();
+            var visited = new HashSet<FactReference>();
+            void Visit(FactReference reference)
+            {
+                if (visited.Contains(reference))
+                    return;
+
+                visited.Add(reference);
+
+                if (ancestors.TryGetValue(reference, out var predecessors))
+                {
+                    foreach (var predecessor in predecessors)
+                    {
+                        Visit(predecessor);
+                    }
+                }
+
+                orderedFacts.Add(factsByReference[reference]);
+            }
+
+            foreach (var reference in factsByReference.Keys)
+            {
+                Visit(reference);
+            }
+
+            return Task.FromResult(orderedFacts.AsEnumerable());
+        }
     }
 }

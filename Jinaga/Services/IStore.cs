@@ -2,6 +2,8 @@ using Jinaga.Facts;
 using Jinaga.Products;
 using Jinaga.Projections;
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
@@ -22,5 +24,6 @@ namespace Jinaga.Services
         Task SetMruDate(string specificationHash, DateTime mruDate);
         Task<QueuedFacts> GetQueue();
         Task SetQueueBookmark(string bookmark);
+        Task<IEnumerable<Fact>> GetAllFacts();
     }
 }

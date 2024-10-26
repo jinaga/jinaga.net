@@ -729,7 +729,7 @@ namespace Jinaga.Store.SQLite
             public string name { get; set; }
         }
 
-        public async Task<IEnumerable<Fact>> GetAllFacts()
+        public Task<IEnumerable<Fact>> GetAllFacts()
         {
             var factsFromDb = connFactory.WithConn(
                 (conn, id) =>
@@ -752,7 +752,7 @@ namespace Jinaga.Store.SQLite
 
             var envelopes = factsFromDb.Deserialize();
             var facts = envelopes.Select(envelope => envelope.Fact);
-            return facts;
+            return Task.FromResult(facts);
         }
     }
 
