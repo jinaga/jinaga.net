@@ -19,7 +19,10 @@ namespace Jinaga.Store.SQLite.Test
             var title1 = await jinagaClient.Fact(new Title(post, "Introducing Jinaga Replicator", new Title[0]));
             var title2 = await jinagaClient.Fact(new Title(post, "Introduction to the Jinaga Replicator", new[] { title1 }));
 
-            var json = await ConcatAsync(jinagaClient.Internal.ExportFactsToJson());
+            using var memoryStream = new MemoryStream();
+            await jinagaClient.Internal.ExportFactsToJson(memoryStream);
+            memoryStream.Position = 0;
+            var json = await new StreamReader(memoryStream).ReadToEndAsync();
 
             json.Should().Be(
                 """
@@ -98,7 +101,10 @@ namespace Jinaga.Store.SQLite.Test
             var title1 = await jinagaClient.Fact(new Title(post, "Introducing Jinaga Replicator", new Title[0]));
             var title2 = await jinagaClient.Fact(new Title(post, "Introduction to the Jinaga Replicator", new[] { title1 }));
 
-            var factual = await ConcatAsync(jinagaClient.Internal.ExportFactsToFactual());
+            using var memoryStream = new MemoryStream();
+            await jinagaClient.Internal.ExportFactsToFactual(memoryStream);
+            memoryStream.Position = 0;
+            var factual = await new StreamReader(memoryStream).ReadToEndAsync();
 
             factual.Should().Be(
                 """
