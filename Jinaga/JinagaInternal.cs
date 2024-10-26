@@ -6,6 +6,8 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using System.IO;
+using Jinaga.Http;
 
 namespace Jinaga
 {
@@ -24,8 +26,8 @@ namespace Jinaga
         /// <summary>
         /// Export all facts from the store to JSON format.
         /// </summary>
-        /// <returns>An async stream of JSON chunks representing facts in the store</returns>
-        public async IAsyncEnumerable<string> ExportFactsToJson()
+        /// <param name="stream">The stream to write the JSON data to</param>
+        public async Task ExportFactsToJson(Stream stream)
         {
             var facts = await store.GetAllFacts();
             var firstFact = true;
@@ -143,25 +145,25 @@ namespace Jinaga
                 }
                 chunk.Append("    }");
 
-                yield return chunk.ToString();
+                await WriteChunkToStream(stream, chunk.ToString());
                 chunk.Clear();
             }
 
             if (firstFact)
             {
-                yield return "]\n";
+                await WriteChunkToStream(stream, "]\n");
             }
             else
             {
-                yield return "\n]\n";
+                await WriteChunkToStream(stream, "\n]\n");
             }
         }
 
         /// <summary>
         /// Export all facts from the store to Factual format.
         /// </summary>
-        /// <returns>An async stream of Factual chunks representing facts in the store</returns>
-        public async IAsyncEnumerable<string> ExportFactsToFactual()
+        /// <param name="stream">The stream to write the Factual data to</param>
+        public async Task ExportFactsToFactual(Stream stream)
         {
             var facts = await store.GetAllFacts();
             var factMap = new Dictionary<FactReference, string>();
@@ -230,9 +232,15 @@ namespace Jinaga
                 }
                 chunk.AppendLine();
 
-                yield return chunk.ToString();
+                await WriteChunkToStream(stream, chunk.ToString());
                 chunk.Clear();
             }
+        }
+
+        private async Task WriteChunkToStream(Stream stream, string chunk)
+        {
+            var buffer = Encoding.UTF8.GetBytes(chunk);
+            await stream.WriteAsync(buffer, 0, buffer.Length);
         }
 
         private string JsonSerialize(FieldValue value)

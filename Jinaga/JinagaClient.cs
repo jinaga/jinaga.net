@@ -13,6 +13,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.IO;
 
 namespace Jinaga
 {
@@ -985,6 +986,24 @@ namespace Jinaga
                 logger.LogError(ex, "Query failed after {ElapsedMilliseconds} ms", stopwatch.ElapsedMilliseconds);
                 throw;
             }
+        }
+
+        /// <summary>
+        /// Export all facts from the store to JSON format.
+        /// </summary>
+        /// <param name="stream">The stream to write the JSON data to</param>
+        public async Task ExportFactsToJson(Stream stream)
+        {
+            await Internal.ExportFactsToJson(stream);
+        }
+
+        /// <summary>
+        /// Export all facts from the store to Factual format.
+        /// </summary>
+        /// <param name="stream">The stream to write the Factual data to</param>
+        public async Task ExportFactsToFactual(Stream stream)
+        {
+            await Internal.ExportFactsToFactual(stream);
         }
     }
 }
