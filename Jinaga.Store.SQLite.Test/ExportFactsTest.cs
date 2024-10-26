@@ -2,6 +2,7 @@ using Jinaga.DefaultImplementations;
 using Jinaga.Facts;
 using Jinaga.Store.SQLite.Test.Models;
 using Microsoft.Extensions.Logging.Abstractions;
+using System.Text;
 using System.Text.Json;
 
 namespace Jinaga.Store.SQLite.Test
@@ -18,7 +19,7 @@ namespace Jinaga.Store.SQLite.Test
             var title1 = await jinagaClient.Fact(new Title(post, "Introducing Jinaga Replicator", new Title[0]));
             var title2 = await jinagaClient.Fact(new Title(post, "Introduction to the Jinaga Replicator", new[] { title1 }));
 
-            var json = await jinagaClient.Internal.ExportFactsToJson();
+            var json = await ConcatAsync(jinagaClient.Internal.ExportFactsToJson());
 
             json.Should().Be(
                 """
@@ -97,7 +98,7 @@ namespace Jinaga.Store.SQLite.Test
             var title1 = await jinagaClient.Fact(new Title(post, "Introducing Jinaga Replicator", new Title[0]));
             var title2 = await jinagaClient.Fact(new Title(post, "Introduction to the Jinaga Replicator", new[] { title1 }));
 
-            var factual = await jinagaClient.Internal.ExportFactsToFactual();
+            var factual = await ConcatAsync(jinagaClient.Internal.ExportFactsToFactual());
 
             factual.Should().Be(
                 """
@@ -125,6 +126,16 @@ namespace Jinaga.Store.SQLite.Test
 
                 """
             );
+        }
+
+        private static async Task<string> ConcatAsync(IAsyncEnumerable<string> chunks)
+        {
+            var result = new StringBuilder();
+            await foreach (var chunk in chunks)
+            {
+                result.Append(chunk);
+            }
+            return result.ToString();
         }
 
         private static JinagaClient GivenJinagaClient()

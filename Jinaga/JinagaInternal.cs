@@ -24,205 +24,215 @@ namespace Jinaga
         /// <summary>
         /// Export all facts from the store to JSON format.
         /// </summary>
-        /// <returns>A JSON string representing all facts in the store</returns>
-        public async Task<string> ExportFactsToJson()
+        /// <returns>An async stream of JSON chunks representing facts in the store</returns>
+        public async IAsyncEnumerable<string> ExportFactsToJson()
         {
             var facts = await store.GetAllFacts();
-            var json = new StringBuilder();
-            json.Append("[");
             var firstFact = true;
+            var chunk = new StringBuilder();
+            chunk.Append("[");
 
             foreach (var fact in facts)
             {
                 if (firstFact)
                 {
-                    json.AppendLine();
+                    chunk.AppendLine();
                 }
                 else
                 {
-                    json.AppendLine(",");
+                    chunk.AppendLine(",");
                 }
                 firstFact = false;
 
-                json.AppendLine("    {");
-                json.AppendLine($"        \"hash\": \"{fact.Reference.Hash}\",");
-                json.AppendLine($"        \"type\": \"{fact.Reference.Type}\",");
-                json.Append("        \"predecessors\": {");
+                chunk.AppendLine("    {");
+                chunk.AppendLine($"        \"hash\": \"{fact.Reference.Hash}\",");
+                chunk.AppendLine($"        \"type\": \"{fact.Reference.Type}\",");
+                chunk.Append("        \"predecessors\": {");
 
                 var firstPredecessor = true;
                 foreach (var predecessor in fact.Predecessors)
                 {
                     if (firstPredecessor)
                     {
-                        json.AppendLine();
+                        chunk.AppendLine();
                     }
                     else
                     {
-                        json.AppendLine(",");
+                        chunk.AppendLine(",");
                     }
                     firstPredecessor = false;
 
                     if (predecessor is PredecessorSingle predecessorSingle)
                     {
-                        json.AppendLine($"            \"{predecessorSingle.Role}\": {{");
-                        json.AppendLine($"                \"hash\": \"{predecessorSingle.Reference.Hash}\",");
-                        json.AppendLine($"                \"type\": \"{predecessorSingle.Reference.Type}\"");
-                        json.Append("            }");
+                        chunk.AppendLine($"            \"{predecessorSingle.Role}\": {{");
+                        chunk.AppendLine($"                \"hash\": \"{predecessorSingle.Reference.Hash}\",");
+                        chunk.AppendLine($"                \"type\": \"{predecessorSingle.Reference.Type}\"");
+                        chunk.Append("            }");
                     }
                     else if (predecessor is PredecessorMultiple predecessorMultiple)
                     {
-                        json.Append($"            \"{predecessorMultiple.Role}\": [");
+                        chunk.Append($"            \"{predecessorMultiple.Role}\": [");
 
                         var firstReference = true;
                         foreach (var reference in predecessorMultiple.References)
                         {
                             if (firstReference)
                             {
-                                json.AppendLine();
+                                chunk.AppendLine();
                             }
                             else
                             {
-                                json.AppendLine(",");
+                                chunk.AppendLine(",");
                             }
                             firstReference = false;
 
-                            json.AppendLine("                {");
-                            json.AppendLine($"                    \"hash\": \"{reference.Hash}\",");
-                            json.AppendLine($"                    \"type\": \"{reference.Type}\"");
-                            json.Append("                }");
+                            chunk.AppendLine("                {");
+                            chunk.AppendLine($"                    \"hash\": \"{reference.Hash}\",");
+                            chunk.AppendLine($"                    \"type\": \"{reference.Type}\"");
+                            chunk.Append("                }");
                         }
 
                         if (firstReference)
                         {
-                            json.Append("]");
+                            chunk.Append("]");
                         }
                         else
                         {
-                            json.AppendLine();
-                            json.Append("            ]");
+                            chunk.AppendLine();
+                            chunk.Append("            ]");
                         }
                     }
                 }
 
                 if (firstPredecessor)
                 {
-                    json.AppendLine("},");
+                    chunk.AppendLine("},");
                 }
                 else
                 {
-                    json.AppendLine();
-                    json.AppendLine("        },");
+                    chunk.AppendLine();
+                    chunk.AppendLine("        },");
                 }
 
-                json.Append("        \"fields\": {");
+                chunk.Append("        \"fields\": {");
 
                 var firstField = true;
                 foreach (var field in fact.Fields)
                 {
                     if (firstField)
                     {
-                        json.AppendLine();
+                        chunk.AppendLine();
                     }
                     else
                     {
-                        json.AppendLine(",");
+                        chunk.AppendLine(",");
                     }
                     firstField = false;
 
-                    json.Append($"            \"{field.Name}\": {JsonSerialize(field.Value)}");
+                    chunk.Append($"            \"{field.Name}\": {JsonSerialize(field.Value)}");
                 }
 
                 if (firstField)
                 {
-                    json.AppendLine("}");
+                    chunk.AppendLine("}");
                 }
                 else
                 {
-                    json.AppendLine();
-                    json.AppendLine("        }");
+                    chunk.AppendLine();
+                    chunk.AppendLine("        }");
                 }
-                json.Append("    }");
+                chunk.Append("    }");
+
+                yield return chunk.ToString();
+                chunk.Clear();
             }
 
             if (firstFact)
             {
-                json.AppendLine("]");
+                yield return "]\n";
             }
             else
             {
-                json.AppendLine();
-                json.AppendLine("]");
+                yield return "\n]\n";
             }
-            return json.ToString();
         }
 
         /// <summary>
         /// Export all facts from the store to Factual format.
         /// </summary>
-        /// <returns>A Factual string representing all facts in the store</returns>
-        public async Task<string> ExportFactsToFactual()
+        /// <returns>An async stream of Factual chunks representing facts in the store</returns>
+        public async IAsyncEnumerable<string> ExportFactsToFactual()
         {
             var facts = await store.GetAllFacts();
-            var factual = new StringBuilder();
             var factMap = new Dictionary<FactReference, string>();
+            var buffer = new List<(Fact fact, string factName)>();
 
+            // First pass: collect all facts and assign names
             foreach (var fact in facts)
             {
                 var factName = $"f{factMap.Count + 1}";
                 factMap[fact.Reference] = factName;
-                factual.Append($"let {factName}: {fact.Reference.Type} = {{");
+                buffer.Add((fact, factName));
+            }
+
+            // Second pass: output facts now that we have all references
+            var chunk = new StringBuilder();
+            foreach (var (fact, factName) in buffer)
+            {
+                chunk.Append($"let {factName}: {fact.Reference.Type} = {{");
                 var first = true;
 
                 foreach (var field in fact.Fields)
                 {
                     if (first)
                     {
-                        factual.AppendLine();
+                        chunk.AppendLine();
                     }
                     else
                     {
-                        factual.AppendLine(",");
+                        chunk.AppendLine(",");
                     }
                     first = false;
-                    factual.Append($"    {field.Name}: {JsonSerialize(field.Value)}");
+                    chunk.Append($"    {field.Name}: {JsonSerialize(field.Value)}");
                 }
 
                 foreach (var predecessor in fact.Predecessors)
                 {
                     if (first)
                     {
-                        factual.AppendLine();
+                        chunk.AppendLine();
                     }
                     else
                     {
-                        factual.AppendLine(",");
+                        chunk.AppendLine(",");
                     }
                     first = false;
                     if (predecessor is PredecessorSingle predecessorSingle)
                     {
                         var predecessorName = factMap[predecessorSingle.Reference];
-                        factual.Append($"    {predecessorSingle.Role}: {predecessorName}");
+                        chunk.Append($"    {predecessorSingle.Role}: {predecessorName}");
                     }
                     else if (predecessor is PredecessorMultiple predecessorMultiple)
                     {
                         var predecessorNames = predecessorMultiple.References.Select(p => factMap[p]);
-                        factual.Append($"    {predecessorMultiple.Role}: [{string.Join(", ", predecessorNames)}]");
+                        chunk.Append($"    {predecessorMultiple.Role}: [{string.Join(", ", predecessorNames)}]");
                     }
                 }
 
                 if (first)
                 {
-                    factual.AppendLine("}");
+                    chunk.AppendLine("}");
                 }
                 else
                 {
-                    factual.AppendLine();
-                    factual.AppendLine("}");
+                    chunk.AppendLine();
+                    chunk.AppendLine("}");
                 }
-                factual.AppendLine();
-            }
+                chunk.AppendLine();
 
-            return factual.ToString();
+                yield return chunk.ToString();
+                chunk.Clear();
+            }
         }
 
         private string JsonSerialize(FieldValue value)
