@@ -1,5 +1,6 @@
 using Jinaga.Facts;
 using Jinaga.Services;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -27,7 +28,132 @@ namespace Jinaga
         public async Task<string> ExportFactsToJson()
         {
             var facts = await store.GetAllFacts();
-            return JsonSerializer.Serialize(facts);
+            var json = new StringBuilder();
+            json.Append("[");
+            var firstFact = true;
+
+            foreach (var fact in facts)
+            {
+                if (firstFact)
+                {
+                    json.AppendLine();
+                }
+                else
+                {
+                    json.AppendLine(",");
+                }
+                firstFact = false;
+
+                json.AppendLine("    {");
+                json.AppendLine($"        \"hash\": \"{fact.Reference.Hash}\",");
+                json.AppendLine($"        \"type\": \"{fact.Reference.Type}\",");
+                json.Append("        \"predecessors\": {");
+
+                var firstPredecessor = true;
+                foreach (var predecessor in fact.Predecessors)
+                {
+                    if (firstPredecessor)
+                    {
+                        json.AppendLine();
+                    }
+                    else
+                    {
+                        json.AppendLine(",");
+                    }
+                    firstPredecessor = false;
+
+                    if (predecessor is PredecessorSingle predecessorSingle)
+                    {
+                        json.AppendLine($"            \"{predecessorSingle.Role}\": {{");
+                        json.AppendLine($"                \"hash\": \"{predecessorSingle.Reference.Hash}\",");
+                        json.AppendLine($"                \"type\": \"{predecessorSingle.Reference.Type}\"");
+                        json.Append("            }");
+                    }
+                    else if (predecessor is PredecessorMultiple predecessorMultiple)
+                    {
+                        json.Append($"            \"{predecessorMultiple.Role}\": [");
+
+                        var firstReference = true;
+                        foreach (var reference in predecessorMultiple.References)
+                        {
+                            if (firstReference)
+                            {
+                                json.AppendLine();
+                            }
+                            else
+                            {
+                                json.AppendLine(",");
+                            }
+                            firstReference = false;
+
+                            json.AppendLine("                {");
+                            json.AppendLine($"                    \"hash\": \"{reference.Hash}\",");
+                            json.AppendLine($"                    \"type\": \"{reference.Type}\"");
+                            json.Append("                }");
+                        }
+
+                        if (firstReference)
+                        {
+                            json.Append("]");
+                        }
+                        else
+                        {
+                            json.AppendLine();
+                            json.Append("            ]");
+                        }
+                    }
+                }
+
+                if (firstPredecessor)
+                {
+                    json.AppendLine("},");
+                }
+                else
+                {
+                    json.AppendLine();
+                    json.AppendLine("        },");
+                }
+
+                json.Append("        \"fields\": {");
+
+                var firstField = true;
+                foreach (var field in fact.Fields)
+                {
+                    if (firstField)
+                    {
+                        json.AppendLine();
+                    }
+                    else
+                    {
+                        json.AppendLine(",");
+                    }
+                    firstField = false;
+
+                    json.Append($"            \"{field.Name}\": {JsonSerialize(field.Value)}");
+                }
+
+                if (firstField)
+                {
+                    json.AppendLine("}");
+                }
+                else
+                {
+                    json.AppendLine();
+                    json.AppendLine("        }");
+                }
+                json.Append("    }");
+            }
+
+            if (firstFact)
+            {
+                json.AppendLine("]");
+            }
+            else
+            {
+                json.AppendLine();
+                json.AppendLine("]");
+            }
+            return json.ToString();
         }
 
         /// <summary>
@@ -70,6 +196,30 @@ namespace Jinaga
             }
 
             return factual.ToString();
+        }
+
+        private string JsonSerialize(FieldValue value)
+        {
+            if (value is FieldValueString stringValue)
+            {
+                return JsonSerializer.Serialize(stringValue.StringValue);
+            }
+            else if (value is FieldValueNumber numberValue)
+            {
+                return JsonSerializer.Serialize(numberValue.DoubleValue);
+            }
+            else if (value is FieldValueBoolean booleanValue)
+            {
+                return JsonSerializer.Serialize(booleanValue.BoolValue);
+            }
+            else if (value is FieldValueNull)
+            {
+                return "null";
+            }
+            else
+            {
+                throw new InvalidOperationException("Unknown field value type");
+            }
         }
     }
 }
