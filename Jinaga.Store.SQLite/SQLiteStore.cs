@@ -306,14 +306,14 @@ namespace Jinaga.Store.SQLite
 
                             return conn.ExecuteQuery<FactWithIdAndSignatureFromDb>(sql, parameters.ToArray());
                         },
-                    true   //exponentional backoff
+                    true   //exponential backoff
                 );
 
                 logger.LogTrace("SQLite loaded {count} facts", factsFromDb.Count());
 
                 FactGraphBuilder fb = new FactGraphBuilder() ;
             
-                foreach (FactEnvelope envelope in factsFromDb.Deserialise()) 
+                foreach (FactEnvelope envelope in factsFromDb.Deserialize()) 
                 {
                     fb.Add(envelope);
                 }
@@ -349,7 +349,7 @@ namespace Jinaga.Store.SQLite
 
                         return conn.ExecuteQuery<ReferenceFromDb>(sql);
                     },
-                    true   //exponentional backoff
+                    true   //exponential backoff
                 );
 
                 var knownReferences = referencesFromDb
@@ -393,7 +393,7 @@ namespace Jinaga.Store.SQLite
                     {
                         return ExecuteQueryTree(sqlQueryTree, conn);
                     },
-                    true   //exponentional backoff
+                    true   //exponential backoff
             );
 
             var givenProduct = Product.Empty;
@@ -468,7 +468,7 @@ namespace Jinaga.Store.SQLite
                         ";
                         return conn.ExecuteQuery<FactTypeFromDb>(sql);
                     },
-                    true   //exponentional backoff
+                    true   //exponential backoff
                 );
             return factTypeResult;
         }
@@ -486,7 +486,7 @@ namespace Jinaga.Store.SQLite
                         ";
                         return conn.ExecuteQuery<RoleFromDb>(sql);
                     },
-                    true   //exponentional backoff
+                    true   //exponential backoff
                 );
             return rolesResult;
         }
@@ -667,7 +667,7 @@ namespace Jinaga.Store.SQLite
             );
 
             // Convert the fact records to facts.
-            var envelopes = factsFromDb.Deserialise();
+            var envelopes = factsFromDb.Deserialize();
             var graphBuilder = new FactGraphBuilder();
             foreach (FactEnvelope envelope in envelopes)
             {
@@ -729,13 +729,38 @@ namespace Jinaga.Store.SQLite
             public string name { get; set; }
         }
 
+        public Task<IEnumerable<Fact>> GetAllFacts()
+        {
+            var factsFromDb = connFactory.WithConn(
+                (conn, id) =>
+                {
+                    string sql;
+                    sql = $@"
+                        SELECT f.fact_id, f.hash, f.data, t.name, p.public_key, s.signature
+                        FROM fact f
+                        JOIN fact_type t
+                            ON f.fact_type_id = t.fact_type_id
+                        LEFT JOIN signature s
+                            ON s.fact_id = f.fact_id
+                        LEFT JOIN public_key p
+                            ON p.public_key_id = s.public_key_id
+                    ";
+                    return conn.ExecuteQuery<FactWithIdAndSignatureFromDb>(sql);
+                },
+                true
+            );
+
+            var envelopes = factsFromDb.Deserialize();
+            var facts = envelopes.Select(envelope => envelope.Fact);
+            return Task.FromResult(facts);
+        }
     }
 
 
     public static class MyExtensions
     {
 
-        public static IEnumerable<FactEnvelope> Deserialise(this IEnumerable<FactWithIdAndSignatureFromDb> factsFromDb) 
+        public static IEnumerable<FactEnvelope> Deserialize(this IEnumerable<FactWithIdAndSignatureFromDb> factsFromDb) 
         {
             FactEnvelope envelope = null;
             int factId = 0;

@@ -15,7 +15,7 @@ namespace Jinaga.Storage
     public class MemoryStore : IStore
     {
         private volatile ImmutableDictionary<FactReference, Fact> factsByReference = ImmutableDictionary<FactReference, Fact>.Empty;
-        private volatile ImmutableDictionary<FactReference, ImmutableList<FactSignature>> siguaturesByReference = ImmutableDictionary<FactReference, ImmutableList<FactSignature>>.Empty;
+        private volatile ImmutableDictionary<FactReference, ImmutableList<FactSignature>> signaturesByReference = ImmutableDictionary<FactReference, ImmutableList<FactSignature>>.Empty;
         private ImmutableList<Edge> edges = ImmutableList<Edge>.Empty;
         private volatile ImmutableDictionary<FactReference, ImmutableList<FactReference>> ancestors = ImmutableDictionary<FactReference, ImmutableList<FactReference>>.Empty;
         private volatile ImmutableDictionary<string, string> bookmarks = ImmutableDictionary<string, string>.Empty;
@@ -70,20 +70,20 @@ namespace Jinaga.Storage
                     if (graphSignatures.Count == 0)
                         continue;
 
-                    if (siguaturesByReference.TryGetValue(reference, out var existingSignatures))
+                    if (signaturesByReference.TryGetValue(reference, out var existingSignatures))
                     {
                         var merged = existingSignatures
                             .Concat(graphSignatures)
                             .Distinct()
                             .ToImmutableList();
-                        siguaturesByReference = siguaturesByReference.SetItem(
+                        signaturesByReference = signaturesByReference.SetItem(
                             reference,
                             merged
                         );
                     }
                     else
                     {
-                        siguaturesByReference = siguaturesByReference.Add(
+                        signaturesByReference = signaturesByReference.Add(
                             reference,
                             graphSignatures
                         );
@@ -255,7 +255,7 @@ namespace Jinaga.Storage
             var builder = new FactGraphBuilder();
             foreach (var fact in facts)
             {
-                if (siguaturesByReference.TryGetValue(fact.Reference, out var signatures))
+                if (signaturesByReference.TryGetValue(fact.Reference, out var signatures))
                 {
                     builder.Add(new FactEnvelope(fact, signatures));
                 }
@@ -377,7 +377,7 @@ namespace Jinaga.Storage
                 var builder = new FactGraphBuilder();
                 foreach (var fact in facts)
                 {
-                    if (siguaturesByReference.TryGetValue(fact.Reference, out var signatures))
+                    if (signaturesByReference.TryGetValue(fact.Reference, out var signatures))
                     {
                         builder.Add(new FactEnvelope(fact, signatures));
                     }
@@ -403,6 +403,38 @@ namespace Jinaga.Storage
                     this.bookmark = nextBookmark;
                 return Task.CompletedTask;
             }
+        }
+
+        public Task<IEnumerable<Fact>> GetAllFacts()
+        {
+            // Ensure that facts are returned in topological order.
+            // Predecessors must be returned before their successors.
+            var orderedFacts = new List<Fact>();
+            var visited = new HashSet<FactReference>();
+            void Visit(FactReference reference)
+            {
+                if (visited.Contains(reference))
+                    return;
+
+                visited.Add(reference);
+
+                if (ancestors.TryGetValue(reference, out var predecessors))
+                {
+                    foreach (var predecessor in predecessors)
+                    {
+                        Visit(predecessor);
+                    }
+                }
+
+                orderedFacts.Add(factsByReference[reference]);
+            }
+
+            foreach (var reference in factsByReference.Keys)
+            {
+                Visit(reference);
+            }
+
+            return Task.FromResult(orderedFacts.AsEnumerable());
         }
     }
 }
