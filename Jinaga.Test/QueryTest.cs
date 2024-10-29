@@ -45,6 +45,21 @@ namespace Jinaga.Test
         }
 
         [Fact]
+        public async Task CanQueryForSuccessorsUsingExtensionMethod()
+        {
+            var airlineDay = await j.Fact(new AirlineDay(new Airline("IA"), DateTime.Today));
+            var flight = await j.Fact(new Flight(airlineDay, 4247));
+
+            var specification = Given<AirlineDay>.Match((airlineDay, facts) =>
+                from flight in facts.Successors<Flight>(f => f.airlineDay == airlineDay)
+                select flight
+            );
+            var flights = await j.Query(specification, airlineDay);
+
+            flights.Should().ContainSingle().Which.Should().BeEquivalentTo(flight);
+        }
+
+        [Fact]
         public async Task CanQueryMultipleSteps()
         {
             var airline = await j.Fact(new Airline("IA"));

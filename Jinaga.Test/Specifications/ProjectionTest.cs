@@ -95,6 +95,28 @@ namespace Jinaga.Test.Specifications.Specifications
             var result = passengerNames.Should().ContainSingle().Subject;
             result.Should().Be("Joe");
         }
+
+        [Fact]
+        public async Task Projection_CanUseSuccessorsExtensionMethod()
+        {
+            var airline = await j.Fact(new Airline("IA"));
+            var user = await j.Fact(new User("--- PUBLIC KEY ---"));
+            var passenger = await j.Fact(new Passenger(airline, user));
+            await j.Fact(new PassengerName(passenger, "Joe", new PassengerName[0]));
+
+            var passengers = await j.Query(Given<Airline>.Match((airline, facts) =>
+                from passenger in facts.Successors<Passenger>(p => p.airline == airline)
+                select new
+                {
+                    passenger,
+                    names = facts.Observable(passenger, namesOfPassenger)
+                }
+            ), airline);
+
+            var result = passengers.Should().ContainSingle().Subject;
+            result.names.Should().ContainSingle().Which
+                .value.Should().Be("Joe");
+        }
     }
 
     record PassengerProjection(Passenger passenger, IObservableCollection<PassengerName> names)

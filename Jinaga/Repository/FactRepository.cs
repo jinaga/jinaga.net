@@ -18,5 +18,11 @@ namespace Jinaga.Repository
             Specification<TFact, TProjection> specification)
             where TFact : class;
         public abstract IObservableCollection<TProjection> Observable<TProjection>(IQueryable<TProjection> queryable);
+
+        public IQueryable<TSuccessor> Successors<TSuccessor>(Expression<Func<TSuccessor, bool>> predicate)
+            where TSuccessor : class
+        {
+            return OfType(predicate);
+        }
     }
 }
