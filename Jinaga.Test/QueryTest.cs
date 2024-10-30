@@ -339,6 +339,43 @@ namespace Jinaga.Test
             result.myComments.Should().ContainSingle().Which
                 .Should().Be("Great post!");
         }
+
+        [Fact]
+        public async Task CanQueryForSuccessorsUsingNewSyntax()
+        {
+            var airlineDay = await j.Fact(new AirlineDay(new Airline("IA"), DateTime.Today));
+            var flight = await j.Fact(new Flight(airlineDay, 4247));
+
+            var specification = Given<AirlineDay>.Match(airlineDay =>
+                from flight in airlineDay.Successors<Flight>(f => f.airlineDay)
+                select flight
+            );
+            var flights = await j.Query(specification, airlineDay);
+
+            flights.Should().ContainSingle().Which.Should().BeEquivalentTo(flight);
+        }
+
+        [Fact]
+        public async Task CanQueryForNestedSuccessorsUsingNewSyntax()
+        {
+            var airlineDay = await j.Fact(new AirlineDay(new Airline("IA"), DateTime.Today));
+            var flight = await j.Fact(new Flight(airlineDay, 4247));
+            var booking = await j.Fact(new Booking(flight, new Passenger(new Airline("IA"), new User("--- JOE ---")), DateTime.UtcNow));
+
+            var specification = Given<AirlineDay>.Match(airlineDay =>
+                from flight in airlineDay.Successors<Flight>(f => f.airlineDay)
+                select new
+                {
+                    flight,
+                    bookings = flight.Successors<Booking>(b => b.flight)
+                }
+            );
+            var flights = await j.Query(specification, airlineDay);
+
+            var result = flights.Should().ContainSingle().Subject;
+            result.flight.Should().BeEquivalentTo(flight);
+            result.bookings.Should().ContainSingle().Which.Should().BeEquivalentTo(booking);
+        }
     }
 
     [FactType("Blog.Site")]
