@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using Jinaga.Extensions;
 using Jinaga.Test.Model;
 
 namespace Jinaga.Test
@@ -346,8 +347,8 @@ namespace Jinaga.Test
             var airlineDay = await j.Fact(new AirlineDay(new Airline("IA"), DateTime.Today));
             var flight = await j.Fact(new Flight(airlineDay, 4247));
 
-            var specification = Given<AirlineDay>.Match(airlineDay =>
-                from flight in airlineDay.Successors<Flight>(f => f.airlineDay)
+            var specification = Given<AirlineDay>.Match((airlineDay, facts) =>
+                from flight in airlineDay.Successors().OfType<Flight>(f => f.airlineDay)
                 select flight
             );
             var flights = await j.Query(specification, airlineDay);
@@ -362,12 +363,12 @@ namespace Jinaga.Test
             var flight = await j.Fact(new Flight(airlineDay, 4247));
             var booking = await j.Fact(new Booking(flight, new Passenger(new Airline("IA"), new User("--- JOE ---")), DateTime.UtcNow));
 
-            var specification = Given<AirlineDay>.Match(airlineDay =>
-                from flight in airlineDay.Successors<Flight>(f => f.airlineDay)
+            var specification = Given<AirlineDay>.Match((airlineDay, facts) =>
+                from flight in airlineDay.Successors().OfType<Flight>(f => f.airlineDay)
                 select new
                 {
                     flight,
-                    bookings = flight.Successors<Booking>(b => b.flight)
+                    bookings = flight.Successors().OfType<Booking>(b => b.flight)
                 }
             );
             var flights = await j.Query(specification, airlineDay);

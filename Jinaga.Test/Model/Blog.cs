@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Linq;
+using Jinaga.Extensions;
 
 namespace Jinaga.Test.Model;
 
@@ -35,8 +37,8 @@ public class BlogTests
         var site = await j.Fact(new Site(new User("--- PUBLIC KEY ---"), "my-blog"));
         var content = await j.Fact(new Content(site, "/first-post"));
 
-        var specification = Given<Site>.Match(site =>
-            from content in site.Successors<Content>(c => c.site)
+        var specification = Given<Site>.Match((site, facts) =>
+            from content in site.Successors().OfType<Content>(c => c.site)
             select content
         );
 
@@ -52,12 +54,12 @@ public class BlogTests
         var content = await j.Fact(new Content(site, "/first-post"));
         var comment = await j.Fact(new Comment(content, Guid.NewGuid(), new User("--- COMMENTER ---")));
 
-        var specification = Given<Site>.Match(site =>
-            from content in site.Successors<Content>(c => c.site)
+        var specification = Given<Site>.Match((site, facts) =>
+            from content in site.Successors().OfType<Content>(c => c.site)
             select new
             {
                 content,
-                comments = content.Successors<Comment>(comment => comment.content)
+                comments = content.Successors().OfType<Comment>(comment => comment.content)
             }
         );
 
