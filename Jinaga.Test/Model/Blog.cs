@@ -32,13 +32,13 @@ public class BlogTests
     }
 
     [Fact]
-    public async Task CanQueryForSuccessorsUsingNewSyntax()
+    public async Task CanQueryForSuccessorsUsingSuccessorsExtension()
     {
         var site = await j.Fact(new Site(new User("--- PUBLIC KEY ---"), "my-blog"));
         var content = await j.Fact(new Content(site, "/first-post"));
 
         var specification = Given<Site>.Match((site, facts) =>
-            from content in site.Successors().OfType<Content>(c => c.site)
+            from content in site.Successors((Content c) => c.site)
             select content
         );
 
@@ -48,18 +48,18 @@ public class BlogTests
     }
 
     [Fact]
-    public async Task CanQueryForNestedSuccessorsUsingNewSyntax()
+    public async Task CanQueryForNestedSuccessorsUsingSuccessorsExtension()
     {
         var site = await j.Fact(new Site(new User("--- PUBLIC KEY ---"), "my-blog"));
         var content = await j.Fact(new Content(site, "/first-post"));
         var comment = await j.Fact(new Comment(content, Guid.NewGuid(), new User("--- COMMENTER ---")));
 
         var specification = Given<Site>.Match((site, facts) =>
-            from content in site.Successors().OfType<Content>(c => c.site)
+            from content in site.Successors((Content c) => c.site)
             select new
             {
                 content,
-                comments = content.Successors().OfType<Comment>(comment => comment.content)
+                comments = content.Successors((Comment comment) => comment.content)
             }
         );
 
