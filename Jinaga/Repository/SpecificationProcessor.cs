@@ -1,4 +1,5 @@
-﻿using Jinaga.Pipelines;
+﻿using Jinaga.Extensions;
+using Jinaga.Pipelines;
 using Jinaga.Projections;
 using Jinaga.Specifications;
 using System;
@@ -285,6 +286,29 @@ namespace Jinaga.Repository
                         // Process the predicate.
                         var childSymbolTable = symbolTable.Set(parameterName, source.Projection);
                         var predicate = ProcessPredicate(lambda.Body, childSymbolTable);
+                        return LinqProcessor.Where(source, predicate);
+                    }
+                }
+                else if (methodCallExpression.Method.DeclaringType == typeof(SpecificationExtensions))
+                {
+                    if (methodCallExpression.Method.Name == nameof(SpecificationExtensions.Successors) &&
+                        methodCallExpression.Arguments.Count == 2)
+                    {
+                        // Get the recommended label from the predecessor selector.
+                        var predecessorSelector = GetLambda(methodCallExpression.Arguments[1]);
+                        var predecessorParameterName = predecessorSelector.Parameters[0].Name;
+
+                        // Produce the source of the match.
+                        var genericArgument = methodCallExpression.Method.GetGenericArguments()[1];
+                        var source = LinqProcessor.FactsOfType(new Label(predecessorParameterName, genericArgument.FactTypeName()), genericArgument);
+
+                        // Process the predecessor selector.
+                        var childSymbolTable = symbolTable.Set(predecessorParameterName, source.Projection);
+                        var left = ProcessReference(predecessorSelector.Body, childSymbolTable);
+
+                        // Add a where clause to the source.
+                        var right = ProcessReference(methodCallExpression.Arguments[0], symbolTable);
+                        var predicate = LinqProcessor.Compare(left, right);
                         return LinqProcessor.Where(source, predicate);
                     }
                 }
