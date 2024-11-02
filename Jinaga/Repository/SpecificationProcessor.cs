@@ -389,6 +389,39 @@ namespace Jinaga.Repository
                     var predicate = ProcessPredicate(lambda.Body, childSymbolTable);
                     return LinqProcessor.Any(LinqProcessor.Where(source, predicate));
                 }
+                else if (
+                    methodCallExpression.Method.DeclaringType.IsGenericType &&
+                    methodCallExpression.Method.DeclaringType.GetGenericTypeDefinition() == typeof(SuccessorQuery<>))
+                {
+                    if (methodCallExpression.Method.Name == "Any" &&
+                        methodCallExpression.Arguments.Count == 1)
+                    {
+                        var lambda = GetLambda(methodCallExpression.Arguments[0]);
+                        var parameterName = lambda.Parameters[0].Name;
+
+                        var genericArgument = methodCallExpression.Method.GetGenericArguments()[0];
+                        var source = LinqProcessor.FactsOfType(new Label(parameterName, genericArgument.FactTypeName()), genericArgument);
+                        var childSymbolTable = symbolTable.Set(parameterName, source.Projection);
+                        var left = ProcessReference(lambda.Body, childSymbolTable);
+                        var right = ProcessReference(methodCallExpression.Object, symbolTable);
+                        var predicate = LinqProcessor.Compare(left, right);
+                        return LinqProcessor.Any(LinqProcessor.Where(source, predicate));
+                    }
+                    else if (methodCallExpression.Method.Name == "No" &&
+                        methodCallExpression.Arguments.Count == 1)
+                    {
+                        var lambda = GetLambda(methodCallExpression.Arguments[0]);
+                        var parameterName = lambda.Parameters[0].Name;
+
+                        var genericArgument = methodCallExpression.Method.GetGenericArguments()[0];
+                        var source = LinqProcessor.FactsOfType(new Label(parameterName, genericArgument.FactTypeName()), genericArgument);
+                        var childSymbolTable = symbolTable.Set(parameterName, source.Projection);
+                        var left = ProcessReference(lambda.Body, childSymbolTable);
+                        var right = ProcessReference(methodCallExpression.Object, symbolTable);
+                        var predicate = LinqProcessor.Compare(left, right);
+                        return LinqProcessor.Not(LinqProcessor.Any(LinqProcessor.Where(source, predicate)));
+                    }
+                }
             }
             else if (body is UnaryExpression
             {
