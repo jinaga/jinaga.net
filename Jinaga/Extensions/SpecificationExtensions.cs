@@ -27,5 +27,19 @@ namespace Jinaga.Extensions
             // It's in the LINQ query provider.
             throw new NotImplementedException();
         }
+
+        public bool Any<TSuccessor>(Expression<Func<TSuccessor, TSource>> predecessorSelector)
+        {
+            // The logic isn't implemented here.
+            // It's in the LINQ query provider.
+            throw new NotImplementedException();
+        }
+
+        public bool No<TSuccessor>(Expression<Func<TSuccessor, TSource>> predecessorSelector)
+        {
+            // The logic isn't implemented here.
+            // It's in the LINQ query provider.
+            throw new NotImplementedException();
+        }
     }
 }

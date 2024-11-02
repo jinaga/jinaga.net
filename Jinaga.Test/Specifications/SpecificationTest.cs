@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using Jinaga.Extensions;
 using Jinaga.Test.Model;
 using Jinaga.Test.Model.Order;
 
@@ -65,6 +66,25 @@ namespace Jinaga.Test.Specifications.Specifications
             Specification<Airline, Flight> specification = Given<Airline>.Match((airline, facts) =>
                 from flight in facts.OfType<Flight>()
                 where flight.airlineDay.airline == airline
+                select flight
+            );
+            specification.ToString().ReplaceLineEndings().Should().Be(
+                """
+                (airline: Skylane.Airline) {
+                    flight: Skylane.Flight [
+                        flight->airlineDay: Skylane.Airline.Day->airline: Skylane.Airline = airline
+                    ]
+                } => flight
+
+                """
+                );
+        }
+
+        [Fact]
+        public void CanSpecifySuccessorsWithSuccessorsExtension()
+        {
+            Specification<Airline, Flight> specification = Given<Airline>.Match((airline, facts) =>
+                from flight in airline.Successors().OfType<Flight>(flight => flight.airlineDay.airline)
                 select flight
             );
             specification.ToString().ReplaceLineEndings().Should().Be(
@@ -268,6 +288,31 @@ namespace Jinaga.Test.Specifications.Specifications
         }
 
         [Fact]
+        public void CanSpecifyNegativeExistentialConditionWithSuccessorsExtension()
+        {
+            Specification<AirlineDay, Flight> activeFlights = Given<AirlineDay>.Match((airlineDay, facts) =>
+                from flight in airlineDay.Successors().OfType<Flight>(flight => flight.airlineDay)
+                where flight.Successors().No<FlightCancellation>(cancellation => cancellation.flight)
+                select flight
+            );
+            activeFlights.ToString().ReplaceLineEndings().Should().Be(
+                """
+                (airlineDay: Skylane.Airline.Day) {
+                    flight: Skylane.Flight [
+                        flight->airlineDay: Skylane.Airline.Day = airlineDay
+                        !E {
+                            cancellation: Skylane.Flight.Cancellation [
+                                cancellation->flight: Skylane.Flight = flight
+                            ]
+                        }
+                    ]
+                } => flight
+
+                """
+                );
+        }
+
+        [Fact]
         public void CanPassPredicateToAny()
         {
             var shortSpecification = Given<AirlineDay>.Match((airlineDay, facts) =>
@@ -354,6 +399,33 @@ namespace Jinaga.Test.Specifications.Specifications
                         cancellation.flight == flight
                     )
                 )
+            );
+            var longSpecification = Given<AirlineDay>.Match((airlineDay, facts) =>
+                from flight in facts.OfType<Flight>()
+                where flight.airlineDay == airlineDay
+
+                where !(
+                    from cancellation in facts.OfType<FlightCancellation>()
+                    where cancellation.flight == flight
+                    select cancellation
+                ).Any()
+
+                select flight
+            );
+
+            shortestSpecification.ToString().Should().Be(longSpecification.ToString());
+        }
+
+        [Fact]
+        public void CanProcessShortSpecificationWithSuccessorExtension()
+        {
+            var shortestSpecification = Given<AirlineDay>.Match((airlineDay, facts) =>
+                airlineDay.Successors().OfType<Flight>(flight => flight.airlineDay)
+                    .Where(flight =>
+                        flight.Successors().No<FlightCancellation>(cancellation =>
+                            cancellation.flight
+                        )
+                    )
             );
             var longSpecification = Given<AirlineDay>.Match((airlineDay, facts) =>
                 from flight in facts.OfType<Flight>()
@@ -476,6 +548,40 @@ namespace Jinaga.Test.Specifications.Specifications
                 );
         }
 
+        [Fact]
+        public void CanSpecifyPositiveExistentialConditionWithSuccessorExtension()
+        {
+            Specification<Airline, Booking> bookingsToRefund = Given<Airline>.Match((airline, facts) =>
+                from flight in airline.Successors().OfType<Flight>(flight => flight.airlineDay.airline)
+                where flight.Successors().Any<FlightCancellation>(cancellation => cancellation.flight)
+                from booking in flight.Successors().OfType<Booking>(booking => booking.flight)
+                where booking.Successors().No<Refund>(refund => refund.booking)
+                select booking
+            );
+            bookingsToRefund.ToString().ReplaceLineEndings().Should().Be(
+                """
+                (airline: Skylane.Airline) {
+                    flight: Skylane.Flight [
+                        flight->airlineDay: Skylane.Airline.Day->airline: Skylane.Airline = airline
+                        E {
+                            cancellation: Skylane.Flight.Cancellation [
+                                cancellation->flight: Skylane.Flight = flight
+                            ]
+                        }
+                    ]
+                    booking: Skylane.Booking [
+                        booking->flight: Skylane.Flight = flight
+                        !E {
+                            refund: Skylane.Refund [
+                                refund->booking: Skylane.Booking = booking
+                            ]
+                        }
+                    ]
+                } => booking
+
+                """
+                );
+        }
 
         [Fact]
         public void CanCallSelectManyWithOneParameter()
@@ -1191,7 +1297,7 @@ namespace Jinaga.Test.Specifications.Specifications
         }
 
         [Fact]
-        public void CanSpecififyOtherNestedExistentialCondition()
+        public void CanSpecifyOtherNestedExistentialCondition()
         {
             var specification = Given<School>.Match((school, facts) =>
               from course in facts.OfType<Course>()
