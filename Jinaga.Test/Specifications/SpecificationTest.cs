@@ -100,6 +100,30 @@ namespace Jinaga.Test.Specifications.Specifications
         }
 
         [Fact]
+        public void CanSpecifySuccessorsThroughCollectionWithSuccessorsExtension()
+        {
+            var specification = Given<Airline>.Match((airline, facts) =>
+                from flight in airline.Successors().OfType<Flight>(flight => flight.airlineDay.airline)
+                from itinerary in flight.Successors().OfType<Itinerary>(itinerary => itinerary.flights)
+                select itinerary
+            );
+
+            specification.ToString().ReplaceLineEndings().Should().Be(
+                """
+                (airline: Skylane.Airline) {
+                    flight: Skylane.Flight [
+                        flight->airlineDay: Skylane.Airline.Day->airline: Skylane.Airline = airline
+                    ]
+                    itinerary: Skylane.Itinerary [
+                        itinerary->flights: Skylane.Flight = flight
+                    ]
+                } => itinerary
+
+                """
+                );
+        }
+
+        [Fact]
         public void CanSpecifyGiven()
         {
             Specification<Airline, Flight> specification = Given<Airline>.Match((airline, facts) =>

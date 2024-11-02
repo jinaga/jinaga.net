@@ -20,6 +20,9 @@ namespace Jinaga.Test.Model
     [FactType("Skylane.Booking")]
     public record Booking(Flight flight, Passenger passenger, DateTime dateBooked);
 
+    [FactType("Skylane.Itinerary")]
+    public record Itinerary(Flight[] flights, Passenger passenger, DateTime datePlanned);
+
     [FactType("Skylane.Flight")]
     public record Flight(AirlineDay airlineDay, int flightNumber)
     {

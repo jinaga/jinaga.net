@@ -29,6 +29,13 @@ namespace Jinaga.Extensions
             throw new NotImplementedException();
         }
 
+        public IQueryable<TSuccessor> OfType<TSuccessor>(Expression<Func<TSuccessor, IEnumerable<TSource>>> predecessorSelector)
+        {
+            // The logic isn't implemented here.
+            // It's in the LINQ query provider.
+            throw new NotImplementedException();
+        }
+
         public bool Any<TSuccessor>(Expression<Func<TSuccessor, TSource>> predecessorSelector)
         {
             // The logic isn't implemented here.
