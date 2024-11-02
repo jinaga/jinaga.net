@@ -608,6 +608,32 @@ namespace Jinaga.Test.Specifications.Specifications
         }
 
         [Fact]
+        public void CanSpecifyPositiveExistentialConditionThroughCollectionWithSuccessorExtension()
+        {
+            var flightsHavingItineraries = Given<Airline>.Match((airline, facts) =>
+                from flight in airline.Successors().OfType<Flight>(flight => flight.airlineDay.airline)
+                where flight.Successors().Any<Itinerary>(itinerary => itinerary.flights)
+                select flight
+            );
+
+            flightsHavingItineraries.ToString().ReplaceLineEndings().Should().Be(
+                """
+                (airline: Skylane.Airline) {
+                    flight: Skylane.Flight [
+                        flight->airlineDay: Skylane.Airline.Day->airline: Skylane.Airline = airline
+                        E {
+                            itinerary: Skylane.Itinerary [
+                                itinerary->flights: Skylane.Flight = flight
+                            ]
+                        }
+                    ]
+                } => flight
+
+                """
+                );
+        }
+
+        [Fact]
         public void CanCallSelectManyWithOneParameter()
         {
             var testSpecification = Given<Airline>.Match((airline, facts) =>
