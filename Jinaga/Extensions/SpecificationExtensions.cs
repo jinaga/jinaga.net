@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 
@@ -36,6 +37,13 @@ namespace Jinaga.Extensions
         }
 
         public bool No<TSuccessor>(Expression<Func<TSuccessor, TSource>> predecessorSelector)
+        {
+            // The logic isn't implemented here.
+            // It's in the LINQ query provider.
+            throw new NotImplementedException();
+        }
+
+        public bool No<TSuccessor>(Expression<Func<TSuccessor, IEnumerable<TSource>>> predecessorSelector)
         {
             // The logic isn't implemented here.
             // It's in the LINQ query provider.

@@ -122,6 +122,26 @@ namespace Jinaga.Test
         }
 
         [Fact]
+        public async Task CanQueryForCurrentValueOfMutablePropertyWithSuccessorsExtensionMethod()
+        {
+            var airline = await j.Fact(new Airline("IA"));
+            var user = await j.Fact(new User("--- PUBLIC KEY ---"));
+            var passenger = await j.Fact(new Passenger(airline, user));
+
+            var initialName = await j.Fact(new PassengerName(passenger, "Joe", new PassengerName[] { }));
+            var updatedName = await j.Fact(new PassengerName(passenger, "Joseph", new PassengerName[] { initialName }));
+
+            var currentNames = await j.Query(Given<Passenger>.Match((passenger, facts) =>
+                from name in passenger.Successors().OfType<PassengerName>(name => name.passenger)
+                where name.Successors().No<PassengerName>(next => next.prior)
+                select name
+            ), passenger);
+
+            currentNames.Should().ContainSingle().Which
+                .value.Should().Be("Joseph");
+        }
+
+        [Fact]
         public async Task Query_ProjectTwoFacts()
         {
             var ia = await j.Fact(new Airline("IA"));
