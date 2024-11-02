@@ -348,7 +348,7 @@ namespace Jinaga.Test
             var flight = await j.Fact(new Flight(airlineDay, 4247));
 
             var specification = Given<AirlineDay>.Match((airlineDay, facts) =>
-                from flight in airlineDay.Successors((Flight f) => f.airlineDay)
+                from flight in airlineDay.Successors().OfType<Flight>(f => f.airlineDay)
                 select flight
             );
             var flights = await j.Query(specification, airlineDay);
@@ -364,11 +364,11 @@ namespace Jinaga.Test
             var booking = await j.Fact(new Booking(flight, new Passenger(new Airline("IA"), new User("--- JOE ---")), DateTime.UtcNow));
 
             var specification = Given<AirlineDay>.Match((airlineDay, facts) =>
-                from flight in airlineDay.Successors((Flight f) => f.airlineDay)
+                from flight in airlineDay.Successors().OfType<Flight>(f => f.airlineDay)
                 select new
                 {
                     flight,
-                    bookings = flight.Successors((Booking b) => b.flight)
+                    bookings = flight.Successors().OfType<Booking>(b => b.flight)
                 }
             );
             var flights = await j.Query(specification, airlineDay);
