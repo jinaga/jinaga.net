@@ -83,7 +83,7 @@ namespace Jinaga.Test.Specifications.Specifications
         [Fact]
         public void CanSpecifySuccessorsWithSuccessorsExtension()
         {
-            Specification<Airline, Flight> specification = Given<Airline>.Match((airline, facts) =>
+            Specification<Airline, Flight> specification = Given<Airline>.Match(airline =>
                 from flight in airline.Successors().OfType<Flight>(flight => flight.airlineDay.airline)
                 select flight
             );
@@ -314,7 +314,7 @@ namespace Jinaga.Test.Specifications.Specifications
         [Fact]
         public void CanSpecifyNegativeExistentialConditionWithSuccessorsExtension()
         {
-            Specification<AirlineDay, Flight> activeFlights = Given<AirlineDay>.Match((airlineDay, facts) =>
+            Specification<AirlineDay, Flight> activeFlights = Given<AirlineDay>.Match(airlineDay =>
                 from flight in airlineDay.Successors().OfType<Flight>(flight => flight.airlineDay)
                 where flight.Successors().No<FlightCancellation>(cancellation => cancellation.flight)
                 select flight
@@ -443,7 +443,7 @@ namespace Jinaga.Test.Specifications.Specifications
         [Fact]
         public void CanProcessShortSpecificationWithSuccessorExtension()
         {
-            var shortestSpecification = Given<AirlineDay>.Match((airlineDay, facts) =>
+            var shortestSpecification = Given<AirlineDay>.Match(airlineDay =>
                 airlineDay.Successors().OfType<Flight>(flight => flight.airlineDay)
                     .Where(flight =>
                         flight.Successors().No<FlightCancellation>(cancellation =>
@@ -575,7 +575,7 @@ namespace Jinaga.Test.Specifications.Specifications
         [Fact]
         public void CanSpecifyPositiveExistentialConditionWithSuccessorExtension()
         {
-            Specification<Airline, Booking> bookingsToRefund = Given<Airline>.Match((airline, facts) =>
+            Specification<Airline, Booking> bookingsToRefund = Given<Airline>.Match(airline =>
                 from flight in airline.Successors().OfType<Flight>(flight => flight.airlineDay.airline)
                 where flight.Successors().Any<FlightCancellation>(cancellation => cancellation.flight)
                 from booking in flight.Successors().OfType<Booking>(booking => booking.flight)
@@ -610,7 +610,7 @@ namespace Jinaga.Test.Specifications.Specifications
         [Fact]
         public void CanSpecifyPositiveExistentialConditionThroughCollectionWithSuccessorExtension()
         {
-            var flightsHavingItineraries = Given<Airline>.Match((airline, facts) =>
+            var flightsHavingItineraries = Given<Airline>.Match(airline =>
                 from flight in airline.Successors().OfType<Flight>(flight => flight.airlineDay.airline)
                 where flight.Successors().Any<Itinerary>(itinerary => itinerary.flights)
                 select flight

@@ -131,7 +131,7 @@ namespace Jinaga.Test
             var initialName = await j.Fact(new PassengerName(passenger, "Joe", new PassengerName[] { }));
             var updatedName = await j.Fact(new PassengerName(passenger, "Joseph", new PassengerName[] { initialName }));
 
-            var currentNames = await j.Query(Given<Passenger>.Match((passenger, facts) =>
+            var currentNames = await j.Query(Given<Passenger>.Match(passenger =>
                 from name in passenger.Successors().OfType<PassengerName>(name => name.passenger)
                 where name.Successors().No<PassengerName>(next => next.prior)
                 select name
@@ -367,7 +367,7 @@ namespace Jinaga.Test
             var airlineDay = await j.Fact(new AirlineDay(new Airline("IA"), DateTime.Today));
             var flight = await j.Fact(new Flight(airlineDay, 4247));
 
-            var specification = Given<AirlineDay>.Match((airlineDay, facts) =>
+            var specification = Given<AirlineDay>.Match(airlineDay =>
                 from flight in airlineDay.Successors().OfType<Flight>(f => f.airlineDay)
                 select flight
             );
@@ -383,7 +383,7 @@ namespace Jinaga.Test
             var flight = await j.Fact(new Flight(airlineDay, 4247));
             var booking = await j.Fact(new Booking(flight, new Passenger(new Airline("IA"), new User("--- JOE ---")), DateTime.UtcNow));
 
-            var specification = Given<AirlineDay>.Match((airlineDay, facts) =>
+            var specification = Given<AirlineDay>.Match(airlineDay =>
                 from flight in airlineDay.Successors().OfType<Flight>(f => f.airlineDay)
                 select new
                 {

@@ -37,7 +37,7 @@ public class BlogTests
         var site = await j.Fact(new Site(new User("--- PUBLIC KEY ---"), "my-blog"));
         var content = await j.Fact(new Content(site, "/first-post"));
 
-        var specification = Given<Site>.Match((site, facts) =>
+        var specification = Given<Site>.Match(site =>
             from content in site.Successors().OfType<Content>(c => c.site)
             select content
         );
@@ -54,7 +54,7 @@ public class BlogTests
         var content = await j.Fact(new Content(site, "/first-post"));
         var comment = await j.Fact(new Comment(content, Guid.NewGuid(), new User("--- COMMENTER ---")));
 
-        var specification = Given<Site>.Match((site, facts) =>
+        var specification = Given<Site>.Match(site =>
             from content in site.Successors().OfType<Content>(c => c.site)
             select new
             {
