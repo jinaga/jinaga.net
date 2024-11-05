@@ -19,8 +19,9 @@ namespace Jinaga.Repository
         public static (ImmutableList<Label> given, ImmutableList<Match> matches, Projection projection) Queryable<TProjection>(LambdaExpression specExpression)
         {
             var processor = new SpecificationProcessor();
-            var symbolTable = processor.Given(specExpression.Parameters
-                .Take(specExpression.Parameters.Count - 1));
+            var nonRepositoryParameters = specExpression.Parameters
+                .Where(parameter => parameter.Type != typeof(FactRepository));
+            var symbolTable = processor.Given(nonRepositoryParameters);
             var result = processor.ProcessSource(specExpression.Body, symbolTable);
             processor.ValidateMatches(result.Matches);
             return (processor.givenLabels, result.Matches, result.Projection);
@@ -29,7 +30,9 @@ namespace Jinaga.Repository
         public static (ImmutableList<Label> given, ImmutableList<Match> matches, Projection projection) Scalar<TProjection>(LambdaExpression specExpression)
         {
             var processor = new SpecificationProcessor();
-            var symbolTable = processor.Given(specExpression.Parameters);
+            var nonRepositoryParameters = specExpression.Parameters
+                .Where(parameter => parameter.Type != typeof(FactRepository));
+            var symbolTable = processor.Given(nonRepositoryParameters);
             SourceContext result = processor.ProcessShorthand(specExpression.Body, symbolTable);
             processor.ValidateMatches(result.Matches);
             return (processor.givenLabels, result.Matches, result.Projection);
@@ -38,8 +41,9 @@ namespace Jinaga.Repository
         public static (ImmutableList<Label> given, ImmutableList<Match> matches, Projection projection) Select<TProjection>(LambdaExpression specSelector)
         {
             var processor = new SpecificationProcessor();
-            var symbolTable = processor.Given(specSelector.Parameters
-                .Take(specSelector.Parameters.Count - 1));
+            var nonRepositoryParameters = specSelector.Parameters
+                .Where(parameter => parameter.Type != typeof(FactRepository));
+            var symbolTable = processor.Given(nonRepositoryParameters);
             var result = processor.ProcessProjection(specSelector.Body, symbolTable);
             return (processor.givenLabels, ImmutableList<Match>.Empty, result);
         }
