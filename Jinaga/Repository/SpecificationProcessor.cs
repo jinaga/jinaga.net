@@ -3,6 +3,7 @@ using Jinaga.Pipelines;
 using Jinaga.Projections;
 using Jinaga.Specifications;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
@@ -206,7 +207,14 @@ namespace Jinaga.Repository
 
         private SourceContext ProcessSource(Expression expression, SymbolTable symbolTable, string recommendedLabel = "unknown")
         {
-            if (expression is MethodCallExpression methodCallExpression)
+            if (expression is ConstantExpression constantExpression &&
+                constantExpression.Type.IsGenericType &&
+                constantExpression.Type.GetGenericTypeDefinition() == typeof(SourceContextQueryable<>))
+            {
+                var queryable = (SourceContextQueryable)constantExpression.Value;
+                return queryable.Source;
+            }
+            else if (expression is MethodCallExpression methodCallExpression)
             {
                 if (methodCallExpression.Method.DeclaringType == typeof(Queryable))
                 {
@@ -318,6 +326,54 @@ namespace Jinaga.Repository
                         return LinqProcessor.Where(source, predicate);
                     }
                 }
+                else if (methodCallExpression.Method.ReturnType.IsGenericType &&
+                    methodCallExpression.Method.ReturnType.GetGenericTypeDefinition() == typeof(IQueryable<>))
+                {
+                    // If the method returns an IQueryable, then compile the method call and process the result.
+
+                    // Find all IQueryable arguments.
+                    var arguments = methodCallExpression.Arguments
+                        .Select((arg, index) => (arg, index))
+                        .Where(pair => pair.arg.Type.IsGenericType &&
+                            pair.arg.Type.GetGenericTypeDefinition() == typeof(IQueryable<>))
+                        .Select(pair => (pair.arg, pair.index))
+                        .ToList();
+
+                    // Compute the SourceContext for each IQueryable argument.
+                    var queryables = arguments
+                        .Select(pair =>
+                        {
+                            SourceContext sourceContext = ProcessSource(pair.arg, symbolTable);
+                            object queryable = SourceContextToQueryable(sourceContext, pair.arg.Type.GetGenericArguments()[0]);
+                            return (pair.index, queryable);
+                        })
+                        .ToList();
+
+                    // Replace the IQueryable arguments with SourceContextQueryable instances.
+                    var lambdaParameters = queryables
+                        .Aggregate(methodCallExpression.Arguments.ToArray(), (args, pair) =>
+                        {
+                            args[pair.index] = Expression.Constant(pair.queryable);
+                            return args;
+                        });
+
+                    // Compute the lambda body.
+                    var lambdaBody = Expression.Call(
+                        methodCallExpression.Object,
+                        methodCallExpression.Method,
+                        lambdaParameters);
+
+                    // Compile the lambda.
+                    var lambda = Expression.Lambda(lambdaBody);
+                    var compiled = lambda.Compile();
+
+                    // Call the method.
+                    var result = compiled.DynamicInvoke();
+
+                    // Extract the expression from the result.
+                    var expressionResult = (IQueryable)result;
+                    return ProcessSource(expressionResult.Expression, symbolTable);
+                }
             }
             else if (expression is MemberExpression memberExpression)
             {
@@ -336,6 +392,14 @@ namespace Jinaga.Repository
                 }
             }
             throw new SpecificationException($"Unsupported type of specification {expression}.");
+        }
+
+        private object SourceContextToQueryable(SourceContext source, Type type)
+        {
+            var method = typeof(SourceContextQueryable)
+                .GetMethod(nameof(SourceContextQueryable.ToQueryable))
+                .MakeGenericMethod(type);
+            return method.Invoke(null, new object[] { source });
         }
 
         private PredicateContext ProcessPredicate(Expression body, SymbolTable symbolTable)
@@ -548,7 +612,24 @@ namespace Jinaga.Repository
 
         private static LambdaExpression GetLambda(Expression argument)
         {
-            if (argument is UnaryExpression unaryExpression &&
+            if (argument is MemberExpression memberExpression &&
+                memberExpression.Member is FieldInfo fieldInfo &&
+                fieldInfo.FieldType.IsGenericType &&
+                fieldInfo.FieldType.GetGenericTypeDefinition() == typeof(Expression<>))
+            {
+                // Get the object from the member expression.
+                if (memberExpression.Expression is ConstantExpression constantExpression)
+                {
+                    // Get the lambda expression from the field.
+                    var value = fieldInfo.GetValue(constantExpression.Value);
+                    return (LambdaExpression)value;
+                }
+                else
+                {
+                    throw new ArgumentException($"Expected a constant expression for {memberExpression.Expression}.");
+                }
+            }
+            else if (argument is UnaryExpression unaryExpression &&
                 unaryExpression.Operand is LambdaExpression lambdaExpression)
             {
                 return lambdaExpression;
@@ -580,6 +661,89 @@ namespace Jinaga.Repository
                 .Select(type => type.IsValueType ? Activator.CreateInstance(type) : InstanceOfFact(type))
                 .ToArray();
             return Activator.CreateInstance(factType, parameters);
+        }
+    }
+
+    internal class SourceContextQueryable
+    {
+        public SourceContext Source { get; }
+
+        public SourceContextQueryable(SourceContext source)
+        {
+            Source = source;
+        }
+
+        public static object ToQueryable<T>(SourceContext source)
+        {
+            return new SourceContextQueryable<T>(source);
+        }
+    }
+
+    internal class SourceContextQueryable<T> : SourceContextQueryable, IQueryable<T>
+    {
+        public SourceContextQueryable(SourceContext source) : base(source) {}
+
+        public Type ElementType => throw new NotImplementedException();
+
+        public Expression Expression => Expression.Constant(this);
+
+        public IQueryProvider Provider => new SourceContextProvider<T>();
+
+        public IEnumerator<T> GetEnumerator()
+        {
+            throw new NotImplementedException();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    internal class SourceContextProvider<T> : IQueryProvider
+    {
+        public IQueryable CreateQuery(Expression expression)
+        {
+            throw new NotImplementedException();
+        }
+
+        public IQueryable<TElement> CreateQuery<TElement>(Expression expression) =>
+            new ExpressionQueryable<TElement>(expression);
+
+        public object Execute(Expression expression)
+        {
+            throw new NotImplementedException();
+        }
+
+        public TResult Execute<TResult>(Expression expression)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    internal class ExpressionQueryable<TElement> : IQueryable<TElement>
+    {
+        private Expression expression;
+
+        public ExpressionQueryable(Expression expression)
+        {
+            this.expression = expression;
+        }
+
+        public Type ElementType => throw new NotImplementedException();
+
+        public Expression Expression => expression;
+
+        public IQueryProvider Provider => throw new NotImplementedException();
+
+        public IEnumerator<TElement> GetEnumerator()
+        {
+            throw new NotImplementedException();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            throw new NotImplementedException();
         }
     }
 }

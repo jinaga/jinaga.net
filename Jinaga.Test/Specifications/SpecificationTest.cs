@@ -337,6 +337,30 @@ namespace Jinaga.Test.Specifications.Specifications
         }
 
         [Fact]
+        public void CanSpecifyNegativeExistentialConditionWithWhereNo()
+        {
+            Specification<AirlineDay, Flight> activeFlights = Given<AirlineDay>.Match((airlineDay, facts) =>
+                airlineDay.Successors().OfType<Flight>(flight => flight.airlineDay)
+                    .WhereNo((FlightCancellation cancellation) => cancellation.flight)
+            );
+            activeFlights.ToString().ReplaceLineEndings().Should().Be(
+                """
+                (airlineDay: Skylane.Airline.Day) {
+                    flight: Skylane.Flight [
+                        flight->airlineDay: Skylane.Airline.Day = airlineDay
+                        !E {
+                            cancellation: Skylane.Flight.Cancellation [
+                                cancellation->flight: Skylane.Flight = flight
+                            ]
+                        }
+                    ]
+                } => flight
+
+                """
+                );
+        }
+
+        [Fact]
         public void CanPassPredicateToAny()
         {
             var shortSpecification = Given<AirlineDay>.Match((airlineDay, facts) =>
