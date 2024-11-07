@@ -6,7 +6,7 @@ namespace Jinaga
 {
     public class Condition
     {
-        public Expression Body { get; }
+        public LambdaExpression Body { get; }
 
         public Condition(Expression<Func<FactRepository, bool>> body)
         {
