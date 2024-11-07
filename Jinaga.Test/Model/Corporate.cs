@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Linq;
+using Jinaga.Extensions;
 
 namespace Jinaga.Test.Model
 {
@@ -7,10 +8,9 @@ namespace Jinaga.Test.Model
     [FactType("Corporate.Company")]
     public record Company(string identifier)
     {
-        public IQueryable<Office> Offices => Relation.Define(facts =>
-            facts.OfType<Office>(office => office.company == this &&
-                !office.IsClosed
-            )
+        public IQueryable<Office> Offices => Relation.Define(() =>
+            this.Successors().OfType<Office>(office => office.company)
+                .WhereNo((OfficeClosure closure) => closure.office)
         );
     }
 
