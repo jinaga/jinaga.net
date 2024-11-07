@@ -17,8 +17,8 @@ namespace Jinaga.Test.Model
     [FactType("Corporate.Office")]
     public record Office(Company company, City city)
     {
-        public Condition IsClosed => Condition.Define(facts =>
-            facts.Any<OfficeClosure>(closure => closure.office == this)
+        public Condition IsClosed => Condition.Define(() =>
+            this.Successors().Any<OfficeClosure>(closure => closure.office)
         );
 
         public Relation<Headcount> Headcount => Relation.Define(facts =>
