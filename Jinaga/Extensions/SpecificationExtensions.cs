@@ -16,6 +16,21 @@ namespace Jinaga.Extensions
         {
             return source.Where(p => p.Successors().No(predecessorSelector));
         }
+
+        public static IQueryable<TSource> WhereNo<TSource, TSuccessor>(this IQueryable<TSource> source, Expression<Func<TSuccessor, IEnumerable<TSource>>> predecessorSelector)
+        {
+            return source.Where(p => p.Successors().No(predecessorSelector));
+        }
+
+        public static IQueryable<TSource> WhereAny<TSource, TSuccessor>(this IQueryable<TSource> source, Expression<Func<TSuccessor, TSource>> predecessorSelector)
+        {
+            return source.Where(p => p.Successors().Any(predecessorSelector));
+        }
+
+        public static IQueryable<TSource> WhereAny<TSource, TSuccessor>(this IQueryable<TSource> source, Expression<Func<TSuccessor, IEnumerable<TSource>>> predecessorSelector)
+        {
+            return source.Where(p => p.Successors().Any(predecessorSelector));
+        }
     }
 
     public class SuccessorQuery<TSource>

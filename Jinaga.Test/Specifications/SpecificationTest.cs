@@ -632,12 +632,72 @@ namespace Jinaga.Test.Specifications.Specifications
         }
 
         [Fact]
+        public void CanSpecifyPositiveExistentialConditionWithWhereAny()
+        {
+            Specification<Airline, Booking> bookingsToRefund = Given<Airline>.Match(airline =>
+                airline.Successors().OfType<Flight>(flight => flight.airlineDay.airline)
+                    .WhereAny((FlightCancellation cancellation) => cancellation.flight)
+                    .SelectMany(flight => flight.Successors().OfType<Booking>(booking => booking.flight))
+                    .WhereNo((Refund refund) => refund.booking)
+            );
+
+            bookingsToRefund.ToString().ReplaceLineEndings().Should().Be(
+                """
+                (airline: Skylane.Airline) {
+                    flight: Skylane.Flight [
+                        flight->airlineDay: Skylane.Airline.Day->airline: Skylane.Airline = airline
+                        E {
+                            cancellation: Skylane.Flight.Cancellation [
+                                cancellation->flight: Skylane.Flight = flight
+                            ]
+                        }
+                    ]
+                    booking: Skylane.Booking [
+                        booking->flight: Skylane.Flight = flight
+                        !E {
+                            refund: Skylane.Refund [
+                                refund->booking: Skylane.Booking = booking
+                            ]
+                        }
+                    ]
+                } => booking
+
+                """
+                );
+        }
+
+        [Fact]
         public void CanSpecifyPositiveExistentialConditionThroughCollectionWithSuccessorExtension()
         {
             var flightsHavingItineraries = Given<Airline>.Match(airline =>
                 from flight in airline.Successors().OfType<Flight>(flight => flight.airlineDay.airline)
                 where flight.Successors().Any<Itinerary>(itinerary => itinerary.flights)
                 select flight
+            );
+
+            flightsHavingItineraries.ToString().ReplaceLineEndings().Should().Be(
+                """
+                (airline: Skylane.Airline) {
+                    flight: Skylane.Flight [
+                        flight->airlineDay: Skylane.Airline.Day->airline: Skylane.Airline = airline
+                        E {
+                            itinerary: Skylane.Itinerary [
+                                itinerary->flights: Skylane.Flight = flight
+                            ]
+                        }
+                    ]
+                } => flight
+
+                """
+                );
+        }
+
+        [Fact]
+        public void CanSpecifyPositiveExistentialConditionThroughCollectionWithWhereAny()
+        {
+            var flightsHavingItineraries = Given<Airline>.Match(airline =>
+                airline.Successors().OfType<Flight>(flight => flight.airlineDay.airline)
+                    .WhereAny((Itinerary itinerary) => itinerary.flights)
             );
 
             flightsHavingItineraries.ToString().ReplaceLineEndings().Should().Be(
