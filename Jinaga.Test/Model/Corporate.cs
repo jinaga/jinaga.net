@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Linq;
 using Jinaga.Extensions;
+using Jinaga.Patterns;
 
 namespace Jinaga.Test.Model
 {
@@ -10,7 +11,7 @@ namespace Jinaga.Test.Model
     {
         public IQueryable<Office> Offices => Relation.Define(() =>
             this.Successors().OfType<Office>(office => office.company)
-                .WhereNo((OfficeClosure closure) => closure.office)
+                .WhereNotDeleted((OfficeClosure closure) => closure.office)
         );
     }
 

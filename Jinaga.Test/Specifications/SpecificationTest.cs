@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using Jinaga.Extensions;
+using Jinaga.Patterns;
 using Jinaga.Test.Model;
 using Jinaga.Test.Model.Order;
 
@@ -1057,6 +1058,50 @@ namespace Jinaga.Test.Specifications.Specifications
         }
 
         [Fact]
+        public void Specification_PropertyPatternExtension()
+        {
+            var specification = Given<Company>.Match(company =>
+                company.Successors().OfType<Office>(office => office.company)
+                    .Where(office => !office.IsClosed)
+                    .Select(office => new
+                    {
+                        office,
+                        headcount = office.Successors().OfType<Headcount>(headcount => headcount.office)
+                            .WhereCurrent(next => next.prior)
+                            .Select(headcount => headcount.value)
+                    })
+                );
+
+            specification.ToString().ReplaceLineEndings().Should().Be(
+                """
+                (company: Corporate.Company) {
+                    office: Corporate.Office [
+                        office->company: Corporate.Company = company
+                        !E {
+                            closure: Corporate.Office.Closure [
+                                closure->office: Corporate.Office = office
+                            ]
+                        }
+                    ]
+                } => {
+                    headcount = {
+                        headcount: Corporate.Headcount [
+                            headcount->office: Corporate.Office = office
+                            !E {
+                                next: Corporate.Headcount [
+                                    next->prior: Corporate.Headcount = headcount
+                                ]
+                            }
+                        ]
+                    } => headcount.value
+                    office = office
+                }
+
+                """
+                );
+        }
+
+        [Fact]
         public void Specification_RelationInProjection()
         {
             var specification = Given<Company>.Match((company, facts) =>
@@ -1370,6 +1415,38 @@ namespace Jinaga.Test.Specifications.Specifications
                 ).Any()
                 select office
             );
+
+            specification.ToString().ReplaceLineEndings().Should().Be(
+                """
+                (company: Corporate.Company) {
+                    office: Corporate.Office [
+                        office->company: Corporate.Company = company
+                        !E {
+                            officeClosure: Corporate.Office.Closure [
+                                officeClosure->office: Corporate.Office = office
+                                !E {
+                                    officeReopening: Corporate.Office.Reopening [
+                                        officeReopening->officeClosure: Corporate.Office.Closure = officeClosure
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                } => office
+
+                """
+                );
+        }
+
+        [Fact]
+        public void Specification_RestorePatternExtension()
+        {
+            var specification = Given<Company>.Match(company =>
+                company.Successors().OfType<Office>(office => office.company)
+                    .WhereNotDeletedOrRestored(
+                        (OfficeClosure officeClosure) => officeClosure.office,
+                        (OfficeReopening officeReopening) => officeReopening.officeClosure
+                    ));
 
             specification.ToString().ReplaceLineEndings().Should().Be(
                 """
