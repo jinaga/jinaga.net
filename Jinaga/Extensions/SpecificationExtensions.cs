@@ -46,42 +46,42 @@ namespace Jinaga.Extensions
         {
             // The logic isn't implemented here.
             // It's in the LINQ query provider.
-            throw new NotImplementedException();
+            throw new InvalidOperationException("The OfType method is not intended to be called in this way.");
         }
 
         public IQueryable<TSuccessor> OfType<TSuccessor>(Expression<Func<TSuccessor, IEnumerable<TSource>>> predecessorSelector)
         {
             // The logic isn't implemented here.
             // It's in the LINQ query provider.
-            throw new NotImplementedException();
+            throw new InvalidOperationException("The OfType method is not intended to be called in this way.");
         }
 
         public bool Any<TSuccessor>(Expression<Func<TSuccessor, TSource>> predecessorSelector)
         {
             // The logic isn't implemented here.
             // It's in the LINQ query provider.
-            throw new NotImplementedException();
+            throw new InvalidOperationException("The Any method is not intended to be called in this way.");
         }
 
         public bool Any<TSuccessor>(Expression<Func<TSuccessor, IEnumerable<TSource>>> predecessorSelector)
         {
             // The logic isn't implemented here.
             // It's in the LINQ query provider.
-            throw new NotImplementedException();
+            throw new InvalidOperationException("The Any method is not intended to be called in this way.");
         }
 
         public bool No<TSuccessor>(Expression<Func<TSuccessor, TSource>> predecessorSelector)
         {
             // The logic isn't implemented here.
             // It's in the LINQ query provider.
-            throw new NotImplementedException();
+            throw new InvalidOperationException("The No method is not intended to be called in this way.");
         }
 
         public bool No<TSuccessor>(Expression<Func<TSuccessor, IEnumerable<TSource>>> predecessorSelector)
         {
             // The logic isn't implemented here.
             // It's in the LINQ query provider.
-            throw new NotImplementedException();
+            throw new InvalidOperationException("The No method is not intended to be called in this way.");
         }
     }
 }
