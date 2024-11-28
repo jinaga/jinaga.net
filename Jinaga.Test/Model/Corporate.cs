@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Linq;
+using Jinaga.Extensions;
+using Jinaga.Patterns;
 
 namespace Jinaga.Test.Model
 {
@@ -7,18 +9,17 @@ namespace Jinaga.Test.Model
     [FactType("Corporate.Company")]
     public record Company(string identifier)
     {
-        public IQueryable<Office> Offices => Relation.Define(facts =>
-            facts.OfType<Office>(office => office.company == this &&
-                !office.IsClosed
-            )
+        public IQueryable<Office> Offices => Relation.Define(() =>
+            this.Successors().OfType<Office>(office => office.company)
+                .WhereNotDeleted((OfficeClosure closure) => closure.office)
         );
     }
 
     [FactType("Corporate.Office")]
     public record Office(Company company, City city)
     {
-        public Condition IsClosed => Condition.Define(facts =>
-            facts.Any<OfficeClosure>(closure => closure.office == this)
+        public Condition IsClosed => Condition.Define(() =>
+            this.Successors().Any<OfficeClosure>(closure => closure.office)
         );
 
         public Relation<Headcount> Headcount => Relation.Define(facts =>

@@ -6,9 +6,14 @@ namespace Jinaga
 {
     public class Condition
     {
-        public Expression<Func<FactRepository, bool>> Body { get; }
+        public LambdaExpression Body { get; }
 
         public Condition(Expression<Func<FactRepository, bool>> body)
+        {
+            this.Body = body;
+        }
+
+        public Condition(Expression<Func<bool>> body)
         {
             this.Body = body;
         }
@@ -16,6 +21,11 @@ namespace Jinaga
         public static implicit operator bool(Condition c) => true;
 
         public static Condition Define(Expression<Func<FactRepository, bool>> body)
+        {
+            return new Condition(body);
+        }
+
+        public static Condition Define(Expression<Func<bool>> body)
         {
             return new Condition(body);
         }

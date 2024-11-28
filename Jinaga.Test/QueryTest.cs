@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using Jinaga.Extensions;
 using Jinaga.Test.Model;
 
 namespace Jinaga.Test
@@ -114,6 +115,45 @@ namespace Jinaga.Test
                     select next
                 ).Any()
                 select name
+            ), passenger);
+
+            currentNames.Should().ContainSingle().Which
+                .value.Should().Be("Joseph");
+        }
+
+        [Fact]
+        public async Task CanQueryForCurrentValueOfMutablePropertyWithSuccessorsExtensionMethod()
+        {
+            var airline = await j.Fact(new Airline("IA"));
+            var user = await j.Fact(new User("--- PUBLIC KEY ---"));
+            var passenger = await j.Fact(new Passenger(airline, user));
+
+            var initialName = await j.Fact(new PassengerName(passenger, "Joe", new PassengerName[] { }));
+            var updatedName = await j.Fact(new PassengerName(passenger, "Joseph", new PassengerName[] { initialName }));
+
+            var currentNames = await j.Query(Given<Passenger>.Match(passenger =>
+                from name in passenger.Successors().OfType<PassengerName>(name => name.passenger)
+                where name.Successors().No<PassengerName>(next => next.prior)
+                select name
+            ), passenger);
+
+            currentNames.Should().ContainSingle().Which
+                .value.Should().Be("Joseph");
+        }
+
+        [Fact]
+        public async Task CanQueryForCurrentValueOfMutablePropertyWithWhereNo()
+        {
+            var airline = await j.Fact(new Airline("IA"));
+            var user = await j.Fact(new User("--- PUBLIC KEY ---"));
+            var passenger = await j.Fact(new Passenger(airline, user));
+
+            var initialName = await j.Fact(new PassengerName(passenger, "Joe", new PassengerName[] { }));
+            var updatedName = await j.Fact(new PassengerName(passenger, "Joseph", new PassengerName[] { initialName }));
+
+            var currentNames = await j.Query(Given<Passenger>.Match(passenger =>
+                passenger.Successors().OfType<PassengerName>(name => name.passenger)
+                    .WhereNo((PassengerName next) => next.prior)
             ), passenger);
 
             currentNames.Should().ContainSingle().Which
@@ -338,6 +378,43 @@ namespace Jinaga.Test
                 .Should().Be("Introduction to Jinaga Replicator");
             result.myComments.Should().ContainSingle().Which
                 .Should().Be("Great post!");
+        }
+
+        [Fact]
+        public async Task CanQueryForSuccessorsUsingSuccessorsExtension()
+        {
+            var airlineDay = await j.Fact(new AirlineDay(new Airline("IA"), DateTime.Today));
+            var flight = await j.Fact(new Flight(airlineDay, 4247));
+
+            var specification = Given<AirlineDay>.Match(airlineDay =>
+                from flight in airlineDay.Successors().OfType<Flight>(f => f.airlineDay)
+                select flight
+            );
+            var flights = await j.Query(specification, airlineDay);
+
+            flights.Should().ContainSingle().Which.Should().BeEquivalentTo(flight);
+        }
+
+        [Fact]
+        public async Task CanQueryForNestedSuccessorsUsingSuccessorsExtension()
+        {
+            var airlineDay = await j.Fact(new AirlineDay(new Airline("IA"), DateTime.Today));
+            var flight = await j.Fact(new Flight(airlineDay, 4247));
+            var booking = await j.Fact(new Booking(flight, new Passenger(new Airline("IA"), new User("--- JOE ---")), DateTime.UtcNow));
+
+            var specification = Given<AirlineDay>.Match(airlineDay =>
+                from flight in airlineDay.Successors().OfType<Flight>(f => f.airlineDay)
+                select new
+                {
+                    flight,
+                    bookings = flight.Successors().OfType<Booking>(b => b.flight)
+                }
+            );
+            var flights = await j.Query(specification, airlineDay);
+
+            var result = flights.Should().ContainSingle().Subject;
+            result.flight.Should().BeEquivalentTo(flight);
+            result.bookings.Should().ContainSingle().Which.Should().BeEquivalentTo(booking);
         }
     }
 
