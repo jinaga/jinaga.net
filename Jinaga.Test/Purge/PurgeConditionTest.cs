@@ -35,6 +35,23 @@ namespace Jinaga.Test.Purge
             await query.Should().ThrowAsync<InvalidOperationException>();
         }
 
+        [Fact]
+        public async Task WhenSpecificationIncludesPurgeCondition_AllowsSpecification()
+        {
+            var jinagaClient = CreateJinagaClient(purgeConditions => purgeConditions
+                .Purge<Order>().WhenExists<OrderCancelled>(cancelled => cancelled.order)
+            );
+            var store = await jinagaClient.Fact(new Model.Order.Store("storeId"));
+
+            var ordersInStore = Given<Model.Order.Store>.Match(store =>
+                store.Successors().OfType<Order>(order => order.store)
+                    .WhereNo((OrderCancelled cancelled) => cancelled.order)
+            );
+
+            var orders = await jinagaClient.Query(ordersInStore, store);
+            orders.Should().BeEmpty();
+        }
+
         private JinagaClient CreateJinagaClient(Func<PurgeConditions, PurgeConditions> purgeConditions)
         {
             return JinagaClient.Create(options =>
