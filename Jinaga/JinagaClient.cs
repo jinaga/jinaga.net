@@ -42,6 +42,11 @@ namespace Jinaga
         /// If not provided, logging is disabled.
         /// </summary>
         public ILoggerFactory? LoggerFactory { get; set; }
+
+        /// <summary>
+        /// A set of conditions that determine whether a fact can be purged.
+        /// </summary>
+        public Func<PurgeConditions, PurgeConditions>? PurgeConditions { get; set; }
     }
 
     /// <summary>
