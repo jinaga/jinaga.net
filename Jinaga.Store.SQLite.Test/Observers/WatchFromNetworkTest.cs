@@ -143,7 +143,7 @@ public class WatchFromNetworkTest
 
     private static JinagaClient GivenJinagaClient(FakeNetwork network)
     {
-        return new JinagaClient(new SQLiteStore(SQLitePath, NullLoggerFactory.Instance), network, NullLoggerFactory.Instance);
+        return new JinagaClient(new SQLiteStore(SQLitePath, NullLoggerFactory.Instance), network, PurgeConditions.Empty, NullLoggerFactory.Instance);
     }
 
     private class OfficeViewModel

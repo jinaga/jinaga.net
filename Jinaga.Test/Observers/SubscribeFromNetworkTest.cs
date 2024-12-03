@@ -139,7 +139,7 @@ public class SubscribeFromNetworkTest
 
     private static JinagaClient GivenJinagaClient(FakeNetwork network)
     {
-        return new JinagaClient(new MemoryStore(), network, NullLoggerFactory.Instance);
+        return new JinagaClient(new MemoryStore(), network, PurgeConditions.Empty, NullLoggerFactory.Instance);
     }
 
     private class OfficeViewModel

@@ -42,7 +42,10 @@ namespace Jinaga.Store.SQLite
             INetwork network = options.HttpEndpoint == null
                 ? (INetwork)new LocalNetwork()
                 : new HttpNetwork(options.HttpEndpoint, options.HttpAuthenticationProvider, loggerFactory);
-            return new JinagaClient(store, network, loggerFactory);
+            PurgeConditions purgeConditions = options.PurgeConditions == null
+                ? PurgeConditions.Empty
+                : options.PurgeConditions(PurgeConditions.Empty);
+            return new JinagaClient(store, network, purgeConditions, loggerFactory);
         }
     }
 }

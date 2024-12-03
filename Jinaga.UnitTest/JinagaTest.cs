@@ -23,7 +23,7 @@ namespace Jinaga.UnitTest
             var loggerFactory = NullLoggerFactory.Instance;
             var network = new SimulatedNetwork(
                 options.User == null ? null : options.User.publicKey);
-            var client = new JinagaClient(new MemoryStore(), network, loggerFactory);
+            var client = new JinagaClient(new MemoryStore(), network, PurgeConditions.Empty, loggerFactory);
             return client;
         }
     }

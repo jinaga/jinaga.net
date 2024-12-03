@@ -233,7 +233,7 @@ public class LocalWatchTest
 
     private static JinagaClient GivenJinagaClient(FakeNetwork network)
     {
-        return new JinagaClient(new MemoryStore(), network, NullLoggerFactory.Instance);
+        return new JinagaClient(new MemoryStore(), network, PurgeConditions.Empty, NullLoggerFactory.Instance);
     }
 
     private void WhenAddCourses(FakeNetwork network, School school)

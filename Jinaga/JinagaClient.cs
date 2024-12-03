@@ -159,7 +159,10 @@ namespace Jinaga
             INetwork network = options.HttpEndpoint == null
                 ? (INetwork)new LocalNetwork()
                 : new HttpNetwork(options.HttpEndpoint, options.HttpAuthenticationProvider, loggerFactory);
-            return new JinagaClient(store, network, loggerFactory);
+            PurgeConditions purgeConditions = options.PurgeConditions == null
+                ? PurgeConditions.Empty
+                : options.PurgeConditions(PurgeConditions.Empty);
+            return new JinagaClient(store, network, purgeConditions, loggerFactory);
         }
 
         private readonly FactManager factManager;
@@ -190,7 +193,7 @@ namespace Jinaga
         /// <param name="store">A strategy to store facts locally</param>
         /// <param name="network">A strategy to communicate with a remote replicator</param>
         /// <param name="loggerFactory">A factory configured for logging</param>
-        public JinagaClient(IStore store, INetwork network, ILoggerFactory loggerFactory)
+        public JinagaClient(IStore store, INetwork network, PurgeConditions purgeConditions, ILoggerFactory loggerFactory)
         {
             networkManager = new NetworkManager(network, store, loggerFactory, async (graph, added, cancellationToken) =>
             {
@@ -199,7 +202,7 @@ namespace Jinaga
                     await factManager.NotifyObservers(graph, added, cancellationToken).ConfigureAwait(false);
                 }
             });
-            factManager = new FactManager(store, networkManager, loggerFactory);
+            factManager = new FactManager(store, networkManager, purgeConditions, loggerFactory);
             logger = loggerFactory.CreateLogger<JinagaClient>();
 
             Local = new LocalJinagaClient(factManager, loggerFactory);

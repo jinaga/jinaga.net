@@ -51,6 +51,6 @@ public class NullTest
 
     private static JinagaClient GivenJinagaClient(IStore? store = null)
     {
-        return new JinagaClient(store ?? new SQLiteStore(SQLitePath, NullLoggerFactory.Instance), new LocalNetwork(), NullLoggerFactory.Instance);
+        return new JinagaClient(store ?? new SQLiteStore(SQLitePath, NullLoggerFactory.Instance), new LocalNetwork(), PurgeConditions.Empty, NullLoggerFactory.Instance);
     }
 }
