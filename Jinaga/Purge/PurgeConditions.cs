@@ -14,11 +14,11 @@ public class PurgeConditions
 {
     public static PurgeConditions Empty = new PurgeConditions(ImmutableList<Specification>.Empty);
 
-    private readonly ImmutableList<Specification> specifications;
+    internal ImmutableList<Specification> Specifications { get; }
 
     internal PurgeConditions(ImmutableList<Specification> specifications)
     {
-        this.specifications = specifications;
+        Specifications = specifications;
     }
 
     /// <summary>
@@ -28,7 +28,7 @@ public class PurgeConditions
     /// <returns></returns>
     public PurgeClause<TFact> Purge<TFact>() where TFact : class
     {
-        return new PurgeClause<TFact>(specifications);
+        return new PurgeClause<TFact>(Specifications);
     }
 
     /// <summary>
@@ -38,7 +38,7 @@ public class PurgeConditions
     /// <returns></returns>
     public PurgeConditions WhenExists(Specification specification)
     {
-        return new PurgeConditions(specifications.Add(specification));
+        return new PurgeConditions(Specifications.Add(specification));
     }
 
     /// <summary>
@@ -49,112 +49,6 @@ public class PurgeConditions
     public PurgeConditions With(Func<PurgeConditions, PurgeConditions> builder)
     {
         return builder(this);
-    }
-
-    internal IEnumerable<string> TestSpecificationForCompliance(Specification specification)
-    {
-        return specification.Matches.SelectMany(match => TestMatchForCompliance(match));
-    }
-
-    private IEnumerable<string> TestMatchForCompliance(Match match)
-    {
-        var failedUnknownConditions = specifications
-            .Where(pc => pc.Givens[0].Label.Type == match.Unknown.Type &&
-                !HasCondition(match.ExistentialConditions, pc))
-            .ToList();
-        if (failedUnknownConditions.Count > 0)
-        {
-            var specificationDescriptions = failedUnknownConditions
-                .Select(pc => pc.ToDescriptiveString())
-                .ToList();
-            return new[] { $"The match for {match.Unknown.Type} is missing purge conditions:\n{string.Join("", specificationDescriptions)}" };
-        }
-        return new string[0];
-    }
-
-    private bool HasCondition(ImmutableList<ExistentialCondition> existentialConditions, Specification purgeCondition)
-    {
-        return existentialConditions.Any(ec => ConditionMatches(ec, purgeCondition));
-    }
-
-    private bool ConditionMatches(ExistentialCondition condition, Specification purgeCondition)
-    {
-        if (condition.Exists)
-        {
-            // We only match negative existential conditions.
-            return false;
-        }
-        // Compare the matches of the condition with the matches of the purge condition.
-        if (condition.Matches.Count != purgeCondition.Matches.Count)
-        {
-            return false;
-        }
-        return condition.Matches
-            .Zip(purgeCondition.Matches, (a, b) => MatchesAreEquivalent(a, b))
-            .All(x => x);
-    }
-
-    private bool MatchesAreEquivalent(Match match, Match purgeMatch)
-    {
-        if (match.Unknown.Type != purgeMatch.Unknown.Type)
-        {
-            return false;
-        }
-        if (match.PathConditions.Count != purgeMatch.PathConditions.Count)
-        {
-            return false;
-        }
-        if (match.ExistentialConditions.Count != purgeMatch.ExistentialConditions.Count)
-        {
-            return false;
-        }
-        return
-            match.PathConditions
-                .Zip(purgeMatch.PathConditions, (c, pc) => PathConditionsAreEquivalent(c, pc))
-                .All(x => x) &&
-            match.ExistentialConditions
-                .Zip(purgeMatch.ExistentialConditions, (c, pc) => ExistentialConditionsAreEquivalent(c, pc))
-                .All(x => x);
-    }
-
-    private bool PathConditionsAreEquivalent(PathCondition condition, PathCondition purgeCondition)
-    {
-        if (condition.RolesLeft.Count != purgeCondition.RolesLeft.Count)
-        {
-            return false;
-        }
-        if (condition.RolesRight.Count != purgeCondition.RolesRight.Count)
-        {
-            return false;
-        }
-        return
-            condition.RolesLeft
-                .Zip(purgeCondition.RolesLeft, (r, pr) => RolesAreEquivalent(r, pr))
-                .All(x => x) &&
-            condition.RolesRight
-                .Zip(purgeCondition.RolesRight, (r, pr) => RolesAreEquivalent(r, pr))
-                .All(x => x);
-    }
-
-    private bool ExistentialConditionsAreEquivalent(ExistentialCondition condition, ExistentialCondition purgeCondition)
-    {
-        if (condition.Exists != purgeCondition.Exists)
-        {
-            return false;
-        }
-        if (condition.Matches.Count != purgeCondition.Matches.Count)
-        {
-            return false;
-        }
-        return condition.Matches
-            .Zip(purgeCondition.Matches, (m, pm) => MatchesAreEquivalent(m, pm))
-            .All(x => x);
-    }
-
-    private bool RolesAreEquivalent(Role role, Role purgeRole)
-    {
-        return role.TargetType == purgeRole.TargetType &&
-               role.Name == purgeRole.Name;
     }
 }
 

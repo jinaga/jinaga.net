@@ -14,6 +14,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.IO;
+using System.Collections.Generic;
 
 namespace Jinaga
 {
@@ -159,10 +160,29 @@ namespace Jinaga
             INetwork network = options.HttpEndpoint == null
                 ? (INetwork)new LocalNetwork()
                 : new HttpNetwork(options.HttpEndpoint, options.HttpAuthenticationProvider, loggerFactory);
-            PurgeConditions purgeConditions = options.PurgeConditions == null
-                ? PurgeConditions.Empty
-                : options.PurgeConditions(PurgeConditions.Empty);
+            PurgeConditions purgeConditions = CreatePurgeConditions(options);
             return new JinagaClient(store, network, purgeConditions, loggerFactory);
+        }
+
+        private static PurgeConditions CreatePurgeConditions(JinagaClientOptions options)
+        {
+            if (options.PurgeConditions == null)
+            {
+                return PurgeConditions.Empty;
+            }
+            else
+            {
+                var purgeConditions = options.PurgeConditions(PurgeConditions.Empty);
+                var validationFailures =
+                    purgeConditions.Specifications
+                        .SelectMany(s => PurgeFunctions.ValidatePurgeSpecification(s));
+                if (validationFailures.Any())
+                {
+                    throw new InvalidOperationException(string.Join(Environment.NewLine, validationFailures));
+                }
+                
+                return purgeConditions;
+            }
         }
 
         private readonly FactManager factManager;

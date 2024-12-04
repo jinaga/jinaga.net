@@ -273,7 +273,7 @@ namespace Jinaga.Managers
 
         private void CheckCompliance(Specification specification)
         {
-            IEnumerable<string> failures = purgeConditions.TestSpecificationForCompliance(specification);
+            IEnumerable<string> failures = PurgeFunctions.TestSpecificationForCompliance(purgeConditions.Specifications, specification);
             if (failures.Any())
             {
                 string message = string.Join(Environment.NewLine, failures);

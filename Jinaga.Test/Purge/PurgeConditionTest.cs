@@ -52,6 +52,20 @@ namespace Jinaga.Test.Purge
             orders.Should().BeEmpty();
         }
 
+        [Fact]
+        public void WhenReversiblePurgeCondition_DisallowsSpecification()
+        {
+            var model = new Model.Order.Store("storeId");
+            Action jConstructor = () => CreateJinagaClient(purgeConditions => purgeConditions
+                .WhenExists(Given<Order>.Match(order =>
+                    order.Successors().OfType<OrderCancelled>(cancelled => cancelled.order)
+                        .WhereNo((OrderCancelledReason reason) => reason.orderCancelled)
+                ))
+            );
+            jConstructor.Should().Throw<InvalidOperationException>()
+                .WithMessage("A specified purge condition would reverse the purge of Order with Order.Cancelled.Reason.");
+        }
+
         private JinagaClient CreateJinagaClient(Func<PurgeConditions, PurgeConditions> purgeConditions)
         {
             return JinagaClient.Create(options =>
