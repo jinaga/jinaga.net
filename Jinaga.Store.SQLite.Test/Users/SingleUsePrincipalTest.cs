@@ -1,6 +1,4 @@
-using System.Collections.Immutable;
 using Jinaga.DefaultImplementations;
-using Jinaga.Projections;
 using Jinaga.Services;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -59,7 +57,7 @@ public class SingleUsePrincipalTest
 
     private static JinagaClient GivenJinagaClient(IStore? store = null, INetwork? network = null)
     {
-        return new JinagaClient(store ?? new SQLiteStore(SQLitePath, NullLoggerFactory.Instance), network ?? new LocalNetwork(), ImmutableList<Specification>.Empty, NullLoggerFactory.Instance);
+        return new JinagaClient(store ?? new SQLiteStore(SQLitePath, NullLoggerFactory.Instance), network ?? new LocalNetwork(), [], NullLoggerFactory.Instance);
     }
 
     private static LocalNetwork GivenLocalNetwork()
