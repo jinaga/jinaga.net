@@ -46,6 +46,18 @@ internal static class PurgeFunctions
                 .ToList();
             return new[] { $"The match for {match.Unknown.Type} is missing purge conditions:\n{string.Join(Environment.NewLine, specificationDescriptions)}" };
         }
+
+        var failedIntermediateConditions = purgeConditions
+            .Where(pc => match.PathConditions.Any(c => HasIntermediateType(c, pc.Givens[0].Label.Type)))
+            .ToList();
+        if (failedIntermediateConditions.Count > 0)
+        {
+            var specificationDescriptions = failedIntermediateConditions
+                .Select(pc => DescribePurgeCondition(pc))
+                .ToList();
+            return new[] { $"The match for {match.Unknown.Type} passes through types that should have purge conditions:\n{string.Join(Environment.NewLine, specificationDescriptions)}" };
+        }
+
         return new string[0];
     }
 
@@ -144,5 +156,53 @@ internal static class PurgeFunctions
     private static string DescribeTuple(IEnumerable<Match> matches)
     {
         return string.Join(", ", matches.Select(match => match.Unknown.Type));
+    }
+
+    private static bool HasIntermediateType(PathCondition condition, string type)
+    {
+        var leftOnly = condition.RolesRight.Count == 0;
+        var rightOnly = condition.RolesLeft.Count == 0;
+
+        if (leftOnly)
+        {
+            var found = condition.RolesLeft
+                .Take(condition.RolesLeft.Count - 1)
+                .Any(r => r.TargetType == type);
+            if (found)
+            {
+                return true;
+            }
+        }
+        else
+        {
+            var found = condition.RolesLeft
+                .Any(r => r.TargetType == type);
+            if (found)
+            {
+                return true;
+            }
+        }
+
+        if (rightOnly)
+        {
+            var found = condition.RolesRight
+                .Take(condition.RolesRight.Count - 1)
+                .Any(r => r.TargetType == type);
+            if (found)
+            {
+                return true;
+            }
+        }
+        else
+        {
+            var found = condition.RolesRight
+                .Any(r => r.TargetType == type);
+            if (found)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

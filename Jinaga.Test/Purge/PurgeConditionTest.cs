@@ -37,6 +37,30 @@ namespace Jinaga.Test.Purge
         }
 
         [Fact]
+        public async Task WhenSpecificationPassesThroughPurgeRoot_QueryThrows()
+        {
+            var jinagaClient = CreateJinagaClient(purgeConditions => purgeConditions
+                .Purge<Order>().WhenExists<OrderCancelled>(cancelled => cancelled.order)
+            );
+            var store = await jinagaClient.Fact(new Model.Order.Store("storeId"));
+
+            var shipmentsInStore = Given<Model.Order.Store>.Match(store =>
+                store.Successors().OfType<OrderShipped>(shipped => shipped.order.store)
+            );
+
+            Func<Task> query = async () => await jinagaClient.Query(shipmentsInStore, store);
+            await query.Should().ThrowAsync<InvalidOperationException>().WithMessage(
+                """
+                The match for Order.Shipped passes through types that should have purge conditions:
+                !E (fact: Order) {
+                    cancelled: Order.Cancelled [
+                        cancelled->order: Order = fact
+                    ]
+                }
+                """);
+        }
+
+        [Fact]
         public async Task WhenSpecificationIncludesPurgeCondition_AllowsSpecification()
         {
             var jinagaClient = CreateJinagaClient(purgeConditions => purgeConditions
@@ -126,12 +150,15 @@ namespace Jinaga.Test.Purge
 
             Func<Task> query = async () => await jinagaClient.Query(ordersInStore, store);
             await query.Should().ThrowAsync<InvalidOperationException>()
-                .WithMessage(@"The match for Order is missing purge conditions:
-!E (order: Order) {
-    cancelled: Order.Cancelled [
-        cancelled->order: Order = order
-    ]
-}");
+                .WithMessage(
+                    """
+                    The match for Order is missing purge conditions:
+                    !E (order: Order) {
+                        cancelled: Order.Cancelled [
+                            cancelled->order: Order = order
+                        ]
+                    }
+                    """);
         }
 
         [Fact]
