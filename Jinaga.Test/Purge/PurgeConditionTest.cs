@@ -1,5 +1,6 @@
 using Jinaga.Test.Model.Order;
 using Jinaga.Extensions;
+using System.Linq;
 
 namespace Jinaga.Test.Purge
 {
@@ -131,6 +132,29 @@ namespace Jinaga.Test.Purge
         cancelled->order: Order = order
     ]
 }");
+        }
+
+        [Fact]
+        public async Task WhenComplexJoin_MatchesPurgeCondition()
+        {
+            var jinagaClient = CreateJinagaClient(purgeConditions => purgeConditions
+                .Purge<Order>().WhenExists<OrderCancelled>(cancelled => cancelled.order)
+            );
+            var store = await jinagaClient.Fact(new Model.Order.Store("storeId"));
+            var catalog = await jinagaClient.Fact(new Model.Order.Catalog(store, "catalog"));
+            var productA = await jinagaClient.Fact(new Model.Order.Product(catalog, "productA"));
+
+            var ordersInStore = Given<Model.Order.Store, Model.Order.Product>.Match((store, product, facts) =>
+                store.Successors().OfType<Order>(order => order.store)
+                    .WhereNo((OrderCancelled cancelled) => cancelled.order)
+                    .Where(order =>
+                        facts.Any<Item>(item =>
+                            order.items.Contains(item) &&
+                            item.product == product))
+            );
+
+            var orders = await jinagaClient.Query(ordersInStore, store, productA);
+            orders.Should().BeEmpty();
         }
 
         private JinagaClient CreateJinagaClient(Func<PurgeConditions, PurgeConditions> purgeConditions)
