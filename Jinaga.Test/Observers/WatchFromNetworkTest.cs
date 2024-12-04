@@ -2,7 +2,6 @@
 using Jinaga.Test.Fakes;
 using Jinaga.Test.Model;
 using Microsoft.Extensions.Logging.Abstractions;
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using Xunit.Abstractions;
@@ -140,7 +139,7 @@ public class WatchFromNetworkTest
 
     private static JinagaClient GivenJinagaClient(FakeNetwork network)
     {
-        return new JinagaClient(new MemoryStore(), network, PurgeConditions.Empty, NullLoggerFactory.Instance);
+        return new JinagaClient(new MemoryStore(), network, [], NullLoggerFactory.Instance);
     }
 
     private class OfficeViewModel

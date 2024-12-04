@@ -14,7 +14,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.IO;
-using System.Collections.Generic;
 
 namespace Jinaga
 {
@@ -160,28 +159,20 @@ namespace Jinaga
             INetwork network = options.HttpEndpoint == null
                 ? (INetwork)new LocalNetwork()
                 : new HttpNetwork(options.HttpEndpoint, options.HttpAuthenticationProvider, loggerFactory);
-            PurgeConditions purgeConditions = CreatePurgeConditions(options);
+            var purgeConditions = CreatePurgeConditions(options);
             return new JinagaClient(store, network, purgeConditions, loggerFactory);
         }
 
-        private static PurgeConditions CreatePurgeConditions(JinagaClientOptions options)
+        private static ImmutableList<Specification> CreatePurgeConditions(JinagaClientOptions options)
         {
             if (options.PurgeConditions == null)
             {
-                return PurgeConditions.Empty;
+                return ImmutableList<Specification>.Empty;
             }
             else
             {
                 var purgeConditions = options.PurgeConditions(PurgeConditions.Empty);
-                var validationFailures =
-                    purgeConditions.Specifications
-                        .SelectMany(s => PurgeFunctions.ValidatePurgeSpecification(s));
-                if (validationFailures.Any())
-                {
-                    throw new InvalidOperationException(string.Join(Environment.NewLine, validationFailures));
-                }
-                
-                return purgeConditions;
+                return purgeConditions.Validate();
             }
         }
 
@@ -213,7 +204,7 @@ namespace Jinaga
         /// <param name="store">A strategy to store facts locally</param>
         /// <param name="network">A strategy to communicate with a remote replicator</param>
         /// <param name="loggerFactory">A factory configured for logging</param>
-        public JinagaClient(IStore store, INetwork network, PurgeConditions purgeConditions, ILoggerFactory loggerFactory)
+        public JinagaClient(IStore store, INetwork network, ImmutableList<Specification> purgeConditions, ILoggerFactory loggerFactory)
         {
             networkManager = new NetworkManager(network, store, loggerFactory, async (graph, added, cancellationToken) =>
             {

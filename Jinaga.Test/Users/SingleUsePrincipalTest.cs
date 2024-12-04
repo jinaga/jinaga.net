@@ -54,7 +54,7 @@ public class SingleUsePrincipalTest
 
     private JinagaClient GivenJinagaClient(FakeNetwork fakeNetwork)
     {
-        return new JinagaClient(new MemoryStore(), fakeNetwork, PurgeConditions.Empty, NullLoggerFactory.Instance);
+        return new JinagaClient(new MemoryStore(), fakeNetwork, [], NullLoggerFactory.Instance);
     }
 }
 

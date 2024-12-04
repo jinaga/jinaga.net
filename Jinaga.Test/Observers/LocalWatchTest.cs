@@ -2,7 +2,6 @@ using Jinaga.Storage;
 using Jinaga.Test.Fakes;
 using Jinaga.Test.Model;
 using Microsoft.Extensions.Logging.Abstractions;
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using Xunit.Abstractions;
@@ -233,7 +232,7 @@ public class LocalWatchTest
 
     private static JinagaClient GivenJinagaClient(FakeNetwork network)
     {
-        return new JinagaClient(new MemoryStore(), network, PurgeConditions.Empty, NullLoggerFactory.Instance);
+        return new JinagaClient(new MemoryStore(), network, [], NullLoggerFactory.Instance);
     }
 
     private void WhenAddCourses(FakeNetwork network, School school)

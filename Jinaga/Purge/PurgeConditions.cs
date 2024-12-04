@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Linq.Expressions;
@@ -14,11 +13,11 @@ public class PurgeConditions
 {
     public static PurgeConditions Empty = new PurgeConditions(ImmutableList<Specification>.Empty);
 
-    internal ImmutableList<Specification> Specifications { get; }
+    private ImmutableList<Specification> specifications;
 
     internal PurgeConditions(ImmutableList<Specification> specifications)
     {
-        Specifications = specifications;
+        this.specifications = specifications;
     }
 
     /// <summary>
@@ -28,7 +27,7 @@ public class PurgeConditions
     /// <returns></returns>
     public PurgeClause<TFact> Purge<TFact>() where TFact : class
     {
-        return new PurgeClause<TFact>(Specifications);
+        return new PurgeClause<TFact>(specifications);
     }
 
     /// <summary>
@@ -38,7 +37,7 @@ public class PurgeConditions
     /// <returns></returns>
     public PurgeConditions WhenExists(Specification specification)
     {
-        return new PurgeConditions(Specifications.Add(specification));
+        return new PurgeConditions(specifications.Add(specification));
     }
 
     /// <summary>
@@ -49,6 +48,22 @@ public class PurgeConditions
     public PurgeConditions With(Func<PurgeConditions, PurgeConditions> builder)
     {
         return builder(this);
+    }
+
+    /// <summary>
+    /// Validate that the purge conditions are well-formed.
+    /// </summary>
+    /// <returns>The list of specifications</returns>
+    /// <exception cref="InvalidOperationException">If there is an issue with the purge conditions</exception>
+    public ImmutableList<Specification> Validate()
+    {
+        var validationFailures = specifications
+            .SelectMany(s => PurgeFunctions.ValidatePurgeSpecification(s));
+        if (validationFailures.Any())
+        {
+            throw new InvalidOperationException(string.Join(Environment.NewLine, validationFailures));
+        }
+        return specifications;
     }
 }
 

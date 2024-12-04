@@ -20,14 +20,14 @@ namespace Jinaga.Managers
     {
         private readonly IStore store;
         private readonly NetworkManager networkManager;
-        private readonly PurgeConditions purgeConditions;
+        private readonly ImmutableList<Specification> purgeConditions;
         private readonly ILoggerFactory loggerFactory;
         private readonly ObservableSource observableSource;
 
         private bool unloaded = false;
         private ImmutableList<TaskHandle> pendingTasks = ImmutableList<TaskHandle>.Empty;
 
-        public FactManager(IStore store, NetworkManager networkManager, PurgeConditions purgeConditions, ILoggerFactory loggerFactory)
+        public FactManager(IStore store, NetworkManager networkManager, ImmutableList<Specification> purgeConditions, ILoggerFactory loggerFactory)
         {
             this.store = store;
             this.networkManager = networkManager;
@@ -273,7 +273,7 @@ namespace Jinaga.Managers
 
         private void CheckCompliance(Specification specification)
         {
-            IEnumerable<string> failures = PurgeFunctions.TestSpecificationForCompliance(purgeConditions.Specifications, specification);
+            IEnumerable<string> failures = PurgeFunctions.TestSpecificationForCompliance(purgeConditions, specification);
             if (failures.Any())
             {
                 string message = string.Join(Environment.NewLine, failures);

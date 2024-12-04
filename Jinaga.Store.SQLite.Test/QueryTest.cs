@@ -1,4 +1,6 @@
+using System.Collections.Immutable;
 using Jinaga.DefaultImplementations;
+using Jinaga.Projections;
 using Jinaga.Store.SQLite.Test.Models;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit.Abstractions;
@@ -20,7 +22,7 @@ public class QueryTest
         if (File.Exists(SQLitePath))
             File.Delete(SQLitePath);
 
-        j = new JinagaClient(new SQLiteStore(SQLitePath, NullLoggerFactory.Instance), new LocalNetwork(), PurgeConditions.Empty, NullLoggerFactory.Instance);
+        j = new JinagaClient(new SQLiteStore(SQLitePath, NullLoggerFactory.Instance), new LocalNetwork(), ImmutableList<Specification>.Empty, NullLoggerFactory.Instance);
         this.output = output;
     }
 

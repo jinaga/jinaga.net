@@ -10,6 +10,7 @@ using Xunit.Abstractions;
 using Jinaga.Storage;
 using System.Globalization;
 using Microsoft.Extensions.Logging.Abstractions;
+using Jinaga.Projections;
 
 namespace Jinaga.Store.SQLite.Test;
 
@@ -875,7 +876,7 @@ public class StoreTest
         var store = new MemoryStore();
         var loggerFactory = NullLoggerFactory.Instance;
         var networkManager = new NetworkManager(new LocalNetwork(), store, loggerFactory, (FactGraph g, ImmutableList<Fact> l, CancellationToken c) => Task.CompletedTask);
-        var factManager = new FactManager(store, networkManager, PurgeConditions.Empty, loggerFactory);
+        var factManager = new FactManager(store, networkManager, [], loggerFactory);
         var graph = factManager.Serialize(fact);
         var lastRef = graph.Last;
         return lastRef;
@@ -883,7 +884,7 @@ public class StoreTest
 
     private static JinagaClient GivenJinagaClient(IStore? store = null, INetwork? network = null)
     {
-        return new JinagaClient(store ?? new SQLiteStore(SQLitePath, NullLoggerFactory.Instance), network ?? new LocalNetwork(), PurgeConditions.Empty, NullLoggerFactory.Instance);
+        return new JinagaClient(store ?? new SQLiteStore(SQLitePath, NullLoggerFactory.Instance), network ?? new LocalNetwork(), ImmutableList<Specification>.Empty, NullLoggerFactory.Instance);
     }
 
     private static SQLiteStore GivenSQLiteStore()
