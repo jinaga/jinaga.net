@@ -66,6 +66,73 @@ namespace Jinaga.Test.Purge
                 .WithMessage("A specified purge condition would reverse the purge of Order with Order.Cancelled.Reason.");
         }
 
+        [Fact]
+        public async Task WhenMultiplePurgeConditions_AllowsSpecification()
+        {
+            var jinagaClient = CreateJinagaClient(purgeConditions => purgeConditions
+                .WhenExists(Given<Order>.Match(order =>
+                    order.Successors().OfType<OrderCancelled>(cancelled => cancelled.order)
+                ))
+                .WhenExists(Given<Order>.Match(order =>
+                    order.Successors().OfType<OrderShipped>(shipped => shipped.order)
+                ))
+            );
+            var store = await jinagaClient.Fact(new Model.Order.Store("storeId"));
+
+            var ordersInStore = Given<Model.Order.Store>.Match(store =>
+                store.Successors().OfType<Order>(order => order.store)
+                    .WhereNo((OrderCancelled cancelled) => cancelled.order)
+                    .WhereNo((OrderShipped shipped) => shipped.order)
+            );
+
+            var orders = await jinagaClient.Query(ordersInStore, store);
+            orders.Should().BeEmpty();
+        }
+
+        [Fact]
+        public async Task WhenNegativeExistentialConditions_SpecificationIsAllowed()
+        {
+            var jinagaClient = CreateJinagaClient(purgeConditions => purgeConditions
+                .WhenExists(Given<Order>.Match(order =>
+                    order.Successors().OfType<OrderCancelled>(cancelled => cancelled.order)
+                ))
+            );
+            var store = await jinagaClient.Fact(new Model.Order.Store("storeId"));
+
+            var ordersInStore = Given<Model.Order.Store>.Match(store =>
+                store.Successors().OfType<Order>(order => order.store)
+                    .WhereNo((OrderCancelled cancelled) => cancelled.order)
+            );
+
+            var orders = await jinagaClient.Query(ordersInStore, store);
+            orders.Should().BeEmpty();
+        }
+
+        [Fact]
+        public async Task WhenPositiveExistentialConditions_SpecificationFails()
+        {
+            var jinagaClient = CreateJinagaClient(purgeConditions => purgeConditions
+                .WhenExists(Given<Order>.Match(order =>
+                    order.Successors().OfType<OrderCancelled>(cancelled => cancelled.order)
+                ))
+            );
+            var store = await jinagaClient.Fact(new Model.Order.Store("storeId"));
+
+            var ordersInStore = Given<Model.Order.Store>.Match(store =>
+                store.Successors().OfType<Order>(order => order.store)
+                    .WhereAny((OrderCancelled cancelled) => cancelled.order)
+            );
+
+            Func<Task> query = async () => await jinagaClient.Query(ordersInStore, store);
+            await query.Should().ThrowAsync<InvalidOperationException>()
+                .WithMessage(@"The match for Order is missing purge conditions:
+!E (order: Order) {
+    cancelled: Order.Cancelled [
+        cancelled->order: Order = order
+    ]
+}");
+        }
+
         private JinagaClient CreateJinagaClient(Func<PurgeConditions, PurgeConditions> purgeConditions)
         {
             return JinagaClient.Create(options =>

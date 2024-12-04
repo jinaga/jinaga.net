@@ -42,9 +42,9 @@ internal static class PurgeFunctions
         if (failedUnknownConditions.Count > 0)
         {
             var specificationDescriptions = failedUnknownConditions
-                .Select(pc => pc.ToDescriptiveString())
+                .Select(pc => DescribePurgeCondition(pc))
                 .ToList();
-            return new[] { $"The match for {match.Unknown.Type} is missing purge conditions:\n{string.Join("", specificationDescriptions)}" };
+            return new[] { $"The match for {match.Unknown.Type} is missing purge conditions:\n{string.Join(Environment.NewLine, specificationDescriptions)}" };
         }
         return new string[0];
     }
@@ -132,6 +132,13 @@ internal static class PurgeFunctions
     {
         return role.TargetType == purgeRole.TargetType &&
                role.Name == purgeRole.Name;
+    }
+
+    private static string DescribePurgeCondition(Specification purgeCondition)
+    {
+        return $"!E ({purgeCondition.Givens[0].Label.Name}: {purgeCondition.Givens[0].Label.Type}) {{\n" +
+            string.Join("", purgeCondition.Matches.Select(match => match.ToDescriptiveString(1))) +
+            "}";
     }
 
     private static string DescribeTuple(IEnumerable<Match> matches)
