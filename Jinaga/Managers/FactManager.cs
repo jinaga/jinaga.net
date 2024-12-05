@@ -258,6 +258,11 @@ namespace Jinaga.Managers
             return store.SetMruDate(specificationHash, mruDate);
         }
 
+        internal async Task Purge()
+        {
+            await store.Purge(purgeConditions).ConfigureAwait(false);
+        }
+
         public async Task Unload()
         {
             VerifyNotUnloaded();

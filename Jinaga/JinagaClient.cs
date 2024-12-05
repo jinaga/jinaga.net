@@ -927,6 +927,15 @@ namespace Jinaga
         }
 
         /// <summary>
+        /// Remove all facts meeting the purge conditions.
+        /// </summary>
+        /// <returns>Resolves when finished</returns>
+        public async Task Purge()
+        {
+            await factManager.Purge().ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Wait for any background processes to stop.
         /// </summary>
         /// <returns>Resolved when background processes are finished</returns>

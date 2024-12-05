@@ -754,6 +754,51 @@ namespace Jinaga.Store.SQLite
             var facts = envelopes.Select(envelope => envelope.Fact);
             return Task.FromResult(facts);
         }
+
+        public Task Purge(ImmutableList<Specification> purgeConditions)
+        {
+            foreach (var specification in purgeConditions)
+            {
+                var label = specification.Givens.Single().Label;
+                var givenTuple = FactReferenceTuple.Empty
+                    .Add(label.Name, new FactReference(label.Type, "xxxx"));
+                var factTypes = LoadFactTypesFromSpecification(specification);
+                var factTypeMap = factTypes.Select(factType => KeyValuePair.Create(factType.name, factType.fact_type_id)).ToImmutableDictionary();
+                
+                var roles = LoadRolesFromSpecification(specification, factTypes);
+                var roleMap = roles
+                    .GroupBy(
+                        role => role.defining_fact_type_id, 
+                        role => KeyValuePair.Create(role.name, role.role_id)
+                    )
+                    .Select(
+                        pair => KeyValuePair.Create(pair.Key, pair.ToImmutableDictionary())
+                    )
+                    .ToImmutableDictionary();                                    
+
+                var descriptionBuilder = new ResultDescriptionBuilder(factTypeMap, roleMap);
+                
+                var description = descriptionBuilder.Build(givenTuple, specification);
+
+                if (!description.QueryDescription.IsSatisfiable())
+                {
+                    continue;
+                }
+                var sqlQueryTree = SqlGenerator.CreateSqlQueryTree(description);
+
+                (string sql, ImmutableList<object> parameters) = PurgeSqlFromSpecification(sqlQueryTree);
+                connFactory.WithConn((conn, i) =>
+                {
+                    return conn.ExecuteNonQuery(sql, parameters);
+                });
+            }
+            return Task.CompletedTask;
+        }
+
+        private (string sql, ImmutableList<object> parameters) PurgeSqlFromSpecification(SqlQueryTree sqlQueryTree)
+        {
+            return (sqlQueryTree.SqlQuery.Sql, sqlQueryTree.SqlQuery.Parameters);
+        }
     }
 
 
