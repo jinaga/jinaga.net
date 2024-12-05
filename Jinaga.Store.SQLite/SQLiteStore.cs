@@ -3,7 +3,9 @@ using Jinaga.Products;
 using Jinaga.Projections;
 using Jinaga.Services;
 using Jinaga.Store.SQLite.Builder;
+using Jinaga.Store.SQLite.Description;
 using Jinaga.Store.SQLite.Generation;
+using Jinaga.Visualizers;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -784,9 +786,8 @@ namespace Jinaga.Store.SQLite
                 {
                     continue;
                 }
-                var sqlQueryTree = SqlGenerator.CreateSqlQueryTree(description);
 
-                (string sql, ImmutableList<object> parameters) = PurgeSqlFromSpecification(sqlQueryTree);
+                (string sql, ImmutableList<object> parameters) = PurgeSqlFromSpecification(description);
                 connFactory.WithConn((conn, i) =>
                 {
                     return conn.ExecuteNonQuery(sql, parameters);
@@ -795,9 +796,131 @@ namespace Jinaga.Store.SQLite
             return Task.CompletedTask;
         }
 
-        private (string sql, ImmutableList<object> parameters) PurgeSqlFromSpecification(SqlQueryTree sqlQueryTree)
+        private (string sql, ImmutableList<object> parameters) PurgeSqlFromSpecification(ResultDescription description)
         {
-            return (sqlQueryTree.SqlQuery.Sql, sqlQueryTree.SqlQuery.Parameters);
+            var queryDescription = description.QueryDescription;
+            var allLabels = queryDescription.Inputs
+                .Select(input => new SpecificationLabel(input.Label, input.FactIndex, input.Type))
+                .Concat(queryDescription.Outputs
+                    .Select(output => new SpecificationLabel(output.Label, output.FactIndex, output.Type)))
+                .ToImmutableList();
+            var columns = allLabels.Select(label =>
+                $"f{label.Index}.fact_id as trigger{label.Index}")
+                .Join(", ");
+            var firstEdge = queryDescription.Edges.First();
+            var predecessorInput = queryDescription.Inputs.Find(input => input.FactIndex == firstEdge.PredecessorFactIndex);
+            var successorInput = queryDescription.Inputs.Find(input => input.FactIndex == firstEdge.SuccessorFactIndex);
+            var firstFactIndex = predecessorInput != null ? predecessorInput.FactIndex : successorInput.FactIndex;
+            var writtenFactIndexes = new HashSet<int> { firstFactIndex };
+            var joins = GenerateJoins(queryDescription.Edges, writtenFactIndexes);
+            var inputWhereClauses = queryDescription.Inputs
+                .Select(input => $"f{input.FactIndex}.fact_type_id = ?{input.FactTypeParameter}")
+                .Join(" AND ");
+
+            var triggerWhereClauses = queryDescription.Outputs
+                .Select((label, index) => $"a.fact_id = c2.trigger{index + 1}")
+                .Join("\n            OR ");
+            var triggerAncestorClauses = queryDescription.Outputs
+                .Select((label, index) =>
+                    $"    AND NOT EXISTS (\n" +
+                    $"        SELECT 1\n" +
+                    $"        FROM candidates c2\n" +
+                    $"        JOIN ancestor a2\n" +
+                    $"            ON a2.fact_id = c2.trigger{index + 1}\n" +
+                    $"        WHERE a.fact_id = a2.ancestor_fact_id\n" +
+                    $"    )\n"
+                )
+                .Join("");
+
+            var candidatesSelect = $"SELECT {columns} FROM fact f{firstFactIndex}{joins.Join("")} WHERE {inputWhereClauses}";
+            var sql = $@"
+WITH candidates AS (
+    {candidatesSelect}
+), targets AS (
+    SELECT a.fact_id
+    FROM ancestor a
+    JOIN candidates c ON c.purge_root = a.ancestor_fact_id
+    WHERE NOT EXISTS (
+        SELECT 1
+        FROM candidates c2
+        WHERE {triggerWhereClauses}
+    )
+    {triggerAncestorClauses}
+)
+DELETE
+FROM fact
+WHERE fact_id IN (SELECT fact_id FROM targets);";
+            var parameters = queryDescription.Parameters.RemoveAt(1);
+
+            return (sql, parameters);
+        }
+
+        private static ImmutableList<string> GenerateJoins(ImmutableList<EdgeDescription> edges, HashSet<int> writtenFactIndexes)
+        {
+            var joins = ImmutableList<string>.Empty;
+            var remainingEdges = edges;
+            while (remainingEdges.Count > 0)
+            {
+                // Find an edge for which either a predecessor or successor fact has been written.
+                var edgeIndex = remainingEdges.FindIndex(edge =>
+                    writtenFactIndexes.Contains(edge.PredecessorFactIndex) ||
+                    writtenFactIndexes.Contains(edge.SuccessorFactIndex)
+                );
+
+                // If no such edge exists, then the graph is not connected.
+                if (edgeIndex < 0)
+                {
+                    throw new ArgumentException("The specification is not connected");
+                }
+
+                // Write the edge.
+                var edge = remainingEdges[edgeIndex];
+                remainingEdges = remainingEdges.RemoveAt(edgeIndex);
+
+                if (writtenFactIndexes.Contains(edge.PredecessorFactIndex))
+                {
+                    if (writtenFactIndexes.Contains(edge.SuccessorFactIndex))
+                    {
+                        joins = joins.Add(
+                            $" JOIN edge e{edge.EdgeIndex}" +
+                            $" ON e{edge.EdgeIndex}.predecessor_fact_id = f{edge.PredecessorFactIndex}.fact_id" +
+                            $" AND e{edge.EdgeIndex}.successor_fact_id = f{edge.SuccessorFactIndex}.fact_id" +
+                            $" AND e{edge.EdgeIndex}.role_id = ?{edge.RoleParameter - 1}"
+                        );
+                    }
+                    else
+                    {
+                        joins = joins.Add(
+                            $" JOIN edge e{edge.EdgeIndex}" +
+                            $" ON e{edge.EdgeIndex}.predecessor_fact_id = f{edge.PredecessorFactIndex}.fact_id" +
+                            $" AND e{edge.EdgeIndex}.role_id = ?{edge.RoleParameter - 1}"
+                        );
+                        joins = joins.Add(
+                            $" JOIN fact f{edge.SuccessorFactIndex}" +
+                            $" ON f{edge.SuccessorFactIndex}.fact_id = e{edge.EdgeIndex}.successor_fact_id"
+                        );
+                        writtenFactIndexes.Add(edge.SuccessorFactIndex);
+                    }
+                }
+                else if (writtenFactIndexes.Contains(edge.SuccessorFactIndex))
+                {
+                    joins = joins.Add(
+                        $" JOIN edge e{edge.EdgeIndex}" +
+                        $" ON e{edge.EdgeIndex}.successor_fact_id = f{edge.SuccessorFactIndex}.fact_id" +
+                        $" AND e{edge.EdgeIndex}.role_id = ?{edge.RoleParameter - 1}"
+                    );
+                    joins = joins.Add(
+                        $" JOIN fact f{edge.PredecessorFactIndex}" +
+                        $" ON f{edge.PredecessorFactIndex}.fact_id = e{edge.EdgeIndex}.predecessor_fact_id"
+                    );
+                    writtenFactIndexes.Add(edge.PredecessorFactIndex);
+                }
+                else
+                {
+                    throw new ArgumentException("Neither predecessor nor successor fact has been written");
+                }
+            }
+            return joins;
         }
     }
 

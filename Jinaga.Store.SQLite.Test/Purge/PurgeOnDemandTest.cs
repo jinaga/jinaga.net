@@ -41,6 +41,7 @@ public class PurgeOnDemandTest
         var company = await j.Fact(new Company());
         var department = await j.Fact(new Department(company));
         var project = await j.Fact(new Project(department));
+        var deleted = await j.Fact(new ProjectDeleted(project));
 
         await j.Purge();
 
