@@ -91,7 +91,7 @@ public class PurgeOnDemandTest
                 department: f2
             }
 
-            let f5: Project.Deleted = {
+            let f4: Project.Deleted = {
                 project: f3
             }
 

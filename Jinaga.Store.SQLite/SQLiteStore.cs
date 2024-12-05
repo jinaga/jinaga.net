@@ -799,13 +799,13 @@ namespace Jinaga.Store.SQLite
         private (string sql, ImmutableList<object> parameters) PurgeSqlFromSpecification(ResultDescription description)
         {
             var queryDescription = description.QueryDescription;
-            var allLabels = queryDescription.Inputs
-                .Select(input => new SpecificationLabel(input.Label, input.FactIndex, input.Type))
-                .Concat(queryDescription.Outputs
-                    .Select(output => new SpecificationLabel(output.Label, output.FactIndex, output.Type)))
-                .ToImmutableList();
-            var columns = allLabels.Select(label =>
-                $"f{label.Index}.fact_id as trigger{label.Index}")
+            if (queryDescription.ExistentialConditions.Count > 0)
+            {
+                throw new ArgumentException("Purge conditions should not have existential conditions");
+            }
+
+            var columns = queryDescription.Outputs
+                .Select((label, index) => $"f{label.FactIndex}.fact_id as trigger{index + 1}")
                 .Join(", ");
             var firstEdge = queryDescription.Edges.First();
             var predecessorInput = queryDescription.Inputs.Find(input => input.FactIndex == firstEdge.PredecessorFactIndex);
