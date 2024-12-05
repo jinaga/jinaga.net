@@ -68,12 +68,13 @@ public class PurgeOnDemandTest
     }
 
     [Fact]
-    public async Task WhenPurgeProjectWithSuccessors_ThenNoEffect()
+    public async Task WhenPurgeProjectWithSuccessors_ThenPurgesSuccessors()
     {
         var company = await j.Fact(new Company());
         var department = await j.Fact(new Department(company));
         var project = await j.Fact(new Project(department));
         var name = await j.Fact(new ProjectName(project, "Project", []));
+        var modifiedName = await j.Fact(new ProjectName(project, "Modified Project", [name]));
         var deleted = await j.Fact(new ProjectDeleted(project));
 
         await j.Purge();
