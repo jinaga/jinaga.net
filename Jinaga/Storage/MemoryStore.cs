@@ -436,5 +436,11 @@ namespace Jinaga.Storage
 
             return Task.FromResult(orderedFacts.AsEnumerable());
         }
+
+        public Task Purge(ImmutableList<Specification> purgeConditions)
+        {
+            // Not implemented.
+            return Task.CompletedTask;
+        }
     }
 }

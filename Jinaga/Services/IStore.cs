@@ -25,5 +25,6 @@ namespace Jinaga.Services
         Task<QueuedFacts> GetQueue();
         Task SetQueueBookmark(string bookmark);
         Task<IEnumerable<Fact>> GetAllFacts();
+        Task Purge(ImmutableList<Specification> purgeConditions);
     }
 }

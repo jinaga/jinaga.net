@@ -1,7 +1,10 @@
 namespace Jinaga.Test.Model.Order
 {
+    [FactType("Store")]
+    record Store(string identifier);
+
     [FactType("Catalog")]
-    record Catalog(string identifier);
+    record Catalog(Store store, string identifier);
 
     [FactType("Product")]
     record Product(Catalog Catalog, string sku);
@@ -13,5 +16,14 @@ namespace Jinaga.Test.Model.Order
     record Item(Product product, int quantity);
 
     [FactType("Order")]
-    record Order(Item[] items);
+    record Order(Store store, Item[] items);
+
+    [FactType("Order.Cancelled")]
+    record OrderCancelled(Order order, DateTime cancelledAt);
+
+    [FactType("Order.Cancelled.Reason")]
+    record OrderCancelledReason(OrderCancelled orderCancelled, string reason);
+
+    [FactType("Order.Shipped")]
+    record OrderShipped(Order order, DateTime shippedAt);
 }
