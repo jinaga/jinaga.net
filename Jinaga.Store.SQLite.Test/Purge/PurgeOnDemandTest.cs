@@ -1,9 +1,9 @@
 using System.Text;
-using Jinaga;
 using Jinaga.DefaultImplementations;
-using Jinaga.Store.SQLite;
 using Jinaga.Store.SQLite.Test.Models;
 using Microsoft.Extensions.Logging.Abstractions;
+
+namespace Jinaga.Store.SQLite.Test.Purge;
 
 public class PurgeOnDemandTest
 {
@@ -56,6 +56,43 @@ public class PurgeOnDemandTest
 
             let f3: Project = {
                 department: f2
+            }
+
+            let f4: Project.Deleted = {
+                project: f3
+            }
+
+
+            """
+        );
+    }
+
+    [Fact]
+    public async Task WhenPurgeProjectWithSuccessors_ThenNoEffect()
+    {
+        var company = await j.Fact(new Company());
+        var department = await j.Fact(new Department(company));
+        var project = await j.Fact(new Project(department));
+        var name = await j.Fact(new ProjectName(project, "Project", []));
+        var deleted = await j.Fact(new ProjectDeleted(project));
+
+        await j.Purge();
+
+        var contents = await GetContents();
+        contents.Should().Be(
+            """
+            let f1: Company = {}
+
+            let f2: Department = {
+                company: f1
+            }
+
+            let f3: Project = {
+                department: f2
+            }
+
+            let f5: Project.Deleted = {
+                project: f3
             }
 
 
