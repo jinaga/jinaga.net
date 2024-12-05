@@ -790,7 +790,7 @@ namespace Jinaga.Store.SQLite
                 (string sql, ImmutableList<object> parameters) = PurgeSqlFromSpecification(description);
                 connFactory.WithConn((conn, i) =>
                 {
-                    return conn.ExecuteNonQuery(sql, parameters);
+                    return conn.ExecuteNonQuery(sql, parameters.ToArray());
                 });
             }
             return Task.CompletedTask;
@@ -832,10 +832,14 @@ namespace Jinaga.Store.SQLite
                 )
                 .Join("");
 
-            var candidatesSelect = $"SELECT {columns} FROM fact f{firstFactIndex}{joins.Join("")} WHERE {inputWhereClauses}";
             var sql = $@"
 WITH candidates AS (
-    {candidatesSelect}
+    SELECT
+        f{firstFactIndex}.fact_id as purge_root,
+        {columns}
+    FROM fact f{firstFactIndex}
+    {joins.Join("")}
+    WHERE {inputWhereClauses}
 ), targets AS (
     SELECT a.fact_id
     FROM ancestor a
