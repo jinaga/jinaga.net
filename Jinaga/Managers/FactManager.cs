@@ -245,6 +245,7 @@ namespace Jinaga.Managers
         public async Task NotifyObservers(FactGraph graph, ImmutableList<Fact> facts, CancellationToken cancellationToken)
         {
             await observableSource.Notify(graph, facts, cancellationToken).ConfigureAwait(false);
+            await purgeManager.TriggerPurge(facts, cancellationToken).ConfigureAwait(false);
         }
 
         public Task<DateTime?> GetMruDate(string specificationHash)

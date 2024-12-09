@@ -493,6 +493,23 @@ namespace Jinaga.Store.SQLite
             return rolesResult;
         }
 
+        private IEnumerable<FactTypeFromDb> LoadFactTypesFromReferences(ImmutableList<FactReference> references)
+        {
+            //TODO: Now we load all factTypes from the DB.  Optimize by caching, and by adding only the factTypes appearing in the references
+            var factTypeResult = connFactory.WithConn(
+                    (conn, id) =>
+                    {
+                        string sql;
+                        sql = $@"
+                            SELECT fact_type_id , name 
+                            FROM fact_type
+                        ";
+                        return conn.ExecuteQuery<FactTypeFromDb>(sql);
+                    },
+                    true   //exponential backoff
+                );
+            return factTypeResult;
+        }
 
         private class FactTypeFromDb
         {
@@ -925,6 +942,78 @@ WHERE fact_id IN (SELECT fact_id FROM targets);";
                 }
             }
             return joins;
+        }
+
+        public Task PurgeDescendants(FactReference purgeRoot, ImmutableList<FactReference> triggers)
+        {
+            var factTypes = LoadFactTypesFromReferences(new[] { purgeRoot }.Concat(triggers).ToImmutableList())
+                .ToImmutableDictionary(ft => ft.name, ft => ft.fact_type_id);
+            if (!factTypes.ContainsKey(purgeRoot.Type) || triggers.Any(t => !factTypes.ContainsKey(t.Type)))
+            {
+                return Task.CompletedTask;
+            }
+
+            var parameters = new List<object>
+            {
+                factTypes[purgeRoot.Type],
+                purgeRoot.Hash
+            };
+            parameters.AddRange(triggers.SelectMany(t => new object[] { factTypes[t.Type], t.Hash }));
+
+            var purgeCommand = PurgeDescendantsSql(triggers.Count);
+
+            connFactory.WithTxn(
+                (conn, id) =>
+                {
+                    conn.ExecuteNonQuery(purgeCommand, parameters.ToArray());
+                    return 0;
+                },
+                true
+            );
+
+            return Task.CompletedTask;
+        }
+
+        private string PurgeDescendantsSql(int triggerCount)
+        {
+            var whereClause = "    WHERE (t.fact_type_id = @2 AND t.hash = @3)\n";
+            for (int i = 1; i < triggerCount; i++)
+            {
+                whereClause += $"        OR (t.fact_type_id = @{i * 2 + 2} AND t.hash = @{i * 2 + 3})\n";
+            }
+
+            var sql =
+                "WITH purge_root AS (\n" +
+                "    SELECT pr.fact_id\n" +
+                "    FROM fact pr\n" +
+                "    WHERE pr.fact_type_id = @0\n" +
+                "        AND pr.hash = @1\n" +
+                "), triggers AS (\n" +
+                "    SELECT t.fact_id\n" +
+                "    FROM fact t\n" +
+                whereClause +
+                "), triggers_and_ancestors AS (\n" +
+                "    SELECT t.fact_id\n" +
+                "    FROM triggers t\n" +
+                "    UNION\n" +
+                "    SELECT a.ancestor_fact_id\n" +
+                "    FROM ancestor a\n" +
+                "    JOIN triggers t\n" +
+                "        ON a.fact_id = t.fact_id\n" +
+                "), targets AS (\n" +
+                "    SELECT a.fact_id\n" +
+                "    FROM ancestor a\n" +
+                "    JOIN purge_root pr\n" +
+                "        ON a.ancestor_fact_id = pr.fact_id\n" +
+                "    WHERE a.fact_id NOT IN (SELECT * FROM triggers_and_ancestors)\n" +
+                "), facts AS (\n" +
+                "    DELETE\n" +
+                "    FROM fact f\n" +
+                "    USING targets t WHERE t.fact_id = f.fact_id\n" +
+                "    RETURNING f.fact_id\n" +
+                ")\n" +
+                "SELECT fact_id FROM facts\n";
+            return sql;
         }
     }
 

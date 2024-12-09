@@ -2,7 +2,6 @@ using Jinaga.Facts;
 using Jinaga.Products;
 using Jinaga.Projections;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Threading;
@@ -26,5 +25,6 @@ namespace Jinaga.Services
         Task SetQueueBookmark(string bookmark);
         Task<IEnumerable<Fact>> GetAllFacts();
         Task Purge(ImmutableList<Specification> purgeConditions);
+        Task PurgeDescendants(FactReference purgeRoot, ImmutableList<FactReference> triggers);
     }
 }
