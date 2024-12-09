@@ -7,7 +7,6 @@ using Jinaga.Serialization;
 using Jinaga.Services;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -20,9 +19,9 @@ namespace Jinaga.Managers
     {
         private readonly IStore store;
         private readonly NetworkManager networkManager;
-        private readonly ImmutableList<Specification> purgeConditions;
         private readonly ILoggerFactory loggerFactory;
         private readonly ObservableSource observableSource;
+        private readonly PurgeManager purgeManager;
 
         private bool unloaded = false;
         private ImmutableList<TaskHandle> pendingTasks = ImmutableList<TaskHandle>.Empty;
@@ -31,10 +30,10 @@ namespace Jinaga.Managers
         {
             this.store = store;
             this.networkManager = networkManager;
-            this.purgeConditions = purgeConditions;
             this.loggerFactory = loggerFactory;
 
             observableSource = new ObservableSource(store);
+            purgeManager = new PurgeManager(store, purgeConditions);
         }
 
         private SerializerCache serializerCache = SerializerCache.Empty;
@@ -260,7 +259,7 @@ namespace Jinaga.Managers
 
         internal async Task Purge()
         {
-            await store.Purge(purgeConditions).ConfigureAwait(false);
+            await purgeManager.Purge().ConfigureAwait(false);
         }
 
         public async Task Unload()
@@ -278,12 +277,7 @@ namespace Jinaga.Managers
 
         private void CheckCompliance(Specification specification)
         {
-            IEnumerable<string> failures = PurgeFunctions.TestSpecificationForCompliance(purgeConditions, specification);
-            if (failures.Any())
-            {
-                string message = string.Join(Environment.NewLine, failures);
-                throw new InvalidOperationException(message);
-            }
+            purgeManager.CheckCompliance(specification);
         }
 
         private void AddBackgroundTask(TaskHandle handle)
