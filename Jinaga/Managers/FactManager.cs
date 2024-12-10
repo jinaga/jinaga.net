@@ -80,6 +80,7 @@ namespace Jinaga.Managers
             VerifyNotUnloaded();
             var added = await store.Save(graph, true, cancellationToken).ConfigureAwait(false);
             await observableSource.Notify(graph, added, cancellationToken).ConfigureAwait(false);
+            await purgeManager.TriggerPurge(added, cancellationToken).ConfigureAwait(false);
 
             // Don't wait on the network manager if we have persistent storage.
             if (store.IsPersistent)
@@ -115,6 +116,7 @@ namespace Jinaga.Managers
             VerifyNotUnloaded();
             var added = await store.Save(graph, false, cancellationToken).ConfigureAwait(false);
             await observableSource.Notify(graph, added, cancellationToken).ConfigureAwait(false);
+            await purgeManager.TriggerPurge(added, cancellationToken).ConfigureAwait(false);
             return added;
         }
 

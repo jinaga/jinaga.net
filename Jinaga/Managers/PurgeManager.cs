@@ -58,9 +58,10 @@ namespace Jinaga.Managers
                     var results = await store.Read(givenTuple, purgeInverse.InverseSpecification, cancellationToken).ConfigureAwait(false);
                     foreach (var result in results)
                     {
-                        var purgeRoot = result.GetFactReference(givenName);
-                        var triggerSubset = purgeInverse.GivenSubset.Subtract(givenName);
-                        var triggerTuple = triggerSubset.Of(result);
+                        var purgeRootTuple = purgeInverse.GivenSubset.Of(result);
+                        var purgeRootName = purgeRootTuple.Names.Single();
+                        var triggerTuple = purgeInverse.ResultSubset.Subtract(purgeRootName).Of(result);
+                        var purgeRoot = purgeRootTuple.Get(purgeRootName);
                         var triggers = triggerTuple.Names.Select(name => triggerTuple.Get(name))
                             .ToImmutableList();
 

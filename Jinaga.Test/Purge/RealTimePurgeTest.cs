@@ -49,6 +49,7 @@ public class RealTimePurgeTest
         var item1 = await jinagaClient.Fact(new Item(product1, 1));
         var item2 = await jinagaClient.Fact(new Item(product2, 1));
         var order = await jinagaClient.Fact(new Order(store, [item1, item2]));
+        var shipped = await jinagaClient.Fact(new OrderShipped(order, DateTime.Now));
         var cancelled = await jinagaClient.Fact(new OrderCancelled(order, DateTime.Now));
 
         var shipmentsInOrder = Given<Order>.Match(order =>
