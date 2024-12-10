@@ -976,18 +976,18 @@ WHERE fact_id IN (SELECT fact_id FROM targets);";
 
         private string PurgeDescendantsSql(int triggerCount)
         {
-            var whereClause = "    WHERE (t.fact_type_id = @2 AND t.hash = @3)\n";
+            var whereClause = "    WHERE (t.fact_type_id = ?3 AND t.hash = ?4)\n";
             for (int i = 1; i < triggerCount; i++)
             {
-                whereClause += $"        OR (t.fact_type_id = @{i * 2 + 2} AND t.hash = @{i * 2 + 3})\n";
+                whereClause += $"        OR (t.fact_type_id = ?{i * 2 + 3} AND t.hash = ?{i * 2 + 4})\n";
             }
 
             var sql =
                 "WITH purge_root AS (\n" +
                 "    SELECT pr.fact_id\n" +
                 "    FROM fact pr\n" +
-                "    WHERE pr.fact_type_id = @0\n" +
-                "        AND pr.hash = @1\n" +
+                "    WHERE pr.fact_type_id = ?1\n" +
+                "        AND pr.hash = ?2\n" +
                 "), triggers AS (\n" +
                 "    SELECT t.fact_id\n" +
                 "    FROM fact t\n" +
@@ -1006,13 +1006,10 @@ WHERE fact_id IN (SELECT fact_id FROM targets);";
                 "    JOIN purge_root pr\n" +
                 "        ON a.ancestor_fact_id = pr.fact_id\n" +
                 "    WHERE a.fact_id NOT IN (SELECT * FROM triggers_and_ancestors)\n" +
-                "), facts AS (\n" +
-                "    DELETE\n" +
-                "    FROM fact f\n" +
-                "    USING targets t WHERE t.fact_id = f.fact_id\n" +
-                "    RETURNING f.fact_id\n" +
                 ")\n" +
-                "SELECT fact_id FROM facts\n";
+                "DELETE\n" +
+                "FROM fact\n" +
+                "WHERE fact_id IN (SELECT fact_id FROM targets)\n";
             return sql;
         }
     }
