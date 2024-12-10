@@ -42,6 +42,11 @@ namespace Jinaga
         /// If not provided, logging is disabled.
         /// </summary>
         public ILoggerFactory? LoggerFactory { get; set; }
+
+        /// <summary>
+        /// A set of conditions that determine whether a fact can be purged.
+        /// </summary>
+        public Func<PurgeConditions, PurgeConditions>? PurgeConditions { get; set; }
     }
 
     /// <summary>
@@ -154,7 +159,21 @@ namespace Jinaga
             INetwork network = options.HttpEndpoint == null
                 ? (INetwork)new LocalNetwork()
                 : new HttpNetwork(options.HttpEndpoint, options.HttpAuthenticationProvider, loggerFactory);
-            return new JinagaClient(store, network, loggerFactory);
+            var purgeConditions = CreatePurgeConditions(options);
+            return new JinagaClient(store, network, purgeConditions, loggerFactory);
+        }
+
+        private static ImmutableList<Specification> CreatePurgeConditions(JinagaClientOptions options)
+        {
+            if (options.PurgeConditions == null)
+            {
+                return ImmutableList<Specification>.Empty;
+            }
+            else
+            {
+                var purgeConditions = options.PurgeConditions(PurgeConditions.Empty);
+                return purgeConditions.Validate();
+            }
         }
 
         private readonly FactManager factManager;
@@ -185,7 +204,7 @@ namespace Jinaga
         /// <param name="store">A strategy to store facts locally</param>
         /// <param name="network">A strategy to communicate with a remote replicator</param>
         /// <param name="loggerFactory">A factory configured for logging</param>
-        public JinagaClient(IStore store, INetwork network, ILoggerFactory loggerFactory)
+        public JinagaClient(IStore store, INetwork network, ImmutableList<Specification> purgeConditions, ILoggerFactory loggerFactory)
         {
             networkManager = new NetworkManager(network, store, loggerFactory, async (graph, added, cancellationToken) =>
             {
@@ -194,7 +213,7 @@ namespace Jinaga
                     await factManager.NotifyObservers(graph, added, cancellationToken).ConfigureAwait(false);
                 }
             });
-            factManager = new FactManager(store, networkManager, loggerFactory);
+            factManager = new FactManager(store, networkManager, purgeConditions, loggerFactory);
             logger = loggerFactory.CreateLogger<JinagaClient>();
 
             Local = new LocalJinagaClient(factManager, loggerFactory);
@@ -905,6 +924,15 @@ namespace Jinaga
             Func<object, Task<Func<Task>>> onAdded = (object obj) => added((TProjection)obj);
             var observer = factManager.StartObserver(givenTuple, specification, onAdded, keepAlive: true);
             return observer;
+        }
+
+        /// <summary>
+        /// Remove all facts meeting the purge conditions.
+        /// </summary>
+        /// <returns>Resolves when finished</returns>
+        public async Task Purge()
+        {
+            await factManager.Purge().ConfigureAwait(false);
         }
 
         /// <summary>

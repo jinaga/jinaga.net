@@ -29,6 +29,11 @@ namespace Jinaga.Pipelines
             }
         }
 
+        public Subset Subtract(string name)
+        {
+            return new Subset(names.Remove(name));
+        }
+
         public FactReferenceTuple Of(Product product)
         {
             var result = names.Aggregate(

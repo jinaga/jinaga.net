@@ -3,7 +3,9 @@ using Jinaga.Products;
 using Jinaga.Projections;
 using Jinaga.Services;
 using Jinaga.Store.SQLite.Builder;
+using Jinaga.Store.SQLite.Description;
 using Jinaga.Store.SQLite.Generation;
+using Jinaga.Visualizers;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -491,6 +493,23 @@ namespace Jinaga.Store.SQLite
             return rolesResult;
         }
 
+        private IEnumerable<FactTypeFromDb> LoadFactTypesFromReferences(ImmutableList<FactReference> references)
+        {
+            //TODO: Now we load all factTypes from the DB.  Optimize by caching, and by adding only the factTypes appearing in the references
+            var factTypeResult = connFactory.WithConn(
+                    (conn, id) =>
+                    {
+                        string sql;
+                        sql = $@"
+                            SELECT fact_type_id , name 
+                            FROM fact_type
+                        ";
+                        return conn.ExecuteQuery<FactTypeFromDb>(sql);
+                    },
+                    true   //exponential backoff
+                );
+            return factTypeResult;
+        }
 
         private class FactTypeFromDb
         {
@@ -753,6 +772,245 @@ namespace Jinaga.Store.SQLite
             var envelopes = factsFromDb.Deserialize();
             var facts = envelopes.Select(envelope => envelope.Fact);
             return Task.FromResult(facts);
+        }
+
+        public Task Purge(ImmutableList<Specification> purgeConditions)
+        {
+            foreach (var specification in purgeConditions)
+            {
+                var label = specification.Givens.Single().Label;
+                var givenTuple = FactReferenceTuple.Empty
+                    .Add(label.Name, new FactReference(label.Type, "xxxx"));
+                var factTypes = LoadFactTypesFromSpecification(specification);
+                var factTypeMap = factTypes.Select(factType => KeyValuePair.Create(factType.name, factType.fact_type_id)).ToImmutableDictionary();
+                
+                var roles = LoadRolesFromSpecification(specification, factTypes);
+                var roleMap = roles
+                    .GroupBy(
+                        role => role.defining_fact_type_id, 
+                        role => KeyValuePair.Create(role.name, role.role_id)
+                    )
+                    .Select(
+                        pair => KeyValuePair.Create(pair.Key, pair.ToImmutableDictionary())
+                    )
+                    .ToImmutableDictionary();                                    
+
+                var descriptionBuilder = new ResultDescriptionBuilder(factTypeMap, roleMap);
+                
+                var description = descriptionBuilder.Build(givenTuple, specification);
+
+                if (!description.QueryDescription.IsSatisfiable())
+                {
+                    continue;
+                }
+
+                (string sql, ImmutableList<object> parameters) = PurgeSqlFromSpecification(description);
+                connFactory.WithConn((conn, i) =>
+                {
+                    return conn.ExecuteNonQuery(sql, parameters.ToArray());
+                });
+            }
+            return Task.CompletedTask;
+        }
+
+        private (string sql, ImmutableList<object> parameters) PurgeSqlFromSpecification(ResultDescription description)
+        {
+            var queryDescription = description.QueryDescription;
+            if (queryDescription.ExistentialConditions.Count > 0)
+            {
+                throw new ArgumentException("Purge conditions should not have existential conditions");
+            }
+
+            var columns = queryDescription.Outputs
+                .Select((label, index) => $"f{label.FactIndex}.fact_id as trigger{index + 1}")
+                .Join(", ");
+            var firstEdge = queryDescription.Edges.First();
+            var predecessorInput = queryDescription.Inputs.Find(input => input.FactIndex == firstEdge.PredecessorFactIndex);
+            var successorInput = queryDescription.Inputs.Find(input => input.FactIndex == firstEdge.SuccessorFactIndex);
+            var firstFactIndex = predecessorInput != null ? predecessorInput.FactIndex : successorInput.FactIndex;
+            var writtenFactIndexes = new HashSet<int> { firstFactIndex };
+            var joins = GenerateJoins(queryDescription.Edges, writtenFactIndexes);
+            var inputWhereClauses = queryDescription.Inputs
+                .Select(input => $"f{input.FactIndex}.fact_type_id = ?{input.FactTypeParameter}")
+                .Join(" AND ");
+
+            var triggerWhereClauses = queryDescription.Outputs
+                .Select((label, index) => $"a.fact_id = c2.trigger{index + 1}")
+                .Join("\n            OR ");
+            var triggerAncestorClauses = queryDescription.Outputs
+                .Select((label, index) =>
+                    $"    AND NOT EXISTS (\n" +
+                    $"        SELECT 1\n" +
+                    $"        FROM candidates c2\n" +
+                    $"        JOIN ancestor a2\n" +
+                    $"            ON a2.fact_id = c2.trigger{index + 1}\n" +
+                    $"        WHERE a.fact_id = a2.ancestor_fact_id\n" +
+                    $"    )\n"
+                )
+                .Join("");
+
+            var sql = $@"
+WITH candidates AS (
+    SELECT
+        f{firstFactIndex}.fact_id as purge_root,
+        {columns}
+    FROM fact f{firstFactIndex}
+    {joins.Join("")}
+    WHERE {inputWhereClauses}
+), targets AS (
+    SELECT a.fact_id
+    FROM ancestor a
+    JOIN candidates c ON c.purge_root = a.ancestor_fact_id
+    WHERE NOT EXISTS (
+        SELECT 1
+        FROM candidates c2
+        WHERE {triggerWhereClauses}
+    )
+    {triggerAncestorClauses}
+)
+DELETE
+FROM fact
+WHERE fact_id IN (SELECT fact_id FROM targets);";
+            var parameters = queryDescription.Parameters.RemoveAt(1);
+
+            return (sql, parameters);
+        }
+
+        private static ImmutableList<string> GenerateJoins(ImmutableList<EdgeDescription> edges, HashSet<int> writtenFactIndexes)
+        {
+            var joins = ImmutableList<string>.Empty;
+            var remainingEdges = edges;
+            while (remainingEdges.Count > 0)
+            {
+                // Find an edge for which either a predecessor or successor fact has been written.
+                var edgeIndex = remainingEdges.FindIndex(edge =>
+                    writtenFactIndexes.Contains(edge.PredecessorFactIndex) ||
+                    writtenFactIndexes.Contains(edge.SuccessorFactIndex)
+                );
+
+                // If no such edge exists, then the graph is not connected.
+                if (edgeIndex < 0)
+                {
+                    throw new ArgumentException("The specification is not connected");
+                }
+
+                // Write the edge.
+                var edge = remainingEdges[edgeIndex];
+                remainingEdges = remainingEdges.RemoveAt(edgeIndex);
+
+                if (writtenFactIndexes.Contains(edge.PredecessorFactIndex))
+                {
+                    if (writtenFactIndexes.Contains(edge.SuccessorFactIndex))
+                    {
+                        joins = joins.Add(
+                            $" JOIN edge e{edge.EdgeIndex}" +
+                            $" ON e{edge.EdgeIndex}.predecessor_fact_id = f{edge.PredecessorFactIndex}.fact_id" +
+                            $" AND e{edge.EdgeIndex}.successor_fact_id = f{edge.SuccessorFactIndex}.fact_id" +
+                            $" AND e{edge.EdgeIndex}.role_id = ?{edge.RoleParameter - 1}"
+                        );
+                    }
+                    else
+                    {
+                        joins = joins.Add(
+                            $" JOIN edge e{edge.EdgeIndex}" +
+                            $" ON e{edge.EdgeIndex}.predecessor_fact_id = f{edge.PredecessorFactIndex}.fact_id" +
+                            $" AND e{edge.EdgeIndex}.role_id = ?{edge.RoleParameter - 1}"
+                        );
+                        joins = joins.Add(
+                            $" JOIN fact f{edge.SuccessorFactIndex}" +
+                            $" ON f{edge.SuccessorFactIndex}.fact_id = e{edge.EdgeIndex}.successor_fact_id"
+                        );
+                        writtenFactIndexes.Add(edge.SuccessorFactIndex);
+                    }
+                }
+                else if (writtenFactIndexes.Contains(edge.SuccessorFactIndex))
+                {
+                    joins = joins.Add(
+                        $" JOIN edge e{edge.EdgeIndex}" +
+                        $" ON e{edge.EdgeIndex}.successor_fact_id = f{edge.SuccessorFactIndex}.fact_id" +
+                        $" AND e{edge.EdgeIndex}.role_id = ?{edge.RoleParameter - 1}"
+                    );
+                    joins = joins.Add(
+                        $" JOIN fact f{edge.PredecessorFactIndex}" +
+                        $" ON f{edge.PredecessorFactIndex}.fact_id = e{edge.EdgeIndex}.predecessor_fact_id"
+                    );
+                    writtenFactIndexes.Add(edge.PredecessorFactIndex);
+                }
+                else
+                {
+                    throw new ArgumentException("Neither predecessor nor successor fact has been written");
+                }
+            }
+            return joins;
+        }
+
+        public Task PurgeDescendants(FactReference purgeRoot, ImmutableList<FactReference> triggers)
+        {
+            var factTypes = LoadFactTypesFromReferences(new[] { purgeRoot }.Concat(triggers).ToImmutableList())
+                .ToImmutableDictionary(ft => ft.name, ft => ft.fact_type_id);
+            if (!factTypes.ContainsKey(purgeRoot.Type) || triggers.Any(t => !factTypes.ContainsKey(t.Type)))
+            {
+                return Task.CompletedTask;
+            }
+
+            var parameters = new List<object>
+            {
+                factTypes[purgeRoot.Type],
+                purgeRoot.Hash
+            };
+            parameters.AddRange(triggers.SelectMany(t => new object[] { factTypes[t.Type], t.Hash }));
+
+            var purgeCommand = PurgeDescendantsSql(triggers.Count);
+
+            connFactory.WithTxn(
+                (conn, id) =>
+                {
+                    conn.ExecuteNonQuery(purgeCommand, parameters.ToArray());
+                    return 0;
+                },
+                true
+            );
+
+            return Task.CompletedTask;
+        }
+
+        private string PurgeDescendantsSql(int triggerCount)
+        {
+            var whereClause = "    WHERE (t.fact_type_id = ?3 AND t.hash = ?4)\n";
+            for (int i = 1; i < triggerCount; i++)
+            {
+                whereClause += $"        OR (t.fact_type_id = ?{i * 2 + 3} AND t.hash = ?{i * 2 + 4})\n";
+            }
+
+            var sql =
+                "WITH purge_root AS (\n" +
+                "    SELECT pr.fact_id\n" +
+                "    FROM fact pr\n" +
+                "    WHERE pr.fact_type_id = ?1\n" +
+                "        AND pr.hash = ?2\n" +
+                "), triggers AS (\n" +
+                "    SELECT t.fact_id\n" +
+                "    FROM fact t\n" +
+                whereClause +
+                "), triggers_and_ancestors AS (\n" +
+                "    SELECT t.fact_id\n" +
+                "    FROM triggers t\n" +
+                "    UNION\n" +
+                "    SELECT a.ancestor_fact_id\n" +
+                "    FROM ancestor a\n" +
+                "    JOIN triggers t\n" +
+                "        ON a.fact_id = t.fact_id\n" +
+                "), targets AS (\n" +
+                "    SELECT a.fact_id\n" +
+                "    FROM ancestor a\n" +
+                "    JOIN purge_root pr\n" +
+                "        ON a.ancestor_fact_id = pr.fact_id\n" +
+                "    WHERE a.fact_id NOT IN (SELECT * FROM triggers_and_ancestors)\n" +
+                ")\n" +
+                "DELETE\n" +
+                "FROM fact\n" +
+                "WHERE fact_id IN (SELECT fact_id FROM targets)\n";
+            return sql;
         }
     }
 

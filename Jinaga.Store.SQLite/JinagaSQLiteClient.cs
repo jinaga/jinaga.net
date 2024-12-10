@@ -1,9 +1,11 @@
 ﻿using Jinaga.DefaultImplementations;
 using Jinaga.Http;
+using Jinaga.Projections;
 using Jinaga.Services;
 using Jinaga.Storage;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
+using System.Collections.Immutable;
 
 namespace Jinaga.Store.SQLite
 {
@@ -42,7 +44,21 @@ namespace Jinaga.Store.SQLite
             INetwork network = options.HttpEndpoint == null
                 ? (INetwork)new LocalNetwork()
                 : new HttpNetwork(options.HttpEndpoint, options.HttpAuthenticationProvider, loggerFactory);
-            return new JinagaClient(store, network, loggerFactory);
+            var purgeConditions = CreatePurgeConditions(options);
+            return new JinagaClient(store, network, purgeConditions, loggerFactory);
+        }
+
+        private static ImmutableList<Specification> CreatePurgeConditions(JinagaClientOptions options)
+        {
+            if (options.PurgeConditions == null)
+            {
+                return ImmutableList<Specification>.Empty;
+            }
+            else
+            {
+                var purgeConditions = options.PurgeConditions(PurgeConditions.Empty);
+                return purgeConditions.Validate();
+            }
         }
     }
 }
