@@ -500,12 +500,7 @@ namespace Jinaga.Store.SQLite
             table = @"CREATE TABLE IF NOT EXISTS main.outbound_queue (
                             queue_id INTEGER NOT NULL PRIMARY KEY,
                             fact_id INTEGER NOT NULL,
-                            fact_type_id INTEGER NOT NULL,
-                            hash TEXT,
-                            data TEXT,
-                            date_learned TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                            public_key TEXT,
-                            signature TEXT
+                            graph_data TEXT NOT NULL
                         )";
             conn.ExecuteNonQuery(table);
 

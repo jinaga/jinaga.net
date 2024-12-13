@@ -101,13 +101,15 @@ namespace Jinaga.Store.SQLite
                                     factId = conn.ExecuteScalar(sql, envelope.Fact.Reference.Hash, factTypeId);
 
                                     // Insert into the outbound_queue table
-                                    sql = @"
-                                        INSERT INTO outbound_queue (fact_id, fact_type_id, hash, data, public_key, signature) 
-                                        VALUES (@0, @1, @2, @3, @4, @5)
-                                    ";
-                                    foreach (var signature in envelope.Signatures)
+                                    if (queue)
                                     {
-                                        conn.ExecuteNonQuery(sql, factId, factTypeId, envelope.Fact.Reference.Hash, data, signature.PublicKey, signature.Signature);
+                                        var graphToQueue = graph.GetSubgraph(factReference);
+                                        string graphData = JsonSerializer.Serialize(graphToQueue);
+                                        sql = @"
+                                            INSERT INTO outbound_queue (fact_id, graph_data) 
+                                            VALUES (@0, @1)
+                                        ";
+                                        conn.ExecuteNonQuery(sql, factId, graphData);
                                     }
 
                                     // For each predecessor of the inserted fact ...
@@ -659,42 +661,122 @@ namespace Jinaga.Store.SQLite
 
         public Task<QueuedFacts> GetQueue()
         {
-            // Load the facts from the outbound_queue table.
-            var factsFromDb = connFactory.WithConn(
+            // Load the graphs from the outbound_queue table.
+            var graphsFromDb = connFactory.WithConn(
                 (conn, id) =>
                 {
                     string sql;
                     sql = $@"
-                        SELECT q.fact_id, q.hash, q.data, t.name, q.public_key, q.signature
+                        SELECT q.fact_id, q.graph_data
                         FROM outbound_queue q
-                        JOIN fact_type t
-                            ON q.fact_type_id = t.fact_type_id
                         ORDER BY q.queue_id
                     ";
-                    return conn.ExecuteQuery<FactWithIdAndSignatureFromDb>(sql);
+                    return conn.ExecuteQuery<GraphFromDb>(sql);
                 },
                 true
             );
 
-            // Convert the fact records to facts.
-            var envelopes = factsFromDb.Deserialize();
-            var graphBuilder = new FactGraphBuilder();
-            foreach (FactEnvelope envelope in envelopes)
-            {
-                graphBuilder.Add(envelope);
-            }
-            var graph = graphBuilder.Build();
+            // Convert the graph records to FactGraph objects.
+            var factGraphs = graphsFromDb.Select(g => DeserializeFactGraph(g.graph_data)).ToImmutableList();
 
-            // If there are facts, then the next bookmark is the largest fact ID.
+            // If there are graphs, then the next bookmark is the largest fact ID.
             int lastFactId = 0;
-            if (graph.FactReferences.Count > 0)
+            if (factGraphs.Count > 0)
             {
-                lastFactId = factsFromDb.Max(f => f.fact_id);
+                lastFactId = graphsFromDb.Max(g => g.fact_id);
             }
 
-            // Return the facts and the next bookmark.
-            logger.LogTrace("SQLite read {count} queued facts", graph.FactReferences.Count);
-            return Task.FromResult(new QueuedFacts(graph, lastFactId.ToString()));
+            // Merge the graphs.
+            var mergedGraph = FactGraph.Empty;
+            foreach (var graph in factGraphs)
+            {
+                mergedGraph = mergedGraph.Merge(graph);
+            }
+
+            // Return the graphs and the next bookmark.
+            logger.LogTrace("SQLite read {count} queued graphs", factGraphs.Count);
+            return Task.FromResult(new QueuedFacts(mergedGraph, lastFactId.ToString()));
+        }
+
+        private FactGraph DeserializeFactGraph(string json)
+        {
+            var envelopes = new List<FactEnvelope>();
+            using (JsonDocument document = JsonDocument.Parse(json))
+            {
+                foreach (var element in document.RootElement.EnumerateArray())
+                {
+                    var factElement = element.GetProperty("fact");
+                    var fields = DeserializeFields(factElement.GetProperty("fields"));
+                    var predecessors = DeserializePredecessors(factElement.GetProperty("predecessors"));
+                    var fact = Fact.Create(factElement.GetProperty("type").GetString(), fields, predecessors);
+
+                    var signatures = element.GetProperty("signatures")
+                        .EnumerateArray()
+                        .Select(s => new FactSignature(s.GetProperty("publicKey").GetString(), s.GetProperty("signature").GetString()))
+                        .ToImmutableList();
+
+                    envelopes.Add(new FactEnvelope(fact, signatures));
+                }
+            }
+
+            var builder = new FactGraphBuilder();
+            foreach (var envelope in envelopes)
+            {
+                builder.Add(envelope);
+            }
+            return builder.Build();
+        }
+
+        private ImmutableList<Field> DeserializeFields(JsonElement fieldsElement)
+        {
+            var fields = ImmutableList<Field>.Empty;
+            foreach (var field in fieldsElement.EnumerateObject())
+            {
+                switch (field.Value.ValueKind)
+                {
+                    case JsonValueKind.String:
+                        fields = fields.Add(new Field(field.Name, new FieldValueString(field.Value.GetString())));
+                        break;
+                    case JsonValueKind.Number:
+                        fields = fields.Add(new Field(field.Name, new FieldValueNumber(field.Value.GetDouble())));
+                        break;
+                    case JsonValueKind.True:
+                    case JsonValueKind.False:
+                        fields = fields.Add(new Field(field.Name, new FieldValueBoolean(field.Value.GetBoolean())));
+                        break;
+                    case JsonValueKind.Null:
+                        fields = fields.Add(new Field(field.Name, FieldValue.Null));
+                        break;
+                }
+            }
+            return fields;
+        }
+
+        private ImmutableList<Predecessor> DeserializePredecessors(JsonElement predecessorsElement)
+        {
+            var predecessors = ImmutableList<Predecessor>.Empty;
+            foreach (var predecessor in predecessorsElement.EnumerateObject())
+            {
+                switch (predecessor.Value.ValueKind)
+                {
+                    case JsonValueKind.Object:
+                        var hash = predecessor.Value.GetProperty("hash").GetString();
+                        var type = predecessor.Value.GetProperty("type").GetString();
+                        predecessors = predecessors.Add(new PredecessorSingle(predecessor.Name, new FactReference(type, hash)));
+                        break;
+                    case JsonValueKind.Array:
+                        var factReferences = ImmutableList<FactReference>.Empty;
+                        foreach (var factReference in predecessor.Value.EnumerateArray())
+                        {
+                            hash = factReference.GetProperty("hash").GetString();
+                            type = factReference.GetProperty("type").GetString();
+                            factReferences = factReferences.Add(new FactReference(type, hash));
+                        }
+                        predecessors = predecessors.Add(new PredecessorMultiple(predecessor.Name, factReferences));
+                        break;
+                }
+            }
+            return predecessors;
         }
 
         public Task SetQueueBookmark(string bookmark)
@@ -745,6 +827,12 @@ namespace Jinaga.Store.SQLite
         {
             public string hash { get; set; }
             public string name { get; set; }
+        }
+
+        public class GraphFromDb
+        {
+            public int fact_id { get; set; }
+            public string graph_data { get; set; }
         }
 
         public Task<IEnumerable<Fact>> GetAllFacts()
