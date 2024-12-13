@@ -100,6 +100,16 @@ namespace Jinaga.Store.SQLite
                                     ";
                                     factId = conn.ExecuteScalar(sql, envelope.Fact.Reference.Hash, factTypeId);
 
+                                    // Insert into the outbound_queue table
+                                    sql = @"
+                                        INSERT INTO outbound_queue (fact_id, fact_type_id, hash, data, public_key, signature) 
+                                        VALUES (@0, @1, @2, @3, @4, @5)
+                                    ";
+                                    foreach (var signature in envelope.Signatures)
+                                    {
+                                        conn.ExecuteNonQuery(sql, factId, factTypeId, envelope.Fact.Reference.Hash, data, signature.PublicKey, signature.Signature);
+                                    }
+
                                     // For each predecessor of the inserted fact ...
                                     foreach (var predecessor in envelope.Fact.Predecessors)
                                     {
@@ -145,7 +155,10 @@ namespace Jinaga.Store.SQLite
                                             default:
                                                 break;
                                         }
-                                    };
+                                    }
+
+                                    // Insert ancestors into the outbound_queue table
+                                    InsertAncestorsIntoQueue(conn, factId);
                                 }
 
                                 foreach (var signature in envelope.Signatures)
@@ -191,6 +204,27 @@ namespace Jinaga.Store.SQLite
 
         }
 
+        private void InsertAncestorsIntoQueue(ConnectionFactory.Conn conn, string factId)
+        {
+            string sql = @"
+                INSERT INTO outbound_queue (fact_id, fact_type_id, hash, data, public_key, signature)
+                SELECT f.fact_id, f.fact_type_id, f.hash, f.data, s.public_key, s.signature
+                FROM ancestor a
+                JOIN fact f
+                    ON f.fact_id = a.ancestor_fact_id
+                LEFT JOIN signature s
+                    ON s.fact_id = f.fact_id
+                LEFT JOIN public_key p
+                    ON p.public_key_id = s.public_key_id
+                WHERE a.fact_id = @0
+                AND NOT EXISTS (
+                    SELECT 1
+                    FROM outbound_queue q
+                    WHERE q.fact_id = f.fact_id
+                )
+            ";
+            conn.ExecuteNonQuery(sql, factId);
+        }
 
         private string getFactId(ConnectionFactory.Conn conn, FactReference factReference)
         {
@@ -625,60 +659,17 @@ namespace Jinaga.Store.SQLite
 
         public Task<QueuedFacts> GetQueue()
         {
-            // Load the current bookmark from the bookmark table.
-            string bookmark = connFactory.WithConn(
-                (conn, id) =>
-                {
-                    string sql;
-                    sql = $@"
-                        SELECT bookmark
-                        FROM queue_bookmark
-                        WHERE replicator = 'primary'
-                    ";
-                    return conn.ExecuteScalar(sql);
-                },
-                true
-            );
-
-            // Interpret the bookmark as a fact ID.
-            if (!int.TryParse(bookmark, out int lastFactId))
-                lastFactId = 0;
-
-            // Load the facts from the fact table.
+            // Load the facts from the outbound_queue table.
             var factsFromDb = connFactory.WithConn(
                 (conn, id) =>
                 {
                     string sql;
                     sql = $@"
-                        SELECT f.fact_id, f.hash, f.data, t.name, p.public_key, s.signature
-                        FROM fact f
+                        SELECT q.fact_id, q.hash, q.data, t.name, q.public_key, q.signature
+                        FROM outbound_queue q
                         JOIN fact_type t
-                            ON f.fact_type_id = t.fact_type_id
-                        LEFT JOIN signature s
-                            ON s.fact_id = f.fact_id
-                        LEFT JOIN public_key p
-                            ON p.public_key_id = s.public_key_id
-                        WHERE f.fact_id > {lastFactId}
-                            AND queued = 1
-
-                        UNION
-
-                        SELECT f2.fact_id, f2.hash, f2.data, t2.name, p.public_key, s.signature
-                        FROM fact f1
-                        JOIN ancestor a 
-                            ON a.fact_id = f1.fact_id 
-                        JOIN fact f2 
-                            ON f2.fact_id = a.ancestor_fact_id 
-                        JOIN fact_type t2 
-                            ON t2.fact_type_id = f2.fact_type_id
-                        LEFT JOIN signature s
-                            ON s.fact_id = f2.fact_id
-                        LEFT JOIN public_key p
-                            ON p.public_key_id = s.public_key_id
-                        WHERE f1.fact_id > {lastFactId}
-                            AND f1.queued = 1
-
-                        ORDER BY 1
+                            ON q.fact_type_id = t.fact_type_id
+                        ORDER BY q.queue_id
                     ";
                     return conn.ExecuteQuery<FactWithIdAndSignatureFromDb>(sql);
                 },
@@ -695,6 +686,7 @@ namespace Jinaga.Store.SQLite
             var graph = graphBuilder.Build();
 
             // If there are facts, then the next bookmark is the largest fact ID.
+            int lastFactId = 0;
             if (graph.FactReferences.Count > 0)
             {
                 lastFactId = factsFromDb.Max(f => f.fact_id);
@@ -707,16 +699,23 @@ namespace Jinaga.Store.SQLite
 
         public Task SetQueueBookmark(string bookmark)
         {
-            // Save the bookmark to the bookmark table.
+            // Delete rows from the outbound_queue table where fact_id is less than or equal to the new bookmark.
             connFactory.WithTxn(
                 (conn, id) =>
                 {
                     string sql;
-                    sql = $@"
-                        INSERT OR REPLACE INTO queue_bookmark (replicator, bookmark)                        
-                        VALUES  ('primary', '{bookmark}' )
-                    ";
-                    return conn.ExecuteNonQuery(sql);
+
+                    // Delete rows from the outbound_queue table where fact_id is less than or equal to the new bookmark.
+                    if (int.TryParse(bookmark, out int lastFactId))
+                    {
+                        sql = $@"
+                            DELETE FROM outbound_queue
+                            WHERE fact_id <= {lastFactId}
+                        ";
+                        conn.ExecuteNonQuery(sql);
+                    }
+
+                    return 0;
                 },
                 true
             );

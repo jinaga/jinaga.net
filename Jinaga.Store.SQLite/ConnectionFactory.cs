@@ -6,8 +6,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-
-
 namespace Jinaga.Store.SQLite
 {
 
@@ -498,14 +496,47 @@ namespace Jinaga.Store.SQLite
                             )";
             conn.ExecuteNonQuery(table);
 
-            //QueueBookmark
-            table = @"CREATE TABLE IF NOT EXISTS main.queue_bookmark (
-                                replicator TEXT NOT NULL PRIMARY KEY,
-                                bookmark TEXT                           
-                            )";
+            //OutboundQueue
+            table = @"CREATE TABLE IF NOT EXISTS main.outbound_queue (
+                            queue_id INTEGER NOT NULL PRIMARY KEY,
+                            fact_id INTEGER NOT NULL,
+                            fact_type_id INTEGER NOT NULL,
+                            hash TEXT,
+                            data TEXT,
+                            date_learned TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            public_key TEXT,
+                            signature TEXT
+                        )";
             conn.ExecuteNonQuery(table);
 
+            // Check if the queued column exists in the fact table.
+            sql = @"PRAGMA table_info(fact)";
+            columns = conn.ExecuteQueryRaw(sql);
+            if (columns.Any(column => column["name"] == "queued"))
+            {
+                // Retrieve the current bookmark from the queue_bookmark table.
+                string bookmarkSql = @"SELECT bookmark FROM queue_bookmark WHERE replicator = 'primary'";
+                string bookmark = conn.ExecuteScalar(bookmarkSql);
+                if (!int.TryParse(bookmark, out int lastFactId))
+                    lastFactId = 0;
 
+                // Copy queued facts to the outbound_queue table where fact_id is greater than the bookmark.
+                string copySql = $@"
+                    INSERT INTO outbound_queue (fact_id, fact_type_id, hash, data, date_learned)
+                    SELECT fact_id, fact_type_id, hash, data, date_learned
+                    FROM fact
+                    WHERE queued = 1 AND fact_id > {lastFactId}
+                ";
+                conn.ExecuteNonQuery(copySql);
+
+                // Remove the queued column from the fact table.
+                sql = @"ALTER TABLE fact DROP COLUMN queued";
+                conn.ExecuteNonQuery(sql);
+
+                // Drop the queue_bookmark table as it is no longer needed.
+                sql = @"DROP TABLE IF EXISTS queue_bookmark";
+                conn.ExecuteNonQuery(sql);
+            }
         }
     }
 }
