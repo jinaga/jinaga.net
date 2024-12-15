@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Jinaga.Facts;
 
 namespace Jinaga.Store.SQLite
 {
@@ -509,6 +510,11 @@ namespace Jinaga.Store.SQLite
             columns = conn.ExecuteQueryRaw(sql);
             if (columns.Any(column => column["name"] == "queued"))
             {
+                FactGraph queuedGraph = LoadFactGraphFromQueueBookmark(conn);
+                if (queuedGraph != null)
+                {
+                    SaveFactGraphToOutboundQueue(conn, queuedGraph);
+                }
                 // Retrieve the current bookmark from the queue_bookmark table.
                 string bookmarkSql = @"SELECT bookmark FROM queue_bookmark WHERE replicator = 'primary'";
                 string bookmark = conn.ExecuteScalar(bookmarkSql);
@@ -532,6 +538,16 @@ namespace Jinaga.Store.SQLite
                 sql = @"DROP TABLE IF EXISTS queue_bookmark";
                 conn.ExecuteNonQuery(sql);
             }
+        }
+
+        private FactGraph LoadFactGraphFromQueueBookmark(Conn conn)
+        {
+            throw new NotImplementedException();
+        }
+
+        private void SaveFactGraphToOutboundQueue(Conn conn, FactGraph queuedGraph)
+        {
+            throw new NotImplementedException();
         }
     }
 }
