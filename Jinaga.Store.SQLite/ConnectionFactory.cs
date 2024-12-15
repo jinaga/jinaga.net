@@ -3,9 +3,11 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Jinaga.Facts;
+using Jinaga.Services;
 
 namespace Jinaga.Store.SQLite
 {
@@ -510,10 +512,10 @@ namespace Jinaga.Store.SQLite
             columns = conn.ExecuteQueryRaw(sql);
             if (columns.Any(column => column["name"] == "queued"))
             {
-                FactGraph queuedGraph = LoadFactGraphFromQueueBookmark(conn);
-                if (queuedGraph != null)
+                var queuedGraph = LoadFactGraphsFromQueueBookmark(conn);
+                if (queuedGraph.Any())
                 {
-                    SaveFactGraphToOutboundQueue(conn, queuedGraph);
+                    SaveFactGraphsToOutboundQueue(conn, queuedGraph);
                 }
                 // Retrieve the current bookmark from the queue_bookmark table.
                 string bookmarkSql = @"SELECT bookmark FROM queue_bookmark WHERE replicator = 'primary'";
@@ -540,14 +542,229 @@ namespace Jinaga.Store.SQLite
             }
         }
 
-        private FactGraph LoadFactGraphFromQueueBookmark(Conn conn)
+        private List<QueuedFacts> LoadFactGraphsFromQueueBookmark(Conn conn)
+        {
+            // Load the current bookmark from the bookmark table.
+            string bookmark = WithConn(
+                (conn, id) =>
+                {
+                    string sql;
+                    sql = $@"
+                        SELECT bookmark
+                        FROM queue_bookmark
+                        WHERE replicator = 'primary'
+                    ";
+                    return conn.ExecuteScalar(sql);
+                },
+                true
+            );
+
+            // Interpret the bookmark as a fact ID.
+            if (!int.TryParse(bookmark, out int lastFactId))
+                lastFactId = 0;
+
+            // Load the facts from the fact table.
+            var factsFromDb = WithConn(
+                (conn, id) =>
+                {
+                    string sql;
+                    sql = $@"
+                        SELECT f.fact_id as bookmark, f.fact_id, f.hash, f.data, t.name, p.public_key, s.signature
+                        FROM fact f
+                        JOIN fact_type t
+                            ON f.fact_type_id = t.fact_type_id
+                        LEFT JOIN signature s
+                            ON s.fact_id = f.fact_id
+                        LEFT JOIN public_key p
+                            ON p.public_key_id = s.public_key_id
+                        WHERE f.fact_id > {lastFactId}
+                            AND queued = 1
+
+                        UNION
+
+                        SELECT f1.fact_id as bookmark, f2.fact_id, f2.hash, f2.data, t2.name, p.public_key, s.signature
+                        FROM fact f1
+                        JOIN ancestor a 
+                            ON a.fact_id = f1.fact_id 
+                        JOIN fact f2 
+                            ON f2.fact_id = a.ancestor_fact_id 
+                        JOIN fact_type t2 
+                            ON t2.fact_type_id = f2.fact_type_id
+                        LEFT JOIN signature s
+                            ON s.fact_id = f2.fact_id
+                        LEFT JOIN public_key p
+                            ON p.public_key_id = s.public_key_id
+                        WHERE f1.fact_id > {lastFactId}
+                            AND f1.queued = 1
+
+                        ORDER BY 1, 2
+                    ";
+                    return conn.ExecuteQuery<FactWithBookmarkIdAndSignatureFromDb>(sql);
+                },
+                true
+            );
+
+            // Produce a graph for each bookmark.
+            var graphs = new List<QueuedFacts>();
+            FactGraphBuilder graphBuilder = null;
+            int lastBookmark = 0;
+            foreach (var fact in factsFromDb)
+            {
+                if (lastBookmark != fact.bookmark)
+                {
+                    if (graphBuilder != null)
+                    {
+                        graphs.Add(new QueuedFacts(graphBuilder.Build(), lastBookmark.ToString()));
+                    }
+                    graphBuilder = new FactGraphBuilder();
+                    lastBookmark = fact.bookmark;
+                }
+                var envelope = MyExtensions.LoadEnvelope(fact);
+                graphBuilder.Add(envelope);
+            }
+            if (graphBuilder != null)
+            {
+                graphs.Add(new QueuedFacts(graphBuilder.Build(), lastBookmark.ToString()));
+            }
+            return graphs;
+        }
+
+        private void SaveFactGraphsToOutboundQueue(Conn conn, List<QueuedFacts> queuedGraph)
         {
             throw new NotImplementedException();
         }
 
-        private void SaveFactGraphToOutboundQueue(Conn conn, FactGraph queuedGraph)
+        public class FactFromDb
         {
-            throw new NotImplementedException();
+            public string hash { get; set; }
+            public string data { get; set; }
+            public string name { get; set; }
+        }
+
+        public class FactWithIdFromDb : FactFromDb
+        {
+            public int fact_id { get; set; }
+        }
+
+        public class FactWithIdAndSignatureFromDb : FactWithIdFromDb
+        {
+            public string public_key { get; set; }
+            public string signature { get; set; }
+        }
+
+        public class FactWithBookmarkIdAndSignatureFromDb : FactWithIdAndSignatureFromDb
+        {
+            public int bookmark { get; set; }
+        }
+
+        public class ReferenceFromDb
+        {
+            public string hash { get; set; }
+            public string name { get; set; }
+        }
+
+        public class GraphFromDb
+        {
+            public int fact_id { get; set; }
+            public string graph_data { get; set; }
+        }
+    }
+
+    internal static class MyExtensions
+    {
+        public static IEnumerable<FactEnvelope> Deserialize(this IEnumerable<ConnectionFactory.FactWithIdAndSignatureFromDb> factsFromDb) 
+        {
+            FactEnvelope envelope = null;
+            int factId = 0;
+            foreach (var FactFromDb in factsFromDb)
+            {
+                if (factId != 0 && factId != FactFromDb.fact_id)
+                {
+                    // We've reached a new fact. Return the previous one.
+                    yield return envelope;
+                    envelope = null;
+                    factId = 0;
+                }
+
+                if (envelope == null)
+                {
+                    envelope = LoadEnvelope(FactFromDb);
+                    factId = FactFromDb.fact_id;
+                }
+
+                // Add the signature to the envelope.
+                if (FactFromDb.public_key != null)
+                {
+                    var signature = new FactSignature(FactFromDb.public_key, FactFromDb.signature);
+                    envelope = envelope.AddSignature(signature);
+                }
+            }
+            if (envelope != null)
+            {
+                yield return envelope;
+            }
+        }
+
+        public static FactEnvelope LoadEnvelope(ConnectionFactory.FactWithIdAndSignatureFromDb FactFromDb)
+        {
+            FactEnvelope envelope;
+            ImmutableList<Field> fields = ImmutableList<Field>.Empty;
+            ImmutableList<Predecessor> predecessors = ImmutableList<Predecessor>.Empty;
+
+            using (JsonDocument document = JsonDocument.Parse(FactFromDb.data))
+            {
+                JsonElement root = document.RootElement;
+
+                JsonElement fieldsElement = root.GetProperty("fields");
+                foreach (var field in fieldsElement.EnumerateObject())
+                {
+                    switch (field.Value.ValueKind)
+                    {
+                        case JsonValueKind.String:
+                            fields = fields.Add(new Field(field.Name, new FieldValueString(field.Value.GetString())));
+                            break;
+                        case JsonValueKind.Number:
+                            fields = fields.Add(new Field(field.Name, new FieldValueNumber(field.Value.GetDouble())));
+                            break;
+                        case JsonValueKind.True:
+                        case JsonValueKind.False:
+                            fields = fields.Add(new Field(field.Name, new FieldValueBoolean(field.Value.GetBoolean())));
+                            break;
+                        case JsonValueKind.Null:
+                            fields = fields.Add(new Field(field.Name, FieldValue.Null));
+                            break;
+                    }
+                }
+
+                string hash;
+                string type;
+                JsonElement predecessorsElement = root.GetProperty("predecessors");
+                foreach (var predecessor in predecessorsElement.EnumerateObject())
+                {
+                    switch (predecessor.Value.ValueKind)
+                    {
+                        case JsonValueKind.Object:
+                            hash = predecessor.Value.GetProperty("hash").GetString();
+                            type = predecessor.Value.GetProperty("type").GetString();
+                            predecessors = predecessors.Add(new PredecessorSingle(predecessor.Name, new FactReference(type, hash)));
+                            break;
+                        case JsonValueKind.Array:
+                            ImmutableList<FactReference> factReferences = ImmutableList<FactReference>.Empty;
+                            foreach (var factReference in predecessor.Value.EnumerateArray())
+                            {
+                                hash = factReference.GetProperty("hash").GetString();
+                                type = factReference.GetProperty("type").GetString();
+                                factReferences = factReferences.Add(new FactReference(type, hash));
+                            }
+                            predecessors = predecessors.Add(new PredecessorMultiple(predecessor.Name, factReferences));
+                            break;
+                    }
+                }
+            }
+
+            var fact = Fact.Create(FactFromDb.name, fields, predecessors);
+            envelope = new FactEnvelope(fact, ImmutableList<FactSignature>.Empty);
+            return envelope;
         }
     }
 }

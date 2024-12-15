@@ -1,4 +1,4 @@
-﻿using Jinaga.Facts;
+using Jinaga.Facts;
 using Jinaga.Products;
 using Jinaga.Projections;
 using Jinaga.Services;
@@ -16,7 +16,6 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using static Jinaga.Store.SQLite.SQLiteStore;
 
 namespace Jinaga.Store.SQLite
 {
@@ -342,7 +341,7 @@ namespace Jinaga.Store.SQLite
                                     ON p.public_key_id = s.public_key_id
                             ";
 
-                            return conn.ExecuteQuery<FactWithIdAndSignatureFromDb>(sql, parameters.ToArray());
+                            return conn.ExecuteQuery<ConnectionFactory.FactWithIdAndSignatureFromDb>(sql, parameters.ToArray());
                         },
                     true   //exponential backoff
                 );
@@ -385,7 +384,7 @@ namespace Jinaga.Store.SQLite
                                     IN (VALUES {String.Join(",", referenceValues)} )
                             ";
 
-                        return conn.ExecuteQuery<ReferenceFromDb>(sql);
+                        return conn.ExecuteQuery<ConnectionFactory.ReferenceFromDb>(sql);
                     },
                     true   //exponential backoff
                 );
@@ -671,7 +670,7 @@ namespace Jinaga.Store.SQLite
                         FROM outbound_queue q
                         ORDER BY q.queue_id
                     ";
-                    return conn.ExecuteQuery<GraphFromDb>(sql);
+                    return conn.ExecuteQuery<ConnectionFactory.GraphFromDb>(sql);
                 },
                 true
             );
@@ -805,36 +804,6 @@ namespace Jinaga.Store.SQLite
             return Task.CompletedTask;
         }
 
-        public class FactFromDb
-        {
-            public string hash { get; set; }
-            public string data { get; set; }
-            public string name { get; set; }
-        }
-
-        public class FactWithIdFromDb : FactFromDb
-        {
-            public int fact_id { get; set; }
-        }
-
-        public class FactWithIdAndSignatureFromDb : FactWithIdFromDb
-        {
-            public string public_key { get; set; }
-            public string signature { get; set; }
-        }
-
-        public class ReferenceFromDb
-        {
-            public string hash { get; set; }
-            public string name { get; set; }
-        }
-
-        public class GraphFromDb
-        {
-            public int fact_id { get; set; }
-            public string graph_data { get; set; }
-        }
-
         public Task<IEnumerable<Fact>> GetAllFacts()
         {
             var factsFromDb = connFactory.WithConn(
@@ -851,7 +820,7 @@ namespace Jinaga.Store.SQLite
                         LEFT JOIN public_key p
                             ON p.public_key_id = s.public_key_id
                     ";
-                    return conn.ExecuteQuery<FactWithIdAndSignatureFromDb>(sql);
+                    return conn.ExecuteQuery<ConnectionFactory.FactWithIdAndSignatureFromDb>(sql);
                 },
                 true
             );
@@ -1100,98 +1069,4 @@ WHERE fact_id IN (SELECT fact_id FROM targets);";
             return sql;
         }
     }
-
-
-    public static class MyExtensions
-    {
-
-        public static IEnumerable<FactEnvelope> Deserialize(this IEnumerable<FactWithIdAndSignatureFromDb> factsFromDb) 
-        {
-            FactEnvelope envelope = null;
-            int factId = 0;
-            foreach (var FactFromDb in factsFromDb)
-            {
-                if (factId != 0 && factId != FactFromDb.fact_id)
-                {
-                    // We've reached a new fact. Return the previous one.
-                    yield return envelope;
-                    envelope = null;
-                    factId = 0;
-                }
-
-                if (envelope == null)
-                {
-                    ImmutableList<Field> fields = ImmutableList<Field>.Empty;
-                    ImmutableList<Predecessor> predecessors = ImmutableList<Predecessor>.Empty;
-
-                    using (JsonDocument document = JsonDocument.Parse(FactFromDb.data))
-                    {
-                        JsonElement root = document.RootElement;
-
-                        JsonElement fieldsElement = root.GetProperty("fields");
-                        foreach (var field in fieldsElement.EnumerateObject())
-                        {
-                            switch (field.Value.ValueKind)
-                            {
-                                case JsonValueKind.String:
-                                    fields = fields.Add(new Field(field.Name, new FieldValueString(field.Value.GetString())));
-                                    break;
-                                case JsonValueKind.Number:
-                                    fields = fields.Add(new Field(field.Name, new FieldValueNumber(field.Value.GetDouble())));
-                                    break;
-                                case JsonValueKind.True:
-                                case JsonValueKind.False:
-                                    fields = fields.Add(new Field(field.Name, new FieldValueBoolean(field.Value.GetBoolean())));
-                                    break;
-                                case JsonValueKind.Null:
-                                    fields = fields.Add(new Field(field.Name, FieldValue.Null));
-                                    break;
-                            }
-                        }
-
-                        string hash;
-                        string type;
-                        JsonElement predecessorsElement = root.GetProperty("predecessors");
-                        foreach (var predecessor in predecessorsElement.EnumerateObject())
-                        {
-                            switch (predecessor.Value.ValueKind)
-                            {
-                                case JsonValueKind.Object:
-                                    hash = predecessor.Value.GetProperty("hash").GetString();
-                                    type = predecessor.Value.GetProperty("type").GetString();
-                                    predecessors = predecessors.Add(new PredecessorSingle(predecessor.Name, new FactReference(type, hash)));
-                                    break;
-                                case JsonValueKind.Array:
-                                    ImmutableList<FactReference> factReferences = ImmutableList<FactReference>.Empty;
-                                    foreach (var factReference in predecessor.Value.EnumerateArray())
-                                    {
-                                        hash = factReference.GetProperty("hash").GetString();
-                                        type = factReference.GetProperty("type").GetString();
-                                        factReferences = factReferences.Add(new FactReference(type, hash));
-                                    }
-                                    predecessors = predecessors.Add(new PredecessorMultiple(predecessor.Name, factReferences));
-                                    break;
-                            }
-                        }
-                    }
-
-                    var fact = Fact.Create(FactFromDb.name, fields, predecessors);
-                    envelope = new FactEnvelope(fact, ImmutableList<FactSignature>.Empty);
-                    factId = FactFromDb.fact_id;
-                }
-
-                // Add the signature to the envelope.
-                if (FactFromDb.public_key != null)
-                {
-                    var signature = new FactSignature(FactFromDb.public_key, FactFromDb.signature);
-                    envelope = envelope.AddSignature(signature);
-                }
-            }
-            if (envelope != null)
-            {
-                yield return envelope;
-            }
-        }
-    }
-
 }
