@@ -3,6 +3,7 @@ using Jinaga.Products;
 using Jinaga.Projections;
 using Jinaga.Services;
 using Jinaga.Store.SQLite.Builder;
+using Jinaga.Store.SQLite.Database;
 using Jinaga.Store.SQLite.Description;
 using Jinaga.Store.SQLite.Generation;
 using Jinaga.Visualizers;
@@ -205,7 +206,7 @@ namespace Jinaga.Store.SQLite
 
         }
 
-        private void InsertAncestorsIntoQueue(ConnectionFactory.Conn conn, string factId)
+        private void InsertAncestorsIntoQueue(Conn conn, string factId)
         {
             string sql = @"
                 INSERT INTO outbound_queue (fact_id, fact_type_id, hash, data, public_key, signature)
@@ -227,7 +228,7 @@ namespace Jinaga.Store.SQLite
             conn.ExecuteNonQuery(sql, factId);
         }
 
-        private string getFactId(ConnectionFactory.Conn conn, FactReference factReference)
+        private string getFactId(Conn conn, FactReference factReference)
         {
             string sql;
 
@@ -247,7 +248,7 @@ namespace Jinaga.Store.SQLite
         }
 
 
-        private void InsertAncestors(ConnectionFactory.Conn conn, string factId, string predecessorFactId)
+        private void InsertAncestors(Conn conn, string factId, string predecessorFactId)
         {
             string sql;
 
@@ -264,7 +265,7 @@ namespace Jinaga.Store.SQLite
         }
 
 
-        private void InsertEdge(ConnectionFactory.Conn conn, string roleId, string successorFactId, string predecessorFactId)
+        private void InsertEdge(Conn conn, string roleId, string successorFactId, string predecessorFactId)
         {
             string sql;
 
@@ -341,7 +342,7 @@ namespace Jinaga.Store.SQLite
                                     ON p.public_key_id = s.public_key_id
                             ";
 
-                            return conn.ExecuteQuery<ConnectionFactory.FactWithIdAndSignatureFromDb>(sql, parameters.ToArray());
+                            return conn.ExecuteQuery<FactWithIdAndSignatureFromDb>(sql, parameters.ToArray());
                         },
                     true   //exponential backoff
                 );
@@ -384,7 +385,7 @@ namespace Jinaga.Store.SQLite
                                     IN (VALUES {String.Join(",", referenceValues)} )
                             ";
 
-                        return conn.ExecuteQuery<ConnectionFactory.ReferenceFromDb>(sql);
+                        return conn.ExecuteQuery<ReferenceFromDb>(sql);
                     },
                     true   //exponential backoff
                 );
@@ -447,7 +448,7 @@ namespace Jinaga.Store.SQLite
             return Task.FromResult(sqlQueryTree.ResultsToProducts(resultSets, givenProduct));
         }
 
-        private ResultSetTree ExecuteQueryTree(SqlQueryTree sqlQueryTree, ConnectionFactory.Conn conn)
+        private ResultSetTree ExecuteQueryTree(SqlQueryTree sqlQueryTree, Conn conn)
         {
             var resultSetTree = ExecuteQuery(sqlQueryTree, conn);
 
@@ -460,7 +461,7 @@ namespace Jinaga.Store.SQLite
             return resultSetTree;
         }
 
-        private static ResultSetTree ExecuteQuery(SqlQueryTree sqlQueryTree, ConnectionFactory.Conn conn)
+        private static ResultSetTree ExecuteQuery(SqlQueryTree sqlQueryTree, Conn conn)
         {
             var sqlQuery = sqlQueryTree.SqlQuery;
             if (string.IsNullOrEmpty(sqlQuery.Sql))
@@ -670,7 +671,7 @@ namespace Jinaga.Store.SQLite
                         FROM outbound_queue q
                         ORDER BY q.queue_id
                     ";
-                    return conn.ExecuteQuery<ConnectionFactory.GraphFromDb>(sql);
+                    return conn.ExecuteQuery<GraphFromDb>(sql);
                 },
                 true
             );
@@ -820,7 +821,7 @@ namespace Jinaga.Store.SQLite
                         LEFT JOIN public_key p
                             ON p.public_key_id = s.public_key_id
                     ";
-                    return conn.ExecuteQuery<ConnectionFactory.FactWithIdAndSignatureFromDb>(sql);
+                    return conn.ExecuteQuery<FactWithIdAndSignatureFromDb>(sql);
                 },
                 true
             );

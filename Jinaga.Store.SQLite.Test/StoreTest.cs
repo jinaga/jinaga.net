@@ -10,6 +10,7 @@ using Xunit.Abstractions;
 using Jinaga.Storage;
 using System.Globalization;
 using Microsoft.Extensions.Logging.Abstractions;
+using Jinaga.Store.SQLite.Database;
 
 namespace Jinaga.Store.SQLite.Test;
 

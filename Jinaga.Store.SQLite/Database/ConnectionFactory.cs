@@ -1,57 +1,21 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
-using System.Diagnostics;
 using System.Linq;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Jinaga.Facts;
 using Jinaga.Services;
 
-namespace Jinaga.Store.SQLite
+namespace Jinaga.Store.SQLite.Database
 {
-
-
-    public sealed class MyStopWatch
-    {
-        //TODO: Remove this class here and inject it, together with a Logger, to be used during unit-testing
-        private static Stopwatch stopwatch;
-
-        private MyStopWatch() { }
-
-
-        public static string Start()
-        {
-            if (stopwatch == null)
-            {
-                stopwatch = new Stopwatch();
-            }
-            stopwatch.Restart();
-            return $"{TimeSpan.Zero:ss\\ fff} ms";
-        }
-
-        public static string Elapsed()
-        {
-            return $"{stopwatch.Elapsed:ss\\ fff} ms";
-        }
-
-        public static long ElapsedMilliSeconds()
-        {
-            return stopwatch.ElapsedMilliseconds;
-        }
-
-    }
-
-
     internal class ConnectionFactory
-    {                   
+    {
         bool _dbExist = false;
         string _dbFullName;
         public static string myLog;
 
-        public ConnectionFactory(string dbFullName )
-        {            
+        public ConnectionFactory(string dbFullName)
+        {
             SQLite.InitLib();
             _dbFullName = dbFullName;
             if (!_dbExist)
@@ -79,188 +43,7 @@ namespace Jinaga.Store.SQLite
         {
             string sql;
             sql = "PRAGMA journal_mode=WAL";
-            conn.ExecuteScalar(sql);         
-        }
-
-
-        public class Conn
-        {
-            //TODO: Use prepared stmts (on startup or via caching ?) to increase performance.
-            SQLitePCL.sqlite3 _db;
-            String connLog = "";
-
-
-            public Conn(string connectionString, int id)
-            {
-                var r = SQLite.Open(connectionString, out _db);
-                if (r != SQLite.Result.OK)
-                {
-                    throw SQLiteException.New(r, $"Conn: {r}");               
-                }
-                
-                //TODO: Activate tracing when injected logger requires it
-                //Sqlite3.sqlite3_trace(
-                //    _db,
-                //    (_, statement) => connLog += $"{MyStopWatch.Elapsed()}: {id:D2} -- { statement}\n\r",
-                //    null);
-
-                //This will autoRetry for 10ms upon busy/locked, for this connection only
-                r = SQLite.BusyTimeout(_db, 10);
-                if (r != SQLite.Result.OK)
-                {
-                    throw SQLiteException.New(r, $"Conn/2: {r} - {SQLite.GetErrmsg(_db)}");
-                }
-            }
-
-
-            public int ExecuteNonQuery(string sql, params object[] parameters)
-            {
-                var stmt = SQLite.Prepare2(_db, sql);
-                try
-                {
-                    int index = 1;
-                    foreach (object parameter in parameters)
-                    {
-                        SQLite.BindParameter(stmt, index, parameter, true, "", true);
-                        index++;
-                    };
-                    var r = SQLite.Step(stmt);
-                    if (r == SQLite.Result.Done)
-                    {
-                        return SQLite.Changes(_db);
-                    }
-                    throw SQLiteException.New(r, $"ExecuteNonQuery/1: {r} - {SQLite.GetErrmsg(_db)}");
-                }
-                finally
-                {
-                    var r2 = SQLite.Finalize(stmt);
-                    if (r2 != SQLite.Result.OK)
-                    {
-                        throw SQLiteException.New(r2, $"ExecuteNonQuery/2: {r2} - {SQLite.GetErrmsg(_db)}");
-                    }
-                }
-            }
-
-
-            public string ExecuteScalar(string sql, params object[] parameters)
-            {
-                var stmt = SQLite.Prepare2(_db, sql);
-                string result = "";
-                try
-                {
-                    int index = 1;
-                    foreach (object parameter in parameters)
-                    {
-                        SQLite.BindParameter(stmt, index, parameter, true, "", true);
-                        index++;
-                    };
-                    var r = SQLite.Step(stmt);
-                    while (r == SQLite.Result.Row)
-                    {
-                        result = SQLite.ColumnText(stmt, 0);
-                        r = SQLite.Step(stmt);
-                    }
-                    if (r == SQLite.Result.Done)
-                    {
-                        return result;
-                    }
-                    throw SQLiteException.New(r, $"ExecuteScalar<T>/1: {r} - {SQLite.GetErrmsg(_db)}");
-                }
-                finally
-                {
-                    var r2 = SQLite.Finalize(stmt);
-                    if (r2 != SQLite.Result.OK)
-                    {
-                        throw SQLiteException.New(r2, $"ExecuteScalar<T>/2: {r2} - {SQLite.GetErrmsg(_db)}");
-                    }
-                }
-            }
-
-
-            public IEnumerable<T> ExecuteQuery<T>(string sql, params object[] parameters) where T : class, new()
-            {
-                IList<T> result = new List<T>();
-                var stmt = SQLite.Prepare2(_db, sql);
-                try
-                {
-                    int index = 1;
-                    foreach (object parameter in parameters)
-                    {
-                        SQLite.BindParameter(stmt, index, parameter, true, "", true);
-                        index++;
-                    };
-
-                    var r = SQLite.Step(stmt);
-                    while (r == SQLite.Result.Row)
-                    {
-                        //yield return stmt.row<T>();
-                        result.Add(stmt.row<T>());
-                        r = SQLite.Step(stmt);
-                    }
-                    if (r == SQLite.Result.Done)
-                    {
-                        return result;
-                    }
-                    throw SQLiteException.New(r, $"ExecuteQuery<T>/1: {r} - {SQLite.GetErrmsg(_db)}");                  
-                }
-                finally
-                {
-                    var r2 = SQLite.Finalize(stmt);
-                    if (r2 != SQLite.Result.OK)
-                    {
-                        throw SQLiteException.New(r2, $"ExecuteQuery<T>/2: {r2} - {SQLite.GetErrmsg(_db)}");
-                    }
-                }
-            }
-
-
-            public IEnumerable<ImmutableDictionary<string, string>> ExecuteQueryRaw(string sql, params object[] parameters)
-            {
-                var result = new List<ImmutableDictionary<string, string>>();
-                var stmt = SQLite.Prepare2(_db, sql);
-                try
-                {
-                    int index = 1;
-                    foreach (object parameter in parameters)
-                    {
-                        SQLite.BindParameter(stmt, index, parameter, true, "", true);
-                        index++;
-                    };
-
-                    var r = SQLite.Step(stmt);
-                    while (r == SQLite.Result.Row)
-                    {
-                        //yield return stmt.row<T>();
-                        result.Add(stmt.rawRow());
-                        r = SQLite.Step(stmt);
-                    }
-                    if (r == SQLite.Result.Done)
-                    {
-                        return result;
-                    }
-                    throw SQLiteException.New(r, $"ExecuteQueryRaw/1: {r} - {SQLite.GetErrmsg(_db)}");
-                }
-                finally
-                {
-                    var r2 = SQLite.Finalize(stmt);
-                    if (r2 != SQLite.Result.OK)
-                    {
-                        throw SQLiteException.New(r2, $"ExecuteQueryRaw/2: {r2} - {SQLite.GetErrmsg(_db)}");
-                    }
-                }
-            }
-
-
-            public void Close()
-            {               
-                var r = SQLite.Close(_db);                
-                myLog += connLog;
-                if (r != SQLite.Result.OK)
-                {
-                    throw SQLiteException.New(r, $"Close: {r} - {SQLite.GetErrmsg(_db)}");
-                }       
-            }
-
+            conn.ExecuteScalar(sql);
         }
 
 
@@ -272,7 +55,7 @@ namespace Jinaga.Store.SQLite
                 var result = WithTxn(callback, enableBackoff, id);
                 return result;
             };
-            return await Task<T>.Run(dbOp).ConfigureAwait(false);
+            return await Task.Run(dbOp).ConfigureAwait(false);
             //return await new TaskFactory().StartNew(dbOp).ConfigureAwait(false);
             //return await new TaskFactory().StartNew(dbOp,TaskCreationOptions.LongRunning ).ConfigureAwait(false);
         }
@@ -302,18 +85,18 @@ namespace Jinaga.Store.SQLite
         }
 
 
-        public T WithConn<T>(Func<Conn,int, T> callback, bool enableBackoff = true, int id = 0)
+        public T WithConn<T>(Func<Conn, int, T> callback, bool enableBackoff = true, int id = 0)
         {
             Func<T> dbOp = () =>
            {
                Conn conn = new Conn(_dbFullName, id);
                try
-               {                 
+               {
                    return callback(conn, id);
                }
                finally
                {
-                    conn.Close();                   
+                   conn.Close();
                }
            };
 
@@ -488,7 +271,7 @@ namespace Jinaga.Store.SQLite
             table = @"CREATE TABLE IF NOT EXISTS main.bookmark (
                                 feed_hash TEXT NOT NULL PRIMARY KEY,
                                 bookmark TEXT                           
-                            )";            
+                            )";
             conn.ExecuteNonQuery(table);
 
 
@@ -619,7 +402,7 @@ namespace Jinaga.Store.SQLite
                     graphBuilder = new FactGraphBuilder();
                     lastBookmark = fact.bookmark;
                 }
-                var envelope = MyExtensions.LoadEnvelope(fact);
+                var envelope = Deserializer.LoadEnvelope(fact);
                 graphBuilder.Add(envelope);
             }
             if (graphBuilder != null)
@@ -632,139 +415,6 @@ namespace Jinaga.Store.SQLite
         private void SaveFactGraphsToOutboundQueue(Conn conn, List<QueuedFacts> queuedGraph)
         {
             throw new NotImplementedException();
-        }
-
-        public class FactFromDb
-        {
-            public string hash { get; set; }
-            public string data { get; set; }
-            public string name { get; set; }
-        }
-
-        public class FactWithIdFromDb : FactFromDb
-        {
-            public int fact_id { get; set; }
-        }
-
-        public class FactWithIdAndSignatureFromDb : FactWithIdFromDb
-        {
-            public string public_key { get; set; }
-            public string signature { get; set; }
-        }
-
-        public class FactWithBookmarkIdAndSignatureFromDb : FactWithIdAndSignatureFromDb
-        {
-            public int bookmark { get; set; }
-        }
-
-        public class ReferenceFromDb
-        {
-            public string hash { get; set; }
-            public string name { get; set; }
-        }
-
-        public class GraphFromDb
-        {
-            public int fact_id { get; set; }
-            public string graph_data { get; set; }
-        }
-    }
-
-    internal static class MyExtensions
-    {
-        public static IEnumerable<FactEnvelope> Deserialize(this IEnumerable<ConnectionFactory.FactWithIdAndSignatureFromDb> factsFromDb) 
-        {
-            FactEnvelope envelope = null;
-            int factId = 0;
-            foreach (var FactFromDb in factsFromDb)
-            {
-                if (factId != 0 && factId != FactFromDb.fact_id)
-                {
-                    // We've reached a new fact. Return the previous one.
-                    yield return envelope;
-                    envelope = null;
-                    factId = 0;
-                }
-
-                if (envelope == null)
-                {
-                    envelope = LoadEnvelope(FactFromDb);
-                    factId = FactFromDb.fact_id;
-                }
-
-                // Add the signature to the envelope.
-                if (FactFromDb.public_key != null)
-                {
-                    var signature = new FactSignature(FactFromDb.public_key, FactFromDb.signature);
-                    envelope = envelope.AddSignature(signature);
-                }
-            }
-            if (envelope != null)
-            {
-                yield return envelope;
-            }
-        }
-
-        public static FactEnvelope LoadEnvelope(ConnectionFactory.FactWithIdAndSignatureFromDb FactFromDb)
-        {
-            FactEnvelope envelope;
-            ImmutableList<Field> fields = ImmutableList<Field>.Empty;
-            ImmutableList<Predecessor> predecessors = ImmutableList<Predecessor>.Empty;
-
-            using (JsonDocument document = JsonDocument.Parse(FactFromDb.data))
-            {
-                JsonElement root = document.RootElement;
-
-                JsonElement fieldsElement = root.GetProperty("fields");
-                foreach (var field in fieldsElement.EnumerateObject())
-                {
-                    switch (field.Value.ValueKind)
-                    {
-                        case JsonValueKind.String:
-                            fields = fields.Add(new Field(field.Name, new FieldValueString(field.Value.GetString())));
-                            break;
-                        case JsonValueKind.Number:
-                            fields = fields.Add(new Field(field.Name, new FieldValueNumber(field.Value.GetDouble())));
-                            break;
-                        case JsonValueKind.True:
-                        case JsonValueKind.False:
-                            fields = fields.Add(new Field(field.Name, new FieldValueBoolean(field.Value.GetBoolean())));
-                            break;
-                        case JsonValueKind.Null:
-                            fields = fields.Add(new Field(field.Name, FieldValue.Null));
-                            break;
-                    }
-                }
-
-                string hash;
-                string type;
-                JsonElement predecessorsElement = root.GetProperty("predecessors");
-                foreach (var predecessor in predecessorsElement.EnumerateObject())
-                {
-                    switch (predecessor.Value.ValueKind)
-                    {
-                        case JsonValueKind.Object:
-                            hash = predecessor.Value.GetProperty("hash").GetString();
-                            type = predecessor.Value.GetProperty("type").GetString();
-                            predecessors = predecessors.Add(new PredecessorSingle(predecessor.Name, new FactReference(type, hash)));
-                            break;
-                        case JsonValueKind.Array:
-                            ImmutableList<FactReference> factReferences = ImmutableList<FactReference>.Empty;
-                            foreach (var factReference in predecessor.Value.EnumerateArray())
-                            {
-                                hash = factReference.GetProperty("hash").GetString();
-                                type = factReference.GetProperty("type").GetString();
-                                factReferences = factReferences.Add(new FactReference(type, hash));
-                            }
-                            predecessors = predecessors.Add(new PredecessorMultiple(predecessor.Name, factReferences));
-                            break;
-                    }
-                }
-            }
-
-            var fact = Fact.Create(FactFromDb.name, fields, predecessors);
-            envelope = new FactEnvelope(fact, ImmutableList<FactSignature>.Empty);
-            return envelope;
         }
     }
 }
