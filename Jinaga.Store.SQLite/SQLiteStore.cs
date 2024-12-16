@@ -89,10 +89,10 @@ namespace Jinaga.Store.SQLite
                                     newFacts = newFacts.Add(envelope.Fact);
                                     string data = Fact.Canonicalize(envelope.Fact.Fields, envelope.Fact.Predecessors);
                                     sql = @"
-                                        INSERT OR IGNORE INTO fact (fact_type_id, hash, data, queued) 
-                                        VALUES (@0, @1, @2, @3)
+                                        INSERT OR IGNORE INTO fact (fact_type_id, hash, data) 
+                                        VALUES (@0, @1, @2)
                                     ";
-                                    conn.ExecuteNonQuery(sql, factTypeId, envelope.Fact.Reference.Hash, data, queue ? 1 : 0);
+                                    conn.ExecuteNonQuery(sql, factTypeId, envelope.Fact.Reference.Hash, data);
                                     sql = @"
                                         SELECT fact_id 
                                         FROM fact 
@@ -104,7 +104,7 @@ namespace Jinaga.Store.SQLite
                                     if (queue)
                                     {
                                         var graphToQueue = graph.GetSubgraph(factReference);
-                                        string graphData = JsonSerializer.Serialize(graphToQueue);
+                                        string graphData = graphToQueue.ToJson();
                                         sql = @"
                                             INSERT INTO outbound_queue (fact_id, graph_data) 
                                             VALUES (@0, @1)
@@ -158,9 +158,6 @@ namespace Jinaga.Store.SQLite
                                                 break;
                                         }
                                     }
-
-                                    // Insert ancestors into the outbound_queue table
-                                    InsertAncestorsIntoQueue(conn, factId);
                                 }
 
                                 foreach (var signature in envelope.Signatures)
@@ -204,28 +201,6 @@ namespace Jinaga.Store.SQLite
                 return Task.FromResult(newFacts);
             }
 
-        }
-
-        private void InsertAncestorsIntoQueue(Conn conn, string factId)
-        {
-            string sql = @"
-                INSERT INTO outbound_queue (fact_id, fact_type_id, hash, data, public_key, signature)
-                SELECT f.fact_id, f.fact_type_id, f.hash, f.data, s.public_key, s.signature
-                FROM ancestor a
-                JOIN fact f
-                    ON f.fact_id = a.ancestor_fact_id
-                LEFT JOIN signature s
-                    ON s.fact_id = f.fact_id
-                LEFT JOIN public_key p
-                    ON p.public_key_id = s.public_key_id
-                WHERE a.fact_id = @0
-                AND NOT EXISTS (
-                    SELECT 1
-                    FROM outbound_queue q
-                    WHERE q.fact_id = f.fact_id
-                )
-            ";
-            conn.ExecuteNonQuery(sql, factId);
         }
 
         private string getFactId(Conn conn, FactReference factReference)
