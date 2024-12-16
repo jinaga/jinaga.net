@@ -293,35 +293,36 @@ namespace Jinaga.Store.SQLite.Database
             // Check if the queued column exists in the fact table.
             sql = @"PRAGMA table_info(fact)";
             columns = conn.ExecuteQueryRaw(sql);
-            if (columns.Any(column => column["name"] == "queued"))
+            bool queuedColumnExists = columns.Any(column => column["name"] == "queued");
+
+            // Check if the queue_bookmark table exists.
+            sql = @"SELECT name FROM sqlite_master WHERE type='table' AND name='queue_bookmark'";
+            var queueBookmarkExists = conn.ExecuteQueryRaw(sql).Any();
+
+            if (queuedColumnExists && queueBookmarkExists)
             {
-                var queuedGraph = LoadFactGraphsFromQueueBookmark(conn);
-                if (queuedGraph.Any())
-                {
-                    SaveFactGraphsToOutboundQueue(conn, queuedGraph);
-                }
-                // Retrieve the current bookmark from the queue_bookmark table.
-                string bookmarkSql = @"SELECT bookmark FROM queue_bookmark WHERE replicator = 'primary'";
-                string bookmark = conn.ExecuteScalar(bookmarkSql);
-                if (!int.TryParse(bookmark, out int lastFactId))
-                    lastFactId = 0;
-
-                // Copy queued facts to the outbound_queue table where fact_id is greater than the bookmark.
-                string copySql = $@"
-                    INSERT INTO outbound_queue (fact_id, fact_type_id, hash, data, date_learned)
-                    SELECT fact_id, fact_type_id, hash, data, date_learned
-                    FROM fact
-                    WHERE queued = 1 AND fact_id > {lastFactId}
-                ";
-                conn.ExecuteNonQuery(copySql);
-
+                MigrateQueuedFactsToOutboundQueue(conn);
+            }
+            if (queuedColumnExists)
+            {
                 // Remove the queued column from the fact table.
                 sql = @"ALTER TABLE fact DROP COLUMN queued";
                 conn.ExecuteNonQuery(sql);
-
+            }
+            if (queueBookmarkExists)
+            {
                 // Drop the queue_bookmark table as it is no longer needed.
                 sql = @"DROP TABLE IF EXISTS queue_bookmark";
                 conn.ExecuteNonQuery(sql);
+            }
+        }
+
+        private void MigrateQueuedFactsToOutboundQueue(Conn conn)
+        {
+            var queuedGraph = LoadFactGraphsFromQueueBookmark(conn);
+            if (queuedGraph.Any())
+            {
+                SaveFactGraphsToOutboundQueue(conn, queuedGraph);
             }
         }
 
@@ -414,7 +415,15 @@ namespace Jinaga.Store.SQLite.Database
 
         private void SaveFactGraphsToOutboundQueue(Conn conn, List<QueuedFacts> queuedGraph)
         {
-            throw new NotImplementedException();
+            var sql = @"
+                INSERT INTO outbound_queue (fact_id, graph_data) 
+                VALUES (@0, @1)
+            ";
+            foreach (var graph in queuedGraph)
+            {
+                var graphData = graph.Graph.ToJson();
+                conn.ExecuteNonQuery(sql, graph.NextBookmark, graphData);
+            }
         }
     }
 }
