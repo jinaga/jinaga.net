@@ -144,7 +144,7 @@ namespace Jinaga.Facts
 
                 var envelope = envelopeByReference[reference];
                 var factJson = Fact.Canonicalize(envelope.Fact.Fields, envelope.Fact.Predecessors);
-                var signaturesJson = string.Join(",", envelope.Signatures.Select(s => $"{{\"publicKey\":\"{s.PublicKey}\",\"signature\":\"{s.Signature}\"}}"));
+                var signaturesJson = string.Join(",", envelope.Signatures.Select(s => $"{{\"publicKey\":{JsonSerializer.Serialize(s.PublicKey)},\"signature\":{JsonSerializer.Serialize(s.Signature)}}}"));
 
                 json.Append($"{{\"type\":{JsonSerializer.Serialize(reference.Type)},\"fact\":{factJson},\"signatures\":[{signaturesJson}]}}");
             }
