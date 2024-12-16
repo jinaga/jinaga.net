@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Text.Json;
 
 namespace Jinaga.Facts
 {
@@ -145,7 +146,7 @@ namespace Jinaga.Facts
                 var factJson = Fact.Canonicalize(envelope.Fact.Fields, envelope.Fact.Predecessors);
                 var signaturesJson = string.Join(",", envelope.Signatures.Select(s => $"{{\"publicKey\":\"{s.PublicKey}\",\"signature\":\"{s.Signature}\"}}"));
 
-                json.Append($"{{\"fact\":{factJson},\"signatures\":[{signaturesJson}]}}");
+                json.Append($"{{\"type\":{JsonSerializer.Serialize(reference.Type)},\"fact\":{factJson},\"signatures\":[{signaturesJson}]}}");
             }
             json.Append("]");
             return json.ToString();

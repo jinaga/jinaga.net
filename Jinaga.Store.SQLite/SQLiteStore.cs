@@ -680,10 +680,11 @@ namespace Jinaga.Store.SQLite
             {
                 foreach (var element in document.RootElement.EnumerateArray())
                 {
+                    var type = element.GetProperty("type").GetString();
                     var factElement = element.GetProperty("fact");
                     var fields = DeserializeFields(factElement.GetProperty("fields"));
                     var predecessors = DeserializePredecessors(factElement.GetProperty("predecessors"));
-                    var fact = Fact.Create(factElement.GetProperty("type").GetString(), fields, predecessors);
+                    var fact = Fact.Create(type, fields, predecessors);
 
                     var signatures = element.GetProperty("signatures")
                         .EnumerateArray()
