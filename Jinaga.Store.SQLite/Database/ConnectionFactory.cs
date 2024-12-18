@@ -171,7 +171,8 @@ namespace Jinaga.Store.SQLite.Database
                                 fact_type_id INTEGER NOT NULL,
                                 hash TEXT,
                                 data TEXT,
-                                date_learned TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                                date_learned TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                queued INTEGER NOT NULL DEFAULT 1 CHECK(queued IN (0, 1))
                             )";
             string ux_fact = @"CREATE UNIQUE INDEX IF NOT EXISTS ux_fact ON fact (hash, fact_type_id)";
             conn.ExecuteNonQuery(table);
@@ -216,14 +217,14 @@ namespace Jinaga.Store.SQLite.Database
             //Signature
             // An earlier version of the schema did not have the signature column.
             // If the signature column does not exist, drop the table and recreate it.
-            sql = @"SELECT name FROM sqlite_master WHERE type='table' AND name='signature';";
+            var sql = @"SELECT name FROM sqlite_master WHERE type='table' AND name='signature';";
             var tableExists = conn.ExecuteQueryRaw(sql).Any();
 
             if (tableExists)
             {
                 sql = @"PRAGMA table_info(signature)";
-                columns = conn.ExecuteQueryRaw(sql);
-                if (!columns.Any(column => column["name"] == "signature"))
+                var signatureColumns = conn.ExecuteQueryRaw(sql);
+                if (!signatureColumns.Any(column => column["name"] == "signature"))
                 {
                     sql = @"DROP TABLE signature";
                     conn.ExecuteNonQuery(sql);
@@ -280,7 +281,7 @@ namespace Jinaga.Store.SQLite.Database
 
             // Check if the queued column exists in the fact table.
             sql = @"PRAGMA table_info(fact)";
-            columns = conn.ExecuteQueryRaw(sql);
+            var columns = conn.ExecuteQueryRaw(sql);
             bool queuedColumnExists = columns.Any(column => column["name"] == "queued");
 
             // Check if the queue_bookmark table exists.
