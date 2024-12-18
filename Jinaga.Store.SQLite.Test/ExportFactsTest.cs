@@ -154,6 +154,7 @@ namespace Jinaga.Store.SQLite.Test
             var jinagaClient = new JinagaClient(
                 store,
                 new LocalNetwork(),
+                [],
                 new NullLoggerFactory());
             return jinagaClient;
         }

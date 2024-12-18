@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Text.Json;
 
 namespace Jinaga.Facts
 {
@@ -99,6 +100,16 @@ namespace Jinaga.Facts
             return subgraph;
         }
 
+        public FactGraph Merge(FactGraph graph)
+        {
+            var mergedGraph = this;
+            foreach (var reference in graph.topologicalOrder)
+            {
+                mergedGraph = mergedGraph.Add(graph.envelopeByReference[reference]);
+            }
+            return mergedGraph;
+        }
+
         public override bool Equals(object obj)
         {
             // Two graphs are equal if they contain the same fact references.
@@ -117,6 +128,28 @@ namespace Jinaga.Facts
             return topologicalOrder.Any()
                 ? Last.Hash.GetHashCode()
                 : 0;
+        }
+
+        public string ToJson()
+        {
+            var json = new System.Text.StringBuilder("[");
+            bool first = true;
+            foreach (var reference in topologicalOrder)
+            {
+                if (!first)
+                {
+                    json.Append(",");
+                }
+                first = false;
+
+                var envelope = envelopeByReference[reference];
+                var factJson = Fact.Canonicalize(envelope.Fact.Fields, envelope.Fact.Predecessors);
+                var signaturesJson = string.Join(",", envelope.Signatures.Select(s => $"{{\"publicKey\":{JsonSerializer.Serialize(s.PublicKey)},\"signature\":{JsonSerializer.Serialize(s.Signature)}}}"));
+
+                json.Append($"{{\"type\":{JsonSerializer.Serialize(reference.Type)},\"fact\":{factJson},\"signatures\":[{signaturesJson}]}}");
+            }
+            json.Append("]");
+            return json.ToString();
         }
     }
 }

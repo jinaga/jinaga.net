@@ -436,5 +436,75 @@ namespace Jinaga.Storage
 
             return Task.FromResult(orderedFacts.AsEnumerable());
         }
+
+        public Task Purge(ImmutableList<Specification> purgeConditions)
+        {
+            // Not implemented.
+            return Task.CompletedTask;
+        }
+
+        public Task PurgeDescendants(FactReference purgeRoot, ImmutableList<FactReference> triggers)
+        {
+            lock (this)
+            {
+                var triggersAndTheirAncestors = new HashSet<FactReference>(triggers);
+                foreach (var trigger in triggers)
+                {
+                    if (factsByReference.TryGetValue(trigger, out var triggerFact))
+                    {
+                        AddAllAncestors(triggerFact, triggersAndTheirAncestors);
+                    }
+                }
+
+                factsByReference = factsByReference
+                    .Where(pair => 
+                        !ancestors[pair.Key].Contains(purgeRoot) || 
+                        triggersAndTheirAncestors.Contains(pair.Key))
+                    .ToImmutableDictionary(pair => pair.Key, pair => pair.Value);
+
+                signaturesByReference = signaturesByReference
+                    .Where(pair => factsByReference.ContainsKey(pair.Key))
+                    .ToImmutableDictionary(pair => pair.Key, pair => pair.Value);
+
+                edges = edges
+                    .Where(edge => factsByReference.ContainsKey(edge.Successor))
+                    .ToImmutableList();
+
+                ancestors = ancestors
+                    .Where(pair => factsByReference.ContainsKey(pair.Key))
+                    .ToImmutableDictionary(pair => pair.Key, pair => pair.Value);
+
+                feed = feed
+                    .Where(reference => factsByReference.ContainsKey(reference))
+                    .ToImmutableList();
+
+                return Task.CompletedTask;
+            }
+        }
+
+        private void AddAllAncestors(Fact fact, HashSet<FactReference> ancestors)
+        {
+            foreach (var predecessor in fact.Predecessors)
+            {
+                var references = predecessor switch
+                {
+                    PredecessorSingle single => ImmutableList.Create(single.Reference),
+                    PredecessorMultiple multiple => multiple.References,
+                    _ => throw new NotImplementedException()
+                };
+
+                foreach (var reference in references)
+                {
+                    if (!ancestors.Contains(reference))
+                    {
+                        ancestors.Add(reference);
+                        if (factsByReference.TryGetValue(reference, out var predecessorFact))
+                        {
+                            AddAllAncestors(predecessorFact, ancestors);
+                        }
+                    }
+                }
+            }
+        }
     }
 }
