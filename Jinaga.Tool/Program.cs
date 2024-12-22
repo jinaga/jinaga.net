@@ -81,9 +81,13 @@ internal class Program
         {
             PrintRules(arguments, "Distribution");
         }
+        else if (arguments.Consume("policy"))
+        {
+            PrintRules(arguments, "Policy");
+        }
         else
         {
-            throw new ArgumentException("Expected print target authorization or distribution");
+            throw new ArgumentException("Expected print target authorization, distribution, or policy");
         }
     }
 
@@ -120,6 +124,17 @@ internal class Program
         var type = configTypes.Single();
 
         // Find the method Authorization
+        var authorizationMethod = type.GetMethod("Authorization", BindingFlags.Static | BindingFlags.Public);
+        var distributionMethod = type.GetMethod("Distribution", BindingFlags.Static | BindingFlags.Public);
+
+        var authorization = authorizationMethod != null ? (string)authorizationMethod.Invoke(null, new object[] { }) : string.Empty;
+        var distribution = distributionMethod != null ? (string)distributionMethod.Invoke(null, new object[] { }) : string.Empty;
+
+        if (methodName == "Policy")
+        {
+            return $"{authorization}\n{distribution}".Trim();
+        }
+
         var method = type.GetMethod(methodName, BindingFlags.Static | BindingFlags.Public);
         if (method == null)
         {
@@ -135,17 +150,17 @@ internal class Program
         }
 
         // Invoke the method
-        var authorization = method.Invoke(null, new object[] { });
-        if (authorization == null)
+        var rules = method.Invoke(null, new object[] { });
+        if (rules == null)
         {
             throw new ArgumentException($"JinagaConfig.{methodName} in {path} returned null");
         }
-        if (!(authorization is string))
+        if (!(rules is string))
         {
             throw new ArgumentException($"JinagaConfig.{methodName} in {path} returned a non-string");
         }
 
-        return (string)authorization;
+        return (string)rules;
     }
 
     private static void Usage()
@@ -155,6 +170,7 @@ internal class Program
         Console.WriteLine("  deploy distribution <assembly> <endpoint> <secret>");
         Console.WriteLine("  print authorization <assembly>");
         Console.WriteLine("  print distribution <assembly>");
+        Console.WriteLine("  print policy <assembly>");
         Console.WriteLine("");
         Console.WriteLine("The assembly should expose public static methods named");
         Console.WriteLine("JinagaConfig.Authorization and JinagaConfig.Distribution.");
