@@ -89,16 +89,16 @@ For example:
 
   private static DistributionRules Distribution(DistributionRules r) => r
     // Everyone can see published posts
-    .Share(Given<Model.Site>.Match((site, facts) =>
-      from content in facts.OfType<Model.Content>()
+    .Share(Given<Site>.Match((site, facts) =>
+      from content in facts.OfType<Content>()
       where content.site == site &&
-        facts.Any<Model.Publish>(publish => publish.content == content)
+        facts.Any<Publish>(publish => publish.content == content)
       select content
     ))
     .WithEveryone()
     // The creator can see all posts
-    .Share(Given<Model.Site>.Match((site, facts) =>
-      from content in facts.OfType<Model.Content>()
+    .Share(Given<Site>.Match((site, facts) =>
+      from content in facts.OfType<Content>()
       where content.site == site
       select content
     ))
@@ -113,8 +113,8 @@ For example:
   public static string Purge() => PurgeConditions.Describe(Purge);
 
   private static PurgeConditions Purge(PurgeConditions r) => r
-    // Purge orders that have been cancelled
-    .Purge<Model.Order>(order => order.Successors().OfType<Model.OrderCancelled>(cancelled => cancelled.order))
+    // Purge posts that have been deleted
+    .Purge<Post>().WhenExists<PostDelete>(delete => delete.post)
     ;
 ```
 
