@@ -1,7 +1,7 @@
 # Jinaga command line tool
 
 Manage Jinaga replicators.
-Deploy authorization and distribution rules.
+Deploy authorization, distribution, and purge rules.
 
 ## Installation
 
@@ -13,11 +13,12 @@ dotnet tool install -g Jinaga.Tool
 
 ## Usage
 
-Run the tool during continuous deployment to deploy authorization and distribution rules.
+Run the tool during continuous deployment to deploy authorization, distribution, and purge rules.
 
 ```bash
 dotnet jinaga deploy authorization <assembly> <endpoint> <secret>
 dotnet jinaga deploy distribution <assembly> <endpoint> <secret>
+dotnet jinaga deploy purge <assembly> <endpoint> <secret>
 ```
 
 You can find the endpoint and secret in the [Jinaga replicator portal](https://dev.jinaga.com).
@@ -53,7 +54,7 @@ public static class JinagaConfig
 }
 ```
 
-Add your authorization and distribution rules to this class.
+Add your authorization, distribution, and purge rules to this class.
 Use the `AuthorizationRules` class to build and describe your rules.
 For example:
 
@@ -105,6 +106,18 @@ For example:
     ;
 ```
 
+Use the `PurgeConditions` class to build and describe your rules.
+For example:
+
+```cs
+  public static string Purge() => PurgeConditions.Describe(Purge);
+
+  private static PurgeConditions Purge(PurgeConditions r) => r
+    // Purge orders that have been cancelled
+    .Purge<Model.Order>(order => order.Successors().OfType<Model.OrderCancelled>(cancelled => cancelled.order))
+    ;
+```
+
 Run the tool to deploy the rules to the replicator.
 The replicator will then enforce the rules.
 
@@ -128,6 +141,6 @@ After testing, uninstall the tool
 dotnet tool uninstall --global Jinaga.Tool
 ```
 
-``bash
+```bash
 sudo dotnet tool uninstall --global Jinaga.Tool
 ```
