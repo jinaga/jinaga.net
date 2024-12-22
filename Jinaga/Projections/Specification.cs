@@ -41,6 +41,11 @@ namespace Jinaga.Projections
             return new Specification(ImmutableList<SpecificationGiven>.Empty, newMatches, newProjection);
         }
 
+        public Specification WithProjection(Projection projection)
+        {
+            return new Specification(Givens, Matches, projection);
+        }
+
         public ImmutableList<Product> Execute(FactReferenceTuple givenTuple, FactGraph graph)
         {
             var tuples = ExecuteMatches(givenTuple, Matches, graph);

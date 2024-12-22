@@ -30,7 +30,7 @@ public class PurgeConditionsTest
                     cancelled: Order.Cancelled [
                         cancelled->order: Order = fact
                     ]
-                } => cancelled
+                }
             }
 
             """;
@@ -51,12 +51,12 @@ public class PurgeConditionsTest
                     cancelled: Order.Cancelled [
                         cancelled->order: Order = fact
                     ]
-                } => cancelled
+                }
                 (fact: Order) {
                     shipped: Order.Shipped [
                         shipped->order: Order = fact
                     ]
-                } => shipped
+                }
             }
 
             """;

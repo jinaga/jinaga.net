@@ -39,7 +39,7 @@ namespace Jinaga
         /// <returns></returns>
         public PurgeConditions WhenExists(Specification specification)
         {
-            return new PurgeConditions(specifications.Add(specification));
+            return new PurgeConditions(specifications.Add(specification.WithProjection(CompoundProjection.Empty)));
         }
 
         /// <summary>
@@ -106,7 +106,7 @@ namespace Jinaga
             where TProjection : class
         {
             var specification = Given<TFact>.Match(fact => fact.Successors().OfType(predecessorSelector));
-            return new PurgeConditions(specifications.Add(specification));
+            return new PurgeConditions(specifications.Add(specification.WithProjection(CompoundProjection.Empty)));
         }
     }
 }

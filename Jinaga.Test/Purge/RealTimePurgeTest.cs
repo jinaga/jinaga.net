@@ -1,4 +1,4 @@
-namespace Jinaga.test.Purge;
+namespace Jinaga.Test.Purge;
 
 using System.Linq;
 using Jinaga.Extensions;

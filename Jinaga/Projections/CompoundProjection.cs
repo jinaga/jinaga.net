@@ -8,6 +8,11 @@ namespace Jinaga.Projections
 {
     public class CompoundProjection : Projection
     {
+        public static CompoundProjection Empty = new CompoundProjection(
+            ImmutableDictionary<string, Projection>.Empty,
+            typeof(object)
+        );
+
         private ImmutableDictionary<string, Projection> projections;
 
         public CompoundProjection(ImmutableDictionary<string, Projection> projections, Type type) :
