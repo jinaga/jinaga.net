@@ -41,6 +41,11 @@ namespace Jinaga.Projections
             return new Specification(ImmutableList<SpecificationGiven>.Empty, newMatches, newProjection);
         }
 
+        public Specification WithProjection(Projection projection)
+        {
+            return new Specification(Givens, Matches, projection);
+        }
+
         public ImmutableList<Product> Execute(FactReferenceTuple givenTuple, FactGraph graph)
         {
             var tuples = ExecuteMatches(givenTuple, Matches, graph);
@@ -58,7 +63,7 @@ namespace Jinaga.Projections
             var indent = new string(' ', depth * 4);
             var given = string.Join(", ", this.Givens.Select(g => $"{g.Label.Name}: {g.Label.Type}{Conditions(g.ExistentialConditions, depth)}"));
             var matches = string.Join("", this.Matches.Select(m => m.ToDescriptiveString(depth + 1)));
-            var projection = this.Projection == null ? "" : " => " + this.Projection.ToDescriptiveString(depth);
+            var projection = this.Projection is CompoundProjection cp && !cp.Names.Any() ? "" : " => " + this.Projection.ToDescriptiveString(depth);
             return $"{indent}({given}) {{\n{matches}{indent}}}{projection}\n";
         }
 

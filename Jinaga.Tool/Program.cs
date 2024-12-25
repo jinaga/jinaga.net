@@ -42,9 +42,13 @@ internal class Program
         {
             await DeployRules(arguments, "Distribution");
         }
+        else if (arguments.Consume("purge"))
+        {
+            await DeployRules(arguments, "Purge");
+        }
         else
         {
-            throw new ArgumentException("Expected deploy target authorization or distribution");
+            throw new ArgumentException("Expected deploy target authorization, distribution, or purge");
         }
     }
 
@@ -81,13 +85,17 @@ internal class Program
         {
             PrintRules(arguments, "Distribution");
         }
+        else if (arguments.Consume("purge"))
+        {
+            PrintRules(arguments, "Purge");
+        }
         else if (arguments.Consume("policy"))
         {
             PrintRules(arguments, "Policy");
         }
         else
         {
-            throw new ArgumentException("Expected print target authorization, distribution, or policy");
+            throw new ArgumentException("Expected print target authorization, distribution, purge, or policy");
         }
     }
 
@@ -168,12 +176,14 @@ internal class Program
         Console.WriteLine("jinaga commands:");
         Console.WriteLine("  deploy authorization <assembly> <endpoint> <secret>");
         Console.WriteLine("  deploy distribution <assembly> <endpoint> <secret>");
+        Console.WriteLine("  deploy purge <assembly> <endpoint> <secret>");
         Console.WriteLine("  print authorization <assembly>");
         Console.WriteLine("  print distribution <assembly>");
+        Console.WriteLine("  print purge <assembly>");
         Console.WriteLine("  print policy <assembly>");
         Console.WriteLine("");
         Console.WriteLine("The assembly should expose public static methods named");
-        Console.WriteLine("JinagaConfig.Authorization and JinagaConfig.Distribution.");
+        Console.WriteLine("JinagaConfig.Authorization, JinagaConfig.Distribution, and JinagaConfig.Purge.");
     }
 
     private static void WriteMessage(Exception ex)
