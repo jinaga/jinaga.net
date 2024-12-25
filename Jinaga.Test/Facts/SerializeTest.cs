@@ -58,7 +58,8 @@ namespace Jinaga.Test.Facts
         [Fact]
         public void SerializeDecimal()
         {
-            var catalog = new Catalog("catalog");
+            var store = new Model.Order.Store("storeId");
+            var catalog = new Catalog(store, "catalog");
             var product = new Product(catalog, "sku");
             var price = new Price(product, 123.45m, new Price[0]);
             var graph = Serialize(price);

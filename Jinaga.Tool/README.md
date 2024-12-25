@@ -1,7 +1,7 @@
 # Jinaga command line tool
 
 Manage Jinaga replicators.
-Deploy authorization and distribution rules.
+Deploy authorization, distribution, and purge rules.
 
 ## Installation
 
@@ -13,11 +13,12 @@ dotnet tool install -g Jinaga.Tool
 
 ## Usage
 
-Run the tool during continuous deployment to deploy authorization and distribution rules.
+Run the tool during continuous deployment to deploy authorization, distribution, and purge rules.
 
 ```bash
 dotnet jinaga deploy authorization <assembly> <endpoint> <secret>
 dotnet jinaga deploy distribution <assembly> <endpoint> <secret>
+dotnet jinaga deploy purge <assembly> <endpoint> <secret>
 ```
 
 You can find the endpoint and secret in the [Jinaga replicator portal](https://dev.jinaga.com).
@@ -53,7 +54,7 @@ public static class JinagaConfig
 }
 ```
 
-Add your authorization and distribution rules to this class.
+Add your authorization, distribution, and purge rules to this class.
 Use the `AuthorizationRules` class to build and describe your rules.
 For example:
 
@@ -88,20 +89,32 @@ For example:
 
   private static DistributionRules Distribution(DistributionRules r) => r
     // Everyone can see published posts
-    .Share(Given<Model.Site>.Match((site, facts) =>
-      from content in facts.OfType<Model.Content>()
+    .Share(Given<Site>.Match((site, facts) =>
+      from content in facts.OfType<Content>()
       where content.site == site &&
-        facts.Any<Model.Publish>(publish => publish.content == content)
+        facts.Any<Publish>(publish => publish.content == content)
       select content
     ))
     .WithEveryone()
     // The creator can see all posts
-    .Share(Given<Model.Site>.Match((site, facts) =>
-      from content in facts.OfType<Model.Content>()
+    .Share(Given<Site>.Match((site, facts) =>
+      from content in facts.OfType<Content>()
       where content.site == site
       select content
     ))
     .With(site => site.creator)
+    ;
+```
+
+Use the `PurgeConditions` class to build and describe your rules.
+For example:
+
+```cs
+  public static string Purge() => PurgeConditions.Describe(Purge);
+
+  private static PurgeConditions Purge(PurgeConditions r) => r
+    // Purge posts that have been deleted
+    .Purge<Post>().WhenExists<PostDelete>(delete => delete.post)
     ;
 ```
 
@@ -128,6 +141,6 @@ After testing, uninstall the tool
 dotnet tool uninstall --global Jinaga.Tool
 ```
 
-``bash
+```bash
 sudo dotnet tool uninstall --global Jinaga.Tool
 ```

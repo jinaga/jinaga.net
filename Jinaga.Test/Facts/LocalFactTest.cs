@@ -1,4 +1,3 @@
-using System;
 using Jinaga;
 using Jinaga.Storage;
 using Jinaga.Test.Fakes;
@@ -55,6 +54,6 @@ public class LocalFactTest
 
     private static JinagaClient GivenJinagaClient(FakeNetwork network)
     {
-        return new JinagaClient(new MemoryStore(), network, NullLoggerFactory.Instance);
+        return new JinagaClient(new MemoryStore(), network, [], NullLoggerFactory.Instance);
     }
 }

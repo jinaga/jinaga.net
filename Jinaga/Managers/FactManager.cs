@@ -21,17 +21,19 @@ namespace Jinaga.Managers
         private readonly NetworkManager networkManager;
         private readonly ILoggerFactory loggerFactory;
         private readonly ObservableSource observableSource;
+        private readonly PurgeManager purgeManager;
 
         private bool unloaded = false;
         private ImmutableList<TaskHandle> pendingTasks = ImmutableList<TaskHandle>.Empty;
 
-        public FactManager(IStore store, NetworkManager networkManager, ILoggerFactory loggerFactory)
+        public FactManager(IStore store, NetworkManager networkManager, ImmutableList<Specification> purgeConditions, ILoggerFactory loggerFactory)
         {
             this.store = store;
             this.networkManager = networkManager;
             this.loggerFactory = loggerFactory;
 
             observableSource = new ObservableSource(store);
+            purgeManager = new PurgeManager(store, purgeConditions);
         }
 
         private SerializerCache serializerCache = SerializerCache.Empty;
@@ -78,6 +80,7 @@ namespace Jinaga.Managers
             VerifyNotUnloaded();
             var added = await store.Save(graph, true, cancellationToken).ConfigureAwait(false);
             await observableSource.Notify(graph, added, cancellationToken).ConfigureAwait(false);
+            await purgeManager.TriggerPurge(added, cancellationToken).ConfigureAwait(false);
 
             // Don't wait on the network manager if we have persistent storage.
             if (store.IsPersistent)
@@ -113,6 +116,7 @@ namespace Jinaga.Managers
             VerifyNotUnloaded();
             var added = await store.Save(graph, false, cancellationToken).ConfigureAwait(false);
             await observableSource.Notify(graph, added, cancellationToken).ConfigureAwait(false);
+            await purgeManager.TriggerPurge(added, cancellationToken).ConfigureAwait(false);
             return added;
         }
 
@@ -150,6 +154,7 @@ namespace Jinaga.Managers
         public async Task<ImmutableList<Product>> Query(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
         {
             VerifyNotUnloaded();
+            CheckCompliance(specification);
             await networkManager.Fetch(givenTuple, specification, cancellationToken).ConfigureAwait(false);
             return await store.Read(givenTuple, specification, cancellationToken).ConfigureAwait(false);
         }
@@ -214,6 +219,7 @@ namespace Jinaga.Managers
         public IObserver StartObserver(FactReferenceTuple givenTuple, Specification specification, Func<object, Task<Func<Task>>> onAdded, bool keepAlive)
         {
             VerifyNotUnloaded();
+            CheckCompliance(specification);
             var observer = new Observer(specification, givenTuple, this, onAdded, loggerFactory);
             observer.Start(keepAlive);
             return observer;
@@ -222,6 +228,7 @@ namespace Jinaga.Managers
         public IObserver StartObserverLocal(FactReferenceTuple givenTuple, Specification specification, Func<object, Task<Func<Task>>> onAdded)
         {
             VerifyNotUnloaded();
+            CheckCompliance(specification);
             var observer = new ObserverLocal(specification, givenTuple, this, onAdded, loggerFactory);
             observer.Start();
             return observer;
@@ -240,6 +247,7 @@ namespace Jinaga.Managers
         public async Task NotifyObservers(FactGraph graph, ImmutableList<Fact> facts, CancellationToken cancellationToken)
         {
             await observableSource.Notify(graph, facts, cancellationToken).ConfigureAwait(false);
+            await purgeManager.TriggerPurge(facts, cancellationToken).ConfigureAwait(false);
         }
 
         public Task<DateTime?> GetMruDate(string specificationHash)
@@ -250,6 +258,11 @@ namespace Jinaga.Managers
         public Task SetMruDate(string specificationHash, DateTime mruDate)
         {
             return store.SetMruDate(specificationHash, mruDate);
+        }
+
+        internal async Task Purge()
+        {
+            await purgeManager.Purge().ConfigureAwait(false);
         }
 
         public async Task Unload()
@@ -263,6 +276,11 @@ namespace Jinaga.Managers
                     .Select(handle => handle.Task)
                 );
             }
+        }
+
+        private void CheckCompliance(Specification specification)
+        {
+            purgeManager.CheckCompliance(specification);
         }
 
         private void AddBackgroundTask(TaskHandle handle)
