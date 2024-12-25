@@ -46,6 +46,13 @@ internal class Program
         {
             await DeployRules(arguments, "Purge");
         }
+        else if (arguments.Consume("policy"))
+        {
+            var path = arguments.Next();
+            var type = GetJinagaConfigType(path);
+            var rules = GetPolicy(type);
+            await DeployRulesToEndpoint(arguments, "Policy", rules);
+        }
         else
         {
             throw new ArgumentException("Expected deploy target authorization, distribution, or purge");
@@ -54,12 +61,17 @@ internal class Program
 
     private static async Task<HttpClient> DeployRules(CommandLineArguments arguments, string methodName)
     {
-        var assembly = arguments.Next();
+        var path = arguments.Next();
+        string rules = GetRulesFromAssembly(path, methodName);
+        return await DeployRulesToEndpoint(arguments, methodName, rules);
+    }
+
+    private static async Task<HttpClient> DeployRulesToEndpoint(CommandLineArguments arguments, string methodName, string rules)
+    {
         var endpoint = arguments.Next();
         var secret = arguments.Next();
 
         var httpClient = new HttpClient();
-        string rules = GetRulesFromAssembly(assembly, methodName);
         var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
         request.Headers.Add("Authorization", $"Bearer {secret}");
         var content = new StringContent(rules, Encoding.UTF8, "text/plain");
@@ -89,20 +101,58 @@ internal class Program
         {
             PrintRules(arguments, "Purge");
         }
+        else if (arguments.Consume("policy"))
+        {
+            var path = arguments.Next();
+            var type = GetJinagaConfigType(path);
+            var rules = GetPolicy(type);
+            Console.WriteLine(rules);
+        }
         else
         {
-            throw new ArgumentException("Expected print target authorization, distribution, or purge");
+            throw new ArgumentException("Expected print target authorization, distribution, purge, or policy");
         }
     }
 
     private static void PrintRules(CommandLineArguments arguments, string methodName)
     {
-        var assembly = arguments.Next();
-        var rules = GetRulesFromAssembly(assembly, methodName);
+        var path = arguments.Next();
+        var rules = GetRulesFromAssembly(path, methodName);
         Console.WriteLine(rules);
     }
 
     private static string GetRulesFromAssembly(string path, string methodName)
+    {
+        var type = GetJinagaConfigType(path);
+        var method = type.GetMethod(methodName, BindingFlags.Static | BindingFlags.Public);
+        if (method == null)
+        {
+            throw new ArgumentException($"Expected method JinagaConfig.{methodName} in {path}");
+        }
+        if (method.GetParameters().Length != 0)
+        {
+            throw new ArgumentException($"Expected method JinagaConfig.{methodName} in {path} to have no parameters");
+        }
+        if (method.ReturnType != typeof(string))
+        {
+            throw new ArgumentException($"Expected method JinagaConfig.{methodName} in {path} to return a string");
+        }
+
+        // Invoke the method
+        var rules = method.Invoke(null, []);
+        if (rules == null)
+        {
+            throw new ArgumentException($"JinagaConfig.{methodName} in {path} returned null");
+        }
+        if (!(rules is string))
+        {
+            throw new ArgumentException($"JinagaConfig.{methodName} in {path} returned a non-string");
+        }
+
+        return (string)rules;
+    }
+
+    private static Type GetJinagaConfigType(string path)
     {
         // Load the assembly
         var assembly = Assembly.LoadFrom(path);
@@ -126,34 +176,21 @@ internal class Program
             throw new ArgumentException($"Expected only one type JinagaConfig in {path}");
         }
         var type = configTypes.Single();
+        return type;
+    }
 
-        // Find the method Authorization
-        var method = type.GetMethod(methodName, BindingFlags.Static | BindingFlags.Public);
-        if (method == null)
-        {
-            throw new ArgumentException($"Expected method JinagaConfig.{methodName} in {path}");
-        }
-        if (method.GetParameters().Length != 0)
-        {
-            throw new ArgumentException($"Expected method JinagaConfig.{methodName} in {path} to have no parameters");
-        }
-        if (method.ReturnType != typeof(string))
-        {
-            throw new ArgumentException($"Expected method JinagaConfig.{methodName} in {path} to return a string");
-        }
+    private static string GetPolicy(Type type)
+    {
+        // Find all policy methods
+        var authorizationMethod = type.GetMethod("Authorization", BindingFlags.Static | BindingFlags.Public);
+        var distributionMethod = type.GetMethod("Distribution", BindingFlags.Static | BindingFlags.Public);
+        var purgeMethod = type.GetMethod("Purge", BindingFlags.Static | BindingFlags.Public);
 
-        // Invoke the method
-        var authorization = method.Invoke(null, new object[] { });
-        if (authorization == null)
-        {
-            throw new ArgumentException($"JinagaConfig.{methodName} in {path} returned null");
-        }
-        if (!(authorization is string))
-        {
-            throw new ArgumentException($"JinagaConfig.{methodName} in {path} returned a non-string");
-        }
+        var authorization = authorizationMethod != null ? (string)(authorizationMethod.Invoke(null, []) ?? string.Empty) : string.Empty;
+        var distribution = distributionMethod != null ? (string)(distributionMethod.Invoke(null, []) ?? string.Empty) : string.Empty;
+        var purge = purgeMethod != null ? (string)(purgeMethod.Invoke(null, []) ?? string.Empty) : string.Empty;
 
-        return (string)authorization;
+        return $"{authorization}\n{distribution}\n{purge}".Trim();
     }
 
     private static void Usage()
@@ -162,9 +199,11 @@ internal class Program
         Console.WriteLine("  deploy authorization <assembly> <endpoint> <secret>");
         Console.WriteLine("  deploy distribution <assembly> <endpoint> <secret>");
         Console.WriteLine("  deploy purge <assembly> <endpoint> <secret>");
+        Console.WriteLine("  deploy policy <assembly> <endpoint> <secret>");
         Console.WriteLine("  print authorization <assembly>");
         Console.WriteLine("  print distribution <assembly>");
         Console.WriteLine("  print purge <assembly>");
+        Console.WriteLine("  print policy <assembly>");
         Console.WriteLine("");
         Console.WriteLine("The assembly should expose public static methods named");
         Console.WriteLine("JinagaConfig.Authorization, JinagaConfig.Distribution, and JinagaConfig.Purge.");

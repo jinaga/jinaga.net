@@ -121,6 +121,14 @@ For example:
 Run the tool to deploy the rules to the replicator.
 The replicator will then enforce the rules.
 
+You can also print the rules to the console for verification.
+
+```bash
+dotnet jinaga print authorization <assembly>
+dotnet jinaga print distribution <assembly>
+dotnet jinaga print policy <assembly>
+```
+
 ## Build and Test
 
 ```powershell
