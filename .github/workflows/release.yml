@@ -36,7 +36,11 @@ jobs:
     - name: Pack
       run: |
         dotnet pack ./Jinaga/ -c Release -o ./packages /p:IncludeSymbols=true /p:SymbolPackageFormat=snupkg
+        dotnet pack ./Jinaga.UnitTest/ -c Release -o ./packages /p:IncludeSymbols=true /p:SymbolPackageFormat=snupkg
         dotnet pack ./Jinaga.Notebooks/ -c Release -o ./packages /p:IncludeSymbols=true /p:SymbolPackageFormat=snupkg
+        dotnet pack ./Jinaga.Store.SQLite/ -c Release -o ./packages /p:IncludeSymbols=true /p:SymbolPackageFormat=snupkg
+        dotnet pack ./Jinaga.Maui/ -c Release -o ./packages /p:IncludeSymbols=true /p:SymbolPackageFormat=snupkg
+        dotnet pack ./Jinaga.Tool/ -c Release -o ./packages /p:IncludeSymbols=true /p:SymbolPackageFormat=snupkg
 
     - name: Publish NuGet packages
       run: dotnet nuget push ./packages/*.nupkg ./packages/*.snupkg -k ${{secrets.NUGET_API_KEY}} -s https://api.nuget.org/v3/index.json --skip-duplicate
