@@ -5,6 +5,8 @@ using System.Reflection;
 
 using Microsoft.Data.Analysis;
 
+namespace Jinaga.Notebooks;
+
 // Extension method to convert a list of objects into a DataFrame that the Notebook will display as a table.
 public static class DataFrameExtensions
 {
