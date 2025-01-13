@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Html.Abstractions" Version="2.2.0" />
+    <PackageReference Include="Microsoft.Data.Analysis" Version="0.22.0" />
   </ItemGroup>
 
   <ItemGroup>
