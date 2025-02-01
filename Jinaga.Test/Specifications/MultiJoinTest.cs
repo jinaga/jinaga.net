@@ -58,8 +58,10 @@ public class MultiJoinTest
                     }
                     !E {
                         update: SearchIndex.Record.LocationUpdate [
-                            update->record: SearchIndex.Record = record
                             update->location: University.Offering.Location = location
+                        ]
+                        record: SearchIndex.Record [
+                            record = update->record: SearchIndex.Record
                         ]
                     }
                 ]
@@ -78,8 +80,10 @@ public class MultiJoinTest
                 }
                 !E {
                     update: SearchIndex.Record.LocationUpdate [
-                        update->record: SearchIndex.Record = record
                         update->location: University.Offering.Location = location
+                    ]
+                    record: SearchIndex.Record [
+                        record = update->record: SearchIndex.Record
                     ]
                 }
             ]) {
@@ -104,8 +108,10 @@ public class MultiJoinTest
                     location = next->prior: University.Offering.Location
                     !E {
                         update: SearchIndex.Record.LocationUpdate [
-                            update->record: SearchIndex.Record = record
                             update->location: University.Offering.Location = location
+                        ]
+                        record: SearchIndex.Record [
+                            record = update->record: SearchIndex.Record
                         ]
                     }
                 ]
