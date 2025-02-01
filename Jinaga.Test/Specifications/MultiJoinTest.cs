@@ -19,6 +19,141 @@ public class MultiJoinTest
     }
 
     [Fact]
+    public void CanInvertSpecificationWithMultipleJoins()
+    {
+        // When a specification includes an existential condition, that condition becomes
+        // a condition of a given in the inverse. If the existential condition references
+        // just one variable, then that is the inverse that it is associated with. If, however,
+        // the existential condition references multiple variables, then it is associated
+        // with each of those variables. Within the existential condition, the unknowns must
+        // include the other variables that are referenced.
+        var recordsToUpdate = Given<Semester>.Match(semester =>
+            from offering in semester.Successors().OfType<Offering>(offering => offering.semester)
+            from record in offering.Successors().OfType<SearchIndexRecord>(record => record.offering)
+            from location in offering.Locations
+            where !(
+                from update in record.Successors().OfType<SearchIndexRecordLocationUpdate>(update => update.record)
+                where update.location == location
+                select update
+            ).Any()
+            select new { record, location }
+        );
+        var inverses = recordsToUpdate.ComputeInverses().Select(inverse =>
+            inverse.InverseSpecification.ToString().ReplaceLineEndings()).ToArray();
+        inverses.Should().BeEquivalentTo([
+            """
+            (record: SearchIndex.Record) {
+                offering: University.Offering [
+                    offering = record->offering: University.Offering
+                ]
+                semester: University.Semester [
+                    semester = offering->semester: University.Semester
+                ]
+                location: University.Offering.Location [
+                    location->offering: University.Offering = offering
+                    !E {
+                        next: University.Offering.Location [
+                            next->prior: University.Offering.Location = location
+                        ]
+                    }
+                    !E {
+                        update: SearchIndex.Record.LocationUpdate [
+                            update->record: SearchIndex.Record = record
+                            update->location: University.Offering.Location = location
+                        ]
+                    }
+                ]
+            } => {
+                location = location
+                record = record
+            }
+
+            """,
+            """
+            (location: University.Offering.Location [
+                !E {
+                    next: University.Offering.Location [
+                        next->prior: University.Offering.Location = location
+                    ]
+                }
+                !E {
+                    update: SearchIndex.Record.LocationUpdate [
+                        update->record: SearchIndex.Record = record
+                        update->location: University.Offering.Location = location
+                    ]
+                }
+            ]) {
+                offering: University.Offering [
+                    offering = location->offering: University.Offering
+                ]
+                semester: University.Semester [
+                    semester = offering->semester: University.Semester
+                ]
+                record: SearchIndex.Record [
+                    record->offering: University.Offering = offering
+                ]
+            } => {
+                location = location
+                record = record
+            }
+
+            """,
+            """
+            (next: University.Offering.Location) {
+                location: University.Offering.Location [
+                    location = next->prior: University.Offering.Location
+                    !E {
+                        update: SearchIndex.Record.LocationUpdate [
+                            update->record: SearchIndex.Record = record
+                            update->location: University.Offering.Location = location
+                        ]
+                    }
+                ]
+                offering: University.Offering [
+                    offering = location->offering: University.Offering
+                ]
+                semester: University.Semester [
+                    semester = offering->semester: University.Semester
+                ]
+                record: SearchIndex.Record [
+                    record->offering: University.Offering = offering
+                ]
+            } => {
+                location = location
+                record = record
+            }
+
+            """,
+            """
+            (update: SearchIndex.Record.LocationUpdate) {
+                location: University.Offering.Location [
+                    location = update->location: University.Offering.Location
+                    !E {
+                        next: University.Offering.Location [
+                            next->prior: University.Offering.Location = location
+                        ]
+                    }
+                ]
+                offering: University.Offering [
+                    offering = location->offering: University.Offering
+                ]
+                semester: University.Semester [
+                    semester = offering->semester: University.Semester
+                ]
+                record: SearchIndex.Record [
+                    record = update->record: SearchIndex.Record
+                    record->offering: University.Offering = offering
+                ]
+            } => {
+                location = location
+                record = record
+            }
+
+            """
+        ]);
+    }
+
+    [Fact]
     public async Task CanRunInverseSpecificationWithMultipleJoins()
     {
         var j = JinagaTest.Create();
@@ -77,7 +212,7 @@ public class MultiJoinTest
         }
 
         // Watch for offerings to index.
-        Dictionary<Guid, SearchRecord> index = new Dictionary<Guid, SearchRecord>();
+        var index = new Dictionary<Guid, SearchRecord>();
 
         var offeringsToIndex = Given<Semester>.Match(semester =>
             from offering in semester.Successors().OfType<Offering>(offering => offering.semester)
@@ -128,5 +263,71 @@ public class MultiJoinTest
         );
         var offeringsAndLocations = await j.Query(offeringAndLocationInSemester, currentSemester);
         await j.Fact(new OfferingLocation(offeringsAndLocations[0].offering, "Building E", "105", [offeringsAndLocations[0].location]));
+
+        /*
+        The inverse that fails is:
+        When (location: University.Offering.Location [
+            !E {
+                next: University.Offering.Location [
+                    next->prior: University.Offering.Location = location
+                ]
+            }
+            !E {
+                update: SearchIndex.Record.LocationUpdate [
+                    update->record: SearchIndex.Record = record
+                    update->location: University.Offering.Location = location
+                ]
+            }
+        ]) {
+            offering: University.Offering [
+                offering = location->offering: University.Offering
+            ]
+            semester: University.Semester [
+                semester = offering->semester: University.Semester
+            ]
+            record: SearchIndex.Record [
+                record->offering: University.Offering = offering
+            ]
+        } => {
+            location = location
+            record = record
+        }
+        Then add (semester, offering, record, location) to (semester)
+
+        It fails with "The tuple does not contain a reference named record."
+        The issue is that the given condition references "record". It should only reference "location".
+
+        The inverse should be:
+        When (location: University.Offering.Location [
+            !E {
+                next: University.Offering.Location [
+                    next->prior: University.Offering.Location = location
+                ]
+            }
+            !E {
+                update: SearchIndex.Record.LocationUpdate [
+                    update->location: University.Offering.Location = location
+                ]
+                record: SearchIndex.Record [
+                    record = update->record: SearchIndex.Record
+                ]
+            }
+        ]) {
+            offering: University.Offering [
+                offering = location->offering: University.Offering
+            ]
+            semester: University.Semester [
+                semester = offering->semester: University.Semester
+            ]
+            record: SearchIndex.Record [
+                record->offering: University.Offering = offering
+            ]
+        } => {
+            location = location
+            record = record
+        }
+        Then add (semester, offering, record, location) to (semester)
+
+        */
     }
 }
