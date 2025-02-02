@@ -21,12 +21,8 @@ public class MultiJoinTest
     [Fact]
     public void CanInvertSpecificationWithMultipleJoins()
     {
-        // When a specification includes an existential condition, that condition becomes
-        // a condition of a given in the inverse. If the existential condition references
-        // just one variable, then that is the inverse that it is associated with. If, however,
-        // the existential condition references multiple variables, then it is associated
-        // with each of those variables. Within the existential condition, the unknowns must
-        // include the other variables that are referenced.
+        // Existential conditions move to their inverses. They attach to the lowest
+        // unknown that the condition references.
         var recordsToUpdate = Given<Semester>.Match(semester =>
             from offering in semester.Successors().OfType<Offering>(offering => offering.semester)
             from record in offering.Successors().OfType<SearchIndexRecord>(record => record.offering)
@@ -76,12 +72,6 @@ public class MultiJoinTest
                         next->prior: University.Offering.Location = location
                     ]
                 }
-                !E {
-                    update: SearchIndex.Record.LocationUpdate [
-                        update->record: SearchIndex.Record = record
-                        update->location: University.Offering.Location = location
-                    ]
-                }
             ]) {
                 offering: University.Offering [
                     offering = location->offering: University.Offering
@@ -91,6 +81,12 @@ public class MultiJoinTest
                 ]
                 record: SearchIndex.Record [
                     record->offering: University.Offering = offering
+                    !E {
+                        update: SearchIndex.Record.LocationUpdate [
+                            update->record: SearchIndex.Record = record
+                            update->location: University.Offering.Location = location
+                        ]
+                    }
                 ]
             } => {
                 location = location
@@ -102,12 +98,6 @@ public class MultiJoinTest
             (next: University.Offering.Location) {
                 location: University.Offering.Location [
                     location = next->prior: University.Offering.Location
-                    !E {
-                        update: SearchIndex.Record.LocationUpdate [
-                            update->record: SearchIndex.Record = record
-                            update->location: University.Offering.Location = location
-                        ]
-                    }
                 ]
                 offering: University.Offering [
                     offering = location->offering: University.Offering
@@ -117,6 +107,12 @@ public class MultiJoinTest
                 ]
                 record: SearchIndex.Record [
                     record->offering: University.Offering = offering
+                    !E {
+                        update: SearchIndex.Record.LocationUpdate [
+                            update->record: SearchIndex.Record = record
+                            update->location: University.Offering.Location = location
+                        ]
+                    }
                 ]
             } => {
                 location = location
@@ -304,14 +300,6 @@ public class MultiJoinTest
                     next->prior: University.Offering.Location = location
                 ]
             }
-            !E {
-                update: SearchIndex.Record.LocationUpdate [
-                    update->location: University.Offering.Location = location
-                ]
-                record: SearchIndex.Record [
-                    record = update->record: SearchIndex.Record
-                ]
-            }
         ]) {
             offering: University.Offering [
                 offering = location->offering: University.Offering
@@ -321,6 +309,12 @@ public class MultiJoinTest
             ]
             record: SearchIndex.Record [
                 record->offering: University.Offering = offering
+                !E {
+                    update: SearchIndex.Record.LocationUpdate [
+                        update->location: University.Offering.Location = location
+                        update->record: SearchIndex.Record = record
+                    ]
+                }
             ]
         } => {
             location = location

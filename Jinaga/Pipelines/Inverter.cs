@@ -188,6 +188,12 @@ namespace Jinaga.Pipelines
                 matches = InvertAndMovePathCondition(matches, label, pathCondition);
             }
 
+            // Move any existential conditions to the tagged match.
+            foreach (var existentialCondition in match.ExistentialConditions)
+            {
+                matches = MoveExistentialCondition(matches, label, existentialCondition);
+            }
+
             // Move any other matches with no paths down.
             for (int i = 1; i < matches.Count; i++)
             {
@@ -251,6 +257,69 @@ namespace Jinaga.Pipelines
             return matches;
         }
 
+        private static ImmutableList<Match> MoveExistentialCondition(ImmutableList<Match> matches, string label, ExistentialCondition existentialCondition)
+        {
+            // Find the labels targeted by the existential condition.
+            var existentialLabels = GetTargetLabels(ImmutableHashSet<string>.Empty, existentialCondition.Matches);
+
+            // If the only label targeted by the existential condition is the given label,
+            // then the existential condition is already in the right place.
+            if (existentialLabels.Count == 0 || (existentialLabels.Count == 1 && existentialLabels.First() == label))
+            {
+                return matches;
+            }
+
+            // Find the match for the given label.
+            var match = FindMatch(matches, label);
+
+            // Find the lowest match targeted by the existential condition.
+            var taggedMatch = FindLowestMatch(matches, existentialLabels);
+
+            // Remove the existential condition from the match.
+            var newMatch = new Match(
+                match.Unknown,
+                match.PathConditions,
+                match.ExistentialConditions.Remove(existentialCondition)
+            );
+            matches = matches.Replace(match, newMatch);
+
+            // Add the existential condition to the tagged match.
+            var newTaggedMatch = new Match(
+                taggedMatch.Unknown,
+                taggedMatch.PathConditions,
+                taggedMatch.ExistentialConditions.Add(existentialCondition)
+            );
+            matches = matches.Replace(taggedMatch, newTaggedMatch);
+
+            return matches;
+        }
+
+        private static ImmutableHashSet<string> GetTargetLabels(ImmutableHashSet<string> unknownLabels, ImmutableList<Match> matches)
+        {
+            // Find all labels that appear on the right side of a path condition, recursively,
+            // and are not defined as an unknown.
+            var targetLabels = ImmutableHashSet<string>.Empty;
+
+            foreach (var match in matches)
+            {
+                unknownLabels = unknownLabels.Add(match.Unknown.Name);
+                foreach (var pathCondition in match.PathConditions)
+                {
+                    if (!unknownLabels.Contains(pathCondition.LabelRight))
+                    {
+                        targetLabels = targetLabels.Add(pathCondition.LabelRight);
+                    }
+                }
+                foreach (var existentialCondition in match.ExistentialConditions)
+                {
+                    var existentialLabels = GetTargetLabels(unknownLabels, existentialCondition.Matches);
+                    targetLabels = targetLabels.Union(existentialLabels);
+                }
+            }
+
+            return targetLabels;
+        }
+
         private static ImmutableList<Match> RemoveExistentialCondition(ImmutableList<Match> matches, ExistentialCondition existentialCondition)
         {
             return matches.Select(match =>
@@ -266,6 +335,17 @@ namespace Jinaga.Pipelines
             if (match == null)
             {
                 throw new ArgumentException($"Malformed specification. Unknown label {label}.");
+            }
+
+            return match;
+        }
+
+        private static Match FindLowestMatch(ImmutableList<Match> matches, ImmutableHashSet<string> labels)
+        {
+            var match = matches.LastOrDefault(m => labels.Contains(m.Unknown.Name));
+            if (match == null)
+            {
+                throw new ArgumentException($"Malformed specification. Unknown labels {string.Join(", ", labels)}.");
             }
 
             return match;
