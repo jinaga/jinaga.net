@@ -38,34 +38,6 @@ public class MultiJoinTest
             inverse.InverseSpecification.ToString().ReplaceLineEndings()).ToArray();
         inverses.Should().BeEquivalentTo([
             """
-            (record: SearchIndex.Record) {
-                offering: University.Offering [
-                    offering = record->offering: University.Offering
-                ]
-                semester: University.Semester [
-                    semester = offering->semester: University.Semester
-                ]
-                location: University.Offering.Location [
-                    location->offering: University.Offering = offering
-                    !E {
-                        next: University.Offering.Location [
-                            next->prior: University.Offering.Location = location
-                        ]
-                    }
-                    !E {
-                        update: SearchIndex.Record.LocationUpdate [
-                            update->record: SearchIndex.Record = record
-                            update->location: University.Offering.Location = location
-                        ]
-                    }
-                ]
-            } => {
-                location = location
-                record = record
-            }
-
-            """,
-            """
             (location: University.Offering.Location [
                 !E {
                     next: University.Offering.Location [
@@ -76,9 +48,6 @@ public class MultiJoinTest
                 offering: University.Offering [
                     offering = location->offering: University.Offering
                 ]
-                semester: University.Semester [
-                    semester = offering->semester: University.Semester
-                ]
                 record: SearchIndex.Record [
                     record->offering: University.Offering = offering
                     !E {
@@ -87,6 +56,9 @@ public class MultiJoinTest
                             update->location: University.Offering.Location = location
                         ]
                     }
+                ]
+                semester: University.Semester [
+                    semester = offering->semester: University.Semester
                 ]
             } => {
                 location = location
@@ -121,24 +93,52 @@ public class MultiJoinTest
 
             """,
             """
-            (update: SearchIndex.Record.LocationUpdate) {
+            (record: SearchIndex.Record) {
+                offering: University.Offering [
+                    offering = record->offering: University.Offering
+                ]
+                semester: University.Semester [
+                    semester = offering->semester: University.Semester
+                ]
                 location: University.Offering.Location [
+                    location->offering: University.Offering = offering
+                    !E {
+                        next: University.Offering.Location [
+                            next->prior: University.Offering.Location = location
+                        ]
+                    }
+                    !E {
+                        update: SearchIndex.Record.LocationUpdate [
+                            update->record: SearchIndex.Record = record
+                            update->location: University.Offering.Location = location
+                        ]
+                    }
+                ]
+            } => {
+                location = location
+                record = record
+            }
+
+            """,
+            """
+            (update: SearchIndex.Record.LocationUpdate) {
+                record: SearchIndex.Record [
+                    record = update->record: SearchIndex.Record
+                ]
+                offering: University.Offering [
+                    offering = record->offering: University.Offering
+                ]
+                semester: University.Semester [
+                    semester = offering->semester: University.Semester
+                ]
+                location: University.Offering.Location [
+                    location->offering: University.Offering = offering
                     location = update->location: University.Offering.Location
                     !E {
                         next: University.Offering.Location [
                             next->prior: University.Offering.Location = location
                         ]
                     }
-                ]
-                offering: University.Offering [
-                    offering = location->offering: University.Offering
-                ]
-                semester: University.Semester [
-                    semester = offering->semester: University.Semester
-                ]
-                record: SearchIndex.Record [
-                    record = update->record: SearchIndex.Record
-                    record->offering: University.Offering = offering
                 ]
             } => {
                 location = location
