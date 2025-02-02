@@ -63,6 +63,8 @@ namespace Jinaga.Pipelines
 
         private static ImmutableList<Inverse> InvertMatches(ImmutableList<Match> matches, IEnumerable<Label> labels, InverterContext context)
         {
+            var originalMatches = matches;
+
             // Produce an inverse for each unknown in the original specification.
             var inverses = ImmutableList<Inverse>.Empty;
             foreach (var label in labels)
@@ -90,8 +92,12 @@ namespace Jinaga.Pipelines
                     );
                     inverses = inverses.Add(inverse);
                 }
+            }
 
-                inverses = inverses.AddRange(InvertExistentialConditions(matches, matches[0].ExistentialConditions, InverseOperation.Add, context));
+            // Produce inverses for each existential condition in every match.
+            foreach (var match in originalMatches)
+            {
+                inverses = inverses.AddRange(InvertExistentialConditions(originalMatches, match.ExistentialConditions, InverseOperation.Add, context));
             }
 
             return inverses;
@@ -104,16 +110,21 @@ namespace Jinaga.Pipelines
             // Produce inverses for each existential condition in the match.
             foreach (var existentialCondition in existentialConditions)
             {
-                var matches = outerMatches.AddRange(existentialCondition.Matches);
+                var matches = RemoveExistentialCondition(outerMatches, existentialCondition)
+                    .AddRange(existentialCondition.Matches);
                 foreach (var match in existentialCondition.Matches)
                 {
+                    string preShake = string.Join("\n", matches.Select(m => m.ToString()));
+                    Console.WriteLine(preShake);
                     matches = ShakeTree(matches, match.Unknown.Name);
+                    string postShake = string.Join("\n", matches.Select(m => m.ToString()));
+                    Console.WriteLine(postShake);
 
                     var inverseSpecification = new Specification(
                         ImmutableList.Create(
                             new SpecificationGiven(match.Unknown, matches.First().ExistentialConditions)
                         ),
-                        RemoveExistentialCondition(matches.RemoveAt(0), existentialCondition),
+                        matches.RemoveAt(0),
                         context.Projection
                     );
                     bool exists = existentialCondition.Exists;
@@ -127,9 +138,6 @@ namespace Jinaga.Pipelines
                         context.ParentSubset
                     );
                     inverses = inverses.Add(inverse);
-
-                    var existentialInverses = InvertExistentialConditions(matches, match.ExistentialConditions, operation, context);
-                    inverses = inverses.AddRange(existentialInverses);
                 }
             }
 
