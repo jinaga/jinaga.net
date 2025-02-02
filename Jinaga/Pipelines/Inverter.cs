@@ -186,55 +186,6 @@ namespace Jinaga.Pipelines
             return inverses;
         }
 
-        public static ImmutableList<Match> ShakeTreeOld(ImmutableList<Match> matches, string label)
-        {
-            // Find the match for the given label.
-            var match = FindMatch(matches, label);
-
-            // Move the match to the beginning of the list.
-            matches = matches.Remove(match).Insert(0, match);
-
-            // Invert all path conditions in the match and move them to the tagged match.
-            foreach (var pathCondition in match.PathConditions)
-            {
-                matches = InvertAndMovePathCondition(matches, label, pathCondition);
-            }
-
-            // Move any existential conditions to the tagged match.
-            foreach (var existentialCondition in match.ExistentialConditions)
-            {
-                matches = MoveExistentialCondition(matches, label, existentialCondition);
-            }
-
-            // Move any other matches with no paths down.
-            for (int i = 1; i < matches.Count; i++)
-            {
-                var otherMatch = matches[i];
-                while (!otherMatch.PathConditions.Any())
-                {
-                    // Find all matches beyond this point that tag this one.
-                    for (int j = i + 1; j < matches.Count; j++)
-                    {
-                        var taggedMatch = matches[j];
-                        // Move their path conditions to the other match.
-                        var taggedConditions = taggedMatch.PathConditions
-                            .Where(c => c.LabelRight == otherMatch.Unknown.Name)
-                            .ToImmutableList();
-                        foreach (var pathCondition in taggedConditions)
-                        {
-                            matches = InvertAndMovePathCondition(matches, taggedMatch.Unknown.Name, pathCondition);
-                        }
-                    }
-                    // Move the other match to the bottom of the list.
-                    otherMatch = matches[i];
-                    matches = matches.Remove(otherMatch).Add(otherMatch);
-                    otherMatch = matches[i];
-                }
-            }
-
-            return matches;
-        }
-
         private static ImmutableList<Match> ShakeTree(ImmutableList<Match> matches, string label)
         {
             // Break the graph down.
@@ -311,77 +262,6 @@ namespace Jinaga.Pipelines
             return newMatches;
         }
 
-        private static ImmutableList<Match> InvertAndMovePathCondition(ImmutableList<Match> matches, string label, PathCondition pathCondition)
-        {
-            // Find the match for the given label.
-            var match = FindMatch(matches, label);
-
-            // Find the match for the target label.
-            var taggedMatch = FindMatch(matches, pathCondition.LabelRight);
-
-            // Invert the path condition.
-            var invertedPathCondition = new PathCondition(
-                pathCondition.RolesRight,
-                match.Unknown.Name,
-                pathCondition.RolesLeft
-            );
-
-            // Remove the path condition from the match.
-            var newMatch = new Match(
-                match.Unknown,
-                match.PathConditions.Remove(pathCondition),
-                match.ExistentialConditions
-            );
-            matches = matches.Replace(match, newMatch);
-
-            // Add the inverted path condition to the tagged match.
-            var newTaggedMatch = new Match(
-                taggedMatch.Unknown,
-                taggedMatch.PathConditions.Insert(0, invertedPathCondition),
-                taggedMatch.ExistentialConditions
-            );
-            matches = matches.Replace(taggedMatch, newTaggedMatch);
-
-            return matches;
-        }
-
-        private static ImmutableList<Match> MoveExistentialCondition(ImmutableList<Match> matches, string label, ExistentialCondition existentialCondition)
-        {
-            // Find the labels targeted by the existential condition.
-            var existentialLabels = GetTargetLabels(ImmutableHashSet<string>.Empty, existentialCondition.Matches);
-
-            // If the only label targeted by the existential condition is the given label,
-            // then the existential condition is already in the right place.
-            if (existentialLabels.Count == 0 || (existentialLabels.Count == 1 && existentialLabels.First() == label))
-            {
-                return matches;
-            }
-
-            // Find the match for the given label.
-            var match = FindMatch(matches, label);
-
-            // Find the lowest match targeted by the existential condition.
-            var taggedMatch = FindLowestMatch(matches, existentialLabels);
-
-            // Remove the existential condition from the match.
-            var newMatch = new Match(
-                match.Unknown,
-                match.PathConditions,
-                match.ExistentialConditions.Remove(existentialCondition)
-            );
-            matches = matches.Replace(match, newMatch);
-
-            // Add the existential condition to the tagged match.
-            var newTaggedMatch = new Match(
-                taggedMatch.Unknown,
-                taggedMatch.PathConditions,
-                taggedMatch.ExistentialConditions.Add(existentialCondition)
-            );
-            matches = matches.Replace(taggedMatch, newTaggedMatch);
-
-            return matches;
-        }
-
         private static ImmutableHashSet<string> GetTargetLabels(ImmutableHashSet<string> unknownLabels, ImmutableList<Match> matches)
         {
             // Find all labels that appear on the right side of a path condition, recursively,
@@ -415,28 +295,6 @@ namespace Jinaga.Pipelines
                     ? new Match(match.Unknown, match.PathConditions, match.ExistentialConditions.Remove(existentialCondition))
                     : match
             ).ToImmutableList();
-        }
-
-        private static Match FindMatch(ImmutableList<Match> matches, string label)
-        {
-            var match = matches.FirstOrDefault(m => m.Unknown.Name == label);
-            if (match == null)
-            {
-                throw new ArgumentException($"Malformed specification. Unknown label {label}.");
-            }
-
-            return match;
-        }
-
-        private static Match FindLowestMatch(ImmutableList<Match> matches, ImmutableHashSet<string> labels)
-        {
-            var match = matches.LastOrDefault(m => labels.Contains(m.Unknown.Name));
-            if (match == null)
-            {
-                throw new ArgumentException($"Malformed specification. Unknown labels {string.Join(", ", labels)}.");
-            }
-
-            return match;
         }
 
         private static Subset AddUnknowns(Subset initialSubset, ImmutableList<Match> matches)
