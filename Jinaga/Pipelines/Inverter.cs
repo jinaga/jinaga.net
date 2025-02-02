@@ -237,7 +237,7 @@ namespace Jinaga.Pipelines
             // Find all existential conditions whose connections are completely satisfied.
             var unknownLabels = newMatches.Select(m => m.Unknown.Name).ToImmutableHashSet().Add(label);
             var satisfiedExistentialConditions = existentialConditions.Where(ec =>
-                GetTargetLabels(unknownLabels, ec.Matches).Count == 0
+                IsSatisfied(unknownLabels, ec.Matches)
             ).ToImmutableList();
 
             // Add the unknown to the new matches.
@@ -262,30 +262,29 @@ namespace Jinaga.Pipelines
             return newMatches;
         }
 
-        private static ImmutableHashSet<string> GetTargetLabels(ImmutableHashSet<string> unknownLabels, ImmutableList<Match> matches)
+        private static bool IsSatisfied(ImmutableHashSet<string> unknownLabels, ImmutableList<Match> matches)
         {
-            // Find all labels that appear on the right side of a path condition, recursively,
-            // and are not defined as an unknown.
-            var targetLabels = ImmutableHashSet<string>.Empty;
-
             foreach (var match in matches)
             {
                 unknownLabels = unknownLabels.Add(match.Unknown.Name);
-                foreach (var pathCondition in match.PathConditions)
+                bool everyPathConditionIsSatisfied = match.PathConditions.All(pc =>
+                    unknownLabels.Contains(pc.LabelRight)
+                );
+                if (!everyPathConditionIsSatisfied)
                 {
-                    if (!unknownLabels.Contains(pathCondition.LabelRight))
-                    {
-                        targetLabels = targetLabels.Add(pathCondition.LabelRight);
-                    }
+                    return false;
                 }
-                foreach (var existentialCondition in match.ExistentialConditions)
+
+                bool everyExistentialConditionIsSatisfied = match.ExistentialConditions.All(ec =>
+                    IsSatisfied(unknownLabels, ec.Matches)
+                );
+                if (!everyExistentialConditionIsSatisfied)
                 {
-                    var existentialLabels = GetTargetLabels(unknownLabels, existentialCondition.Matches);
-                    targetLabels = targetLabels.Union(existentialLabels);
+                    return false;
                 }
             }
 
-            return targetLabels;
+            return true;
         }
 
         private static ImmutableList<Match> RemoveExistentialCondition(ImmutableList<Match> matches, ExistentialCondition existentialCondition)
