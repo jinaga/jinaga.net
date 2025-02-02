@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 
 using Jinaga.Extensions;
 using Jinaga.Test.Model.University;
@@ -209,6 +210,8 @@ public class MultiJoinTest
 
         // Watch for offerings to index.
         var index = new Dictionary<Guid, SearchRecord>();
+        var indexRecordCreatedEvent = new CountdownEvent(19);
+        var indexRecordUpdatedEvent = new CountdownEvent(20);
 
         var offeringsToIndex = Given<Semester>.Match(semester =>
             from offering in semester.Successors().OfType<Offering>(offering => offering.semester)
@@ -229,6 +232,8 @@ public class MultiJoinTest
                 Location = "TBA"
             };
             await j.Fact(new SearchIndexRecord(offering, recordId));
+            // Count the number of times that an index record is created.
+            indexRecordCreatedEvent.Signal();
         });
 
         // Watch for index records to update.
@@ -249,7 +254,14 @@ public class MultiJoinTest
             var location = work.location;
             index[record.recordId].Location = location.building + " " + location.room;
             await j.Fact(new SearchIndexRecordLocationUpdate(record, location));
+            // Count the number of times that an index record is updated.
+            indexRecordUpdatedEvent.Signal();
         });
+
+        // Verify that the index is in the correct initial state.
+        // The location "Building E 105" is not expected to be in the initial state.
+        indexRecordCreatedEvent.Wait(5000);
+        index.Values.Where(i => i.Location == "Building E 105").Should().BeEmpty();
 
         // Trigger an index update.
         var offeringAndLocationInSemester = Given<Semester>.Match(semester =>
@@ -260,68 +272,9 @@ public class MultiJoinTest
         var offeringsAndLocations = await j.Query(offeringAndLocationInSemester, currentSemester);
         await j.Fact(new OfferingLocation(offeringsAndLocations[0].offering, "Building E", "105", [offeringsAndLocations[0].location]));
 
-        /*
-        The inverse that fails is:
-        When (location: University.Offering.Location [
-            !E {
-                next: University.Offering.Location [
-                    next->prior: University.Offering.Location = location
-                ]
-            }
-            !E {
-                update: SearchIndex.Record.LocationUpdate [
-                    update->record: SearchIndex.Record = record
-                    update->location: University.Offering.Location = location
-                ]
-            }
-        ]) {
-            offering: University.Offering [
-                offering = location->offering: University.Offering
-            ]
-            semester: University.Semester [
-                semester = offering->semester: University.Semester
-            ]
-            record: SearchIndex.Record [
-                record->offering: University.Offering = offering
-            ]
-        } => {
-            location = location
-            record = record
-        }
-        Then add (semester, offering, record, location) to (semester)
-
-        It fails with "The tuple does not contain a reference named record."
-        The issue is that the given condition references "record". It should only reference "location".
-
-        The inverse should be:
-        When (location: University.Offering.Location [
-            !E {
-                next: University.Offering.Location [
-                    next->prior: University.Offering.Location = location
-                ]
-            }
-        ]) {
-            offering: University.Offering [
-                offering = location->offering: University.Offering
-            ]
-            semester: University.Semester [
-                semester = offering->semester: University.Semester
-            ]
-            record: SearchIndex.Record [
-                record->offering: University.Offering = offering
-                !E {
-                    update: SearchIndex.Record.LocationUpdate [
-                        update->location: University.Offering.Location = location
-                        update->record: SearchIndex.Record = record
-                    ]
-                }
-            ]
-        } => {
-            location = location
-            record = record
-        }
-        Then add (semester, offering, record, location) to (semester)
-
-        */
+        // Verify that the index was updated.
+        // The location "Building E 105" is expected to be in the updated state exactly once.
+        indexRecordUpdatedEvent.Wait(5000);
+        index.Values.Count(i => i.Location == "Building E 105").Should().Be(1);
     }
 }
