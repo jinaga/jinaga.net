@@ -110,8 +110,12 @@ namespace Jinaga.Pipelines
             // Produce inverses for each existential condition in the match.
             foreach (var existentialCondition in existentialConditions)
             {
-                var matches = RemoveExistentialCondition(outerMatches, existentialCondition)
-                    .AddRange(existentialCondition.Matches);
+                var initialMatches = outerMatches.AddRange(existentialCondition.Matches);
+                var matches = RemoveExistentialCondition(initialMatches, existentialCondition);
+
+                bool exists = existentialCondition.Exists;
+                var operation = InferOperation(parentOperation, exists);
+
                 foreach (var match in existentialCondition.Matches)
                 {
                     matches = ShakeTree(matches, match.Unknown.Name);
@@ -123,8 +127,6 @@ namespace Jinaga.Pipelines
                         matches.RemoveAt(0),
                         context.Projection
                     );
-                    bool exists = existentialCondition.Exists;
-                    var operation = InferOperation(parentOperation, exists);
                     var inverse = new Inverse(
                         inverseSpecification,
                         context.GivenSubset,
@@ -134,6 +136,12 @@ namespace Jinaga.Pipelines
                         context.ParentSubset
                     );
                     inverses = inverses.Add(inverse);
+                }
+
+                // Recursively produce inverses for existential conditions in those matches.
+                foreach (var match in existentialCondition.Matches)
+                {
+                    inverses = inverses.AddRange(InvertExistentialConditions(initialMatches, match.ExistentialConditions, operation, context));
                 }
             }
 
