@@ -114,11 +114,7 @@ namespace Jinaga.Pipelines
                     .AddRange(existentialCondition.Matches);
                 foreach (var match in existentialCondition.Matches)
                 {
-                    string preShake = string.Join("\n", matches.Select(m => m.ToString()));
-                    Console.WriteLine(preShake);
                     matches = ShakeTree(matches, match.Unknown.Name);
-                    string postShake = string.Join("\n", matches.Select(m => m.ToString()));
-                    Console.WriteLine(postShake);
 
                     var inverseSpecification = new Specification(
                         ImmutableList.Create(
