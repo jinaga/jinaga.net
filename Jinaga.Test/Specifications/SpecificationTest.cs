@@ -1546,5 +1546,137 @@ namespace Jinaga.Test.Specifications.Specifications
                 """
             );
         }
+
+        [Fact]
+        public void CanUseShortNameForJoinExpression()
+        {
+            var specification = Given<Company>.Match(company =>
+                from office in company.Successors().OfType<Office>(o => o.company)
+                select office
+            );
+
+            specification.ToString().ReplaceLineEndings().Should().Be(
+                """
+                (company: Corporate.Company) {
+                    office: Corporate.Office [
+                        office->company: Corporate.Company = company
+                    ]
+                } => office
+
+                """
+            );
+        }
+
+        [Fact]
+        public void CanUseDuplicateNamesInLambdas()
+        {
+            var specification = Given<Company>.Match(company =>
+                company.Successors().OfType<Office>(o => o.company)
+                    .SelectMany(f => f.Successors().OfType<Manager>(f => f.office))
+            );
+
+            specification.ToString().ReplaceLineEndings().Should().Be(
+                """
+                (company: Corporate.Company) {
+                    f: Corporate.Office [
+                        f->company: Corporate.Company = company
+                    ]
+                    f2: Corporate.Manager [
+                        f2->office: Corporate.Office = f
+                    ]
+                } => f2
+
+                """
+            );
+        }
+
+        [Fact]
+        public void CanReuseGivenNameInLambdas()
+        {
+            var specification = Given<Company>.Match(company =>
+                company.Successors().OfType<Office>(office => office.company)
+                    .SelectMany(company => company.Successors().OfType<Manager>(manager => manager.office))
+            );
+
+            specification.ToString().ReplaceLineEndings().Should().Be(
+                """
+                (company: Corporate.Company) {
+                    company2: Corporate.Office [
+                        company2->company: Corporate.Company = company
+                    ]
+                    manager: Corporate.Manager [
+                        manager->office: Corporate.Office = company2
+                    ]
+                } => manager
+
+                """
+            );
+        }
+
+        [Fact]
+        public void CanReuseALabelInAnExistentialCondition()
+        {
+            var specification = Given<Company>.Match(closure =>
+                closure.Successors().OfType<Office>(office => office.company)
+                    .Where(office => !office.IsClosed)
+                    .SelectMany(office => office.Successors().OfType<Manager>(manager => manager.office))
+            );
+
+            specification.ToString().ReplaceLineEndings().Should().Be(
+                """
+                (closure: Corporate.Company) {
+                    office: Corporate.Office [
+                        office->company: Corporate.Company = closure
+                        !E {
+                            closure2: Corporate.Office.Closure [
+                                closure2->office: Corporate.Office = office
+                            ]
+                        }
+                    ]
+                    manager: Corporate.Manager [
+                        manager->office: Corporate.Office = office
+                    ]
+                } => manager
+
+                """
+            );
+
+            var inverses = specification.ComputeInverses();
+            inverses.Select(i => i.InverseSpecification.ToString().ReplaceLineEndings()).Should().BeEquivalentTo(
+                [
+                    """
+                    (manager: Corporate.Manager) {
+                        office: Corporate.Office [
+                            office = manager->office: Corporate.Office
+                            !E {
+                                closure2: Corporate.Office.Closure [
+                                    closure2->office: Corporate.Office = office
+                                ]
+                            }
+                        ]
+                        closure: Corporate.Company [
+                            closure = office->company: Corporate.Company
+                        ]
+                    } => manager
+
+                    """,
+                    // This is the reason we cannot redefine the label in the existential condition.
+                    """
+                    (closure2: Corporate.Office.Closure) {
+                        office: Corporate.Office [
+                            office = closure2->office: Corporate.Office
+                        ]
+                        closure: Corporate.Company [
+                            closure = office->company: Corporate.Company
+                        ]
+                        manager: Corporate.Manager [
+                            manager->office: Corporate.Office = office
+                        ]
+                    } => manager
+
+                    """
+                ]
+            );
+        }
     }
 }

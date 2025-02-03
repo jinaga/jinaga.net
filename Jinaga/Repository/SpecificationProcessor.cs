@@ -1,4 +1,4 @@
-﻿using Jinaga.Extensions;
+using Jinaga.Extensions;
 using Jinaga.Pipelines;
 using Jinaga.Projections;
 using Jinaga.Specifications;
@@ -23,7 +23,8 @@ namespace Jinaga.Repository
             var nonRepositoryParameters = specExpression.Parameters
                 .Where(parameter => parameter.Type != typeof(FactRepository));
             var symbolTable = processor.Given(nonRepositoryParameters);
-            var result = processor.ProcessSource(specExpression.Body, symbolTable);
+            var labelsUsed = processor.givenLabels.Select(g => g.Name).ToImmutableList();
+            var result = processor.ProcessSource(specExpression.Body, symbolTable, labelsUsed);
             processor.ValidateMatches(result.Matches);
             return (processor.givenLabels, result.Matches, result.Projection);
         }
@@ -176,14 +177,14 @@ namespace Jinaga.Repository
                     else if (methodCallExpression.Arguments.Count == 1 &&
                         typeof(IQueryable).IsAssignableFrom(methodCallExpression.Arguments[0].Type))
                     {
-                        var value = ProcessSource(methodCallExpression.Arguments[0], symbolTable);
+                        var value = ProcessSource(methodCallExpression.Arguments[0], symbolTable, ImmutableList<string>.Empty);
                         var collectionProjection = new CollectionProjection(value.Matches, value.Projection, methodCallExpression.Type);
                         return collectionProjection;
                     }
                 }
                 else if (expression.Type.IsGenericType && expression.Type.GetGenericTypeDefinition() == typeof(IQueryable<>))
                 {
-                    var value = ProcessSource(expression, symbolTable);
+                    var value = ProcessSource(expression, symbolTable, ImmutableList<string>.Empty);
                     var collectionProjection = new CollectionProjection(value.Matches, value.Projection, expression.Type);
                     return collectionProjection;
                 }
@@ -205,7 +206,7 @@ namespace Jinaga.Repository
             throw new SpecificationException($"Unsupported type of projection {expression}.");
         }
 
-        private SourceContext ProcessSource(Expression expression, SymbolTable symbolTable, string recommendedLabel = "unknown")
+        private SourceContext ProcessSource(Expression expression, SymbolTable symbolTable, ImmutableList<string> labelsUsed, string? recommendedLabel = null)
         {
             if (expression is ConstantExpression constantExpression &&
                 constantExpression.Type.IsGenericType &&
@@ -223,9 +224,9 @@ namespace Jinaga.Repository
                     {
                         var lambda = GetLambda(methodCallExpression.Arguments[1]);
                         var parameterName = lambda.Parameters[0].Name;
-                        var source = ProcessSource(methodCallExpression.Arguments[0], symbolTable, parameterName);
+                        var source = ProcessSource(methodCallExpression.Arguments[0], symbolTable, labelsUsed, parameterName);
                         var childSymbolTable = symbolTable.Set(parameterName, source.Projection);
-                        var predicate = ProcessPredicate(lambda.Body, childSymbolTable);
+                        var predicate = ProcessPredicate(lambda.Body, childSymbolTable, labelsUsed);
                         return LinqProcessor.Where(source, predicate);
                     }
                     else if (methodCallExpression.Method.Name == nameof(System.Linq.Queryable.Select) &&
@@ -233,7 +234,7 @@ namespace Jinaga.Repository
                     {
                         var selector = GetLambda(methodCallExpression.Arguments[1]);
                         var parameterName = selector.Parameters[0].Name;
-                        var source = ProcessSource(methodCallExpression.Arguments[0], symbolTable, parameterName);
+                        var source = ProcessSource(methodCallExpression.Arguments[0], symbolTable, labelsUsed, parameterName);
                         var childSymbolTable = symbolTable.Set(parameterName, source.Projection);
                         var projection = ProcessProjection(selector.Body, childSymbolTable);
                         return LinqProcessor.Select(source, projection);
@@ -244,10 +245,11 @@ namespace Jinaga.Repository
                         var collectionSelector = GetLambda(methodCallExpression.Arguments[1]);
                         var collectionSelectorParameterName = collectionSelector.Parameters[0].Name;
 
-                        var source = ProcessSource(methodCallExpression.Arguments[0], symbolTable, collectionSelectorParameterName);
+                        var source = ProcessSource(methodCallExpression.Arguments[0], symbolTable, labelsUsed, collectionSelectorParameterName);
+                        labelsUsed = labelsUsed.AddRange(source.Labels);
 
                         var collectionSelectorSymbolTable = symbolTable.Set(collectionSelectorParameterName, source.Projection);
-                        var selector = ProcessSource(collectionSelector.Body, collectionSelectorSymbolTable, recommendedLabel);
+                        var selector = ProcessSource(collectionSelector.Body, collectionSelectorSymbolTable, labelsUsed, recommendedLabel);
 
                         return LinqProcessor.SelectMany(source, selector);
                     }
@@ -259,10 +261,11 @@ namespace Jinaga.Repository
                         var resultSelector = GetLambda(methodCallExpression.Arguments[2]);
                         var resultSelectorParameterName = resultSelector.Parameters[1].Name;
 
-                        var source = ProcessSource(methodCallExpression.Arguments[0], symbolTable, collectionSelectorParameterName);
+                        var source = ProcessSource(methodCallExpression.Arguments[0], symbolTable, labelsUsed, collectionSelectorParameterName);
+                        labelsUsed = labelsUsed.AddRange(source.Labels);
 
                         var collectionSelectorSymbolTable = symbolTable.Set(collectionSelectorParameterName, source.Projection);
-                        var selector = ProcessSource(collectionSelector.Body, collectionSelectorSymbolTable, resultSelectorParameterName);
+                        var selector = ProcessSource(collectionSelector.Body, collectionSelectorSymbolTable, labelsUsed, resultSelectorParameterName);
 
                         var resultSelectorSymbolTable = symbolTable
                             .Set(resultSelector.Parameters[0].Name, source.Projection)
@@ -281,7 +284,7 @@ namespace Jinaga.Repository
                     {
                         Type factType = methodCallExpression.Method.GetGenericArguments()[0];
                         string type = factType.FactTypeName();
-                        var label = new Label(recommendedLabel, type);
+                        var label = new Label(UniqueLabelName(recommendedLabel ?? "unknown", labelsUsed), type);
                         return LinqProcessor.FactsOfType(label, factType);
                     }
                     else if (methodCallExpression.Method.Name == nameof(FactRepository.OfType) &&
@@ -293,11 +296,11 @@ namespace Jinaga.Repository
 
                         // Produce the source of the match.
                         var genericArgument = methodCallExpression.Method.GetGenericArguments()[0];
-                        var source = LinqProcessor.FactsOfType(new Label(parameterName, genericArgument.FactTypeName()), genericArgument);
+                        var source = LinqProcessor.FactsOfType(new Label(UniqueLabelName(parameterName, labelsUsed), genericArgument.FactTypeName()), genericArgument);
 
                         // Process the predicate.
                         var childSymbolTable = symbolTable.Set(parameterName, source.Projection);
-                        var predicate = ProcessPredicate(lambda.Body, childSymbolTable);
+                        var predicate = ProcessPredicate(lambda.Body, childSymbolTable, labelsUsed);
                         return LinqProcessor.Where(source, predicate);
                     }
                 }
@@ -314,7 +317,7 @@ namespace Jinaga.Repository
 
                         // Produce the source of the match.
                         var genericArgument = methodCallExpression.Method.GetGenericArguments()[0];
-                        var source = LinqProcessor.FactsOfType(new Label(predecessorParameterName, genericArgument.FactTypeName()), genericArgument);
+                        var source = LinqProcessor.FactsOfType(new Label(UniqueLabelName(recommendedLabel ?? predecessorParameterName, labelsUsed), genericArgument.FactTypeName()), genericArgument);
 
                         // Process the predecessor selector.
                         var childSymbolTable = symbolTable.Set(predecessorParameterName, source.Projection);
@@ -343,7 +346,7 @@ namespace Jinaga.Repository
                     var queryables = arguments
                         .Select(pair =>
                         {
-                            SourceContext sourceContext = ProcessSource(pair.arg, symbolTable);
+                            SourceContext sourceContext = ProcessSource(pair.arg, symbolTable, labelsUsed);
                             object queryable = SourceContextToQueryable(sourceContext, pair.arg.Type.GetGenericArguments()[0]);
                             return (pair.index, queryable);
                         })
@@ -372,7 +375,7 @@ namespace Jinaga.Repository
 
                     // Extract the expression from the result.
                     var expressionResult = (IQueryable)result;
-                    return ProcessSource(expressionResult.Expression, symbolTable);
+                    return ProcessSource(expressionResult.Expression, symbolTable, labelsUsed);
                 }
             }
             else if (expression is MemberExpression memberExpression)
@@ -387,7 +390,7 @@ namespace Jinaga.Repository
                         var relation = (IQueryable)propertyInfo.GetGetMethod().Invoke(target, new object[0]);
                         var projection = ProcessProjection(memberExpression.Expression, symbolTable);
                         var childSymbolTable = SymbolTable.Empty.Set("this", projection);
-                        return ProcessSource(relation.Expression, childSymbolTable);
+                        return ProcessSource(relation.Expression, childSymbolTable, labelsUsed);
                     }
                 }
             }
@@ -402,7 +405,7 @@ namespace Jinaga.Repository
             return method.Invoke(null, new object[] { source });
         }
 
-        private PredicateContext ProcessPredicate(Expression body, SymbolTable symbolTable)
+        private PredicateContext ProcessPredicate(Expression body, SymbolTable symbolTable, ImmutableList<string> knownLabels)
         {
             if (body is BinaryExpression { NodeType: ExpressionType.Equal } binary)
             {
@@ -412,7 +415,7 @@ namespace Jinaga.Repository
             }
             if (body is UnaryExpression { NodeType: ExpressionType.Not, Operand: Expression operand })
             {
-                return LinqProcessor.Not(ProcessPredicate(operand, symbolTable));
+                return LinqProcessor.Not(ProcessPredicate(operand, symbolTable, knownLabels));
             }
             if (body is MethodCallExpression methodCallExpression)
             {
@@ -421,7 +424,7 @@ namespace Jinaga.Repository
                     if (methodCallExpression.Method.Name == nameof(System.Linq.Queryable.Any) &&
                         methodCallExpression.Arguments.Count == 1)
                     {
-                        var source = ProcessSource(methodCallExpression.Arguments[0], symbolTable);
+                        var source = ProcessSource(methodCallExpression.Arguments[0], symbolTable, knownLabels);
                         return LinqProcessor.Any(source);
                     }
                     else if (methodCallExpression.Method.Name == nameof(System.Linq.Queryable.Any) &&
@@ -430,9 +433,10 @@ namespace Jinaga.Repository
                         var lambda = GetLambda(methodCallExpression.Arguments[1]);
                         string parameterName = lambda.Parameters[0].Name;
                         
-                        var source = ProcessSource(methodCallExpression.Arguments[0], symbolTable, parameterName);
+                        var source = ProcessSource(methodCallExpression.Arguments[0], symbolTable, knownLabels, parameterName);
+                        knownLabels = knownLabels.AddRange(source.Labels);
                         var childSymbolTable = symbolTable.Set(parameterName, source.Projection);
-                        var predicate = ProcessPredicate(lambda.Body, childSymbolTable);
+                        var predicate = ProcessPredicate(lambda.Body, childSymbolTable, knownLabels);
 
                         return LinqProcessor.Any(LinqProcessor.Where(source, predicate));
                     }
@@ -452,9 +456,11 @@ namespace Jinaga.Repository
                     var parameterName = lambda.Parameters[0].Name;
 
                     Type factType = lambda.Parameters[0].Type;
-                    var source = LinqProcessor.FactsOfType(new Label(parameterName, factType.FactTypeName()), factType);
+                    var name = UniqueLabelName(parameterName, knownLabels);
+                    var source = LinqProcessor.FactsOfType(new Label(name, factType.FactTypeName()), factType);
+                    knownLabels = knownLabels.Add(name);
                     var childSymbolTable = symbolTable.Set(parameterName, source.Projection);
-                    var predicate = ProcessPredicate(lambda.Body, childSymbolTable);
+                    var predicate = ProcessPredicate(lambda.Body, childSymbolTable, knownLabels);
                     return LinqProcessor.Any(LinqProcessor.Where(source, predicate));
                 }
                 else if (
@@ -468,7 +474,7 @@ namespace Jinaga.Repository
                         var parameterName = lambda.Parameters[0].Name;
 
                         var genericArgument = methodCallExpression.Method.GetGenericArguments()[0];
-                        var source = LinqProcessor.FactsOfType(new Label(parameterName, genericArgument.FactTypeName()), genericArgument);
+                        var source = LinqProcessor.FactsOfType(new Label(UniqueLabelName(parameterName, knownLabels), genericArgument.FactTypeName()), genericArgument);
                         var childSymbolTable = symbolTable.Set(parameterName, source.Projection);
                         var left = ProcessReference(lambda.Body, childSymbolTable);
                         var right = ProcessReference(methodCallExpression.Object, symbolTable);
@@ -482,7 +488,7 @@ namespace Jinaga.Repository
                         var parameterName = lambda.Parameters[0].Name;
 
                         var genericArgument = methodCallExpression.Method.GetGenericArguments()[0];
-                        var source = LinqProcessor.FactsOfType(new Label(parameterName, genericArgument.FactTypeName()), genericArgument);
+                        var source = LinqProcessor.FactsOfType(new Label(UniqueLabelName(parameterName, knownLabels), genericArgument.FactTypeName()), genericArgument);
                         var childSymbolTable = symbolTable.Set(parameterName, source.Projection);
                         var left = ProcessReference(lambda.Body, childSymbolTable);
                         var right = ProcessReference(methodCallExpression.Object, symbolTable);
@@ -507,7 +513,7 @@ namespace Jinaga.Repository
                     var condition = (Condition)propertyInfo.GetGetMethod().Invoke(target, new object[0]);
                     var projection = ProcessProjection(member.Expression, symbolTable);
                     var childSymbolTable = SymbolTable.Empty.Set("this", projection);
-                    return ProcessPredicate(condition.Body.Body, childSymbolTable);
+                    return ProcessPredicate(condition.Body.Body, childSymbolTable, knownLabels);
                 }
             }
             else if (body is BinaryExpression
@@ -515,11 +521,28 @@ namespace Jinaga.Repository
                 NodeType: ExpressionType.AndAlso
             } andExpression)
             {
-                var left = ProcessPredicate(andExpression.Left, symbolTable);
-                var right = ProcessPredicate(andExpression.Right, symbolTable);
+                var left = ProcessPredicate(andExpression.Left, symbolTable, knownLabels);
+                var right = ProcessPredicate(andExpression.Right, symbolTable, knownLabels);
                 return LinqProcessor.And(left, right);
             }
             throw new SpecificationException($"Unsupported predicate type {body}.");
+        }
+
+        private string UniqueLabelName(string parameterName, ImmutableList<string> labelsUsed)
+        {
+            if (!labelsUsed.Contains(parameterName))
+            {
+                return parameterName;
+            }
+            else
+            {
+                var index = 2;
+                while (labelsUsed.Contains($"{parameterName}{index}"))
+                {
+                    index++;
+                }
+                return $"{parameterName}{index}";
+            }
         }
 
         private ReferenceContext ProcessReference(Expression expression, SymbolTable symbolTable)
