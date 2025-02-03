@@ -522,6 +522,7 @@ namespace Jinaga.Repository
             } andExpression)
             {
                 var left = ProcessPredicate(andExpression.Left, symbolTable, knownLabels);
+                knownLabels = knownLabels.AddRange(left.Labels);
                 var right = ProcessPredicate(andExpression.Right, symbolTable, knownLabels);
                 return LinqProcessor.And(left, right);
             }
