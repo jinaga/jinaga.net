@@ -205,7 +205,7 @@ namespace Jinaga.Repository
             throw new SpecificationException($"Unsupported type of projection {expression}.");
         }
 
-        private SourceContext ProcessSource(Expression expression, SymbolTable symbolTable, string recommendedLabel = "unknown")
+        private SourceContext ProcessSource(Expression expression, SymbolTable symbolTable, string? recommendedLabel = null)
         {
             if (expression is ConstantExpression constantExpression &&
                 constantExpression.Type.IsGenericType &&
@@ -281,7 +281,7 @@ namespace Jinaga.Repository
                     {
                         Type factType = methodCallExpression.Method.GetGenericArguments()[0];
                         string type = factType.FactTypeName();
-                        var label = new Label(recommendedLabel, type);
+                        var label = new Label(recommendedLabel ?? "unknown", type);
                         return LinqProcessor.FactsOfType(label, factType);
                     }
                     else if (methodCallExpression.Method.Name == nameof(FactRepository.OfType) &&
@@ -314,7 +314,7 @@ namespace Jinaga.Repository
 
                         // Produce the source of the match.
                         var genericArgument = methodCallExpression.Method.GetGenericArguments()[0];
-                        var source = LinqProcessor.FactsOfType(new Label(predecessorParameterName, genericArgument.FactTypeName()), genericArgument);
+                        var source = LinqProcessor.FactsOfType(new Label(recommendedLabel ?? predecessorParameterName, genericArgument.FactTypeName()), genericArgument);
 
                         // Process the predecessor selector.
                         var childSymbolTable = symbolTable.Set(predecessorParameterName, source.Projection);

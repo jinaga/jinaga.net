@@ -1546,5 +1546,25 @@ namespace Jinaga.Test.Specifications.Specifications
                 """
             );
         }
+
+        [Fact]
+        public void CanUseShortNameForJoinExpression()
+        {
+            var specification = Given<Company>.Match(company =>
+                from office in company.Successors().OfType<Office>(o => o.company)
+                select office
+            );
+
+            specification.ToString().ReplaceLineEndings().Should().Be(
+                """
+                (company: Corporate.Company) {
+                    office: Corporate.Office [
+                        office->company: Corporate.Company = company
+                    ]
+                } => office
+
+                """
+            );
+        }
     }
 }
