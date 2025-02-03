@@ -1566,5 +1566,97 @@ namespace Jinaga.Test.Specifications.Specifications
                 """
             );
         }
+
+        [Fact]
+        public void CanUseDuplicateNamesInLambdas()
+        {
+            var specification = Given<Company>.Match(company =>
+                company.Successors().OfType<Office>(o => o.company)
+                    .SelectMany(f => f.Successors().OfType<Manager>(f => f.office))
+            );
+
+            specification.ToString().ReplaceLineEndings().Should().Be(
+                """
+                (company: Corporate.Company) {
+                    f: Corporate.Office [
+                        f->company: Corporate.Company = company
+                    ]
+                    f2: Corporate.Manager [
+                        f2->office: Corporate.Office = f
+                    ]
+                } => f2
+
+                """
+            );
+        }
+
+        [Fact]
+        public void CanReuseGivenNameInLambdas()
+        {
+            var specification = Given<Company>.Match(company =>
+                company.Successors().OfType<Office>(office => office.company)
+                    .SelectMany(company => company.Successors().OfType<Manager>(manager => manager.office))
+            );
+
+            specification.ToString().ReplaceLineEndings().Should().Be(
+                """
+                (company: Corporate.Company) {
+                    company2: Corporate.Office [
+                        company2->company: Corporate.Company = company
+                    ]
+                    manager: Corporate.Manager [
+                        manager->office: Corporate.Office = company2
+                    ]
+                } => manager
+
+                """
+            );
+        }
+
+        [Fact]
+        public void CanRedefineALabelInAnExistentialCondition()
+        {
+            var specification = Given<Company>.Match(closure =>
+                closure.Successors().OfType<Office>(office => office.company)
+                    .Where(office => !office.IsClosed)
+                    .SelectMany(office => office.Successors().OfType<Manager>(manager => manager.office))
+            );
+
+            specification.ToString().ReplaceLineEndings().Should().Be(
+                """
+                (closure: Corporate.Company) {
+                    office: Corporate.Office [
+                        office->company: Corporate.Company = closure
+                        !E {
+                            closure: Corporate.Office.Closure [
+                                closure->office: Corporate.Office = office
+                            ]
+                        }
+                    ]
+                    manager: Corporate.Manager [
+                        manager->office: Corporate.Office = office
+                    ]
+                } => manager
+
+                """
+            );
+
+            var inverses = specification.ComputeInverses();
+            inverses.ToString().ReplaceLineEndings().Should().Be(
+                """
+                (manager: Corporate.Manager) {
+                    office: Corporate.Office [
+                        office->company: Corporate.Company = closure
+                        !E {
+                            closure: Corporate.Office.Closure [
+                                closure->office: Corporate.Office = office
+                            ]
+                        }
+                    ]
+                } => office
+
+                """
+            );
+        }
     }
 }
