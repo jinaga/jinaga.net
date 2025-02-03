@@ -63,6 +63,8 @@ namespace Jinaga.Pipelines
 
         private static ImmutableList<Inverse> InvertMatches(ImmutableList<Match> matches, IEnumerable<Label> labels, InverterContext context)
         {
+            var originalMatches = matches;
+
             // Produce an inverse for each unknown in the original specification.
             var inverses = ImmutableList<Inverse>.Empty;
             foreach (var label in labels)
@@ -90,8 +92,12 @@ namespace Jinaga.Pipelines
                     );
                     inverses = inverses.Add(inverse);
                 }
+            }
 
-                inverses = inverses.AddRange(InvertExistentialConditions(matches, matches[0].ExistentialConditions, InverseOperation.Add, context));
+            // Produce inverses for each existential condition in every match.
+            foreach (var match in originalMatches)
+            {
+                inverses = inverses.AddRange(InvertExistentialConditions(originalMatches, match.ExistentialConditions, InverseOperation.Add, context));
             }
 
             return inverses;
@@ -104,7 +110,12 @@ namespace Jinaga.Pipelines
             // Produce inverses for each existential condition in the match.
             foreach (var existentialCondition in existentialConditions)
             {
-                var matches = outerMatches.AddRange(existentialCondition.Matches);
+                var initialMatches = outerMatches.AddRange(existentialCondition.Matches);
+                var matches = RemoveExistentialCondition(initialMatches, existentialCondition);
+
+                bool exists = existentialCondition.Exists;
+                var operation = InferOperation(parentOperation, exists);
+
                 foreach (var match in existentialCondition.Matches)
                 {
                     matches = ShakeTree(matches, match.Unknown.Name);
@@ -113,11 +124,9 @@ namespace Jinaga.Pipelines
                         ImmutableList.Create(
                             new SpecificationGiven(match.Unknown, matches.First().ExistentialConditions)
                         ),
-                        RemoveExistentialCondition(matches.RemoveAt(0), existentialCondition),
+                        matches.RemoveAt(0),
                         context.Projection
                     );
-                    bool exists = existentialCondition.Exists;
-                    var operation = InferOperation(parentOperation, exists);
                     var inverse = new Inverse(
                         inverseSpecification,
                         context.GivenSubset,
@@ -127,9 +136,12 @@ namespace Jinaga.Pipelines
                         context.ParentSubset
                     );
                     inverses = inverses.Add(inverse);
+                }
 
-                    var existentialInverses = InvertExistentialConditions(matches, match.ExistentialConditions, operation, context);
-                    inverses = inverses.AddRange(existentialInverses);
+                // Recursively produce inverses for existential conditions in those matches.
+                foreach (var match in existentialCondition.Matches)
+                {
+                    inverses = inverses.AddRange(InvertExistentialConditions(initialMatches, match.ExistentialConditions, operation, context));
                 }
             }
 
@@ -174,81 +186,105 @@ namespace Jinaga.Pipelines
             return inverses;
         }
 
-        public static ImmutableList<Match> ShakeTree(ImmutableList<Match> matches, string label)
+        private static ImmutableList<Match> ShakeTree(ImmutableList<Match> matches, string label)
         {
-            // Find the match for the given label.
-            var match = FindMatch(matches, label);
+            // Break the graph down.
+            ImmutableList<Label> unknowns = matches.Select(match => match.Unknown).ToImmutableList();
+            ImmutableList<SpecificationEdge> edges = matches.SelectMany(match =>
+                match.PathConditions.Select(pathCondition =>
+                    new SpecificationEdge(
+                        match.Unknown.Name,
+                        pathCondition
+                    )
+                )
+            ).ToImmutableList();
+            ImmutableList<ExistentialCondition> existentialConditions = matches.SelectMany(match => match.ExistentialConditions).ToImmutableList();
 
-            // Move the match to the beginning of the list.
-            matches = matches.Remove(match).Insert(0, match);
+            // Build the graph via depth-first search.
+            ImmutableList<Match> newMatches = ImmutableList<Match>.Empty;
+            newMatches = Visit(label, newMatches, ref unknowns, ref edges, ref existentialConditions);
 
-            // Invert all path conditions in the match and move them to the tagged match.
-            foreach (var pathCondition in match.PathConditions)
+            // Verify that all of the unknowns, edges, and existential conditions have been consumed.
+            if (unknowns.Count > 0 || edges.Count > 0 || existentialConditions.Count > 0)
             {
-                matches = InvertAndMovePathCondition(matches, label, pathCondition);
+                throw new ArgumentException("Malformed specification.");
             }
 
-            // Move any other matches with no paths down.
-            for (int i = 1; i < matches.Count; i++)
+            return newMatches;
+        }
+
+        private static ImmutableList<Match> Visit(string label, ImmutableList<Match> newMatches, ref ImmutableList<Label> unknowns, ref ImmutableList<SpecificationEdge> edges, ref ImmutableList<ExistentialCondition> existentialConditions)
+        {
+            // Find the unknown by label.
+            var unknown = unknowns.SingleOrDefault(u => u.Name == label);
+            if (unknown is null)
             {
-                var otherMatch = matches[i];
-                while (!otherMatch.PathConditions.Any())
+                return newMatches;
+            }
+
+            // Find the edges that connect with this unknown.
+            var connectedEdges = edges.Where(e => e.ConnectsWith(label)).ToImmutableList();
+
+            // Find those edges that also connect with unknowns already in the new matches.
+            var doublyConnectedEdges = connectedEdges.Where(e =>
+                newMatches.Any(m => e.ConnectsWith(m.Unknown.Name))
+            ).ToImmutableList();
+            var singlyConnectedEdges = connectedEdges.Except(doublyConnectedEdges).ToImmutableList();
+
+            // Invert the doubly connected edges if necessary.
+            var newPathConditions = doublyConnectedEdges.Select(e => e.WithLeft(label)).ToImmutableList();
+
+            // Find all existential conditions whose connections are completely satisfied.
+            var unknownLabels = newMatches.Select(m => m.Unknown.Name).ToImmutableHashSet().Add(label);
+            var satisfiedExistentialConditions = existentialConditions.Where(ec =>
+                IsSatisfied(unknownLabels, ec.Matches)
+            ).ToImmutableList();
+
+            // Add the unknown to the new matches.
+            var newMatch = new Match(
+                unknown,
+                newPathConditions,
+                satisfiedExistentialConditions
+            );
+            newMatches = newMatches.Add(newMatch);
+
+            // Consume the source collections.
+            unknowns = unknowns.Remove(unknown);
+            edges = edges.Except(doublyConnectedEdges).ToImmutableList();
+            existentialConditions = existentialConditions.Except(satisfiedExistentialConditions).ToImmutableList();
+
+            // Visit the singly connected edges.
+            foreach (var edge in singlyConnectedEdges)
+            {
+                newMatches = Visit(edge.OtherLabel(label), newMatches, ref unknowns, ref edges, ref existentialConditions);
+            }
+
+            return newMatches;
+        }
+
+        private static bool IsSatisfied(ImmutableHashSet<string> unknownLabels, ImmutableList<Match> matches)
+        {
+            foreach (var match in matches)
+            {
+                unknownLabels = unknownLabels.Add(match.Unknown.Name);
+                bool everyPathConditionIsSatisfied = match.PathConditions.All(pc =>
+                    unknownLabels.Contains(pc.LabelRight)
+                );
+                if (!everyPathConditionIsSatisfied)
                 {
-                    // Find all matches beyond this point that tag this one.
-                    for (int j = i + 1; j < matches.Count; j++)
-                    {
-                        var taggedMatch = matches[j];
-                        // Move their path conditions to the other match.
-                        var taggedConditions = taggedMatch.PathConditions
-                            .Where(c => c.LabelRight == otherMatch.Unknown.Name)
-                            .ToImmutableList();
-                        foreach (var pathCondition in taggedConditions)
-                        {
-                            matches = InvertAndMovePathCondition(matches, taggedMatch.Unknown.Name, pathCondition);
-                        }
-                    }
-                    // Move the other match to the bottom of the list.
-                    otherMatch = matches[i];
-                    matches = matches.Remove(otherMatch).Add(otherMatch);
-                    otherMatch = matches[i];
+                    return false;
+                }
+
+                bool everyExistentialConditionIsSatisfied = match.ExistentialConditions.All(ec =>
+                    IsSatisfied(unknownLabels, ec.Matches)
+                );
+                if (!everyExistentialConditionIsSatisfied)
+                {
+                    return false;
                 }
             }
 
-            return matches;
-        }
-
-        private static ImmutableList<Match> InvertAndMovePathCondition(ImmutableList<Match> matches, string label, PathCondition pathCondition)
-        {
-            // Find the match for the given label.
-            var match = FindMatch(matches, label);
-
-            // Find the match for the target label.
-            var taggedMatch = FindMatch(matches, pathCondition.LabelRight);
-
-            // Invert the path condition.
-            var invertedPathCondition = new PathCondition(
-                pathCondition.RolesRight,
-                match.Unknown.Name,
-                pathCondition.RolesLeft
-            );
-
-            // Remove the path condition from the match.
-            var newMatch = new Match(
-                match.Unknown,
-                match.PathConditions.Remove(pathCondition),
-                match.ExistentialConditions
-            );
-            matches = matches.Replace(match, newMatch);
-
-            // Add the inverted path condition to the tagged match.
-            var newTaggedMatch = new Match(
-                taggedMatch.Unknown,
-                taggedMatch.PathConditions.Insert(0, invertedPathCondition),
-                taggedMatch.ExistentialConditions
-            );
-            matches = matches.Replace(taggedMatch, newTaggedMatch);
-
-            return matches;
+            return true;
         }
 
         private static ImmutableList<Match> RemoveExistentialCondition(ImmutableList<Match> matches, ExistentialCondition existentialCondition)
@@ -258,17 +294,6 @@ namespace Jinaga.Pipelines
                     ? new Match(match.Unknown, match.PathConditions, match.ExistentialConditions.Remove(existentialCondition))
                     : match
             ).ToImmutableList();
-        }
-
-        private static Match FindMatch(ImmutableList<Match> matches, string label)
-        {
-            var match = matches.FirstOrDefault(m => m.Unknown.Name == label);
-            if (match == null)
-            {
-                throw new ArgumentException($"Malformed specification. Unknown label {label}.");
-            }
-
-            return match;
         }
 
         private static Subset AddUnknowns(Subset initialSubset, ImmutableList<Match> matches)
