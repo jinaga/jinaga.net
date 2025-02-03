@@ -1,4 +1,4 @@
-﻿using Jinaga.Extensions;
+using Jinaga.Extensions;
 using Jinaga.Pipelines;
 using Jinaga.Projections;
 using Jinaga.Specifications;
@@ -434,6 +434,7 @@ namespace Jinaga.Repository
                         string parameterName = lambda.Parameters[0].Name;
                         
                         var source = ProcessSource(methodCallExpression.Arguments[0], symbolTable, knownLabels, parameterName);
+                        knownLabels = knownLabels.AddRange(source.Labels);
                         var childSymbolTable = symbolTable.Set(parameterName, source.Projection);
                         var predicate = ProcessPredicate(lambda.Body, childSymbolTable, knownLabels);
 
@@ -455,7 +456,9 @@ namespace Jinaga.Repository
                     var parameterName = lambda.Parameters[0].Name;
 
                     Type factType = lambda.Parameters[0].Type;
-                    var source = LinqProcessor.FactsOfType(new Label(UniqueLabelName(parameterName, knownLabels), factType.FactTypeName()), factType);
+                    var name = UniqueLabelName(parameterName, knownLabels);
+                    var source = LinqProcessor.FactsOfType(new Label(name, factType.FactTypeName()), factType);
+                    knownLabels = knownLabels.Add(name);
                     var childSymbolTable = symbolTable.Set(parameterName, source.Projection);
                     var predicate = ProcessPredicate(lambda.Body, childSymbolTable, knownLabels);
                     return LinqProcessor.Any(LinqProcessor.Where(source, predicate));
