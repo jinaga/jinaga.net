@@ -24,12 +24,14 @@ namespace Jinaga.Http
         private readonly Action<HttpRequestHeaders> setRequestHeaders;
         private readonly Func<Task<JinagaAuthenticationState>> reauthenticate;
         private readonly Action<JinagaAuthenticationState> setAuthenticationState;
+        private readonly RetryConfiguration retryConfiguration;
         private readonly ILogger logger;
 
-        public HttpConnection(Uri baseUrl, ILoggerFactory loggerFactory, Action<HttpRequestHeaders> setRequestHeaders, Func<Task<JinagaAuthenticationState>> reauthenticate, Action<JinagaAuthenticationState> setAuthenticationState)
+        public HttpConnection(Uri baseUrl, ILoggerFactory loggerFactory, Action<HttpRequestHeaders> setRequestHeaders, Func<Task<JinagaAuthenticationState>> reauthenticate, Action<JinagaAuthenticationState> setAuthenticationState, RetryConfiguration? retryConfiguration = null)
         {
             this.httpClient = new HttpClient();
-            logger = loggerFactory.CreateLogger<HttpConnection>();
+            this.logger = loggerFactory.CreateLogger<HttpConnection>();
+            this.retryConfiguration = retryConfiguration ?? new RetryConfiguration();
 
             if (!baseUrl.AbsoluteUri.EndsWith("/"))
             {
@@ -195,11 +197,55 @@ namespace Jinaga.Http
             }
         }
 
+        private async Task<T> ExecuteWithRetry<T>(
+            Func<Task<T>> operation,
+            CancellationToken cancellationToken = default)
+        {
+            if (!retryConfiguration.Enabled)
+            {
+                return await operation().ConfigureAwait(false);
+            }
+
+            var delay = retryConfiguration.InitialDelay;
+            var stopwatch = Stopwatch.StartNew();
+            var attempts = 0;
+
+            while (true)
+            {
+                try
+                {
+                    return await operation().ConfigureAwait(false);
+                }
+                catch (HttpRequestException ex) when (
+                    (ex.InnerException is System.Net.Sockets.SocketException socketEx &&
+                    (socketEx.SocketErrorCode == System.Net.Sockets.SocketError.ConnectionRefused ||
+                     socketEx.SocketErrorCode == System.Net.Sockets.SocketError.ConnectionReset ||
+                     socketEx.SocketErrorCode == System.Net.Sockets.SocketError.TimedOut)) ||
+                    ex.Message.Contains("No connection could be made because the target machine actively refused it"))
+                {
+                    attempts++;
+                    if (stopwatch.Elapsed > retryConfiguration.Timeout)
+                    {
+                        logger.LogError(ex, "Connection failed after {elapsed:g} and {attempts} attempts", stopwatch.Elapsed, attempts);
+                        throw;
+                    }
+
+                    logger.LogWarning("Connection attempt {attempts} failed, retrying in {delay:g}", attempts, delay);
+                    await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
+                    
+                    delay = TimeSpan.FromTicks(Math.Min(
+                        (long)(delay.Ticks * retryConfiguration.BackoffMultiplier),
+                        retryConfiguration.MaxDelay.Ticks
+                    ));
+                }
+            }
+        }
+
         private async Task<T> WithHttpClient<T>(
             Func<HttpRequestMessage> createRequest,
             Func<HttpResponseMessage, Task<T>> processResponse)
         {
-            try
+            return await ExecuteWithRetry(async () =>
             {
                 var stopwatch = Stopwatch.StartNew();
                 using var request = createRequest();
@@ -232,19 +278,14 @@ namespace Jinaga.Http
                     var result = await processResponse(response).ConfigureAwait(false);
                     return result;
                 }
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "HTTP error {message}", ex.Message);
-                throw;
-            }
+            }).ConfigureAwait(false);
         }
 
         private async Task<T> WithHttpClientStreaming<T>(
             Func<HttpRequestMessage> createRequest,
             Func<HttpResponseMessage, Task<T>> processResponse)
         {
-            try
+            return await ExecuteWithRetry(async () =>
             {
                 var stopwatch = Stopwatch.StartNew();
                 using var request = createRequest();
@@ -293,12 +334,7 @@ namespace Jinaga.Http
                         response.Dispose();
                     }
                 }
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "HTTP error {message}", ex.Message);
-                throw;
-            }
+            }).ConfigureAwait(false);
         }
 
         private async Task CheckForError(HttpResponseMessage response, Stopwatch stopwatch)

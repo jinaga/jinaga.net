@@ -16,7 +16,7 @@ namespace Jinaga.Http
 
         public event INetwork.AuthenticationStateChanged? OnAuthenticationStateChanged;
 
-        public HttpNetwork(Uri baseUrl, IHttpAuthenticationProvider? authenticationProvider, ILoggerFactory loggerFactory)
+        public HttpNetwork(Uri baseUrl, IHttpAuthenticationProvider? authenticationProvider, ILoggerFactory loggerFactory, RetryConfiguration? retryConfiguration = null)
         {
             webClient = new WebClient(new HttpConnection(baseUrl, loggerFactory,
                 headers =>
@@ -30,7 +30,8 @@ namespace Jinaga.Http
                 authenticationState =>
                 {
                     OnAuthenticationStateChanged?.Invoke(authenticationState);
-                }
+                },
+                retryConfiguration
             ));
         }
 
