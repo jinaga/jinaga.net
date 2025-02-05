@@ -39,9 +39,8 @@ namespace Jinaga
 
         /// <summary>
         /// Configuration for retry behavior when network connections fail.
-        /// If not provided, default retry settings are used.
         /// </summary>
-        public RetryConfiguration? RetryConfiguration { get; set; }
+        public RetryConfiguration RetryConfiguration { get; set; } = new RetryConfiguration();
 
         /// <summary>
         /// A factory configured for logging.

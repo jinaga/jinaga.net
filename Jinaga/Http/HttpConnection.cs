@@ -1,4 +1,4 @@
-﻿using System;
+﻿﻿using System;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Linq;
@@ -27,11 +27,11 @@ namespace Jinaga.Http
         private readonly RetryConfiguration retryConfiguration;
         private readonly ILogger logger;
 
-        public HttpConnection(Uri baseUrl, ILoggerFactory loggerFactory, Action<HttpRequestHeaders> setRequestHeaders, Func<Task<JinagaAuthenticationState>> reauthenticate, Action<JinagaAuthenticationState> setAuthenticationState, RetryConfiguration? retryConfiguration = null)
+        public HttpConnection(Uri baseUrl, ILoggerFactory loggerFactory, Action<HttpRequestHeaders> setRequestHeaders, Func<Task<JinagaAuthenticationState>> reauthenticate, Action<JinagaAuthenticationState> setAuthenticationState, RetryConfiguration retryConfiguration)
         {
             this.httpClient = new HttpClient();
             this.logger = loggerFactory.CreateLogger<HttpConnection>();
-            this.retryConfiguration = retryConfiguration ?? new RetryConfiguration();
+            this.retryConfiguration = retryConfiguration;
 
             if (!baseUrl.AbsoluteUri.EndsWith("/"))
             {

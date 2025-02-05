@@ -1,4 +1,4 @@
-﻿using Jinaga.Facts;
+﻿﻿using Jinaga.Facts;
 using Jinaga.Projections;
 using Jinaga.Services;
 using Microsoft.Extensions.Logging;
@@ -16,7 +16,7 @@ namespace Jinaga.Http
 
         public event INetwork.AuthenticationStateChanged? OnAuthenticationStateChanged;
 
-        public HttpNetwork(Uri baseUrl, IHttpAuthenticationProvider? authenticationProvider, ILoggerFactory loggerFactory, RetryConfiguration? retryConfiguration = null)
+        public HttpNetwork(Uri baseUrl, IHttpAuthenticationProvider? authenticationProvider, ILoggerFactory loggerFactory, RetryConfiguration retryConfiguration)
         {
             webClient = new WebClient(new HttpConnection(baseUrl, loggerFactory,
                 headers =>
