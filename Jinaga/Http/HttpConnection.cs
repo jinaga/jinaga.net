@@ -1,4 +1,4 @@
-﻿﻿using System;
+using System;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Linq;
@@ -175,7 +175,7 @@ namespace Jinaga.Http
 
         public async Task<ImmutableList<string>> GetAcceptedContentTypes(string path)
         {
-            try
+            return await ExecuteWithRetry(async () =>
             {
                 var stopwatch = Stopwatch.StartNew();
                 using var request = new HttpRequestMessage(HttpMethod.Options, path);
@@ -189,12 +189,7 @@ namespace Jinaga.Http
                     .Select(v => v.Trim())
                     .ToImmutableList();
                 return acceptedContentTypes;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "HTTP error {message}", ex.Message);
-                throw;
-            }
+            }).ConfigureAwait(false);
         }
 
         private async Task<T> ExecuteWithRetry<T>(
