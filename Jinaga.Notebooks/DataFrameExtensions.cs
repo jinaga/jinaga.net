@@ -48,10 +48,18 @@ public static class DataFrameExtensions
             else if (propertyType == typeof(DateTime) || propertyType == typeof(DateTime?))
             {
                 var values = source.Select(item => (DateTime?)prop.GetValue(item)).ToList();
-                dataFrame.Columns.Add(new PrimitiveDataFrameColumn<DateTime>(prop.Name, values));
+                dataFrame.Columns.Add(new DateTimeDataFrameColumn(prop.Name, values));
+            }
+            else if (propertyType == typeof(Guid) || propertyType == typeof(Guid?))
+            {
+                var values = source.Select(item => (Guid?)prop.GetValue(item)).ToList();
+                dataFrame.Columns.Add(new PrimitiveDataFrameColumn<Guid>(prop.Name, values));
             }
             else
-                throw new NotSupportedException($"Property type {propertyType.Name} is not supported.");
+            {
+                var values = source.Select(item => prop.GetValue(item)?.ToString()).ToList();
+                dataFrame.Columns.Add(new StringDataFrameColumn(prop.Name, values));
+            }
         }
 
         return dataFrame;
