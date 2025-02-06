@@ -38,6 +38,11 @@ namespace Jinaga
         public IHttpAuthenticationProvider? HttpAuthenticationProvider { get; set; }
 
         /// <summary>
+        /// Configuration for retry behavior when network connections fail.
+        /// </summary>
+        public RetryConfiguration RetryConfiguration { get; set; } = new RetryConfiguration();
+
+        /// <summary>
         /// A factory configured for logging.
         /// If not provided, logging is disabled.
         /// </summary>
@@ -158,7 +163,7 @@ namespace Jinaga
             IStore store = new MemoryStore();
             INetwork network = options.HttpEndpoint == null
                 ? (INetwork)new LocalNetwork()
-                : new HttpNetwork(options.HttpEndpoint, options.HttpAuthenticationProvider, loggerFactory);
+                : new HttpNetwork(options.HttpEndpoint, options.HttpAuthenticationProvider, loggerFactory, options.RetryConfiguration);
             var purgeConditions = CreatePurgeConditions(options);
             return new JinagaClient(store, network, purgeConditions, loggerFactory);
         }
