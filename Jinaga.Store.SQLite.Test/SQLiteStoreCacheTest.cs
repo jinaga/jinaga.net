@@ -109,6 +109,13 @@ public class SQLiteStoreCacheTest
             .ToList();
         factTypeQueries.Should().ContainSingle(); // Count should still be 1
 
+        // Verify cache hit
+        var cacheHits = logger.SqlQueries
+            .Where(q => q.Contains("Cache hit"))
+            .ToList();
+        cacheHits.Should().ContainSingle()
+            .Which.Should().Contain("Cache hit for fact types");
+
         await j.Unload();
     }
 
@@ -231,6 +238,13 @@ public class SQLiteStoreCacheTest
             .ToList();
         roleQueries.Should().ContainSingle(); // Count should still be 1
 
+        // Verify cache hit
+        var cacheHits = logger.SqlQueries
+            .Where(q => q.Contains("Cache hit"))
+            .ToList();
+        cacheHits.Should().ContainSingle()
+            .Which.Should().Contain("Cache hit for roles");
+
         await j.Unload();
     }
 
@@ -303,10 +317,16 @@ public class SQLiteStoreCacheTest
         // Run 10 concurrent queries
         for (int i = 0; i < 10; i++)
         {
-            tasks.Add(j.Query(specification, airlineDay));
+            tasks.Add(Task.Run(() => j.Query(specification, airlineDay)));
         }
 
-        await Task.WhenAll(tasks);
+        var timeoutTask = Task.Delay(TimeSpan.FromSeconds(10));
+        var completedTask = await Task.WhenAny(Task.WhenAll(tasks), timeoutTask);
+        if (completedTask == timeoutTask)
+        {
+            await j.Unload();
+            throw new TimeoutException("Test timed out after 10 seconds");
+        }
 
         // Assert
         var roleQueries = logger.SqlQueries
@@ -376,6 +396,7 @@ public class SQLiteStoreCacheTest
         var tasks = new List<Task>();
         var site = await j.Fact(new Site("test.com"));
         var post = await j.Fact(new Post(site, "2024-02-21"));
+        var completionSource = new TaskCompletionSource();
 
         // Clear the logger
         logger.SqlQueries.Clear();
@@ -390,10 +411,20 @@ public class SQLiteStoreCacheTest
         // Run 10 concurrent queries
         for (int i = 0; i < 10; i++)
         {
-            tasks.Add(j.Query(specification, site));
+            tasks.Add(Task.Run(() => j.Query(specification, site)));
         }
 
-        await Task.WhenAll(tasks);
+        // Create a timeout task
+        var timeoutTask = Task.Delay(TimeSpan.FromSeconds(10));
+        var allQueriesTask = Task.WhenAll(tasks).ContinueWith(t => completionSource.SetResult());
+
+        // Wait for either completion or timeout
+        var completedTask = await Task.WhenAny(completionSource.Task, timeoutTask);
+        if (completedTask == timeoutTask)
+        {
+            await j.Unload();
+            throw new TimeoutException("Test timed out after 10 seconds");
+        }
 
         // Assert
         var factTypeQueries = logger.SqlQueries
