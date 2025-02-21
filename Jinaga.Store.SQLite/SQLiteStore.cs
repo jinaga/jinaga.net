@@ -22,9 +22,10 @@ namespace Jinaga.Store.SQLite
 {
     public class SQLiteStore : IStore
     {
-
         private ConnectionFactory connFactory;
         private readonly ILogger logger;
+        private ImmutableDictionary<string, int> _factTypeCache = ImmutableDictionary<string, int>.Empty;
+        private readonly object _factTypeCacheLock = new object();
 
         public SQLiteStore(string dbFullPath, ILoggerFactory loggerFactory)
         {
@@ -468,58 +469,150 @@ namespace Jinaga.Store.SQLite
             return resultSetTree;
         }
 
-        private IEnumerable<FactTypeFromDb> LoadFactTypesFromSpecification(Specification specification)
+        private IEnumerable<string> GetRequiredFactTypes(Specification specification)
         {
-            //TODO: Now we load all factTypes from the DB.  Optimize by caching, and by adding only the factTypes used in the specification
-            var factTypeResult = connFactory.WithConn(
-                    (conn, id) =>
-                    {
-                        string sql;
-                        sql = $@"
-                            SELECT fact_type_id , name 
-                            FROM fact_type
-                        ";
-                        return conn.ExecuteQuery<FactTypeFromDb>(sql);
-                    },
-                    true   //exponential backoff
-                );
-            return factTypeResult;
+            var types = new HashSet<string>();
+            
+            // Add given types
+            foreach (var given in specification.Givens)
+                types.Add(given.Label.Type);
+                
+            // Add types from matches
+            foreach (var match in specification.Matches)
+                types.Add(match.Unknown.Type);
+            
+            return types;
         }
 
-        private IEnumerable<RoleFromDb> LoadRolesFromSpecification(Specification specification, object factTypes)
+        private IEnumerable<FactTypeFromDb> GetFactTypes(IEnumerable<string> requiredTypes)
         {
-            //TODO: Now we load all roles from the DB.  Optimize by caching, and by adding only the roles used in the specification
-            var rolesResult = connFactory.WithConn(
-                    (conn, id) =>
+            var missingTypes = requiredTypes.Where(t => !_factTypeCache.ContainsKey(t)).ToList();
+            
+            if (missingTypes.Any())
+            {
+                lock (_factTypeCacheLock)
+                {
+                    // Check again in case another thread updated the cache
+                    missingTypes = requiredTypes.Where(t => !_factTypeCache.ContainsKey(t)).ToList();
+                    
+                    if (missingTypes.Any())
                     {
-                        string sql;
-                        sql = $@"
-                            SELECT role_id, defining_fact_type_id, name
-                            FROM role                                             
-                        ";
-                        return conn.ExecuteQuery<RoleFromDb>(sql);
-                    },
-                    true   //exponential backoff
-                );
-            return rolesResult;
+                        var newTypes = connFactory.WithConn(
+                            (conn, id) =>
+                            {
+                                var parameters = missingTypes.ToArray();
+                                var parameterPlaceholders = string.Join(",", parameters.Select((_, i) => $"@{i}"));
+                                var sql = $@"
+                                    SELECT fact_type_id, name 
+                                    FROM fact_type
+                                    WHERE name IN ({parameterPlaceholders})
+                                ";
+                                return conn.ExecuteQuery<FactTypeFromDb>(sql, parameters);
+                            },
+                            true
+                        );
+
+                        // Update cache atomically
+                        _factTypeCache = _factTypeCache.AddRange(
+                            newTypes.Select(t => KeyValuePair.Create(t.name, t.fact_type_id))
+                        );
+                    }
+                }
+            }
+
+            // Return all requested types from cache
+            return requiredTypes
+                .Where(name => _factTypeCache.ContainsKey(name))
+                .Select(name => new FactTypeFromDb { 
+                    name = name, 
+                    fact_type_id = _factTypeCache[name] 
+                });
+        }
+
+        private IEnumerable<FactTypeFromDb> LoadFactTypesFromSpecification(Specification specification)
+        {
+            var requiredTypes = GetRequiredFactTypes(specification);
+            return GetFactTypes(requiredTypes);
+        }
+
+        private ImmutableDictionary<int, ImmutableDictionary<string, int>> _roleCache = 
+            ImmutableDictionary<int, ImmutableDictionary<string, int>>.Empty;
+        private readonly object _roleCacheLock = new object();
+
+        private IEnumerable<RoleFromDb> LoadRolesFromSpecification(Specification specification, IEnumerable<FactTypeFromDb> factTypes)
+        {
+            var roles = new List<RoleFromDb>();
+            var factTypeIds = factTypes.Select(ft => ft.fact_type_id).ToList();
+            var missingFactTypeIds = factTypeIds.Where(id => !_roleCache.ContainsKey(id)).ToList();
+
+            if (missingFactTypeIds.Any())
+            {
+                lock (_roleCacheLock)
+                {
+                    // Check again in case another thread updated the cache
+                    missingFactTypeIds = factTypeIds.Where(id => !_roleCache.ContainsKey(id)).ToList();
+
+                    if (missingFactTypeIds.Any())
+                    {
+                        var parameters = missingFactTypeIds.ToArray();
+                        var parameterPlaceholders = string.Join(",", parameters.Select((_, i) => $"@{i}"));
+                        var newRoles = connFactory.WithConn(
+                            (conn, id) =>
+                            {
+                                var sql = $@"
+                                    SELECT role_id, defining_fact_type_id, name
+                                    FROM role
+                                    WHERE defining_fact_type_id IN ({parameterPlaceholders})
+                                ";
+                                return conn.ExecuteQuery<RoleFromDb>(sql, parameters);
+                            },
+                            true
+                        );
+
+                        // Group roles by defining_fact_type_id
+                        var rolesByFactType = newRoles.GroupBy(r => r.defining_fact_type_id);
+
+                        // Update cache atomically
+                        foreach (var group in rolesByFactType)
+                        {
+                            var factTypeId = group.Key;
+                            var roleMap = group.ToImmutableDictionary(r => r.name, r => r.role_id);
+                            _roleCache = _roleCache.SetItem(factTypeId, roleMap);
+                        }
+
+                        // Add empty maps for fact types with no roles
+                        foreach (var factTypeId in missingFactTypeIds)
+                        {
+                            if (!_roleCache.ContainsKey(factTypeId))
+                            {
+                                _roleCache = _roleCache.SetItem(factTypeId, ImmutableDictionary<string, int>.Empty);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Return roles from cache
+            foreach (var factTypeId in factTypeIds)
+            {
+                if (_roleCache.TryGetValue(factTypeId, out var roleMap))
+                {
+                    roles.AddRange(roleMap.Select(kvp => new RoleFromDb
+                    {
+                        role_id = kvp.Value,
+                        defining_fact_type_id = factTypeId,
+                        name = kvp.Key
+                    }));
+                }
+            }
+
+            return roles;
         }
 
         private IEnumerable<FactTypeFromDb> LoadFactTypesFromReferences(ImmutableList<FactReference> references)
         {
-            //TODO: Now we load all factTypes from the DB.  Optimize by caching, and by adding only the factTypes appearing in the references
-            var factTypeResult = connFactory.WithConn(
-                    (conn, id) =>
-                    {
-                        string sql;
-                        sql = $@"
-                            SELECT fact_type_id , name 
-                            FROM fact_type
-                        ";
-                        return conn.ExecuteQuery<FactTypeFromDb>(sql);
-                    },
-                    true   //exponential backoff
-                );
-            return factTypeResult;
+            var requiredTypes = references.Select(r => r.Type).Distinct();
+            return GetFactTypes(requiredTypes);
         }
 
         private class FactTypeFromDb
