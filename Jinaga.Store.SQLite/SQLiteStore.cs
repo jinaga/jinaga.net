@@ -26,12 +26,34 @@ namespace Jinaga.Store.SQLite
         private ConnectionFactory connFactory;
         private readonly ILogger logger;
 
+        private static void EnsureFolderPathIsNotFile(string folderPath)
+        {
+            if (string.IsNullOrWhiteSpace(folderPath))
+            {
+                return;
+            }
+
+            // Split the folder path into segments, checking each step for an existing file.
+            string root = Path.GetPathRoot(folderPath) ?? "";
+            string remaining = folderPath.Substring(root.Length).Trim(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            string current = root;
+
+            foreach (string segment in remaining.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
+            {
+                current = Path.Combine(current, segment);
+                if (File.Exists(current))
+                {
+                    throw new IOException($"Cannot create directory. '{current}' is a file, not a folder.");
+                }
+            }
+        }
+
         public SQLiteStore(string dbFullPath, ILoggerFactory loggerFactory)
         {
-            // Ensure that the folder exists.
             var folder = Path.GetDirectoryName(dbFullPath);
+            EnsureFolderPathIsNotFile(folder);
             Directory.CreateDirectory(folder);
-            
+
             this.connFactory = new ConnectionFactory(dbFullPath);
             this.logger = loggerFactory.CreateLogger<SQLiteStore>();
         }
