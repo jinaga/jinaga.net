@@ -9,6 +9,12 @@ namespace Jinaga.Notebooks.Dot;
 
 public static class Renderer
 {
+    public enum Cardinality
+    {
+        One,
+        Many,
+        Optional
+    }
     public static string RenderTypes(params Type[] types)
     {
         string[] prefix = new[]
@@ -43,8 +49,9 @@ public static class Renderer
             select new
             {
                 Name = property.Name,
-                Type = predecessorType,
-                FactType = predecessorType.FactTypeName()
+                Type = predecessorType.Type,
+                FactType = predecessorType.Type.FactTypeName(),
+                Cardinality = predecessorType.Cardinality
             };
         
         var left = factClass.FactTypeName();
@@ -53,7 +60,7 @@ public static class Renderer
             return (toVisit.Skip(1).ToImmutableList(), visited.Add(factClass), lines.Add($"    \"{left}\""));
         }
         var newLines = predecessors
-            .Select(predecessor => $"    \"{left}\" -> \"{predecessor.FactType}\" [label=\" {predecessor.Name}\"]");
+            .Select(predecessor => $"    \"{left}\" -> \"{predecessor.FactType}\" [label=\" {predecessor.Name}{Punctuation(predecessor.Cardinality)}\"]");
         var newToVisit = predecessors
             .Select(predecessor => predecessor.Type)
             .Where(type => !toVisit.Contains(type) && !visited.Contains(type));
@@ -61,19 +68,30 @@ public static class Renderer
         return (toVisit.Skip(1).Concat(newToVisit).ToImmutableList(), visited.Add(factClass), lines.AddRange(newLines));
     }
 
-    private static IEnumerable<Type> GetFactType(Type type)
+    private static object Punctuation(Cardinality cardinality)
+    {
+        return cardinality switch
+        {
+            Cardinality.One => "",
+            Cardinality.Many => "*",
+            Cardinality.Optional => "?",
+            _ => throw new ArgumentException()
+        };
+    }
+
+    private static IEnumerable<(Type Type, Cardinality Cardinality)> GetFactType(Type type)
     {
         if (type.IsArray)
         {
-            return GetFactType(type.GetElementType());
+            return GetFactType(type.GetElementType()).Select(t => (t.Type, Cardinality.Many));
         }
         else if (type.GetCustomAttributes<FactTypeAttribute>(inherit: false).Any())
         {
-            return new [] { type };
+            return new [] { (type, Cardinality.One) };
         }
         else 
         {
-            return new Type[0];
+            return new (Type, Cardinality)[0];
         }
     }
 }
