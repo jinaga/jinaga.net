@@ -43,8 +43,8 @@ public static class Renderer
             select new
             {
                 Name = property.Name,
-                Type = property.PropertyType,
-                FactType = property.PropertyType.FactTypeName()
+                Type = predecessorType,
+                FactType = predecessorType.FactTypeName()
             };
         
         var left = factClass.FactTypeName();
