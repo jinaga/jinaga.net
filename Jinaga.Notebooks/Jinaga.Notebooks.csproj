@@ -14,7 +14,7 @@
   </ItemGroup>
 
   <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
 
     <PackageId>Jinaga.Notebooks</PackageId>
     <Authors>Michael L Perry</Authors>
@@ -28,7 +28,7 @@
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <Description>
       Generates visualizations of Jinaga facts and types.
-      For use wihtin .NET Interactive Notebooks.
+      For use within .NET Interactive Notebooks.
 
       Data management for web and mobile applications.
       Connect your client to a replicator to replace your hand-written API and database.

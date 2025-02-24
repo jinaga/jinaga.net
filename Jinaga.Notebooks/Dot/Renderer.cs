@@ -1,9 +1,10 @@
-﻿using Jinaga.Repository;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
+using Jinaga.Repository;
 
 namespace Jinaga.Notebooks.Dot;
 
@@ -40,6 +41,41 @@ public static class Renderer
         return graph;
     }
 
+    private static bool AreNullableReferenceTypesEnabled()
+    {
+        var nullableContextAttribute = Assembly.GetExecutingAssembly()
+            .GetCustomAttributes(typeof(NullableContextAttribute), false)
+            .FirstOrDefault();
+        if (nullableContextAttribute != null)
+        {
+            var flag = (byte)nullableContextAttribute.GetType().GetField("Flag").GetValue(nullableContextAttribute);
+            return flag == 2;
+        }
+        return false;
+    }
+
+    private static bool IsNullable(PropertyInfo property)
+    {
+        if (property.PropertyType.IsValueType)
+        {
+            return Nullable.GetUnderlyingType(property.PropertyType) != null;
+        }
+
+        if (!AreNullableReferenceTypesEnabled())
+        {
+            return false;
+        }
+
+        var nullableAttribute = property.GetCustomAttributes(typeof(NullableAttribute), false).FirstOrDefault();
+        if (nullableAttribute != null)
+        {
+            var flags = (byte[])nullableAttribute.GetType().GetField("NullableFlags").GetValue(nullableAttribute);
+            return flags[0] == 2;
+        }
+
+        return false;
+    }
+
     private static (ImmutableList<Type> toVisit, ImmutableList<Type> visited, ImmutableList<string> lines) VisitFactType(ImmutableList<Type> toVisit, ImmutableList<Type> visited, ImmutableList<string> lines)
     {
         var factClass = toVisit.First();
@@ -51,7 +87,7 @@ public static class Renderer
                 Name = property.Name,
                 Type = predecessorType.Type,
                 FactType = predecessorType.Type.FactTypeName(),
-                Cardinality = predecessorType.Cardinality
+                Cardinality = IsNullable(property) ? Cardinality.Optional : predecessorType.Cardinality
             };
         
         var left = factClass.FactTypeName();
