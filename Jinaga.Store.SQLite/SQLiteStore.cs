@@ -33,18 +33,14 @@ namespace Jinaga.Store.SQLite
                 return;
             }
 
-            // Split the folder path into segments, checking each step for an existing file.
-            string root = Path.GetPathRoot(folderPath) ?? "";
-            string remaining = folderPath.Substring(root.Length).Trim(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            string current = root;
-
-            foreach (string segment in remaining.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
+            string current = Path.GetFullPath(folderPath);
+            while (!string.IsNullOrEmpty(current) && current != Path.GetPathRoot(current))
             {
-                current = Path.Combine(current, segment);
                 if (File.Exists(current))
                 {
                     throw new IOException($"Cannot create directory. '{current}' is a file, not a folder.");
                 }
+                current = Path.GetDirectoryName(current);
             }
         }
 
