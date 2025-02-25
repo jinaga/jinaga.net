@@ -5,7 +5,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Jint" Version="4.2.0" />
     <PackageReference Include="Microsoft.AspNetCore.Html.Abstractions" Version="2.2.0" />
     <PackageReference Include="Microsoft.Data.Analysis" Version="0.22.0" />
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
@@ -40,10 +39,6 @@
 
   <ItemGroup>
     <None Include="..\JinagaIcon.png" Pack="True" PackagePath="\" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <EmbeddedResource Include="Resources\viz-lite.js" />
   </ItemGroup>
 
   <PropertyGroup>
