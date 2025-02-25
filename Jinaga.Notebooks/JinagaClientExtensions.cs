@@ -8,13 +8,13 @@ public static class JinagaClientExtensions
 {
     private static readonly GraphvizRenderer _renderer = new GraphvizRenderer();
 
-    public static Task<HtmlString> RenderFacts(this JinagaClient jinagaClient, params object[] projections)
+    public static HtmlString RenderFacts(this JinagaClient jinagaClient, params object[] projections)
     {
         string dot = Dot.JinagaClientExtensions.RenderFacts(jinagaClient, projections);
         return _renderer.RenderGraph(dot);
     }
 
-    public static Task<HtmlString> RenderTypes(this JinagaClient jinagaClient, params Type[] types)
+    public static HtmlString RenderTypes(this JinagaClient jinagaClient, params Type[] types)
     {
         return Renderer.RenderTypes(types);
     }

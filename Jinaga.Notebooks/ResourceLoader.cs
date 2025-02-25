@@ -9,7 +9,7 @@ internal static class ResourceLoader
 {
     internal static string LoadVizJs()
     {
-        return LoadResource("viz-standalone.js");
+        return LoadResource("viz-lite.js");
     }
 
     private static string LoadResource(string name)

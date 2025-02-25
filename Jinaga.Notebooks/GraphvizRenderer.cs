@@ -13,7 +13,7 @@ public class GraphvizRenderer
         <text x=""10"" y=""30"" fill=""red"">Error rendering graph: {0}</text>
     </svg>";
 
-    public GraphvizRenderer(Engine? jsEngine = null)
+    public GraphvizRenderer(Engine jsEngine = null)
     {
         _jsEngine = jsEngine ?? new Engine(options => {
             options.AllowClr();
@@ -28,7 +28,7 @@ public class GraphvizRenderer
         {
             // Load and execute Viz.js
             var vizJs = ResourceLoader.LoadVizJs();
-            Console.WriteLine($"Loaded viz-standalone.js ({vizJs.Length} chars)");
+            Console.WriteLine($"Loaded viz-lite.js ({vizJs.Length} chars)");
             
             // Set up console.log for JavaScript
             _jsEngine.SetValue("consoleLog", new Action<string>(msg => Console.WriteLine($"JS: {msg}")));
@@ -37,12 +37,6 @@ public class GraphvizRenderer
             // Execute viz.js in the global context
             _jsEngine.Execute(vizJs);
             _jsEngine.Execute(@"
-                if (typeof Viz === 'undefined') {
-                    console.log('Viz function is not defined');
-                    throw new Error('Viz function is not defined');
-                }
-                console.log('Viz function is available: ' + typeof Viz);
-
                 // Create a wrapper function
                 window.renderGraph = function(input) {
                     console.log('Rendering graph:', input);
@@ -59,7 +53,7 @@ public class GraphvizRenderer
         }
     }
 
-    public async Task<HtmlString> RenderGraph(string graph)
+    public HtmlString RenderGraph(string graph)
     {
         try
         {

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Viz.js Graph Example</title>
+    <script src="viz-lite.js"></script>
+</head>
+<body>
+    <h1>Viz.js Graph Example</h1>
+    <div id="graph"></div>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            var src = 'digraph { a -> b; }';
+            var options = { format: 'svg', engine: 'dot' };
+            var svg = Viz(src, options);
+            document.getElementById('graph').appendChild(svg);
+        });
+    </script>
+</body>
+</html>

@@ -8,14 +8,14 @@ namespace Jinaga.Notebooks.Test;
 public class GraphvizRendererTests
 {
     [Fact]
-    public async Task ShouldRenderSimpleGraph()
+    public void ShouldRenderSimpleGraph()
     {
         // Arrange
         var renderer = new GraphvizRenderer();
         var graph = "digraph { A -> B }";
 
         // Act
-        var result = await renderer.RenderGraph(graph);
+        var result = renderer.RenderGraph(graph);
 
         // Assert
         Assert.NotNull(result);
@@ -29,13 +29,13 @@ public class GraphvizRendererTests
     }
 
     [Fact]
-    public async Task ShouldHandleEmptyGraph()
+    public void ShouldHandleEmptyGraph()
     {
         // Arrange
         var renderer = new GraphvizRenderer();
 
         // Act
-        var result = await renderer.RenderGraph("");
+        var result = renderer.RenderGraph("");
 
         // Assert
         Assert.NotNull(result);
@@ -47,14 +47,14 @@ public class GraphvizRendererTests
     }
 
     [Fact]
-    public async Task ShouldHandleInvalidGraph()
+    public void ShouldHandleInvalidGraph()
     {
         // Arrange
         var renderer = new GraphvizRenderer();
         var invalidGraph = "invalid { syntax";
 
         // Act
-        var result = await renderer.RenderGraph(invalidGraph);
+        var result = renderer.RenderGraph(invalidGraph);
 
         // Assert
         Assert.NotNull(result);
