@@ -7,6 +7,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Html.Abstractions" Version="2.2.0" />
     <PackageReference Include="Microsoft.Data.Analysis" Version="0.22.0" />
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
   <ItemGroup>
@@ -38,6 +39,11 @@
 
   <ItemGroup>
     <None Include="..\JinagaIcon.png" Pack="True" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\viz.js" />
+    <EmbeddedResource Include="Resources\full.render.js" />
   </ItemGroup>
 
   <PropertyGroup>
