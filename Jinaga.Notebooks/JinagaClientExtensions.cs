@@ -6,10 +6,12 @@ namespace Jinaga.Notebooks;
 
 public static class JinagaClientExtensions
 {
+    private static readonly GraphvizRenderer _renderer = new GraphvizRenderer();
+
     public static Task<HtmlString> RenderFacts(this JinagaClient jinagaClient, params object[] projections)
     {
         string dot = Dot.JinagaClientExtensions.RenderFacts(jinagaClient, projections);
-        return GraphvizRenderer.RenderGraph(dot);
+        return _renderer.RenderGraph(dot);
     }
 
     public static Task<HtmlString> RenderTypes(this JinagaClient jinagaClient, params Type[] types)
