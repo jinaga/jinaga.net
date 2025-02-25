@@ -26,47 +26,32 @@ public class GraphvizRenderer
     {
         try
         {
-            // Load and execute Viz.js resources
+            // Load and execute Viz.js
             var vizJs = ResourceLoader.LoadVizJs();
-            var vizRenderJs = ResourceLoader.LoadVizRenderJs();
-            
-            Console.WriteLine($"Loaded viz.js ({vizJs.Length} chars)");
-            Console.WriteLine($"Loaded full.render.js ({vizRenderJs.Length} chars)");
+            Console.WriteLine($"Loaded viz-standalone.js ({vizJs.Length} chars)");
             
             // Set up console.log for JavaScript
             _jsEngine.SetValue("consoleLog", new Action<string>(msg => Console.WriteLine($"JS: {msg}")));
             _jsEngine.Execute("var console = { log: consoleLog };");
-            
-            // Set up global context
-            _jsEngine.Execute(@"
-                var global = this;
-                global.Worker = function() {};  // Mock Worker
-            ");
 
             // Execute viz.js in the global context
-            _jsEngine.Execute($@"
-                (function(global) {{
-                    {vizJs}
-                }})(global);
-            ");
-
-            // Execute render.js in the global context
-            _jsEngine.Execute($@"
-                (function(global) {{
-                    {vizRenderJs}
-                }})(global);
-            ");
-            
-            // Initialize Viz instance and verify it exists
+            _jsEngine.Execute(vizJs);
             _jsEngine.Execute(@"
-                var viz = new Viz();
+                if (typeof Viz === 'undefined') {
+                    console.log('Viz function is not defined');
+                    throw new Error('Viz function is not defined');
+                }
+                console.log('Viz function is available: ' + typeof Viz);
+
+                // Create a wrapper function
+                window.renderGraph = function(input) {
+                    console.log('Rendering graph:', input);
+                    var options = { format: 'svg', engine: 'dot' };
+                    console.log('Using options:', JSON.stringify(options));
+                    return Viz(input, options);
+                };
             ");
-            var vizExists = _jsEngine.Evaluate("typeof viz !== 'undefined'").AsBoolean();
-            if (!vizExists)
-            {
-                throw new InvalidOperationException("Viz instance was not created");
-            }
-            Console.WriteLine("Viz instance created successfully");
+            Console.WriteLine("Viz.js loaded successfully");
         }
         catch (Exception ex)
         {
@@ -86,44 +71,40 @@ public class GraphvizRenderer
             // Escape the graph for JavaScript
             var escapedGraph = JavaScriptEncoder.Default.Encode(graph);
             
-            // Set up completion callback
-            var taskCompletionSource = new TaskCompletionSource<string>();
-            
-            _jsEngine.SetValue("resolveCallback", (string svg) => taskCompletionSource.SetResult(svg));
-            _jsEngine.SetValue("rejectCallback", (string error) => taskCompletionSource.SetException(new Exception(error)));
-
             try
             {
                 Console.WriteLine($"Attempting to render graph: {graph}");
                 
-                // Execute rendering with callbacks
-                _jsEngine.Evaluate($@"
-                    console.log('Starting render');
-                    viz.renderString('{escapedGraph}')
-                        .then(function(svg) {{
-                            console.log('Render completed');
-                            resolveCallback(svg);
-                        }})
-                        .catch(function(error) {{
-                            console.log('Render failed: ' + error.toString());
-                            rejectCallback(error.toString());
-                        }});
-                ");
+                // Set up the input
+                _jsEngine.SetValue("graphInput", graph);
 
-                // Wait for the callback to be called with a timeout
-                var timeoutTask = Task.Delay(TimeSpan.FromSeconds(10));
-                var completedTask = await Task.WhenAny(taskCompletionSource.Task, timeoutTask);
-                
-                if (completedTask == timeoutTask)
+                // Execute rendering using wrapper function
+                var result = _jsEngine.Evaluate(@"
+                    try {
+                        var result = window.renderGraph(graphInput);
+                        if (!result) {
+                            throw new Error('Render returned null or undefined');
+                        }
+                        if (!result.includes('<svg')) {
+                            throw new Error('Invalid SVG output');
+                        }
+                        console.log('Render successful');
+                        return result;
+                    } catch (e) {
+                        console.log('Render error:', e.message);
+                        throw e;
+                    }
+                ").AsString();
+
+                if (string.IsNullOrEmpty(result))
                 {
-                    throw new TimeoutException("Graph rendering timed out after 10 seconds");
+                    throw new InvalidOperationException("Viz returned empty result");
                 }
 
-                var svg = await taskCompletionSource.Task;
-                Console.WriteLine($"Render result length: {svg?.Length ?? 0}");
-                return new HtmlString(svg ?? string.Empty);
+                Console.WriteLine($"Render result length: {result.Length}");
+                return new HtmlString(result);
             }
-            catch (Exception ex) when (ex is not TimeoutException)
+            catch (Exception ex)
             {
                 Console.WriteLine($"Render failed: {ex}");
                 throw new InvalidOperationException("Failed to render graph", ex);
