@@ -151,11 +151,13 @@ namespace Jinaga.Store.SQLite.Test
                     Environment.SpecialFolder.LocalApplicationData),
                     "ExportFactsTest.db"),
                 new NullLoggerFactory());
+            var options = new JinagaClientOptions();
             var jinagaClient = new JinagaClient(
                 store,
                 new LocalNetwork(),
                 [],
-                new NullLoggerFactory());
+                new NullLoggerFactory(),
+                options);
             return jinagaClient;
         }
     }

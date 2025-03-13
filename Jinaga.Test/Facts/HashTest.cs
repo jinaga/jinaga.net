@@ -1,4 +1,3 @@
-using System;
 using System.Linq;
 using Jinaga.Facts;
 using Jinaga.Serialization;

@@ -176,11 +176,13 @@ public class Migration202412Test
         var store = new SQLiteStore(
             sqlitePath,
             new NullLoggerFactory());
+        var options = new JinagaClientOptions();
         var jinagaClient = new JinagaClient(
             store,
             network,
             [],
-            new NullLoggerFactory());
+            new NullLoggerFactory(),
+            options);
         return jinagaClient;
     }
 }

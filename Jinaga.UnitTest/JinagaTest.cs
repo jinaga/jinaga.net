@@ -20,12 +20,13 @@ namespace Jinaga.UnitTest
 
         public static JinagaClient Create(Action<JinagaTestOptions> configure)
         {
-            var options = new JinagaTestOptions();
-            configure(options);
+            var testOptions = new JinagaTestOptions();
+            configure(testOptions);
             var loggerFactory = NullLoggerFactory.Instance;
             var network = new SimulatedNetwork(
-                options.User == null ? null : options.User.publicKey);
-            var client = new JinagaClient(new MemoryStore(), network, ImmutableList<Specification>.Empty, loggerFactory);
+                testOptions.User == null ? null : testOptions.User.publicKey);
+            var clientOptions = new JinagaClientOptions();
+            var client = new JinagaClient(new MemoryStore(), network, ImmutableList<Specification>.Empty, loggerFactory, clientOptions);
             return client;
         }
     }

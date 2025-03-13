@@ -1,4 +1,3 @@
-using System;
 using System.Linq;
 using Jinaga.Extensions;
 using Jinaga.Test.Model;

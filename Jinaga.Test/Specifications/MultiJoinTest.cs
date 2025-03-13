@@ -272,6 +272,8 @@ public class MultiJoinTest
         var offeringsAndLocations = await j.Query(offeringAndLocationInSemester, currentSemester);
         await j.Fact(new OfferingLocation(offeringsAndLocations[0].offering, "Building E", "105", [offeringsAndLocations[0].location]));
 
+        await j.Unload();
+
         // Verify that the index was updated.
         // The location "Building E 105" is expected to be in the updated state exactly once.
         indexRecordUpdatedEvent.Wait(5000);

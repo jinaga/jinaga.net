@@ -2,7 +2,6 @@
 using Jinaga.Projections;
 using Jinaga.Serialization;
 using Jinaga.Services;
-using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;

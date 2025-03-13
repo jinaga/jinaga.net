@@ -1,4 +1,3 @@
-using System;
 using System.Runtime.CompilerServices;
 using Jinaga.Facts;
 using Jinaga.Serialization;

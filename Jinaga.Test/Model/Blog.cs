@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Jinaga.Test.Model;
+﻿namespace Jinaga.Test.Model;
 
 [FactType("Blog.Site")]
 public record Site(User creator, string identifier) { }

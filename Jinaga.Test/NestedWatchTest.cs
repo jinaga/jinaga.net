@@ -1,4 +1,3 @@
-using System;
 using Jinaga.Observers;
 using Jinaga.Test.Fakes;
 using Jinaga.Test.Model;

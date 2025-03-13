@@ -54,6 +54,7 @@ public class LocalFactTest
 
     private static JinagaClient GivenJinagaClient(FakeNetwork network)
     {
-        return new JinagaClient(new MemoryStore(), network, [], NullLoggerFactory.Instance);
+        var options = new JinagaClientOptions();
+        return new JinagaClient(new MemoryStore(), network, [], NullLoggerFactory.Instance, options);
     }
 }

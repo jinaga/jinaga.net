@@ -1,6 +1,5 @@
 ﻿using Jinaga;
 using Jinaga.Test.Model;
-using System;
 
 namespace Jinaga.Test.Facts
 {
