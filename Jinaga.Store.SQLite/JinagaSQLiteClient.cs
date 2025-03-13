@@ -1,4 +1,4 @@
-﻿﻿using Jinaga.DefaultImplementations;
+﻿using Jinaga.DefaultImplementations;
 using Jinaga.Http;
 using Jinaga.Projections;
 using Jinaga.Services;
