@@ -23,7 +23,7 @@ namespace Jinaga.Test
             // Arrange
             var network = new CountingFakeNetwork(output);
             var options = new JinagaClientOptions { QueueProcessingDelay = 50 };
-            var j = new JinagaClient(new MemoryStore(), network, ImmutableList<Specification>.Empty, NullLoggerFactory.Instance, options);
+            var j = new JinagaClient(new PersistentMemoryStore(), network, ImmutableList<Specification>.Empty, NullLoggerFactory.Instance, options);
             
             // Act
             await j.Fact(new TestFact("fact1"));
@@ -103,7 +103,7 @@ namespace Jinaga.Test
             // Arrange
             var network = new CountingFakeNetwork(output);
             var options = new JinagaClientOptions { QueueProcessingDelay = 50 };
-            var j = new JinagaClient(new MemoryStore(), network, ImmutableList<Specification>.Empty, NullLoggerFactory.Instance, options);
+            var j = new JinagaClient(new PersistentMemoryStore(), network, ImmutableList<Specification>.Empty, NullLoggerFactory.Instance, options);
             
             // Act - Create a blog site with content
             var user = await j.Fact(new User("test-user"));
