@@ -1,4 +1,4 @@
-﻿using Jinaga.DefaultImplementations;
+﻿﻿using Jinaga.DefaultImplementations;
 using Jinaga.Http;
 using Jinaga.Projections;
 using Jinaga.Services;
@@ -45,7 +45,7 @@ namespace Jinaga.Store.SQLite
                 ? (INetwork)new LocalNetwork()
                 : new HttpNetwork(options.HttpEndpoint, options.HttpAuthenticationProvider, loggerFactory, options.RetryConfiguration);
             var purgeConditions = CreatePurgeConditions(options);
-            return new JinagaClient(store, network, purgeConditions, loggerFactory);
+            return new JinagaClient(store, network, purgeConditions, loggerFactory, options);
         }
 
         private static ImmutableList<Specification> CreatePurgeConditions(JinagaClientOptions options)

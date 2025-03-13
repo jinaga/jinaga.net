@@ -52,6 +52,19 @@ namespace Jinaga
         /// A set of conditions that determine whether a fact can be purged.
         /// </summary>
         public Func<PurgeConditions, PurgeConditions>? PurgeConditions { get; set; }
+
+        /// <summary>
+        /// The delay in milliseconds before processing the outgoing queue.
+        /// This allows multiple facts saved in quick succession to be processed in a single network operation.
+        /// Default is 100ms. Set to 0 for immediate processing (no batching).
+        /// </summary>
+        public int QueueProcessingDelay { get; set; } = 100;
+
+        /// <summary>
+        /// The maximum number of facts to process in a single batch.
+        /// Default is 1000.
+        /// </summary>
+        public int MaxBatchSize { get; set; } = 1000;
     }
 
     /// <summary>
@@ -165,7 +178,7 @@ namespace Jinaga
                 ? (INetwork)new LocalNetwork()
                 : new HttpNetwork(options.HttpEndpoint, options.HttpAuthenticationProvider, loggerFactory, options.RetryConfiguration);
             var purgeConditions = CreatePurgeConditions(options);
-            return new JinagaClient(store, network, purgeConditions, loggerFactory);
+            return new JinagaClient(store, network, purgeConditions, loggerFactory, options);
         }
 
         private static ImmutableList<Specification> CreatePurgeConditions(JinagaClientOptions options)
@@ -209,7 +222,7 @@ namespace Jinaga
         /// <param name="store">A strategy to store facts locally</param>
         /// <param name="network">A strategy to communicate with a remote replicator</param>
         /// <param name="loggerFactory">A factory configured for logging</param>
-        public JinagaClient(IStore store, INetwork network, ImmutableList<Specification> purgeConditions, ILoggerFactory loggerFactory)
+        public JinagaClient(IStore store, INetwork network, ImmutableList<Specification> purgeConditions, ILoggerFactory loggerFactory, JinagaClientOptions options)
         {
             networkManager = new NetworkManager(network, store, loggerFactory, async (graph, added, cancellationToken) =>
             {
@@ -218,7 +231,7 @@ namespace Jinaga
                     await factManager.NotifyObservers(graph, added, cancellationToken).ConfigureAwait(false);
                 }
             });
-            factManager = new FactManager(store, networkManager, purgeConditions, loggerFactory);
+            factManager = new FactManager(store, networkManager, purgeConditions, loggerFactory, options.QueueProcessingDelay);
             logger = loggerFactory.CreateLogger<JinagaClient>();
 
             Local = new LocalJinagaClient(factManager, loggerFactory);

@@ -22,11 +22,12 @@ namespace Jinaga.Managers
         private readonly ILoggerFactory loggerFactory;
         private readonly ObservableSource observableSource;
         private readonly PurgeManager purgeManager;
+        private readonly QueueProcessor queueProcessor;
 
         private bool unloaded = false;
         private ImmutableList<TaskHandle> pendingTasks = ImmutableList<TaskHandle>.Empty;
 
-        public FactManager(IStore store, NetworkManager networkManager, ImmutableList<Specification> purgeConditions, ILoggerFactory loggerFactory)
+        public FactManager(IStore store, NetworkManager networkManager, ImmutableList<Specification> purgeConditions, ILoggerFactory loggerFactory, int queueProcessingDelay)
         {
             this.store = store;
             this.networkManager = networkManager;
@@ -34,6 +35,7 @@ namespace Jinaga.Managers
 
             observableSource = new ObservableSource(store);
             purgeManager = new PurgeManager(store, purgeConditions);
+            queueProcessor = new QueueProcessor(networkManager, loggerFactory, queueProcessingDelay);
         }
 
         private SerializerCache serializerCache = SerializerCache.Empty;
@@ -72,7 +74,7 @@ namespace Jinaga.Managers
         public async Task Push(CancellationToken cancellationToken)
         {
             VerifyNotUnloaded();
-            await networkManager.Save(cancellationToken).ConfigureAwait(false);
+            await queueProcessor.ProcessQueueNow(cancellationToken).ConfigureAwait(false);
         }
 
         public async Task<ImmutableList<Fact>> Save(FactGraph graph, CancellationToken cancellationToken)
@@ -85,27 +87,12 @@ namespace Jinaga.Managers
             // Don't wait on the network manager if we have persistent storage.
             if (store.IsPersistent)
             {
-                var handle = new TaskHandle();
-                AddBackgroundTask(handle);
-                var background = Task.Run(async () =>
-                {
-                    try
-                    {
-                        await networkManager.Save(default).ConfigureAwait(false);
-                    }
-                    catch
-                    {
-                        // Trust that the network manager raised the OnStatusChanged event.
-                    }
-                    finally
-                    {
-                        RemoveBackgroundTask(handle);
-                    }
-                });
-                handle.Task = background;
+                // Schedule processing with debouncing
+                _ = queueProcessor.ScheduleProcessing();
             }
             else
             {
+                // For non-persistent storage, process immediately
                 await networkManager.Save(cancellationToken).ConfigureAwait(false);
             }
             return added;

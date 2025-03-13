@@ -54,7 +54,8 @@ namespace Jinaga.Test
 
         public QueryLocalTest()
         {
-            j = new JinagaClient(new MemoryStore(), new NeverUsedNetwork(), [], NullLoggerFactory.Instance);
+            var options = new JinagaClientOptions();
+            j = new JinagaClient(new MemoryStore(), new NeverUsedNetwork(), [], NullLoggerFactory.Instance, options);
         }
 
         [Fact]
