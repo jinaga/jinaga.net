@@ -255,6 +255,7 @@ namespace Jinaga.Managers
         public async Task Unload()
         {
             VerifyNotUnloaded();
+            await queueProcessor.ProcessQueueNow(default).ConfigureAwait(false);
             unloaded = true;
             var freezePendingTasks = pendingTasks;
             if (freezePendingTasks.Count > 0)
