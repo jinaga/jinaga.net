@@ -2,7 +2,6 @@ using Jinaga.Facts;
 using Jinaga.Products;
 using Jinaga.Serialization;
 using Jinaga.Test.Model;
-using System;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Runtime.CompilerServices;

@@ -3,7 +3,6 @@ using Jinaga.Pipelines;
 using Jinaga.Projections;
 using Jinaga.Specifications;
 using Jinaga.Visualizers;
-using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;

@@ -1,5 +1,3 @@
-using System;
-
 namespace Jinaga.Test
 {
     static class TestingExtensions

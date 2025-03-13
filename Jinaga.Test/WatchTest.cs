@@ -1,6 +1,5 @@
 ﻿using Jinaga.Test.Fakes;
 using Jinaga.Test.Model;
-using System;
 using System.Linq;
 
 namespace Jinaga.Test

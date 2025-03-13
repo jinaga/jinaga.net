@@ -2,7 +2,6 @@
 using Jinaga.Serialization;
 using Jinaga.Test.Model;
 using Jinaga.Test.Model.Order;
-using System;
 using System.Collections.Immutable;
 using System.Runtime.CompilerServices;
 

@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Jinaga.Test.Model;
+﻿namespace Jinaga.Test.Model;
 
 [FactType("School")]
 public record OldSchool(string name, Guid? identifier) {}
