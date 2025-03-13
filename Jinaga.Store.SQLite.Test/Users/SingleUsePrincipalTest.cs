@@ -57,7 +57,8 @@ public class SingleUsePrincipalTest
 
     private static JinagaClient GivenJinagaClient(IStore? store = null, INetwork? network = null)
     {
-        return new JinagaClient(store ?? new SQLiteStore(SQLitePath, NullLoggerFactory.Instance), network ?? new LocalNetwork(), [], NullLoggerFactory.Instance);
+        var options = new JinagaClientOptions();
+        return new JinagaClient(store ?? new SQLiteStore(SQLitePath, NullLoggerFactory.Instance), network ?? new LocalNetwork(), [], NullLoggerFactory.Instance, options);
     }
 
     private static LocalNetwork GivenLocalNetwork()

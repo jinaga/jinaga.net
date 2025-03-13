@@ -23,7 +23,8 @@ public class RealTimePurgeSkipLevelTest
         PurgeConditions purgeConditions = PurgeConditions.Empty
             .Purge<Order>().WhenExists<OrderCancelledReason>(ocr => ocr.orderCancelled.order);
         store = new SQLiteStore(SQLitePath, NullLoggerFactory.Instance);
-        j = new JinagaClient(store, new LocalNetwork(), purgeConditions.Validate(), NullLoggerFactory.Instance);
+        var options = new JinagaClientOptions();
+        j = new JinagaClient(store, new LocalNetwork(), purgeConditions.Validate(), NullLoggerFactory.Instance, options);
     }
 
     [Fact]

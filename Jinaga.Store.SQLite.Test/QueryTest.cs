@@ -20,7 +20,8 @@ public class QueryTest
         if (File.Exists(SQLitePath))
             File.Delete(SQLitePath);
 
-        j = new JinagaClient(new SQLiteStore(SQLitePath, NullLoggerFactory.Instance), new LocalNetwork(), [], NullLoggerFactory.Instance);
+        var options = new JinagaClientOptions();
+        j = new JinagaClient(new SQLiteStore(SQLitePath, NullLoggerFactory.Instance), new LocalNetwork(), [], NullLoggerFactory.Instance, options);
         this.output = output;
     }
 

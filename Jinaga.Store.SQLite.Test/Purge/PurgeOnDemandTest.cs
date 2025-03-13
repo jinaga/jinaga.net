@@ -23,7 +23,8 @@ public class PurgeOnDemandTest
         PurgeConditions purgeConditions = PurgeConditions.Empty
             .Purge<Project>().WhenExists<ProjectDeleted>(deleted => deleted.project);
         store = new SQLiteStore(SQLitePath, NullLoggerFactory.Instance);
-        j = new JinagaClient(store, new LocalNetwork(), purgeConditions.Validate(), NullLoggerFactory.Instance);
+        var options = new JinagaClientOptions();
+        j = new JinagaClient(store, new LocalNetwork(), purgeConditions.Validate(), NullLoggerFactory.Instance, options);
     }
 
     [Fact]
