@@ -151,8 +151,8 @@ namespace Jinaga.Test.Pipelines
                 """
                 (booking: Skylane.Booking [
                     !E {
-                        x: Skylane.Refund [
-                            x->booking: Skylane.Booking = booking
+                        x2: Skylane.Refund [
+                            x2->booking: Skylane.Booking = booking
                         ]
                     }
                 ]) {
@@ -181,8 +181,8 @@ namespace Jinaga.Test.Pipelines
                     booking: Skylane.Booking [
                         booking->flight: Skylane.Flight = flight
                         !E {
-                            x: Skylane.Refund [
-                                x->booking: Skylane.Booking = booking
+                            x2: Skylane.Refund [
+                                x2->booking: Skylane.Booking = booking
                             ]
                         }
                     ]
@@ -190,9 +190,9 @@ namespace Jinaga.Test.Pipelines
 
                 """,
                 """
-                (x: Skylane.Refund) {
+                (x2: Skylane.Refund) {
                     booking: Skylane.Booking [
-                        booking = x->booking: Skylane.Booking
+                        booking = x2->booking: Skylane.Booking
                     ]
                     flight: Skylane.Flight [
                         flight = booking->flight: Skylane.Flight

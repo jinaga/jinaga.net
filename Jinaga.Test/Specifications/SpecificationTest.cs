@@ -360,8 +360,8 @@ namespace Jinaga.Test.Specifications.Specifications
                     booking: Skylane.Booking [
                         booking->flight: Skylane.Flight = flight
                         !E {
-                            x: Skylane.Refund [
-                                x->booking: Skylane.Booking = booking
+                            x2: Skylane.Refund [
+                                x2->booking: Skylane.Booking = booking
                             ]
                         }
                     ]
