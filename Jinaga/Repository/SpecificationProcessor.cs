@@ -64,14 +64,14 @@ namespace Jinaga.Repository
 
         private Label NewLabel(string recommendedName, string factType)
         {
-            // Find the last letter in the name.
-            int lastLetterIndex = recommendedName.Length - 1;
-            while (lastLetterIndex >= 0 && !char.IsLetter(recommendedName[lastLetterIndex]))
+            // Find the last non-digit in the name.
+            int lastNonDigitIndex = recommendedName.Length - 1;
+            while (lastNonDigitIndex >= 0 && char.IsDigit(recommendedName[lastNonDigitIndex]))
             {
-                lastLetterIndex--;
+                lastNonDigitIndex--;
             }
             // The base name is every character up to and including the last letter.
-            string baseName = lastLetterIndex >= 0 ? recommendedName.Substring(0, lastLetterIndex + 1) : "unknown";
+            string baseName = lastNonDigitIndex >= 0 ? recommendedName.Substring(0, lastNonDigitIndex + 1) : "unknown";
             int index = 2;
             string uniqueName = recommendedName;
             while (labelsUsed.Contains(uniqueName))
