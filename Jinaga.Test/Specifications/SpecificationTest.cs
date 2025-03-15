@@ -337,6 +337,41 @@ namespace Jinaga.Test.Specifications.Specifications
         }
 
         [Fact]
+        public void CanSpecifyMultipleNegativeExistentialConditionsWithSameLambdaParameterName()
+        {
+            var bookingsForAirlineDay = Given<AirlineDay>.Match(airlineDay =>
+                airlineDay.Successors().OfType<Flight>(flight => flight.airlineDay)
+                    .WhereNo((FlightCancellation x) => x.flight)
+                    .SelectMany(flight => flight.Successors().OfType<Booking>(booking => booking.flight))
+                    .WhereNo((Refund x) => x.booking)
+            );
+
+            bookingsForAirlineDay.ToString().ReplaceLineEndings().Should().Be(
+                """
+                (airlineDay: Skylane.Airline.Day) {
+                    flight: Skylane.Flight [
+                        flight->airlineDay: Skylane.Airline.Day = airlineDay
+                        !E {
+                            x: Skylane.Flight.Cancellation [
+                                x->flight: Skylane.Flight = flight
+                            ]
+                        }
+                    ]
+                    booking: Skylane.Booking [
+                        booking->flight: Skylane.Flight = flight
+                        !E {
+                            x: Skylane.Refund [
+                                x->booking: Skylane.Booking = booking
+                            ]
+                        }
+                    ]
+                } => booking
+
+                """
+                );
+        }
+
+        [Fact]
         public void CanSpecifyNegativeExistentialConditionWithWhereNo()
         {
             Specification<AirlineDay, Flight> activeFlights = Given<AirlineDay>.Match((airlineDay, facts) =>
