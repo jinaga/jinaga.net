@@ -24,8 +24,7 @@ namespace Jinaga.Repository
             var nonRepositoryParameters = specExpression.Parameters
                 .Where(parameter => parameter.Type != typeof(FactRepository));
             var symbolTable = processor.Given(nonRepositoryParameters);
-            var labelsUsed = processor.givenLabels.Select(g => g.Name).ToImmutableList();
-            var result = processor.ProcessSource(specExpression.Body, symbolTable, labelsUsed);
+            var result = processor.ProcessSource(specExpression.Body, symbolTable);
             processor.ValidateMatches(result.Matches);
             return (processor.givenLabels, result.Matches, result.Projection);
         }
