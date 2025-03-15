@@ -1,3 +1,4 @@
+using Jinaga.Extensions;
 using Jinaga.Pipelines;
 using Jinaga.Test.Model;
 using System.Linq;
@@ -129,6 +130,88 @@ namespace Jinaga.Test.Pipelines
 
             inverses.Select(i => i.Operation).Should().BeEquivalentTo(new[] {
                 InverseOperation.Add,
+                InverseOperation.Remove
+            });
+        }
+
+        [Fact]
+        public void Inverse_TwoNegativeExistentialConditionsWithSameUnknownName()
+        {
+            var bookingsForAirlineDay = Given<AirlineDay>.Match(airlineDay =>
+                airlineDay.Successors().OfType<Flight>(flight => flight.airlineDay)
+                    .WhereNo((FlightCancellation x) => x.flight)
+                    .SelectMany(flight => flight.Successors().OfType<Booking>(booking => booking.flight))
+                    .WhereNo((Refund x) => x.booking)
+            );
+
+            var inverses = bookingsForAirlineDay.ComputeInverses();
+
+            inverses.Select(i => i.InverseSpecification.ToString().ReplaceLineEndings())
+                .Should().BeEquivalentTo([
+                """
+                (booking: Skylane.Booking [
+                    !E {
+                        x2: Skylane.Refund [
+                            x2->booking: Skylane.Booking = booking
+                        ]
+                    }
+                ]) {
+                    flight: Skylane.Flight [
+                        flight = booking->flight: Skylane.Flight
+                        !E {
+                            x: Skylane.Flight.Cancellation [
+                                x->flight: Skylane.Flight = flight
+                            ]
+                        }
+                    ]
+                    airlineDay: Skylane.Airline.Day [
+                        airlineDay = flight->airlineDay: Skylane.Airline.Day
+                    ]
+                } => booking
+
+                """,
+                """
+                (x: Skylane.Flight.Cancellation) {
+                    flight: Skylane.Flight [
+                        flight = x->flight: Skylane.Flight
+                    ]
+                    airlineDay: Skylane.Airline.Day [
+                        airlineDay = flight->airlineDay: Skylane.Airline.Day
+                    ]
+                    booking: Skylane.Booking [
+                        booking->flight: Skylane.Flight = flight
+                        !E {
+                            x2: Skylane.Refund [
+                                x2->booking: Skylane.Booking = booking
+                            ]
+                        }
+                    ]
+                } => booking
+
+                """,
+                """
+                (x2: Skylane.Refund) {
+                    booking: Skylane.Booking [
+                        booking = x2->booking: Skylane.Booking
+                    ]
+                    flight: Skylane.Flight [
+                        flight = booking->flight: Skylane.Flight
+                        !E {
+                            x: Skylane.Flight.Cancellation [
+                                x->flight: Skylane.Flight = flight
+                            ]
+                        }
+                    ]
+                    airlineDay: Skylane.Airline.Day [
+                        airlineDay = flight->airlineDay: Skylane.Airline.Day
+                    ]
+                } => booking
+
+                """
+                ]);
+            inverses.Select(i => i.Operation).Should().BeEquivalentTo(new[] {
+                InverseOperation.Add,
+                InverseOperation.Remove,
                 InverseOperation.Remove
             });
         }
