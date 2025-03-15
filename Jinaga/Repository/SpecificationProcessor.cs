@@ -71,7 +71,7 @@ namespace Jinaga.Repository
                 lastLetterIndex--;
             }
             // The base name is every character up to and including the last letter.
-            string baseName = lastLetterIndex >= 0 ? recommendedName.Substring(0, lastLetterIndex + 1) : recommendedName;
+            string baseName = lastLetterIndex >= 0 ? recommendedName.Substring(0, lastLetterIndex + 1) : "unknown";
             int index = 2;
             string uniqueName = recommendedName;
             while (labelsUsed.Contains(uniqueName))
