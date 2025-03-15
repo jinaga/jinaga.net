@@ -24,7 +24,7 @@ namespace Jinaga.Store.SQLite.Test
             memoryStream.Position = 0;
             var json = await new StreamReader(memoryStream).ReadToEndAsync();
 
-            json.Should().Be(
+            json.ReplaceLineEndings().Should().Be(
                 """
                 [
                     {
@@ -106,7 +106,7 @@ namespace Jinaga.Store.SQLite.Test
             memoryStream.Position = 0;
             var factual = await new StreamReader(memoryStream).ReadToEndAsync();
 
-            factual.Should().Be(
+            factual.ReplaceLineEndings().Should().Be(
                 """
                 let f1: Blog.Site = {
                     domain: "qedcode.com"

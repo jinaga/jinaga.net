@@ -34,7 +34,7 @@ public class PurgeConditionsTest
             }
 
             """;
-        description.Should().Be(expected);
+        description.ReplaceLineEndings().Should().Be(expected);
     }
 
     [Fact]
@@ -60,6 +60,6 @@ public class PurgeConditionsTest
             }
 
             """;
-        description.Should().Be(expected);
+        description.ReplaceLineEndings().Should().Be(expected);
     }
 }
