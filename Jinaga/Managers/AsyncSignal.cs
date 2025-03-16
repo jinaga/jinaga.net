@@ -7,7 +7,7 @@ namespace Jinaga.Managers
     class AsyncSignal
     {
         private volatile bool _isSignaled = false;
-        private TaskCompletionSource<bool> _tcs = new TaskCompletionSource<bool>();
+        private TaskCompletionSource<bool> _tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly object _lock = new object();
 
         /// <summary>
@@ -68,7 +68,7 @@ namespace Jinaga.Managers
                 if (!_isSignaled) return; // No need to reset if already reset
 
                 _isSignaled = false;
-                _tcs = new TaskCompletionSource<bool>(); // Create a new task for future waiters
+                _tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously); // Create a new task for future waiters
             }
         }
     }
