@@ -88,7 +88,7 @@ namespace Jinaga.Managers
             if (store.IsPersistent)
             {
                 // Schedule processing with debouncing
-                _ = queueProcessor.ScheduleProcessing();
+                queueProcessor.ScheduleProcessing();
             }
             else
             {
@@ -256,6 +256,7 @@ namespace Jinaga.Managers
         {
             VerifyNotUnloaded();
             await queueProcessor.ProcessQueueNow(default).ConfigureAwait(false);
+            await queueProcessor.DisposeAsync().ConfigureAwait(false);
             unloaded = true;
             var freezePendingTasks = pendingTasks;
             if (freezePendingTasks.Count > 0)
