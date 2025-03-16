@@ -7,17 +7,20 @@ namespace Jinaga.Managers
 {
     /// <summary>
     /// Processes the outgoing queue with debouncing to improve performance when saving multiple facts in quick succession.
+    /// Uses a long-running background task to continuously monitor and process the queue.
     /// </summary>
-    class QueueProcessor
+    class QueueProcessor : IAsyncDisposable
     {
         private readonly NetworkManager networkManager;
         private readonly ILogger logger;
         private readonly int delayMilliseconds;
         
-        private Timer? debounceTimer;
-        private readonly object timerLock = new object();
-        private bool isProcessing = false;
-        private TaskCompletionSource<bool>? currentProcessingTask;
+        // Background task management
+        private Task? _backgroundTask;
+        private CancellationTokenSource? _cancellationTokenSource;
+        private readonly AsyncSignal _processingSignal = new AsyncSignal();
+        private readonly AsyncSignal _delaySignal = new AsyncSignal();
+        private readonly AsyncSignal _currentProcessingSignal = new AsyncSignal();
 
         /// <summary>
         /// Creates a new queue processor.
@@ -30,47 +33,25 @@ namespace Jinaga.Managers
             this.networkManager = networkManager;
             this.logger = loggerFactory.CreateLogger<QueueProcessor>();
             this.delayMilliseconds = delayMilliseconds;
+            
+            // Start the background processing task
+            _cancellationTokenSource = new CancellationTokenSource();
+            _backgroundTask = Task.Factory.StartNew(
+                () => ProcessQueueAsync(_cancellationTokenSource.Token),
+                _cancellationTokenSource.Token,
+                TaskCreationOptions.LongRunning,
+                TaskScheduler.Default)
+                .Unwrap(); // Unwrap is needed because ProcessQueueAsync returns a Task
         }
 
         /// <summary>
         /// Schedules the queue for processing after the configured delay.
         /// If called multiple times within the delay period, only one processing operation will occur.
         /// </summary>
-        /// <returns>A task that completes when the queue has been processed.</returns>
-        public Task ScheduleProcessing()
+        public void ScheduleProcessing()
         {
-            lock (timerLock)
-            {
-                // If immediate processing is configured, process right away
-                if (delayMilliseconds <= 0)
-                {
-                    return ProcessQueueImmediately();
-                }
-
-                // If we're already processing, return the current task
-                if (isProcessing && currentProcessingTask != null)
-                {
-                    return currentProcessingTask.Task;
-                }
-
-                // If we have a pending timer, stop it and create a new one
-                debounceTimer?.Dispose();
-
-                // Create a new task completion source if needed
-                if (currentProcessingTask == null)
-                {
-                    currentProcessingTask = new TaskCompletionSource<bool>();
-                }
-
-                // Start a new timer
-                debounceTimer = new Timer(
-                    ProcessQueueCallback,
-                    null,
-                    delayMilliseconds,
-                    Timeout.Infinite);
-
-                return currentProcessingTask.Task;
-            }
+            // Signal that processing is needed
+            _processingSignal.Signal();
         }
 
         /// <summary>
@@ -80,67 +61,131 @@ namespace Jinaga.Managers
         /// <returns>A task that completes when the queue has been processed.</returns>
         public async Task ProcessQueueNow(CancellationToken cancellationToken = default)
         {
-            lock (timerLock)
-            {
-                // Cancel any pending timer
-                debounceTimer?.Dispose();
-                debounceTimer = null;
-
-                // If we're already processing, return the current task
-                if (isProcessing && currentProcessingTask != null)
-                {
-                    return;
-                }
-
-                // Mark as processing
-                isProcessing = true;
-                
-                // Create a new task completion source if needed
-                if (currentProcessingTask == null)
-                {
-                    currentProcessingTask = new TaskCompletionSource<bool>();
-                }
-            }
+            // Get ready for processing
+            _currentProcessingSignal.Reset();
+            // Interrupt the delay
+            _delaySignal.Signal();
+            // Signal that processing is needed
+            _processingSignal.Signal();
+            // Wait for the processing to complete
+            await _currentProcessingSignal.WaitAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+        }
+        
+        /// <summary>
+        /// Stops the background process gracefully.
+        /// </summary>
+        /// <returns>A task that completes when the background process has stopped.</returns>
+        private async Task StopBackgroundProcessAsync()
+        {
+            if (_backgroundTask == null || _cancellationTokenSource == null)
+                return;
 
             try
             {
-                await networkManager.Save(cancellationToken).ConfigureAwait(false);
+                // Signal cancellation
+                _cancellationTokenSource.Cancel();
                 
-                lock (timerLock)
-                {
-                    currentProcessingTask?.SetResult(true);
-                }
+                // Interrupt the delay
+                _delaySignal.Signal();
+                // Signal that processing is needed
+                _processingSignal.Signal();
+                
+                // Wait for the task to complete
+                await _backgroundTask.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                // This is expected when cancelling the task
+                logger.LogInformation("Background queue processor was cancelled");
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Error processing queue");
-                
-                lock (timerLock)
+                logger.LogError(ex, "Error stopping background queue processor");
+            }
+            finally
+            {
+                _cancellationTokenSource.Dispose();
+                _cancellationTokenSource = null;
+                _backgroundTask = null;
+            }
+        }
+        
+        /// <summary>
+        /// The main processing loop that runs as a background task.
+        /// Continuously monitors for queue processing requests and processes them.
+        /// </summary>
+        /// <param name="cancellationToken">Token to cancel the operation.</param>
+        private async Task ProcessQueueAsync(CancellationToken cancellationToken)
+        {
+            logger.LogInformation("Background queue processor started");
+            
+            try
+            {
+                while (!cancellationToken.IsCancellationRequested)
                 {
-                    currentProcessingTask?.SetException(ex);
+                    try
+                    {
+                        // Wait for a signal to process the queue
+                        await _processingSignal.WaitAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+                        
+                        // Skip processing if cancelled
+                        if (cancellationToken.IsCancellationRequested)
+                            break;
+
+                        // Wait for a short delay to allow more items to be added to the queue
+                        await _delaySignal.WaitAsync(TimeSpan.FromMilliseconds(delayMilliseconds), cancellationToken).ConfigureAwait(false);
+
+                        // Skip processing if cancelled
+                        if (cancellationToken.IsCancellationRequested)
+                            break;
+
+                        // Reset the signals for the next round
+                        _processingSignal.Reset();
+                        _delaySignal.Reset();
+                            
+                        // Process the queue
+                        await networkManager.Save(cancellationToken).ConfigureAwait(false);
+
+                        // Mark that processing is complete
+                        _currentProcessingSignal.Signal();
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        // Expected when cancellation is requested
+                        break;
+                    }
+                    catch (Exception ex)
+                    {
+                        // Log but don't rethrow to keep the background task running
+                        logger.LogError(ex, "Error in background queue processor");
+                        
+                        // Brief delay before retrying after an error
+                        await Task.Delay(1000, cancellationToken).ConfigureAwait(false);
+                    }
                 }
-                
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                // Expected when cancellation is requested
+                logger.LogInformation("Background queue processor cancelled");
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Fatal error in background queue processor");
                 throw;
             }
             finally
             {
-                lock (timerLock)
-                {
-                    isProcessing = false;
-                    currentProcessingTask = null;
-                }
+                logger.LogInformation("Background queue processor stopped");
             }
         }
-
-        private Task ProcessQueueImmediately()
+        
+        /// <summary>
+        /// Disposes of resources used by the queue processor.
+        /// </summary>
+        public async ValueTask DisposeAsync()
         {
-            return ProcessQueueNow(CancellationToken.None);
-        }
-
-        private void ProcessQueueCallback(object? state)
-        {
-            // Start a new task to process the queue
-            _ = ProcessQueueNow();
+            await StopBackgroundProcessAsync().ConfigureAwait(false);
         }
     }
 }
