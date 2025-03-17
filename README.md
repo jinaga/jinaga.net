@@ -125,3 +125,65 @@ To accomplish this from the command line, use the following `gh` command.
 ```powershell
 gh release create 20240917.1 --generate-notes
 ```
+
+## Using the Custom Azure Functions Binding
+
+The `JinagaFunctionBinding` library provides a custom Azure Functions binding for Jinaga. Follow these steps to use it in your Azure Functions application:
+
+1. Install the `JinagaFunctionBinding` NuGet package in your Azure Functions application.
+
+```powershell
+dotnet add package JinagaFunctionBinding
+```
+
+2. Register the subscription configurations in `Startup.cs`.
+
+```csharp
+using JinagaFunctionBinding;
+using Microsoft.Azure.Functions.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
+
+[assembly: FunctionsStartup(typeof(Startup))]
+
+namespace YourNamespace
+{
+    public class Startup : FunctionsStartup
+    {
+        public override void Configure(IFunctionsHostBuilder builder)
+        {
+            builder.Services.AddSingleton<JinagaBindingConfig>(config =>
+            {
+                var bindingConfig = new JinagaBindingConfig();
+                bindingConfig.RegisterSpecification("YourSpecification", "YourSpecificationValue");
+                bindingConfig.RegisterStartingPoint("YourStartingPoint", "YourStartingPointValue");
+                return bindingConfig;
+            });
+        }
+    }
+}
+```
+
+3. Write a function using the custom binding.
+
+```csharp
+using JinagaFunctionBinding;
+using Microsoft.Azure.WebJobs;
+using Microsoft.Extensions.Logging;
+
+namespace YourNamespace
+{
+    public static class YourFunction
+    {
+        [FunctionName("YourFunctionName")]
+        public static void Run(
+            [JinagaTrigger("YourSpecification", "YourStartingPoint")] JinagaListener listener,
+            ILogger log)
+        {
+            log.LogInformation("Function triggered by Jinaga.");
+            // Your function logic here
+        }
+    }
+}
+```
+
+4. Deploy the Azure Function and test it by publishing relevant facts to the Jinaga service.
