@@ -415,7 +415,34 @@ namespace Jinaga.Test
             result.flight.Should().BeEquivalentTo(flight);
             result.bookings.Should().ContainSingle().Which.Should().BeEquivalentTo(booking);
         }
+
+        [Fact]
+        public async Task CanProjectGuidField()
+        {
+            // Arrange - Create a project with a Guid id field
+            var user = await j.Fact(new User("--- PUBLIC KEY ---"));
+            var projectId = Guid.NewGuid();
+            var project = await j.Fact(new ConstructionProject(user, projectId));
+
+            // Act - Project the Guid field, which should now work
+            var projectsWithGuidProjection = Given<User>.Match(u =>
+                u.Successors().OfType<ConstructionProject>(p => p.creator)
+                    .Select(p => new
+                    {
+                        ProjectId = p.id  // This line should now successfully project the Guid
+                    })
+            );
+
+            var result = await j.Query(projectsWithGuidProjection, user);
+            
+            // Assert - Verify the Guid was projected correctly
+            result.Should().ContainSingle().Which
+                .ProjectId.Should().Be(projectId);
+        }
     }
+
+    [FactType("Construction.Project")]
+    public record ConstructionProject(User creator, Guid id) { }
 
     [FactType("Blog.Site")]
     public record Site(string domain) { }

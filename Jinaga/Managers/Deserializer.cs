@@ -372,6 +372,11 @@ namespace Jinaga.Managers
                     var obj = value.BoolValue;
                     return (obj, null);
                 }
+                else if (parameterType == typeof(Guid))
+                {
+                    var obj = FieldValue.GuidFromString(value.StringValue);
+                    return (obj, null);
+                }
                 else
                 {
                     throw new ArgumentException($"Unknown field type {parameterType.Name}, reading field {parameterName} of {reference.Type}.");
