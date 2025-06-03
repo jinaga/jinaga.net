@@ -155,6 +155,7 @@ namespace Jinaga.Serialization
                     CallNullableDateTimeToNullableIso8601String(propertyGet)
                 );
             }
+            // DateTimeOffset type (stored as FieldValueString with ISO 8601 format)
             if (underlyingType == typeof(DateTimeOffset))
             {
                 return Expression.Call(
@@ -162,6 +163,7 @@ namespace Jinaga.Serialization
                     CallNullableDateTimeOffsetToNullableIso8601String(propertyGet)
                 );
             }
+            // TimeSpan type (stored as FieldValueString with ISO 8601 format)
             if (underlyingType == typeof(TimeSpan))
             {
                 return Expression.Call(
