@@ -364,6 +364,26 @@ namespace Jinaga.Managers
                     var obj = FieldValue.FromNullableIso8601String(value.StringValue);
                     return (obj, null);
                 }
+                else if (parameterType == typeof(DateTimeOffset))
+                {
+                    var obj = FieldValue.FromIso8601StringToDateTimeOffset(value.StringValue);
+                    return (obj, null);
+                }
+                else if (parameterType == typeof(DateTimeOffset?))
+                {
+                    var obj = FieldValue.FromNullableIso8601StringToNullableDateTimeOffset(value.StringValue);
+                    return (obj, null);
+                }
+                else if (parameterType == typeof(TimeSpan))
+                {
+                    var obj = FieldValue.FromIso8601StringToTimeSpan(value.StringValue);
+                    return (obj, null);
+                }
+                else if (parameterType == typeof(TimeSpan?))
+                {
+                    var obj = FieldValue.FromNullableIso8601StringToNullableTimeSpan(value.StringValue);
+                    return (obj, null);
+                }
                 // Numeric types
                 else if (parameterType == typeof(int))
                 {

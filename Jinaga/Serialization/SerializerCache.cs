@@ -154,6 +154,11 @@ namespace Jinaga.Serialization
                         typeof(FieldValueString).GetMethod(nameof(FieldValueString.From)),
                         CallNullableDateTimeOffsetToNullableIso8601String(propertyGet)
                     )
+                : underlyingType == typeof(TimeSpan)
+                    ? Expression.Call(
+                        typeof(FieldValueString).GetMethod(nameof(FieldValueString.From)),
+                        CallNullableTimeSpanToNullableIso8601String(propertyGet)
+                    )
                 : underlyingType == typeof(int)
                     ? Expression.Call(
                         typeof(FieldValueNumber).GetMethod(nameof(FieldValueNumber.From)),
@@ -193,6 +198,10 @@ namespace Jinaga.Serialization
                     ? Expression.New(typeof(FieldValueString).GetConstructor(new[] { typeof(string) }), propertyGet)
                 : propertyInfo.PropertyType == typeof(DateTime)
                     ? Expression.New(typeof(FieldValueString).GetConstructor(new[] { typeof(string) }), CallDateTimeToIso8601String(propertyGet))
+                : propertyInfo.PropertyType == typeof(DateTimeOffset)
+                    ? Expression.New(typeof(FieldValueString).GetConstructor(new[] { typeof(string) }), CallDateTimeOffsetToIso8601String(propertyGet))
+                : propertyInfo.PropertyType == typeof(TimeSpan)
+                    ? Expression.New(typeof(FieldValueString).GetConstructor(new[] { typeof(string) }), CallTimeSpanToIso8601String(propertyGet))
                 : propertyInfo.PropertyType == typeof(int)
                     ? Expression.New(typeof(FieldValueNumber).GetConstructor(new[] { typeof(double) }), ConvertToDouble(propertyGet))
                 : propertyInfo.PropertyType == typeof(float)
@@ -216,6 +225,22 @@ namespace Jinaga.Serialization
             );
         }
 
+        private static Expression CallDateTimeOffsetToIso8601String(MemberExpression propertyGet)
+        {
+            return Expression.Call(
+                typeof(FieldValue).GetMethod(nameof(FieldValue.DateTimeOffsetToIso8601String)),
+                propertyGet
+            );
+        }
+
+        private static Expression CallTimeSpanToIso8601String(MemberExpression propertyGet)
+        {
+            return Expression.Call(
+                typeof(FieldValue).GetMethod(nameof(FieldValue.TimeSpanToIso8601String)),
+                propertyGet
+            );
+        }
+
         private static Expression CallNullableDateTimeToNullableIso8601String(MemberExpression propertyGet)
         {
             return Expression.Call(
@@ -228,6 +253,14 @@ namespace Jinaga.Serialization
         {
             return Expression.Call(
                 typeof(FieldValue).GetMethod(nameof(FieldValue.NullableDateTimeOffsetToNullableIso8601String)),
+                propertyGet
+            );
+        }
+
+        private static Expression CallNullableTimeSpanToNullableIso8601String(MemberExpression propertyGet)
+        {
+            return Expression.Call(
+                typeof(FieldValue).GetMethod(nameof(FieldValue.NullableTimeSpanToNullableIso8601String)),
                 propertyGet
             );
         }

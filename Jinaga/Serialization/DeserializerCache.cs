@@ -123,7 +123,17 @@ namespace Jinaga.Serialization
             else if (parameterType == typeof(DateTimeOffset))
             {
                 return Expression.Call(
-                    typeof(FieldValue).GetMethod(nameof(FieldValue.FromIso8601String)),
+                    typeof(FieldValue).GetMethod(nameof(FieldValue.FromIso8601StringToDateTimeOffset)),
+                    Expression.Property(
+                        getFieldValue,
+                        nameof(FieldValue.StringValue)
+                    )
+                );
+            }
+            else if (parameterType == typeof(TimeSpan))
+            {
+                return Expression.Call(
+                    typeof(FieldValue).GetMethod(nameof(FieldValue.FromIso8601StringToTimeSpan)),
                     Expression.Property(
                         getFieldValue,
                         nameof(FieldValue.StringValue)
@@ -235,22 +245,23 @@ namespace Jinaga.Serialization
             }
             else if (underlyingType == typeof(DateTimeOffset))
             {
-                var fromIso8601String = typeof(FieldValue).GetMethod(nameof(FieldValue.FromIso8601String));
-                return Expression.Condition(
+                var fromIso8601StringToDateTimeOffset = typeof(FieldValue).GetMethod(nameof(FieldValue.FromNullableIso8601StringToNullableDateTimeOffset));
+                return Expression.Call(
+                    fromIso8601StringToDateTimeOffset,
                     Expression.Property(
                         getFieldValue,
-                        nameof(FieldValue.IsNull)
-                    ),
-                    Expression.Constant(null, parameterType),
-                    Expression.Convert(
-                        Expression.Call(
-                            fromIso8601String,
-                            Expression.Property(
-                                getFieldValue,
-                                nameof(FieldValue.StringValue)
-                            )
-                        ),
-                        parameterType
+                        nameof(FieldValue.StringValue)
+                    )
+                );
+            }
+            else if (underlyingType == typeof(TimeSpan))
+            {
+                var fromIso8601StringToTimeSpan = typeof(FieldValue).GetMethod(nameof(FieldValue.FromNullableIso8601StringToNullableTimeSpan));
+                return Expression.Call(
+                    fromIso8601StringToTimeSpan,
+                    Expression.Property(
+                        getFieldValue,
+                        nameof(FieldValue.StringValue)
                     )
                 );
             }

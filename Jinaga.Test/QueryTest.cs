@@ -441,13 +441,14 @@ namespace Jinaga.Test
         }
 
         [Fact]
-        public async Task CannotProjectUnsupportedTypeField_ThrowsException()
+        public async Task CanProjectTimeSpanField_ReturnsCorrectValue()
         {
-            // Arrange - Create a fact with a completely unsupported type (TimeSpan)
+            // Arrange - Create a fact with a TimeSpan field
             var user = await j.Fact(new User("--- PUBLIC KEY ---"));
-            var testFact = await j.Fact(new TestTimeSpanFact(user, TimeSpan.FromHours(1)));
+            var expectedTimeSpan = TimeSpan.FromHours(1);
+            var testFact = await j.Fact(new TestTimeSpanFact(user, expectedTimeSpan));
 
-            // Act & Assert - Attempt to project the TimeSpan field, which should fail
+            // Act - Project the TimeSpan field
             var specification = Given<User>.Match(u =>
                 u.Successors().OfType<TestTimeSpanFact>(f => f.creator)
                     .Select(f => new
@@ -456,8 +457,11 @@ namespace Jinaga.Test
                     })
             );
 
-            var exception = await Assert.ThrowsAsync<ArgumentException>(() => j.Query(specification, user));
-            exception.Message.Should().Contain("Unknown field type");
+            var results = await j.Query(specification, user);
+
+            // Assert - Verify the TimeSpan field is projected correctly
+            results.Should().HaveCount(1);
+            results.First().TimeSpanValue.Should().Be(expectedTimeSpan);
         }
 
         [Fact]
@@ -501,13 +505,14 @@ namespace Jinaga.Test
         }
 
         [Fact]
-        public async Task CannotProjectDateTimeOffsetField_ThrowsException()
+        public async Task CanProjectDateTimeOffsetField_ReturnsCorrectValue()
         {
             // Arrange - Create a fact with a DateTimeOffset field
             var user = await j.Fact(new User("--- PUBLIC KEY ---"));
-            var testFact = await j.Fact(new TestDateTimeOffsetFact(user, DateTimeOffset.Now));
+            var expectedDateTimeOffset = new DateTimeOffset(2023, 12, 25, 10, 30, 0, TimeSpan.FromHours(-5));
+            var testFact = await j.Fact(new TestDateTimeOffsetFact(user, expectedDateTimeOffset));
 
-            // Act & Assert - Attempt to project the DateTimeOffset field, which should fail
+            // Act - Project the DateTimeOffset field
             var specification = Given<User>.Match(u =>
                 u.Successors().OfType<TestDateTimeOffsetFact>(f => f.creator)
                     .Select(f => new
@@ -516,18 +521,22 @@ namespace Jinaga.Test
                     })
             );
 
-            var exception = await Assert.ThrowsAsync<ArgumentException>(() => j.Query(specification, user));
-            exception.Message.Should().Contain("Unknown field type");
+            var results = await j.Query(specification, user);
+
+            // Assert - Verify the DateTimeOffset field is projected correctly
+            results.Should().HaveCount(1);
+            results.First().DateTimeOffsetValue.Should().Be(expectedDateTimeOffset);
         }
 
         [Fact]
-        public async Task CannotProjectNullableDateTimeOffsetField_ThrowsException()
+        public async Task CanProjectNullableDateTimeOffsetField_ReturnsCorrectValue()
         {
             // Arrange - Create a fact with a nullable DateTimeOffset field
             var user = await j.Fact(new User("--- PUBLIC KEY ---"));
-            var testFact = await j.Fact(new TestNullableDateTimeOffsetFact(user, DateTimeOffset.Now));
+            var expectedDateTimeOffset = new DateTimeOffset(2023, 12, 25, 10, 30, 0, TimeSpan.FromHours(-5));
+            var testFact = await j.Fact(new TestNullableDateTimeOffsetFact(user, expectedDateTimeOffset));
 
-            // Act & Assert - Attempt to project the nullable DateTimeOffset field, which should fail
+            // Act - Project the nullable DateTimeOffset field
             var specification = Given<User>.Match(u =>
                 u.Successors().OfType<TestNullableDateTimeOffsetFact>(f => f.creator)
                     .Select(f => new
@@ -536,8 +545,11 @@ namespace Jinaga.Test
                     })
             );
 
-            var exception = await Assert.ThrowsAsync<ArgumentException>(() => j.Query(specification, user));
-            exception.Message.Should().Contain("Unknown field type");
+            var results = await j.Query(specification, user);
+
+            // Assert - Verify the nullable DateTimeOffset field is projected correctly
+            results.Should().HaveCount(1);
+            results.First().NullableDateTimeOffsetValue.Should().Be(expectedDateTimeOffset);
         }
 
         [Fact]

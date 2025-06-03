@@ -22,10 +22,27 @@ namespace Jinaga.Facts
                 : null;
         }
 
+        public static string DateTimeOffsetToIso8601String(DateTimeOffset dateTimeOffset)
+        {
+            return dateTimeOffset.ToString("yyyy-MM-ddTHH:mm:ss.fffzzz");
+        }
+
         public static string? NullableDateTimeOffsetToNullableIso8601String(DateTimeOffset? dateTimeOffset)
         {
             return dateTimeOffset.HasValue
-                ? dateTimeOffset.Value.ToString("yyyy-MM-ddTHH:mm:ss.fffzzz")
+                ? DateTimeOffsetToIso8601String(dateTimeOffset.Value)
+                : null;
+        }
+
+        public static string TimeSpanToIso8601String(TimeSpan timeSpan)
+        {
+            return timeSpan.ToString("c");
+        }
+
+        public static string? NullableTimeSpanToNullableIso8601String(TimeSpan? timeSpan)
+        {
+            return timeSpan.HasValue
+                ? TimeSpanToIso8601String(timeSpan.Value)
                 : null;
         }
 
@@ -43,6 +60,38 @@ namespace Jinaga.Facts
                 : DateTime.TryParse(str, out var dateTime)
                 ? dateTime.ToUniversalTime()
                 : (DateTime?)null;
+        }
+
+        public static DateTimeOffset FromIso8601StringToDateTimeOffset(string str)
+        {
+            return DateTimeOffset.TryParse(str, out var dateTimeOffset)
+                ? dateTimeOffset
+                : DateTimeOffset.UnixEpoch;
+        }
+
+        public static DateTimeOffset? FromNullableIso8601StringToNullableDateTimeOffset(string str)
+        {
+            return string.IsNullOrEmpty(str)
+                ? (DateTimeOffset?)null
+                : DateTimeOffset.TryParse(str, out var dateTimeOffset)
+                ? dateTimeOffset
+                : (DateTimeOffset?)null;
+        }
+
+        public static TimeSpan FromIso8601StringToTimeSpan(string str)
+        {
+            return TimeSpan.TryParse(str, out var timeSpan)
+                ? timeSpan
+                : TimeSpan.Zero;
+        }
+
+        public static TimeSpan? FromNullableIso8601StringToNullableTimeSpan(string str)
+        {
+            return string.IsNullOrEmpty(str)
+                ? (TimeSpan?)null
+                : TimeSpan.TryParse(str, out var timeSpan)
+                ? timeSpan
+                : (TimeSpan?)null;
         }
 
         public static string GuidToString(Guid guid)
