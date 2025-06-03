@@ -12,6 +12,7 @@ namespace Jinaga.Serialization
                 type == typeof(string) ||
                 type == typeof(DateTime) ||
                 type == typeof(DateTimeOffset) ||
+                type == typeof(TimeSpan) ||
                 type == typeof(int) ||
                 type == typeof(float) ||
                 type == typeof(double) ||

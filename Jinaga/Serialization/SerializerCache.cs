@@ -138,80 +138,140 @@ namespace Jinaga.Serialization
 
         private static Expression FieldValueFromNullableExpression(PropertyInfo propertyInfo, MemberExpression propertyGet, Type underlyingType)
         {
-            return
-                underlyingType == typeof(string)
-                    ? Expression.Call(
-                        typeof(FieldValueString).GetMethod(nameof(FieldValueString.From)),
-                        propertyGet
-                    )
-                : underlyingType == typeof(DateTime)
-                    ? Expression.Call(
-                        typeof(FieldValueString).GetMethod(nameof(FieldValueString.From)),
-                        CallNullableDateTimeToNullableIso8601String(propertyGet)
-                    )
-                : underlyingType == typeof(DateTimeOffset)
-                    ? Expression.Call(
-                        typeof(FieldValueString).GetMethod(nameof(FieldValueString.From)),
-                        CallNullableDateTimeOffsetToNullableIso8601String(propertyGet)
-                    )
-                : underlyingType == typeof(int)
-                    ? Expression.Call(
-                        typeof(FieldValueNumber).GetMethod(nameof(FieldValueNumber.From)),
-                        ConvertToNullableDouble(propertyGet)
-                    )
-                : underlyingType == typeof(float)
-                    ? Expression.Call(
-                        typeof(FieldValueNumber).GetMethod(nameof(FieldValueNumber.From)),
-                        ConvertToNullableDouble(propertyGet)
-                    )
-                : underlyingType == typeof(double)
-                    ? Expression.Call(
-                        typeof(FieldValueNumber).GetMethod(nameof(FieldValueNumber.From)),
-                        ConvertToNullableDouble(propertyGet)
-                    )
-                : underlyingType == typeof(decimal)
-                    ? Expression.Call(
-                        typeof(FieldValueNumber).GetMethod(nameof(FieldValueNumber.From)),
-                        ConvertToNullableDouble(propertyGet)
-                    )
-                : underlyingType == typeof(bool)
-                    ? Expression.Call(
-                        typeof(FieldValueBoolean).GetMethod(nameof(FieldValueBoolean.From)),
-                        propertyGet
-                    )
-                : underlyingType == typeof(Guid)
-                    ? Expression.Call(
-                        typeof(FieldValueString).GetMethod(nameof(FieldValueString.From)),
-                        CallNullableGuidToNullableString(propertyGet)
-                    )
-                : throw new ArgumentException($"Unsupported nullable field type {underlyingType.Name} in {propertyInfo.DeclaringType.Name}.{propertyInfo.Name}");
+            // String-based types (stored as FieldValueString)
+            if (underlyingType == typeof(string))
+            {
+                return Expression.Call(
+                    typeof(FieldValueString).GetMethod(nameof(FieldValueString.From)),
+                    propertyGet
+                );
+            }
+            
+            // Date/time types (stored as FieldValueString with ISO 8601 format)
+            if (underlyingType == typeof(DateTime))
+            {
+                return Expression.Call(
+                    typeof(FieldValueString).GetMethod(nameof(FieldValueString.From)),
+                    CallNullableDateTimeToNullableIso8601String(propertyGet)
+                );
+            }
+            // DateTimeOffset type (stored as FieldValueString with ISO 8601 format)
+            if (underlyingType == typeof(DateTimeOffset))
+            {
+                return Expression.Call(
+                    typeof(FieldValueString).GetMethod(nameof(FieldValueString.From)),
+                    CallNullableDateTimeOffsetToNullableIso8601String(propertyGet)
+                );
+            }
+            // TimeSpan type (stored as FieldValueString with ISO 8601 format)
+            if (underlyingType == typeof(TimeSpan))
+            {
+                return Expression.Call(
+                    typeof(FieldValueString).GetMethod(nameof(FieldValueString.From)),
+                    CallNullableTimeSpanToNullableIso8601String(propertyGet)
+                );
+            }
+            
+            // Numeric types (stored as FieldValueNumber)
+            if (underlyingType == typeof(int) || underlyingType == typeof(float) ||
+                underlyingType == typeof(double) || underlyingType == typeof(decimal))
+            {
+                return Expression.Call(
+                    typeof(FieldValueNumber).GetMethod(nameof(FieldValueNumber.From)),
+                    ConvertToNullableDouble(propertyGet)
+                );
+            }
+            
+            // Boolean type (stored as FieldValueBoolean)
+            if (underlyingType == typeof(bool))
+            {
+                return Expression.Call(
+                    typeof(FieldValueBoolean).GetMethod(nameof(FieldValueBoolean.From)),
+                    propertyGet
+                );
+            }
+            
+            // Guid type (stored as FieldValueString)
+            if (underlyingType == typeof(Guid))
+            {
+                return Expression.Call(
+                    typeof(FieldValueString).GetMethod(nameof(FieldValueString.From)),
+                    CallNullableGuidToNullableString(propertyGet)
+                );
+            }
+            
+            throw new ArgumentException($"Unsupported nullable field type {underlyingType.Name} in {propertyInfo.DeclaringType?.Name}.{propertyInfo.Name}");
         }
 
         private static Expression FieldValueFromExpression(PropertyInfo propertyInfo, MemberExpression propertyGet)
         {
-            return propertyInfo.PropertyType == typeof(string)
-                    ? Expression.New(typeof(FieldValueString).GetConstructor(new[] { typeof(string) }), propertyGet)
-                : propertyInfo.PropertyType == typeof(DateTime)
-                    ? Expression.New(typeof(FieldValueString).GetConstructor(new[] { typeof(string) }), CallDateTimeToIso8601String(propertyGet))
-                : propertyInfo.PropertyType == typeof(int)
-                    ? Expression.New(typeof(FieldValueNumber).GetConstructor(new[] { typeof(double) }), ConvertToDouble(propertyGet))
-                : propertyInfo.PropertyType == typeof(float)
-                    ? Expression.New(typeof(FieldValueNumber).GetConstructor(new[] { typeof(double) }), ConvertToDouble(propertyGet))
-                : propertyInfo.PropertyType == typeof(double)
-                    ? Expression.New(typeof(FieldValueNumber).GetConstructor(new[] { typeof(double) }), propertyGet)
-                : propertyInfo.PropertyType == typeof(decimal)
-                    ? Expression.New(typeof(FieldValueNumber).GetConstructor(new[] { typeof(double) }), ConvertToDouble(propertyGet))
-                : propertyInfo.PropertyType == typeof(bool)
-                    ? Expression.New(typeof(FieldValueBoolean).GetConstructor(new[] { typeof(bool) }), propertyGet)
-                : propertyInfo.PropertyType == typeof(Guid)
-                    ? Expression.New(typeof(FieldValueString).GetConstructor(new[] { typeof(string) }), CallGuidToString(propertyGet))
-                : throw new ArgumentException($"Unsupported field type {propertyInfo.PropertyType.Name} in {propertyInfo.DeclaringType.Name}.{propertyInfo.Name}");
+            var propertyType = propertyInfo.PropertyType;
+            
+            // String-based types (stored as FieldValueString)
+            if (propertyType == typeof(string))
+            {
+                return Expression.New(typeof(FieldValueString).GetConstructor(new[] { typeof(string) }), propertyGet);
+            }
+            
+            // Date/time types (stored as FieldValueString with ISO 8601 format)
+            if (propertyType == typeof(DateTime))
+            {
+                return Expression.New(typeof(FieldValueString).GetConstructor(new[] { typeof(string) }), CallDateTimeToIso8601String(propertyGet));
+            }
+            if (propertyType == typeof(DateTimeOffset))
+            {
+                return Expression.New(typeof(FieldValueString).GetConstructor(new[] { typeof(string) }), CallDateTimeOffsetToIso8601String(propertyGet));
+            }
+            if (propertyType == typeof(TimeSpan))
+            {
+                return Expression.New(typeof(FieldValueString).GetConstructor(new[] { typeof(string) }), CallTimeSpanToIso8601String(propertyGet));
+            }
+            
+            // Numeric types (stored as FieldValueNumber)
+            if (propertyType == typeof(int) || propertyType == typeof(float) || propertyType == typeof(decimal))
+            {
+                return Expression.New(typeof(FieldValueNumber).GetConstructor(new[] { typeof(double) }), ConvertToDouble(propertyGet));
+            }
+            if (propertyType == typeof(double))
+            {
+                return Expression.New(typeof(FieldValueNumber).GetConstructor(new[] { typeof(double) }), propertyGet);
+            }
+            
+            // Boolean type (stored as FieldValueBoolean)
+            if (propertyType == typeof(bool))
+            {
+                return Expression.New(typeof(FieldValueBoolean).GetConstructor(new[] { typeof(bool) }), propertyGet);
+            }
+            
+            // Guid type (stored as FieldValueString)
+            if (propertyType == typeof(Guid))
+            {
+                return Expression.New(typeof(FieldValueString).GetConstructor(new[] { typeof(string) }), CallGuidToString(propertyGet));
+            }
+            
+            throw new ArgumentException($"Unsupported field type {propertyType.Name} in {propertyInfo.DeclaringType?.Name}.{propertyInfo.Name}");
         }
 
         private static Expression CallDateTimeToIso8601String(MemberExpression propertyGet)
         {
             return Expression.Call(
                 typeof(FieldValue).GetMethod(nameof(FieldValue.DateTimeToIso8601String)),
+                propertyGet
+            );
+        }
+
+        private static Expression CallDateTimeOffsetToIso8601String(MemberExpression propertyGet)
+        {
+            return Expression.Call(
+                typeof(FieldValue).GetMethod(nameof(FieldValue.DateTimeOffsetToIso8601String)),
+                propertyGet
+            );
+        }
+
+        private static Expression CallTimeSpanToIso8601String(MemberExpression propertyGet)
+        {
+            return Expression.Call(
+                typeof(FieldValue).GetMethod(nameof(FieldValue.TimeSpanToIso8601String)),
                 propertyGet
             );
         }
@@ -228,6 +288,14 @@ namespace Jinaga.Serialization
         {
             return Expression.Call(
                 typeof(FieldValue).GetMethod(nameof(FieldValue.NullableDateTimeOffsetToNullableIso8601String)),
+                propertyGet
+            );
+        }
+
+        private static Expression CallNullableTimeSpanToNullableIso8601String(MemberExpression propertyGet)
+        {
+            return Expression.Call(
+                typeof(FieldValue).GetMethod(nameof(FieldValue.NullableTimeSpanToNullableIso8601String)),
                 propertyGet
             );
         }

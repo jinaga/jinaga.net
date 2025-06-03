@@ -415,7 +415,253 @@ namespace Jinaga.Test
             result.flight.Should().BeEquivalentTo(flight);
             result.bookings.Should().ContainSingle().Which.Should().BeEquivalentTo(booking);
         }
+
+        [Fact]
+        public async Task CanProjectGuidField()
+        {
+            // Arrange - Create a project with a Guid id field
+            var user = await j.Fact(new User("--- PUBLIC KEY ---"));
+            var projectId = Guid.NewGuid();
+            var project = await j.Fact(new ConstructionProject(user, projectId));
+
+            // Act - Project the Guid field, which should now work
+            var projectsWithGuidProjection = Given<User>.Match(u =>
+                u.Successors().OfType<ConstructionProject>(p => p.creator)
+                    .Select(p => new
+                    {
+                        ProjectId = p.id  // This line should now successfully project the Guid
+                    })
+            );
+
+            var result = await j.Query(projectsWithGuidProjection, user);
+            
+            // Assert - Verify the Guid was projected correctly
+            result.Should().ContainSingle().Which
+                .ProjectId.Should().Be(projectId);
+        }
+
+        [Fact]
+        public async Task CanProjectTimeSpanField_ReturnsCorrectValue()
+        {
+            // Arrange - Create a fact with a TimeSpan field
+            var user = await j.Fact(new User("--- PUBLIC KEY ---"));
+            var expectedTimeSpan = TimeSpan.FromHours(1);
+            var testFact = await j.Fact(new TestTimeSpanFact(user, expectedTimeSpan));
+
+            // Act - Project the TimeSpan field
+            var specification = Given<User>.Match(u =>
+                u.Successors().OfType<TestTimeSpanFact>(f => f.creator)
+                    .Select(f => new
+                    {
+                        TimeSpanValue = f.timeSpanValue
+                    })
+            );
+
+            var results = await j.Query(specification, user);
+
+            // Assert - Verify the TimeSpan field is projected correctly
+            results.Should().HaveCount(1);
+            results.First().TimeSpanValue.Should().Be(expectedTimeSpan);
+        }
+
+        [Fact]
+        public async Task CannotProjectDecimalField_ThrowsException()
+        {
+            // Arrange - Create a fact with a decimal field
+            var user = await j.Fact(new User("--- PUBLIC KEY ---"));
+            var testFact = await j.Fact(new TestDecimalFact(user, 123.45m));
+
+            // Act & Assert - Attempt to project the decimal field, which should fail
+            var specification = Given<User>.Match(u =>
+                u.Successors().OfType<TestDecimalFact>(f => f.creator)
+                    .Select(f => new
+                    {
+                        DecimalValue = f.decimalValue
+                    })
+            );
+
+            var exception = await Assert.ThrowsAsync<ArgumentException>(() => j.Query(specification, user));
+            exception.Message.Should().Contain("Unknown field type");
+        }
+
+        [Fact]
+        public async Task CannotProjectNullableDecimalField_ThrowsException()
+        {
+            // Arrange - Create a fact with a nullable decimal field
+            var user = await j.Fact(new User("--- PUBLIC KEY ---"));
+            var testFact = await j.Fact(new TestNullableDecimalFact(user, 123.45m));
+
+            // Act & Assert - Attempt to project the nullable decimal field, which should fail
+            var specification = Given<User>.Match(u =>
+                u.Successors().OfType<TestNullableDecimalFact>(f => f.creator)
+                    .Select(f => new
+                    {
+                        NullableDecimalValue = f.nullableDecimalValue
+                    })
+            );
+
+            var exception = await Assert.ThrowsAsync<ArgumentException>(() => j.Query(specification, user));
+            exception.Message.Should().Contain("Unknown field type");
+        }
+
+        [Fact]
+        public async Task CanProjectDateTimeOffsetField_ReturnsCorrectValue()
+        {
+            // Arrange - Create a fact with a DateTimeOffset field
+            var user = await j.Fact(new User("--- PUBLIC KEY ---"));
+            var expectedDateTimeOffset = new DateTimeOffset(2023, 12, 25, 10, 30, 0, TimeSpan.FromHours(-5));
+            var testFact = await j.Fact(new TestDateTimeOffsetFact(user, expectedDateTimeOffset));
+
+            // Act - Project the DateTimeOffset field
+            var specification = Given<User>.Match(u =>
+                u.Successors().OfType<TestDateTimeOffsetFact>(f => f.creator)
+                    .Select(f => new
+                    {
+                        DateTimeOffsetValue = f.dateTimeOffsetValue
+                    })
+            );
+
+            var results = await j.Query(specification, user);
+
+            // Assert - Verify the DateTimeOffset field is projected correctly
+            results.Should().HaveCount(1);
+            results.First().DateTimeOffsetValue.Should().Be(expectedDateTimeOffset);
+        }
+
+        [Fact]
+        public async Task CanProjectNullableDateTimeOffsetField_ReturnsCorrectValue()
+        {
+            // Arrange - Create a fact with a nullable DateTimeOffset field
+            var user = await j.Fact(new User("--- PUBLIC KEY ---"));
+            var expectedDateTimeOffset = new DateTimeOffset(2023, 12, 25, 10, 30, 0, TimeSpan.FromHours(-5));
+            var testFact = await j.Fact(new TestNullableDateTimeOffsetFact(user, expectedDateTimeOffset));
+
+            // Act - Project the nullable DateTimeOffset field
+            var specification = Given<User>.Match(u =>
+                u.Successors().OfType<TestNullableDateTimeOffsetFact>(f => f.creator)
+                    .Select(f => new
+                    {
+                        NullableDateTimeOffsetValue = f.nullableDateTimeOffsetValue
+                    })
+            );
+
+            var results = await j.Query(specification, user);
+
+            // Assert - Verify the nullable DateTimeOffset field is projected correctly
+            results.Should().HaveCount(1);
+            results.First().NullableDateTimeOffsetValue.Should().Be(expectedDateTimeOffset);
+        }
+
+        [Fact]
+        public async Task CannotProjectNullableIntField_ThrowsException()
+        {
+            // Arrange - Create a fact with a nullable int field
+            var user = await j.Fact(new User("--- PUBLIC KEY ---"));
+            var testFact = await j.Fact(new TestNullableIntFact(user, 42));
+
+            // Act & Assert - Attempt to project the nullable int field, which should fail
+            var specification = Given<User>.Match(u =>
+                u.Successors().OfType<TestNullableIntFact>(f => f.creator)
+                    .Select(f => new
+                    {
+                        NullableIntValue = f.nullableIntValue
+                    })
+            );
+
+            var exception = await Assert.ThrowsAsync<ArgumentException>(() => j.Query(specification, user));
+            exception.Message.Should().Contain("Unknown field type");
+        }
+
+        [Fact]
+        public async Task CannotProjectNullableFloatField_ThrowsException()
+        {
+            // Arrange - Create a fact with a nullable float field
+            var user = await j.Fact(new User("--- PUBLIC KEY ---"));
+            var testFact = await j.Fact(new TestNullableFloatFact(user, 3.14f));
+
+            // Act & Assert - Attempt to project the nullable float field, which should fail
+            var specification = Given<User>.Match(u =>
+                u.Successors().OfType<TestNullableFloatFact>(f => f.creator)
+                    .Select(f => new
+                    {
+                        NullableFloatValue = f.nullableFloatValue
+                    })
+            );
+
+            var exception = await Assert.ThrowsAsync<ArgumentException>(() => j.Query(specification, user));
+            exception.Message.Should().Contain("Unknown field type");
+        }
+
+        [Fact]
+        public async Task CannotProjectNullableDoubleField_ThrowsException()
+        {
+            // Arrange - Create a fact with a nullable double field
+            var user = await j.Fact(new User("--- PUBLIC KEY ---"));
+            var testFact = await j.Fact(new TestNullableDoubleFact(user, 2.718));
+
+            // Act & Assert - Attempt to project the nullable double field, which should fail
+            var specification = Given<User>.Match(u =>
+                u.Successors().OfType<TestNullableDoubleFact>(f => f.creator)
+                    .Select(f => new
+                    {
+                        NullableDoubleValue = f.nullableDoubleValue
+                    })
+            );
+
+            var exception = await Assert.ThrowsAsync<ArgumentException>(() => j.Query(specification, user));
+            exception.Message.Should().Contain("Unknown field type");
+        }
+
+        [Fact]
+        public async Task CannotProjectNullableBoolField_ThrowsException()
+        {
+            // Arrange - Create a fact with a nullable bool field
+            var user = await j.Fact(new User("--- PUBLIC KEY ---"));
+            var testFact = await j.Fact(new TestNullableBoolFact(user, true));
+
+            // Act & Assert - Attempt to project the nullable bool field, which should fail
+            var specification = Given<User>.Match(u =>
+                u.Successors().OfType<TestNullableBoolFact>(f => f.creator)
+                    .Select(f => new
+                    {
+                        NullableBoolValue = f.nullableBoolValue
+                    })
+            );
+
+            var exception = await Assert.ThrowsAsync<ArgumentException>(() => j.Query(specification, user));
+            exception.Message.Should().Contain("Unknown field type");
+        }
     }
+
+    [FactType("Construction.Project")]
+    public record ConstructionProject(User creator, Guid id) { }
+
+    [FactType("Test.DecimalFact")]
+    public record TestDecimalFact(User creator, decimal decimalValue) { }
+
+    [FactType("Test.NullableDecimalFact")]
+    public record TestNullableDecimalFact(User creator, decimal? nullableDecimalValue) { }
+
+    [FactType("Test.DateTimeOffsetFact")]
+    public record TestDateTimeOffsetFact(User creator, DateTimeOffset dateTimeOffsetValue) { }
+
+    [FactType("Test.NullableDateTimeOffsetFact")]
+    public record TestNullableDateTimeOffsetFact(User creator, DateTimeOffset? nullableDateTimeOffsetValue) { }
+
+    [FactType("Test.NullableIntFact")]
+    public record TestNullableIntFact(User creator, int? nullableIntValue) { }
+
+    [FactType("Test.NullableFloatFact")]
+    public record TestNullableFloatFact(User creator, float? nullableFloatValue) { }
+
+    [FactType("Test.NullableDoubleFact")]
+    public record TestNullableDoubleFact(User creator, double? nullableDoubleValue) { }
+
+    [FactType("Test.NullableBoolFact")]
+    public record TestNullableBoolFact(User creator, bool? nullableBoolValue) { }
+
+    [FactType("Test.TimeSpanFact")]
+    public record TestTimeSpanFact(User creator, TimeSpan timeSpanValue) { }
 
     [FactType("Blog.Site")]
     public record Site(string domain) { }
