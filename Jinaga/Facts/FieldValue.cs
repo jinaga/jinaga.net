@@ -64,6 +64,15 @@ namespace Jinaga.Facts
                 : Guid.Empty;
         }
 
+        public static Guid? FromNullableGuidString(string str)
+        {
+            return string.IsNullOrEmpty(str)
+                ? (Guid?)null
+                : Guid.TryParse(str, out var guid)
+                ? guid
+                : (Guid?)null;
+        }
+
         public abstract string StringValue { get; }
         public abstract double DoubleValue { get; }
         public abstract bool BoolValue { get; }

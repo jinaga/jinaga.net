@@ -337,11 +337,23 @@ namespace Jinaga.Managers
                 var fact = emitter.Graph.GetFact(reference);
                 var field = fact.Fields.FirstOrDefault(f => f.Name == fieldProjection.FieldName);
                 var value = field?.Value ?? FieldValue.Undefined;
+                // String-based types
                 if (parameterType == typeof(string))
                 {
                     var obj = value.StringValue;
                     return (obj, null);
                 }
+                else if (parameterType == typeof(Guid))
+                {
+                    var obj = FieldValue.GuidFromString(value.StringValue);
+                    return (obj, null);
+                }
+                else if (parameterType == typeof(Guid?))
+                {
+                    var obj = FieldValue.FromNullableGuidString(value.StringValue);
+                    return (obj, null);
+                }
+                // Date/time types
                 else if (parameterType == typeof(DateTime))
                 {
                     var obj = FieldValue.FromIso8601String(value.StringValue);
@@ -352,6 +364,7 @@ namespace Jinaga.Managers
                     var obj = FieldValue.FromNullableIso8601String(value.StringValue);
                     return (obj, null);
                 }
+                // Numeric types
                 else if (parameterType == typeof(int))
                 {
                     var obj = (int)value.DoubleValue;
@@ -367,14 +380,10 @@ namespace Jinaga.Managers
                     var obj = value.DoubleValue;
                     return (obj, null);
                 }
+                // Boolean type
                 else if (parameterType == typeof(bool))
                 {
                     var obj = value.BoolValue;
-                    return (obj, null);
-                }
-                else if (parameterType == typeof(Guid))
-                {
-                    var obj = FieldValue.GuidFromString(value.StringValue);
                     return (obj, null);
                 }
                 else
