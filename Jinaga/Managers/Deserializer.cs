@@ -337,79 +337,8 @@ namespace Jinaga.Managers
                 var fact = emitter.Graph.GetFact(reference);
                 var field = fact.Fields.FirstOrDefault(f => f.Name == fieldProjection.FieldName);
                 var value = field?.Value ?? FieldValue.Undefined;
-                // String-based types
-                if (parameterType == typeof(string))
-                {
-                    var obj = value.StringValue;
-                    return (obj, null);
-                }
-                else if (parameterType == typeof(Guid))
-                {
-                    var obj = FieldValue.GuidFromString(value.StringValue);
-                    return (obj, null);
-                }
-                else if (parameterType == typeof(Guid?))
-                {
-                    var obj = FieldValue.FromNullableGuidString(value.StringValue);
-                    return (obj, null);
-                }
-                // Date/time types
-                else if (parameterType == typeof(DateTime))
-                {
-                    var obj = FieldValue.FromIso8601String(value.StringValue);
-                    return (obj, null);
-                }
-                else if (parameterType == typeof(DateTime?))
-                {
-                    var obj = FieldValue.FromNullableIso8601String(value.StringValue);
-                    return (obj, null);
-                }
-                else if (parameterType == typeof(DateTimeOffset))
-                {
-                    var obj = FieldValue.FromIso8601StringToDateTimeOffset(value.StringValue);
-                    return (obj, null);
-                }
-                else if (parameterType == typeof(DateTimeOffset?))
-                {
-                    var obj = FieldValue.FromNullableIso8601StringToNullableDateTimeOffset(value.StringValue);
-                    return (obj, null);
-                }
-                else if (parameterType == typeof(TimeSpan))
-                {
-                    var obj = FieldValue.FromIso8601StringToTimeSpan(value.StringValue);
-                    return (obj, null);
-                }
-                else if (parameterType == typeof(TimeSpan?))
-                {
-                    var obj = FieldValue.FromNullableIso8601StringToNullableTimeSpan(value.StringValue);
-                    return (obj, null);
-                }
-                // Numeric types
-                else if (parameterType == typeof(int))
-                {
-                    var obj = (int)value.DoubleValue;
-                    return (obj, null);
-                }
-                else if (parameterType == typeof(float))
-                {
-                    var obj = (float)value.DoubleValue;
-                    return (obj, null);
-                }
-                else if (parameterType == typeof(double))
-                {
-                    var obj = value.DoubleValue;
-                    return (obj, null);
-                }
-                // Boolean type
-                else if (parameterType == typeof(bool))
-                {
-                    var obj = value.BoolValue;
-                    return (obj, null);
-                }
-                else
-                {
-                    throw new ArgumentException($"Unknown field type {parameterType.Name}, reading field {parameterName} of {reference.Type}.");
-                }
+                
+                return DeserializeFieldValue(parameterType, parameterName, reference, value);
             }
             else if (projection is HashProjection hashProjection)
             {
@@ -429,6 +358,85 @@ namespace Jinaga.Managers
             {
                 throw new NotImplementedException();
             }
+        }
+
+        /// <summary>
+        /// Deserializes a field value to the specified parameter type.
+        /// </summary>
+        /// <param name="parameterType">The target type for deserialization.</param>
+        /// <param name="parameterName">The name of the parameter being deserialized.</param>
+        /// <param name="reference">The fact reference for error reporting.</param>
+        /// <param name="value">The field value to deserialize.</param>
+        /// <returns>A tuple containing the deserialized object and null for children.</returns>
+        private static (object? obj, ProjectedResultChildCollection? children) DeserializeFieldValue(
+            Type parameterType,
+            string parameterName,
+            FactReference reference,
+            FieldValue value)
+        {
+            // String-based types
+            if (parameterType == typeof(string))
+            {
+                return (value.StringValue, null);
+            }
+            
+            // Guid types
+            if (parameterType == typeof(Guid))
+            {
+                return (FieldValue.GuidFromString(value.StringValue), null);
+            }
+            if (parameterType == typeof(Guid?))
+            {
+                return (FieldValue.FromNullableGuidString(value.StringValue), null);
+            }
+            
+            // Date/time types
+            if (parameterType == typeof(DateTime))
+            {
+                return (FieldValue.FromIso8601String(value.StringValue), null);
+            }
+            if (parameterType == typeof(DateTime?))
+            {
+                return (FieldValue.FromNullableIso8601String(value.StringValue), null);
+            }
+            if (parameterType == typeof(DateTimeOffset))
+            {
+                return (FieldValue.FromIso8601StringToDateTimeOffset(value.StringValue), null);
+            }
+            if (parameterType == typeof(DateTimeOffset?))
+            {
+                return (FieldValue.FromNullableIso8601StringToNullableDateTimeOffset(value.StringValue), null);
+            }
+            if (parameterType == typeof(TimeSpan))
+            {
+                return (FieldValue.FromIso8601StringToTimeSpan(value.StringValue), null);
+            }
+            if (parameterType == typeof(TimeSpan?))
+            {
+                return (FieldValue.FromNullableIso8601StringToNullableTimeSpan(value.StringValue), null);
+            }
+            
+            // Numeric types
+            if (parameterType == typeof(int))
+            {
+                return ((int)value.DoubleValue, null);
+            }
+            if (parameterType == typeof(float))
+            {
+                return ((float)value.DoubleValue, null);
+            }
+            if (parameterType == typeof(double))
+            {
+                return (value.DoubleValue, null);
+            }
+            
+            // Boolean type
+            if (parameterType == typeof(bool))
+            {
+                return (value.BoolValue, null);
+            }
+            
+            throw new ArgumentException($"Unknown field type {parameterType.Name}, reading field {parameterName} of {reference.Type}.");
         }
 
         private static object CreateQueryable(Type elementType, ImmutableList<object> elements)
