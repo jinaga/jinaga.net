@@ -30,7 +30,7 @@ namespace Jinaga.Test
             await j.Fact(new TestFact("fact2"));
             await j.Fact(new TestFact("fact3"));
             
-            await Task.Delay(100); // Wait for debounce period
+            await Task.Delay(200); // Wait for debounce period
             
             // Assert
             network.SaveCallCount.Should().Be(1);
