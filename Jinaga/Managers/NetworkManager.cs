@@ -260,9 +260,13 @@ namespace Jinaga.Managers
                         // Fetch facts from the feed starting at the bookmark.
                         (var factReferences, var nextBookmark) = await network.FetchFeed(feed, bookmark, cancellationToken).ConfigureAwait(false);
 
-                        // If there are no facts, end.
+                        // If there are no facts, save the (possibly advanced) bookmark
+                        // and end, so a subsequent fetch does not redundantly re-request
+                        // from a stale bookmark.
                         if (factReferences.Count == 0)
                         {
+                            bookmark = nextBookmark;
+                            await store.SaveBookmark(feed, bookmark).ConfigureAwait(false);
                             break;
                         }
 
