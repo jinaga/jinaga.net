@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Globalization;
 using System.IO;
 using Jinaga.Facts;
 using Jinaga.Http;
@@ -100,6 +101,64 @@ public class GraphSerializerTest
             "\"MyApp.Child\"\n{\"root\":0}\n{}\nPK0\n\"signature1\"\nPK1\n\"signature2\"\n\n";
 
         ThenOutput(stream).Should().Be(expectedOutput);
+    }
+
+    [Fact]
+    public void GraphSerializer_NumberField_UsesInvariantCultureDecimalSeparator()
+    {
+        var originalCulture = CultureInfo.CurrentCulture;
+        try
+        {
+            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("de-DE");
+
+            using var stream = new MemoryStream();
+
+            var root = Fact.Create(
+                "MyApp.Root",
+                ImmutableList.Create(
+                    new Field("amount", new FieldValueNumber(1.5))
+                ),
+                ImmutableList<Predecessor>.Empty
+            );
+            var graph = FactGraph.Empty
+                .Add(new FactEnvelope(root, ImmutableList<FactSignature>.Empty));
+
+            WhenSerializeGraph(stream, graph);
+
+            var output = ThenOutput(stream);
+
+            output.Should().Be("\"MyApp.Root\"\n{}\n{\"amount\":1.5}\n\n");
+            output.Should().NotContain("1,5");
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = originalCulture;
+        }
+    }
+
+    [Fact]
+    public void GraphSerializer_NumberField_RoundTripsFullPrecision()
+    {
+        using var stream = new MemoryStream();
+
+        const double value = 0.30000000000000004;
+
+        var root = Fact.Create(
+            "MyApp.Root",
+            ImmutableList.Create(
+                new Field("amount", new FieldValueNumber(value))
+            ),
+            ImmutableList<Predecessor>.Empty
+        );
+        var graph = FactGraph.Empty
+            .Add(new FactEnvelope(root, ImmutableList<FactSignature>.Empty));
+
+        WhenSerializeGraph(stream, graph);
+
+        var output = ThenOutput(stream);
+
+        output.Should().Be($"\"MyApp.Root\"\n{{}}\n{{\"amount\":{value.ToString("R", CultureInfo.InvariantCulture)}}}\n\n");
+        output.Should().Contain(value.ToString("R", CultureInfo.InvariantCulture));
     }
 
     private static void WhenSerializeGraph(MemoryStream stream, FactGraph graph)
