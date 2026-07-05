@@ -42,10 +42,14 @@ public class FetchFaultRecoveryTest
             select office
         );
 
-        // Simulate a transient network error on the first fetch of the feed.
+        // NetworkManager.Fetch already retries a single transient failure once
+        // internally (see issue #180), so queue two consecutive failures here to
+        // exhaust that retry and still observe the exception surfacing to the caller.
+        network.FailNextFetch("offices", new InvalidOperationException("Simulated transient network failure"));
         network.FailNextFetch("offices", new InvalidOperationException("Simulated transient network failure"));
 
-        // The first query should surface the transient failure.
+        // The first query should surface the transient failure once both the
+        // original attempt and the internal retry have failed.
         Func<Task> firstAttempt = async () => await j.Query(officesInCompany, contoso);
         await firstAttempt.Should().ThrowAsync<InvalidOperationException>();
 
