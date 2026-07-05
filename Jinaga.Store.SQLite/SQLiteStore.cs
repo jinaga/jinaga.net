@@ -225,19 +225,19 @@ namespace Jinaga.Store.SQLite
         {
             string sql;
 
-            sql = $@"
-                SELECT fact_type_id 
-                FROM fact_type 
-                WHERE name = '{factReference.Type}'
+            sql = @"
+                SELECT fact_type_id
+                FROM fact_type
+                WHERE name = @0
             ";
-            var factTypeId = conn.ExecuteScalar(sql);
+            var factTypeId = conn.ExecuteScalar(sql, factReference.Type);
 
-            sql = $@"
-                SELECT fact_id 
-                FROM fact 
-                WHERE hash = '{factReference.Hash}' AND fact_type_id = {factTypeId}
+            sql = @"
+                SELECT fact_id
+                FROM fact
+                WHERE hash = @0 AND fact_type_id = @1
             ";
-            return conn.ExecuteScalar(sql);
+            return conn.ExecuteScalar(sql, factReference.Hash, factTypeId);
         }
 
 
@@ -366,19 +366,27 @@ namespace Jinaga.Store.SQLite
                 var referencesFromDb = connFactory.WithConn(
                     (conn, id) =>
                     {
-                        string[] referenceValues = factReferences.Select((f) => "('" + f.Hash + "', '" + f.Type + "')").ToArray();
+                        var referenceValues = factReferences.Select((f, i) => $"(@{2*i}, @{2*i+1})").ToArray();
+
+                        var parameters = new List<object>();
+                        foreach (var f in factReferences)
+                        {
+                            parameters.Add(f.Hash);
+                            parameters.Add(f.Type);
+                        }
+
                         string sql;
                         sql = $@"
-                                SELECT f.hash, 
+                                SELECT f.hash,
                                        t.name
-                                FROM fact f 
-                                JOIN fact_type t 
-                                    ON f.fact_type_id = t.fact_type_id    
-                                WHERE (f.hash,t.name) 
+                                FROM fact f
+                                JOIN fact_type t
+                                    ON f.fact_type_id = t.fact_type_id
+                                WHERE (f.hash,t.name)
                                     IN (VALUES {String.Join(",", referenceValues)} )
                             ";
 
-                        return conn.ExecuteQuery<ReferenceFromDb>(sql);
+                        return conn.ExecuteQuery<ReferenceFromDb>(sql, parameters.ToArray());
                     },
                     true   //exponential backoff
                 );
@@ -582,12 +590,12 @@ namespace Jinaga.Store.SQLite
                 {                   
                     {
                         string sql;
-                        sql = $@"
+                        sql = @"
                             SELECT bookmark
                             FROM bookmark
-                            WHERE feed_hash = '{feed}'
+                            WHERE feed_hash = @0
                         ";
-                        return conn.ExecuteScalar(sql);
+                        return conn.ExecuteScalar(sql, feed);
                     }                   
                 },
                 true
