@@ -73,8 +73,10 @@ namespace Jinaga.Http
         public void StreamFeed(string feed, string bookmark, CancellationToken cancellationToken, Func<ImmutableList<Facts.FactReference>, string, Task> onResponse, Action<Exception> onError)
         {
             // StreamFeed runs for the lifetime of the stream. It is intentionally not awaited here,
-            // but any exception that escapes it (including one raised by onError itself) is captured
-            // and reported through onError instead of being lost as an unobserved task exception.
+            // but any exception that escapes it is caught and passed to onError so it is not lost
+            // as an unobserved task exception. If onError itself throws, that exception is swallowed
+            // (after logging via the fallback below is not available here, so it is intentionally
+            // dropped) rather than faulting this fire-and-forget task.
             _ = StreamFeedAsync(feed, bookmark, cancellationToken, onResponse, onError);
         }
 
@@ -91,7 +93,15 @@ namespace Jinaga.Http
             }
             catch (Exception ex)
             {
-                onError(ex);
+                try
+                {
+                    onError(ex);
+                }
+                catch
+                {
+                    // Swallow exceptions from onError itself so they cannot fault this
+                    // fire-and-forget task and surface as an unobserved task exception.
+                }
             }
         }
 
