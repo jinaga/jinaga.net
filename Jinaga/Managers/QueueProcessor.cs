@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using System;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -21,6 +22,7 @@ namespace Jinaga.Managers
         private readonly AsyncSignal _processingSignal = new AsyncSignal();
         private readonly AsyncSignal _delaySignal = new AsyncSignal();
         private readonly AsyncSignal _currentProcessingSignal = new AsyncSignal();
+        private volatile Exception? _lastProcessingException;
 
         /// <summary>
         /// Creates a new queue processor.
@@ -69,6 +71,16 @@ namespace Jinaga.Managers
             _processingSignal.Signal();
             // Wait for the processing to complete
             await _currentProcessingSignal.WaitAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+
+            // If the last processing attempt failed, surface the failure to the caller
+            // instead of silently succeeding. This ensures that JinagaClient.Push() does
+            // not hang or return prematurely when the upload attempt fails.
+            var exception = _lastProcessingException;
+            if (exception != null)
+            {
+                _lastProcessingException = null;
+                ExceptionDispatchInfo.Capture(exception).Throw();
+            }
         }
         
         /// <summary>
@@ -146,6 +158,9 @@ namespace Jinaga.Managers
                         // Process the queue
                         await networkManager.Save(cancellationToken).ConfigureAwait(false);
 
+                        // Clear any previously recorded failure now that processing succeeded
+                        _lastProcessingException = null;
+
                         // Mark that processing is complete
                         _currentProcessingSignal.Signal();
                     }
@@ -158,7 +173,14 @@ namespace Jinaga.Managers
                     {
                         // Log but don't rethrow to keep the background task running
                         logger.LogError(ex, "Error in background queue processor");
-                        
+
+                        // Record the failure and signal waiters so that ProcessQueueNow
+                        // (and therefore JinagaClient.Push()) does not hang indefinitely
+                        // when the upload attempt fails. The exception is rethrown to the
+                        // caller of ProcessQueueNow instead of being swallowed silently.
+                        _lastProcessingException = ex;
+                        _currentProcessingSignal.Signal();
+
                         // Brief delay before retrying after an error
                         await Task.Delay(1000, cancellationToken).ConfigureAwait(false);
                     }

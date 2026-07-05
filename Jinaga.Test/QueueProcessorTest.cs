@@ -3,6 +3,7 @@ using Jinaga.Storage;
 using Jinaga.Test.Fakes;
 using Jinaga.Test.Model;
 using Microsoft.Extensions.Logging.Abstractions;
+using System;
 using System.Collections.Immutable;
 using Xunit.Abstractions;
 
@@ -95,6 +96,29 @@ namespace Jinaga.Test
             // Assert
             network.SaveCallCount.Should().Be(1);
             network.UploadedFacts.Count.Should().Be(1);
+        }
+
+        [Fact]
+        public async Task Push_WhenUploadFails_ThrowsPromptlyInsteadOfHanging()
+        {
+            // Arrange
+            var network = new FailingFakeNetwork();
+            var options = new JinagaClientOptions { QueueProcessingDelay = 0 };
+            var j = new JinagaClient(new PersistentMemoryStore(), network, ImmutableList<Specification>.Empty, NullLoggerFactory.Instance, options);
+
+            // Act
+            await j.Fact(new TestFact("fact1"));
+
+            Func<Task> act = async () => await j.Push();
+
+            // Assert - Push should fail promptly (well within a hang-detecting timeout)
+            // rather than hang indefinitely waiting for a completion signal that never comes.
+            var pushTask = act();
+            var completedTask = await Task.WhenAny(pushTask, Task.Delay(TimeSpan.FromSeconds(5)));
+            completedTask.Should().Be(pushTask, "Push() should not hang when the upload fails");
+
+            await act.Should().ThrowAsync<InvalidOperationException>();
+            network.SaveCallCount.Should().BeGreaterThan(0);
         }
 
         [Fact]
