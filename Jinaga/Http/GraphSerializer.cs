@@ -138,7 +138,7 @@ namespace Jinaga.Http
                         sb.Append(fieldValueBoolean.BoolValue.ToString().ToLowerInvariant());
                         break;
                     case FieldValueNumber fieldValueNumber:
-                        sb.Append(fieldValueNumber.DoubleValue.ToString());
+                        sb.Append(JsonSerializer.Serialize(fieldValueNumber.DoubleValue));
                         break;
                     case FieldValueString fieldValueString:
                         sb.Append($"\"{encoder.Encode(fieldValueString.StringValue)}\"");
