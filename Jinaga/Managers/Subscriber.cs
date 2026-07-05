@@ -23,26 +23,31 @@ namespace Jinaga.Managers
         private TaskCompletionSource<bool>? taskCompletionSource;
         private CancellationTokenSource? cancellationTokenSource;
         private Timer? timer;
+        private int reconnectAttempt = 0;
 
-        public Subscriber(string feed, INetwork network, IStore store, ILogger logger, Func<FactGraph, ImmutableList<Fact>, CancellationToken, Task> notifyObservers)
+        private readonly TimeSpan reconnectInitialDelay;
+        private readonly TimeSpan reconnectMaxDelay;
+
+        public Subscriber(string feed, INetwork network, IStore store, ILogger logger, Func<FactGraph, ImmutableList<Fact>, CancellationToken, Task> notifyObservers,
+            TimeSpan? reconnectInitialDelay = null, TimeSpan? reconnectMaxDelay = null)
         {
             this.feed = feed;
             this.network = network;
             this.store = store;
             this.logger = logger;
             this.notifyObservers = notifyObservers;
+            this.reconnectInitialDelay = reconnectInitialDelay ?? TimeSpan.FromSeconds(1);
+            this.reconnectMaxDelay = reconnectMaxDelay ?? TimeSpan.FromSeconds(30);
         }
 
         public bool AddRef()
         {
-            refCount++;
-            return refCount == 1;
+            return Interlocked.Increment(ref refCount) == 1;
         }
 
         public bool Release()
         {
-            refCount--;
-            return refCount == 0;
+            return Interlocked.Decrement(ref refCount) == 0;
         }
 
         public async Task Start()
@@ -90,6 +95,9 @@ namespace Jinaga.Managers
             {
                 logger.LogInformation("Subscribe received {count} facts", factReferences.Count);
 
+                // A successful response means the connection is healthy again.
+                Interlocked.Exchange(ref reconnectAttempt, 0);
+
                 // Load the facts that I don't already have.
                 var knownFactReferences = await store.ListKnown(factReferences).ConfigureAwait(false);
                 var unknownFactReferences = factReferences.RemoveRange(knownFactReferences);
@@ -120,7 +128,53 @@ namespace Jinaga.Managers
                     resolved = true;
                     taskCompletionSource.SetException(ex);
                 }
+                else
+                {
+                    // The initial connection already succeeded, so this is a mid-stream failure
+                    // (e.g. a dropped connection). Rather than waiting for the ~4 minute refresh
+                    // timer, reconnect promptly with an exponential backoff.
+                    logger.LogWarning(ex, "Error on feed stream after connection established. Scheduling reconnect.");
+                    ScheduleReconnect(taskCompletionSource, cancellationToken);
+                }
             });
+        }
+
+        private void ScheduleReconnect(TaskCompletionSource<bool> taskCompletionSource, CancellationToken cancellationToken)
+        {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+
+            int attempt = Interlocked.Increment(ref reconnectAttempt);
+            var delay = TimeSpanFromBackoff(attempt);
+
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
+                    if (!cancellationToken.IsCancellationRequested)
+                    {
+                        ConnectToFeed(taskCompletionSource, cancellationToken);
+                    }
+                }
+                catch (TaskCanceledException)
+                {
+                    // The subscriber was stopped while waiting to reconnect.
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Error reconnecting to feed");
+                }
+            }, cancellationToken);
+        }
+
+        private TimeSpan TimeSpanFromBackoff(int attempt)
+        {
+            double factor = Math.Pow(2, Math.Max(0, attempt - 1));
+            double milliseconds = Math.Min(reconnectInitialDelay.TotalMilliseconds * factor, reconnectMaxDelay.TotalMilliseconds);
+            return TimeSpan.FromMilliseconds(milliseconds);
         }
     }
 }

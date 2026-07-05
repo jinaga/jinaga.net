@@ -72,12 +72,27 @@ namespace Jinaga.Http
 
         public void StreamFeed(string feed, string bookmark, CancellationToken cancellationToken, Func<ImmutableList<Facts.FactReference>, string, Task> onResponse, Action<Exception> onError)
         {
-            webClient.StreamFeed(feed, bookmark, cancellationToken, async (FeedResponse response) => {
-                var references = response.references
-                    .Select(r => FactReader.ReadFactReference(r))
-                    .ToImmutableList();
-                await onResponse(references, response.bookmark).ConfigureAwait(false);
-            }, onError);
+            // StreamFeed runs for the lifetime of the stream. It is intentionally not awaited here,
+            // but any exception that escapes it (including one raised by onError itself) is captured
+            // and reported through onError instead of being lost as an unobserved task exception.
+            _ = StreamFeedAsync(feed, bookmark, cancellationToken, onResponse, onError);
+        }
+
+        private async Task StreamFeedAsync(string feed, string bookmark, CancellationToken cancellationToken, Func<ImmutableList<Facts.FactReference>, string, Task> onResponse, Action<Exception> onError)
+        {
+            try
+            {
+                await webClient.StreamFeed(feed, bookmark, cancellationToken, async (FeedResponse response) => {
+                    var references = response.references
+                        .Select(r => FactReader.ReadFactReference(r))
+                        .ToImmutableList();
+                    await onResponse(references, response.bookmark).ConfigureAwait(false);
+                }, onError).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                onError(ex);
+            }
         }
 
         public async Task<FactGraph> Load(ImmutableList<Facts.FactReference> factReferences, CancellationToken cancellationToken)
