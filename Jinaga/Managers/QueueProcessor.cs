@@ -78,7 +78,6 @@ namespace Jinaga.Managers
             var exception = _lastProcessingException;
             if (exception != null)
             {
-                _lastProcessingException = null;
                 ExceptionDispatchInfo.Capture(exception).Throw();
             }
         }

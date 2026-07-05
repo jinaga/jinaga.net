@@ -109,14 +109,13 @@ namespace Jinaga.Test
             // Act
             await j.Fact(new TestFact("fact1"));
 
-            Func<Task> act = async () => await j.Push();
-
             // Assert - Push should fail promptly (well within a hang-detecting timeout)
             // rather than hang indefinitely waiting for a completion signal that never comes.
-            var pushTask = act();
+            var pushTask = j.Push();
             var completedTask = await Task.WhenAny(pushTask, Task.Delay(TimeSpan.FromSeconds(5)));
             completedTask.Should().Be(pushTask, "Push() should not hang when the upload fails");
 
+            Func<Task> act = () => pushTask;
             await act.Should().ThrowAsync<InvalidOperationException>();
             network.SaveCallCount.Should().BeGreaterThan(0);
         }
