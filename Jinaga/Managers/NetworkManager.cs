@@ -83,7 +83,7 @@ namespace Jinaga.Managers
             SetLoadStatus(true, null);
 
             // Retry once. A feed might be cached and need to be removed and re-added.
-            int retryCount = 1;
+            int retryCount = 2;
 
             while (true)
             {
@@ -152,7 +152,7 @@ namespace Jinaga.Managers
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
             // Retry once. A feed might be cached and need to be removed and re-added.
-            int retryCount = 1;
+            int retryCount = 2;
 
             while (true)
             {
@@ -245,67 +245,76 @@ namespace Jinaga.Managers
 
         private async Task ProcessFeed(string feed, CancellationToken cancellationToken)
         {
-            // Load the bookmark.
-            string bookmark = await store.LoadBookmark(feed).ConfigureAwait(false);
-
-            while (true)
+            try
             {
-                Interlocked.Increment(ref fetchCount);
-                bool decremented = false;
+                // Load the bookmark.
+                string bookmark = await store.LoadBookmark(feed).ConfigureAwait(false);
 
-                try
+                while (true)
                 {
-                    // Fetch facts from the feed starting at the bookmark.
-                    (var factReferences, var nextBookmark) = await network.FetchFeed(feed, bookmark, cancellationToken).ConfigureAwait(false);
+                    Interlocked.Increment(ref fetchCount);
+                    bool decremented = false;
 
-                    // If there are no facts, end.
-                    if (factReferences.Count == 0)
+                    try
                     {
-                        lock (this)
+                        // Fetch facts from the feed starting at the bookmark.
+                        (var factReferences, var nextBookmark) = await network.FetchFeed(feed, bookmark, cancellationToken).ConfigureAwait(false);
+
+                        // If there are no facts, end.
+                        if (factReferences.Count == 0)
                         {
-                            activeFeeds = activeFeeds.Remove(feed);
+                            break;
                         }
-                        break;
-                    }
 
-                    // Load the facts that I don't already have.
-                    var knownFactReferences = await store.ListKnown(factReferences).ConfigureAwait(false);
-                    var unknownFactReferences = factReferences.RemoveRange(knownFactReferences);
-                    if (unknownFactReferences.Any())
-                    {
-                        var batch = GetCurrentBatch();
-                        batch.Add(unknownFactReferences);
-                        var finalFetchCount = Interlocked.Decrement(ref fetchCount);
-                        decremented = true;
-                        if (finalFetchCount == 0)
+                        // Load the facts that I don't already have.
+                        var knownFactReferences = await store.ListKnown(factReferences).ConfigureAwait(false);
+                        var unknownFactReferences = factReferences.RemoveRange(knownFactReferences);
+                        if (unknownFactReferences.Any())
                         {
-                            // This is the last fetch, so trigger the batch.
-                            batch.Trigger();
-                        }
-                        await batch.Completed.ConfigureAwait(false);
-                    }
-
-                    // Update the bookmark.
-                    bookmark = nextBookmark;
-                    await store.SaveBookmark(feed, bookmark).ConfigureAwait(false);
-                }
-                finally
-                {
-                    if (!decremented)
-                    {
-                        var finalFetchCount = Interlocked.Decrement(ref fetchCount);
-                        if (finalFetchCount == 0)
-                        {
-                            lock (this)
+                            var batch = GetCurrentBatch();
+                            batch.Add(unknownFactReferences);
+                            var finalFetchCount = Interlocked.Decrement(ref fetchCount);
+                            decremented = true;
+                            if (finalFetchCount == 0)
                             {
-                                if (currentBatch != null)
+                                // This is the last fetch, so trigger the batch.
+                                batch.Trigger();
+                            }
+                            await batch.Completed.ConfigureAwait(false);
+                        }
+
+                        // Update the bookmark.
+                        bookmark = nextBookmark;
+                        await store.SaveBookmark(feed, bookmark).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        if (!decremented)
+                        {
+                            var finalFetchCount = Interlocked.Decrement(ref fetchCount);
+                            if (finalFetchCount == 0)
+                            {
+                                lock (this)
                                 {
-                                    // This is the last fetch, so trigger the batch.
-                                    currentBatch.Trigger();
+                                    if (currentBatch != null)
+                                    {
+                                        // This is the last fetch, so trigger the batch.
+                                        currentBatch.Trigger();
+                                    }
                                 }
                             }
                         }
                     }
+                }
+            }
+            finally
+            {
+                // Remove the feed from the active set on every exit path (success,
+                // exception, or cancellation) so a transient failure does not
+                // permanently disable the feed. A subsequent fetch will retry it.
+                lock (this)
+                {
+                    activeFeeds = activeFeeds.Remove(feed);
                 }
             }
         }
