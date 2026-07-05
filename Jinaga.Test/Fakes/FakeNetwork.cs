@@ -21,6 +21,7 @@ internal class FakeNetwork : INetwork
     private ITestOutputHelper output;
     private readonly List<FakeFeed> feeds = new();
     private readonly Dictionary<FactReference, Fact> factByFactReference = new();
+    private readonly Dictionary<string, Queue<Exception>> faultsByFeed = new();
     private string finalBookmark = "done";
 
 #pragma warning disable CS0067
@@ -76,6 +77,21 @@ internal class FakeNetwork : INetwork
         throw new NotImplementedException();
     }
 
+    /// <summary>
+    /// Causes the next call to FetchFeed for the given feed to throw the given
+    /// exception, simulating a transient network failure. Subsequent calls
+    /// succeed normally.
+    /// </summary>
+    public void FailNextFetch(string feed, Exception exception)
+    {
+        if (!faultsByFeed.TryGetValue(feed, out var queue))
+        {
+            queue = new Queue<Exception>();
+            faultsByFeed[feed] = queue;
+        }
+        queue.Enqueue(exception);
+    }
+
     public Task<ImmutableList<string>> Feeds(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
     {
         return Task.FromResult(feeds.Select(feed => feed.Name).ToImmutableList());
@@ -83,6 +99,10 @@ internal class FakeNetwork : INetwork
 
     public async Task<(ImmutableList<FactReference> references, string bookmark)> FetchFeed(string feed, string bookmark, CancellationToken cancellationToken)
     {
+        if (faultsByFeed.TryGetValue(feed, out var queue) && queue.Count > 0)
+        {
+            throw queue.Dequeue();
+        }
         if (bookmark == finalBookmark)
         {
             return (ImmutableList<FactReference>.Empty, finalBookmark);
