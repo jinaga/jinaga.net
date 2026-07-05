@@ -363,37 +363,49 @@ namespace Jinaga.Store.SQLite
             }
             else
             {
-                var referencesFromDb = connFactory.WithConn(
-                    (conn, id) =>
-                    {
-                        var referenceValues = factReferences.Select((f, i) => $"(@{2*i}, @{2*i+1})").ToArray();
+                // SQLite enforces a maximum number of bound parameters per statement
+                // (SQLITE_MAX_VARIABLE_NUMBER, commonly 999). Each reference binds 2
+                // parameters (hash, type), so batch the query to stay comfortably under
+                // that limit while keeping the query parameterized.
+                const int maxReferencesPerBatch = 400;
 
-                        var parameters = new List<object>();
-                        foreach (var f in factReferences)
+                var knownReferences = ImmutableList<FactReference>.Empty;
+                foreach (var batch in factReferences
+                    .Select((f, i) => new { f, i })
+                    .GroupBy(x => x.i / maxReferencesPerBatch)
+                    .Select(g => g.Select(x => x.f).ToImmutableList()))
+                {
+                    var referencesFromDb = connFactory.WithConn(
+                        (conn, id) =>
                         {
-                            parameters.Add(f.Hash);
-                            parameters.Add(f.Type);
-                        }
+                            var referenceValues = batch.Select((f, i) => $"(@{2*i}, @{2*i+1})").ToArray();
 
-                        string sql;
-                        sql = $@"
-                                SELECT f.hash,
-                                       t.name
-                                FROM fact f
-                                JOIN fact_type t
-                                    ON f.fact_type_id = t.fact_type_id
-                                WHERE (f.hash,t.name)
-                                    IN (VALUES {String.Join(",", referenceValues)} )
-                            ";
+                            var parameters = new List<object>();
+                            foreach (var f in batch)
+                            {
+                                parameters.Add(f.Hash);
+                                parameters.Add(f.Type);
+                            }
 
-                        return conn.ExecuteQuery<ReferenceFromDb>(sql, parameters.ToArray());
-                    },
-                    true   //exponential backoff
-                );
+                            string sql;
+                            sql = $@"
+                                    SELECT f.hash,
+                                           t.name
+                                    FROM fact f
+                                    JOIN fact_type t
+                                        ON f.fact_type_id = t.fact_type_id
+                                    WHERE (f.hash,t.name)
+                                        IN (VALUES {String.Join(",", referenceValues)} )
+                                ";
 
-                var knownReferences = referencesFromDb
-                    .Select(r => new FactReference(r.name, r.hash))
-                    .ToImmutableList();
+                            return conn.ExecuteQuery<ReferenceFromDb>(sql, parameters.ToArray());
+                        },
+                        true   //exponential backoff
+                    );
+
+                    knownReferences = knownReferences.AddRange(referencesFromDb
+                        .Select(r => new FactReference(r.name, r.hash)));
+                }
 
                 logger.LogTrace("SQLite listed {knownCount} known facts of {givenCount}", knownReferences.Count, factReferences.Count);
                 return Task.FromResult(knownReferences);

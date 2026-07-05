@@ -108,4 +108,26 @@ public class SqlInjectionTest
         var unknownBookmark = await store.LoadBookmark("feed'with--quote-other");
         unknownBookmark.Should().Be("");
     }
+
+    [Fact]
+    public async Task ListKnown_WithMoreReferencesThanSqliteVariableLimit_BatchesTheQuery()
+    {
+        // Each reference binds 2 parameters. SQLite's default SQLITE_MAX_VARIABLE_NUMBER
+        // is commonly 999, so more than ~499 references would exceed it in a single
+        // unbatched query. Use enough references to span multiple batches.
+        IStore store = GivenSQLiteStore();
+        var options = new JinagaClientOptions();
+        var jinagaClient = new JinagaClient(store, new LocalNetwork(), [], NullLoggerFactory.Instance, options);
+
+        var references = ImmutableList<FactReference>.Empty;
+        for (int i = 0; i < 1000; i++)
+        {
+            var order = await jinagaClient.Fact(new MaliciousOrder($"order-{i}"));
+            references = references.Add(ReferenceOfFact(order));
+        }
+
+        var known = await store.ListKnown(references);
+
+        known.Should().HaveCount(1000);
+    }
 }
