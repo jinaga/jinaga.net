@@ -59,7 +59,7 @@ namespace Jinaga.Http
             return httpConnection.Get<FeedResponse>($"feeds/{feed}{queryString}");
         }
 
-        public async void StreamFeed(string feed, string bookmark, CancellationToken cancellationToken, Func<FeedResponse, Task> onResponse, Action<Exception> onError)
+        public async Task StreamFeed(string feed, string bookmark, CancellationToken cancellationToken, Func<FeedResponse, Task> onResponse, Action<Exception> onError)
         {
             string queryString = bookmark == null ? "" : $"?b={bookmark}";
 
