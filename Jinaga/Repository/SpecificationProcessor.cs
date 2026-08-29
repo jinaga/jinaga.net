@@ -455,11 +455,12 @@ namespace Jinaga.Repository
                         return LinqProcessor.Any(LinqProcessor.Where(source, predicate));
                     }
                 }
-                else if (methodCallExpression.Method.DeclaringType == typeof(Enumerable) &&
+                else if ((methodCallExpression.Method.DeclaringType == typeof(Enumerable) ||
+                    methodCallExpression.Method.DeclaringType == typeof(MemoryExtensions)) &&
                     methodCallExpression.Method.Name == nameof(System.Linq.Enumerable.Contains) &&
                     methodCallExpression.Arguments.Count == 2)
                 {
-                    var left = ProcessReference(methodCallExpression.Arguments[0], symbolTable);
+                    var left = ProcessReference(RemoveSpanConversion(methodCallExpression.Arguments[0]), symbolTable);
                     var right = ProcessReference(methodCallExpression.Arguments[1], symbolTable);
                     return LinqProcessor.Compare(left, right);
                 }
@@ -538,6 +539,30 @@ namespace Jinaga.Repository
                 return LinqProcessor.And(left, right);
             }
             throw new SpecificationException($"Unsupported predicate type {body}.");
+        }
+
+        private static Expression RemoveSpanConversion(Expression expression)
+        {
+            // C# 14 binds array.Contains(x) to MemoryExtensions.Contains(ReadOnlySpan<T>, T),
+            // wrapping the array in ReadOnlySpan<T>.op_Implicit. Unwrap it.
+            if (expression is MethodCallExpression
+                {
+                    Method: { IsSpecialName: true, Name: "op_Implicit" },
+                    Object: null,
+                    Arguments: { Count: 1 }
+                } conversion)
+            {
+                expression = conversion.Arguments[0];
+            }
+            // The conversion to span is fed by a conversion of the collection to an array.
+            if (expression is UnaryExpression
+                {
+                    NodeType: ExpressionType.Convert
+                } arrayConversion && arrayConversion.Type.IsArray)
+            {
+                expression = arrayConversion.Operand;
+            }
+            return expression;
         }
 
         private string UniqueLabelName(string parameterName, ImmutableList<string> labelsUsed)
