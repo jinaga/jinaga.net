@@ -32,6 +32,8 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="SQLitePCLRaw.bundle_green" Version="2.1.11" />
+    <!-- Pin the native library above the 2.1.11 advisory (GHSA-2m69-gcr7-jv3q). -->
+    <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" Version="2.1.13" />
   </ItemGroup>
 
 </Project>
