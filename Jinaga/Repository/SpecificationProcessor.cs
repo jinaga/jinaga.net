@@ -455,11 +455,12 @@ namespace Jinaga.Repository
                         return LinqProcessor.Any(LinqProcessor.Where(source, predicate));
                     }
                 }
-                else if (methodCallExpression.Method.DeclaringType == typeof(Enumerable) &&
+                else if ((methodCallExpression.Method.DeclaringType == typeof(Enumerable) ||
+                    methodCallExpression.Method.DeclaringType == typeof(MemoryExtensions)) &&
                     methodCallExpression.Method.Name == nameof(System.Linq.Enumerable.Contains) &&
                     methodCallExpression.Arguments.Count == 2)
                 {
-                    var left = ProcessReference(methodCallExpression.Arguments[0], symbolTable);
+                    var left = ProcessReference(RemoveSpanConversion(methodCallExpression.Arguments[0]), symbolTable);
                     var right = ProcessReference(methodCallExpression.Arguments[1], symbolTable);
                     return LinqProcessor.Compare(left, right);
                 }
@@ -538,6 +539,53 @@ namespace Jinaga.Repository
                 return LinqProcessor.And(left, right);
             }
             throw new SpecificationException($"Unsupported predicate type {body}.");
+        }
+
+        private static Expression RemoveSpanConversion(Expression expression)
+        {
+            // C# 14 binds array.Contains(x) to MemoryExtensions.Contains(ReadOnlySpan<T>, T),
+            // converting the collection to a span. Roslyn emits that conversion as a call to
+            // ReadOnlySpan<T>.op_Implicit; a user-defined conversion is more generally
+            // represented as a Convert node naming the same method. Unwrap either form, but
+            // only when the result really is a span, so that no unrelated conversion is lost.
+            if (IsSpan(expression.Type))
+            {
+                if (expression is MethodCallExpression
+                    {
+                        Method: { IsStatic: true, IsSpecialName: true, Name: "op_Implicit" },
+                        Arguments: { Count: 1 }
+                    } conversionCall)
+                {
+                    expression = conversionCall.Arguments[0];
+                }
+                else if (expression is UnaryExpression
+                    {
+                        NodeType: ExpressionType.Convert,
+                        Method: { Name: "op_Implicit" }
+                    } conversionNode)
+                {
+                    expression = conversionNode.Operand;
+                }
+            }
+            // The conversion to span is fed by a conversion of the collection to an array.
+            if (expression is UnaryExpression
+                {
+                    NodeType: ExpressionType.Convert
+                } arrayConversion && arrayConversion.Type.IsArray)
+            {
+                expression = arrayConversion.Operand;
+            }
+            return expression;
+        }
+
+        private static bool IsSpan(Type type)
+        {
+            if (!type.IsGenericType)
+            {
+                return false;
+            }
+            var definition = type.GetGenericTypeDefinition();
+            return definition == typeof(ReadOnlySpan<>) || definition == typeof(Span<>);
         }
 
         private string UniqueLabelName(string parameterName, ImmutableList<string> labelsUsed)
