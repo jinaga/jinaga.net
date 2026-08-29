@@ -11,6 +11,11 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    permissions:
+      id-token: write   # required: OIDC token for NuGet trusted publishing
+      contents: read    # checkout
+      packages: read    # restore from the GitHub NuGet source
+
     steps:
     - uses: actions/checkout@v4
       with:
@@ -42,5 +47,15 @@ jobs:
         dotnet pack ./Jinaga.Maui/ -c Release -o ./packages /p:IncludeSymbols=true /p:SymbolPackageFormat=snupkg
         dotnet pack ./Jinaga.Tool/ -c Release -o ./packages /p:IncludeSymbols=true /p:SymbolPackageFormat=snupkg
 
+    # Trusted publishing: exchange a GitHub OIDC token for an API key that is
+    # valid for one hour and usable once. Requires a policy on nuget.org naming
+    # this repository and this workflow file. Keep this step next to the push;
+    # the key expires an hour after it is issued.
+    - name: NuGet login
+      uses: NuGet/login@v1
+      id: nuget-login
+      with:
+        user: michaellperry
+
     - name: Publish NuGet packages
-      run: dotnet nuget push ./packages/*.nupkg ./packages/*.snupkg -k ${{secrets.NUGET_API_KEY}} -s https://api.nuget.org/v3/index.json --skip-duplicate
+      run: dotnet nuget push ./packages/*.nupkg ./packages/*.snupkg -k ${{ steps.nuget-login.outputs.NUGET_API_KEY }} -s https://api.nuget.org/v3/index.json --skip-duplicate
