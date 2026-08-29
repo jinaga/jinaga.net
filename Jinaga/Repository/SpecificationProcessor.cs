@@ -544,15 +544,28 @@ namespace Jinaga.Repository
         private static Expression RemoveSpanConversion(Expression expression)
         {
             // C# 14 binds array.Contains(x) to MemoryExtensions.Contains(ReadOnlySpan<T>, T),
-            // wrapping the array in ReadOnlySpan<T>.op_Implicit. Unwrap it.
-            if (expression is MethodCallExpression
-                {
-                    Method: { IsSpecialName: true, Name: "op_Implicit" },
-                    Object: null,
-                    Arguments: { Count: 1 }
-                } conversion)
+            // converting the collection to a span. Roslyn emits that conversion as a call to
+            // ReadOnlySpan<T>.op_Implicit; a user-defined conversion is more generally
+            // represented as a Convert node naming the same method. Unwrap either form, but
+            // only when the result really is a span, so that no unrelated conversion is lost.
+            if (IsSpan(expression.Type))
             {
-                expression = conversion.Arguments[0];
+                if (expression is MethodCallExpression
+                    {
+                        Method: { IsStatic: true, IsSpecialName: true, Name: "op_Implicit" },
+                        Arguments: { Count: 1 }
+                    } conversionCall)
+                {
+                    expression = conversionCall.Arguments[0];
+                }
+                else if (expression is UnaryExpression
+                    {
+                        NodeType: ExpressionType.Convert,
+                        Method: { Name: "op_Implicit" }
+                    } conversionNode)
+                {
+                    expression = conversionNode.Operand;
+                }
             }
             // The conversion to span is fed by a conversion of the collection to an array.
             if (expression is UnaryExpression
@@ -563,6 +576,16 @@ namespace Jinaga.Repository
                 expression = arrayConversion.Operand;
             }
             return expression;
+        }
+
+        private static bool IsSpan(Type type)
+        {
+            if (!type.IsGenericType)
+            {
+                return false;
+            }
+            var definition = type.GetGenericTypeDefinition();
+            return definition == typeof(ReadOnlySpan<>) || definition == typeof(Span<>);
         }
 
         private string UniqueLabelName(string parameterName, ImmutableList<string> labelsUsed)
