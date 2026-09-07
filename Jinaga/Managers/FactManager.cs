@@ -1,4 +1,5 @@
-﻿using Jinaga.Cryptography;
+﻿using Jinaga.Authorization;
+using Jinaga.Cryptography;
 using Jinaga.Facts;
 using Jinaga.Observers;
 using Jinaga.Products;
@@ -24,11 +25,21 @@ namespace Jinaga.Managers
         private readonly PurgeManager purgeManager;
         private readonly QueueProcessor queueProcessor;
 
+        private readonly AuthorizationEngine? authorizationEngine;
+        private readonly User? authorizedUser;
+
         private bool unloaded = false;
         private ImmutableList<TaskHandle> pendingTasks = ImmutableList<TaskHandle>.Empty;
 
         public FactManager(IStore store, NetworkManager networkManager, ImmutableList<Specification> purgeConditions, ILoggerFactory loggerFactory, int queueProcessingDelay)
+            : this(store, networkManager, purgeConditions, loggerFactory, queueProcessingDelay, null, null)
         {
+        }
+
+        public FactManager(IStore store, NetworkManager networkManager, ImmutableList<Specification> purgeConditions, ILoggerFactory loggerFactory, int queueProcessingDelay, AuthorizationEngine? authorizationEngine, User? authorizedUser)
+        {
+            this.authorizationEngine = authorizationEngine;
+            this.authorizedUser = authorizedUser;
             this.store = store;
             this.networkManager = networkManager;
             this.loggerFactory = loggerFactory;
@@ -80,6 +91,7 @@ namespace Jinaga.Managers
         public async Task<ImmutableList<Fact>> Save(FactGraph graph, CancellationToken cancellationToken)
         {
             VerifyNotUnloaded();
+            await Authorize(graph, cancellationToken).ConfigureAwait(false);
             var added = await store.Save(graph, true, cancellationToken).ConfigureAwait(false);
             await observableSource.Notify(graph, added, cancellationToken).ConfigureAwait(false);
             await purgeManager.TriggerPurge(added, cancellationToken).ConfigureAwait(false);
@@ -101,10 +113,37 @@ namespace Jinaga.Managers
         public async Task<ImmutableList<Fact>> SaveLocal(FactGraph graph, CancellationToken cancellationToken)
         {
             VerifyNotUnloaded();
+            await Authorize(graph, cancellationToken).ConfigureAwait(false);
             var added = await store.Save(graph, false, cancellationToken).ConfigureAwait(false);
             await observableSource.Notify(graph, added, cancellationToken).ConfigureAwait(false);
             await purgeManager.TriggerPurge(added, cancellationToken).ConfigureAwait(false);
             return added;
+        }
+
+        /// <summary>
+        /// Refuses the graph if the configured rules do not permit this user to author it.
+        ///
+        /// No engine means no checking, which is how every existing caller keeps working: a
+        /// client that talks to a replicator has its facts checked there, and only a client
+        /// configured with rules checks them locally.
+        /// </summary>
+        private async Task Authorize(FactGraph graph, CancellationToken cancellationToken)
+        {
+            if (authorizationEngine == null)
+            {
+                return;
+            }
+
+            // Serialized through the same path as any other fact, so the reference matches what
+            // a rule's specification produces when it projects a user. Computing it another way
+            // would risk two hashes for one user, which reads as an authorization failure.
+            var userReference = authorizedUser == null
+                ? null
+                : Serialize(authorizedUser).Last;
+
+            await authorizationEngine
+                .Authorize(graph, userReference, cancellationToken)
+                .ConfigureAwait(false);
         }
 
         public async Task Fetch(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)

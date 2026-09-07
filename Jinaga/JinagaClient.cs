@@ -1,4 +1,5 @@
 using Jinaga.DefaultImplementations;
+using Jinaga.Authorization;
 using Jinaga.Facts;
 using Jinaga.Http;
 using Jinaga.Managers;
@@ -223,6 +224,18 @@ namespace Jinaga
         /// <param name="network">A strategy to communicate with a remote replicator</param>
         /// <param name="loggerFactory">A factory configured for logging</param>
         public JinagaClient(IStore store, INetwork network, ImmutableList<Specification> purgeConditions, ILoggerFactory loggerFactory, JinagaClientOptions options)
+            : this(store, network, purgeConditions, loggerFactory, options, null, (User?)null)
+        {
+        }
+
+        /// <summary>
+        /// Creates a client that enforces authorization rules locally.
+        ///
+        /// Intended for tests. A client connected to a replicator does not need this — the
+        /// replicator is the authority — but a test with no replicator otherwise accepts every
+        /// fact, which makes an authorization rule untestable.
+        /// </summary>
+        public JinagaClient(IStore store, INetwork network, ImmutableList<Specification> purgeConditions, ILoggerFactory loggerFactory, JinagaClientOptions options, AuthorizationEngine? authorizationEngine, User? authorizedUser)
         {
             networkManager = new NetworkManager(network, store, loggerFactory, async (graph, added, cancellationToken) =>
             {
@@ -231,7 +244,7 @@ namespace Jinaga
                     await factManager.NotifyObservers(graph, added, cancellationToken).ConfigureAwait(false);
                 }
             });
-            factManager = new FactManager(store, networkManager, purgeConditions, loggerFactory, options.QueueProcessingDelay);
+            factManager = new FactManager(store, networkManager, purgeConditions, loggerFactory, options.QueueProcessingDelay, authorizationEngine, authorizedUser);
             logger = loggerFactory.CreateLogger<JinagaClient>();
 
             Local = new LocalJinagaClient(factManager, loggerFactory);

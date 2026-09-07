@@ -48,6 +48,23 @@ namespace Jinaga
             return rules(this);
         }
 
+        /// <summary>
+        /// The rules that apply to a fact type, in the order they were declared.
+        ///
+        /// Exposed so an engine can evaluate them. Several rules may apply to one type, and a
+        /// fact is authorized if any of them permits it — declaring two ways to author
+        /// something is how a policy says "either of these people".
+        /// </summary>
+        public ImmutableList<AuthorizationRule> RulesForType(string type) =>
+            rulesByType.TryGetValue(type, out var rules)
+                ? rules
+                : ImmutableList<AuthorizationRule>.Empty;
+
+        /// <summary>Builds a rule set from a configuration function.</summary>
+        public static AuthorizationRules Build(Func<AuthorizationRules, AuthorizationRules> authorization) =>
+            authorization(new AuthorizationRules(
+                ImmutableDictionary<string, ImmutableList<AuthorizationRule>>.Empty));
+
         public static string Describe(Func<AuthorizationRules, AuthorizationRules> authorization)
         {
             var rules = authorization(new AuthorizationRules(ImmutableDictionary<string, ImmutableList<AuthorizationRule>>.Empty));
