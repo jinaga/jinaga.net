@@ -15,7 +15,7 @@ namespace Jinaga.Authorization
     /// rule describes itself with. A rule that reads correctly and behaves incorrectly is not a
     /// hypothetical: the two can disagree, and only running it tells you which.
     /// </summary>
-    public class AuthorizationEngine
+    internal class AuthorizationEngine
     {
         private readonly AuthorizationRules rules;
         private readonly IStore store;
@@ -39,15 +39,10 @@ namespace Jinaga.Authorization
             FactReference? userReference,
             CancellationToken cancellationToken)
         {
-            // Which facts are new has to be settled before anything is written, or saving the
-            // graph would make every fact in it look already-accepted and skip the check.
+            // The engine only reads. The caller saves the graph once it is authorized, so that
+            // the save reports every new fact to observers and queues it for the network, and so
+            // that a refused fact never reaches the store.
             var known = await store.ListKnown(graph.FactReferences).ConfigureAwait(false);
-
-            // Rules navigate from the fact being authorized, and the fact is not in the store
-            // yet — a rule reaching a predecessor, or asking whether some other fact exists,
-            // has nothing to read otherwise. This mirrors a real client, which writes locally
-            // and learns from the replicator that a fact was refused.
-            await store.Save(graph, false, cancellationToken).ConfigureAwait(false);
 
             foreach (var reference in graph.FactReferences)
             {

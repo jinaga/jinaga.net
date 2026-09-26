@@ -36,7 +36,7 @@ namespace Jinaga.Managers
         {
         }
 
-        public FactManager(IStore store, NetworkManager networkManager, ImmutableList<Specification> purgeConditions, ILoggerFactory loggerFactory, int queueProcessingDelay, AuthorizationEngine? authorizationEngine, User? authorizedUser)
+        internal FactManager(IStore store, NetworkManager networkManager, ImmutableList<Specification> purgeConditions, ILoggerFactory loggerFactory, int queueProcessingDelay, AuthorizationEngine? authorizationEngine, User? authorizedUser)
         {
             this.authorizationEngine = authorizationEngine;
             this.authorizedUser = authorizedUser;

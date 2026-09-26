@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using Jinaga.Authorization;
@@ -259,5 +260,115 @@ public class AuthorizationTest
         var again = await owner.Fact(new Model.Site(Owner, "site"));
 
         again.Should().Be(site);
+    }
+    [Fact]
+    public async Task AFactAndItsNewPredecessorsCanBeAuthoredTogether()
+    {
+        // The site is not in the store when the content is authorized. The rule walks to it
+        // within the graph being saved.
+        var j = ClientFor(Owner);
+
+        var content = await j.Fact(new Model.Content(new Model.Site(Owner, "site"), "/index.html"));
+
+        content.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task AnAuthorizedFactReachesObservers()
+    {
+        // Authorizing must not write, or the save that follows finds nothing new and tells no
+        // observer about the fact.
+        var site = new Model.Site(Owner, "site");
+        var j = ClientFor(Owner, site);
+        var paths = new List<string>();
+        var contentInSite = Given<Model.Site>.Match((site, facts) =>
+            facts.OfType<Model.Content>(content => content.site == site)
+                .Select(content => content.path));
+        var observer = j.Watch(contentInSite, site, path => { paths.Add(path); });
+        await observer.Loaded;
+
+        await j.Fact(new Model.Content(site, "/index.html"));
+
+        observer.Stop();
+        paths.Should().ContainSingle().Which.Should().Be("/index.html");
+    }
+
+    [Fact]
+    public async Task ARefusedFactIsNotStored()
+    {
+        var site = new Model.Site(Owner, "site");
+        var intruder = ClientFor(Stranger, site);
+
+        Func<Task> posting = async () => await intruder.Fact(new Model.Content(site, "/index.html"));
+        await posting.Should().ThrowAsync<AuthorizationException>();
+
+        var contentInSite = Given<Model.Site>.Match((site, facts) =>
+            facts.OfType<Model.Content>(content => content.site == site));
+        var content = await intruder.Query(contentInSite, site);
+        content.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ARefusedFactIsStillRefusedWhenTriedAgain()
+    {
+        // A refused fact that reached the store would look already accepted the second time.
+        var site = new Model.Site(Owner, "site");
+        var intruder = ClientFor(Stranger, site);
+
+        Func<Task> posting = async () => await intruder.Fact(new Model.Content(site, "/index.html"));
+
+        await posting.Should().ThrowAsync<AuthorizationException>();
+        await posting.Should().ThrowAsync<AuthorizationException>();
+    }
+
+    [Fact]
+    public async Task OnlyTheProjectedUserIsAuthorized()
+    {
+        // The owner appears in the rule, but only as a step on the way to the guest. Matching
+        // any user the rule passes through would permit the owner.
+        var site = new Model.Site(Owner, "site");
+        var invitation = new Model.GuestBlogger(site, Stranger);
+        var j = JinagaTest.Create(options =>
+        {
+            options.User = Owner;
+            options.InitialState = ImmutableList.Create<object>(site, invitation);
+            options.Authorization = a => a
+                .Type<Model.Content>((content, facts) =>
+                    from owner in facts.OfType<User>()
+                    where owner == content.site.creator
+                    from guest in facts.OfType<Model.GuestBlogger>()
+                    where guest.site == content.site
+                    from user in facts.OfType<User>()
+                    where user == guest.guest
+                    select user);
+        });
+
+        Func<Task> posting = async () => await j.Fact(new Model.Content(site, "/index.html"));
+
+        await posting.Should().ThrowAsync<AuthorizationException>();
+    }
+
+    [Fact]
+    public async Task ARuleThatStartsWithASuccessorIsUnsatisfiable()
+    {
+        // The fact being authorized is new, so it has no successors to start from. JinagaJS
+        // rejects such a rule as malformed rather than refusing every fact quietly.
+        var j = JinagaTest.Create(options =>
+        {
+            options.User = Stranger;
+            options.Authorization = a => a
+                .Any<User>()
+                .Type<Model.Site>((site, facts) =>
+                    from guest in facts.OfType<Model.GuestBlogger>()
+                    where guest.site == site
+                    from user in facts.OfType<User>()
+                    where user == guest.guest
+                    select user);
+        });
+
+        Func<Task> creating = async () => await j.Fact(new Model.Site(Owner, "site"));
+
+        await creating.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*must start with a predecessor join*");
     }
 }

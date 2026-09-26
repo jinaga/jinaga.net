@@ -55,7 +55,7 @@ namespace Jinaga
         /// fact is authorized if any of them permits it — declaring two ways to author
         /// something is how a policy says "either of these people".
         /// </summary>
-        public ImmutableList<AuthorizationRule> RulesForType(string type) =>
+        internal ImmutableList<AuthorizationRule> RulesForType(string type) =>
             rulesByType.TryGetValue(type, out var rules)
                 ? rules
                 : ImmutableList<AuthorizationRule>.Empty;

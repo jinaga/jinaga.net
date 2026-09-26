@@ -1,16 +1,21 @@
+#nullable enable
+
 using Jinaga.Authorization;
+using Jinaga.Facts;
 using Jinaga.Projections;
+using Jinaga.Serialization;
 using Jinaga.Storage;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Collections.Immutable;
-using System.Threading.Tasks;
+using System.Runtime.CompilerServices;
+using System.Threading;
 
 namespace Jinaga.UnitTest
 {
     public class JinagaTestOptions
     {
-        public User User { get; set; }
+        public User? User { get; set; }
 
         /// <summary>
         /// Authorization rules to enforce locally.
@@ -23,7 +28,7 @@ namespace Jinaga.UnitTest
         /// Rules that name a user are evaluated against <see cref="User"/>, so setting rules
         /// without a user asserts that nobody may author anything.
         /// </summary>
-        public Func<AuthorizationRules, AuthorizationRules> Authorization { get; set; }
+        public Func<AuthorizationRules, AuthorizationRules>? Authorization { get; set; }
 
         /// <summary>
         /// Facts that already exist, saved without being authorized.
@@ -59,21 +64,14 @@ namespace Jinaga.UnitTest
 
             if (!testOptions.InitialState.IsEmpty)
             {
-                // Written through a client with no rules, sharing the same store, so the facts
-                // land exactly as authored ones would without being subject to the policy.
-                var seed = new JinagaClient(
-                    store, network, ImmutableList<Specification>.Empty, loggerFactory, clientOptions);
-
-                // Reflection rather than `dynamic`, which would pull Microsoft.CSharp into a
-                // package that has no other need of it.
-                var factMethod = typeof(JinagaClient).GetMethod(nameof(JinagaClient.Fact));
-
+                // Saved straight to the store, as though synced: neither queued for the network
+                // nor subject to the policy.
+                var collector = new Collector(SerializerCache.Empty, new ConditionalWeakTable<object, FactGraph>());
                 foreach (var fact in testOptions.InitialState)
                 {
-                    var typed = factMethod.MakeGenericMethod(fact.GetType());
-                    var pending = (Task)typed.Invoke(seed, new[] { fact });
-                    pending.GetAwaiter().GetResult();
+                    collector.Serialize(fact);
                 }
+                store.Save(collector.Graph, false, CancellationToken.None).GetAwaiter().GetResult();
             }
 
             if (testOptions.Authorization == null)

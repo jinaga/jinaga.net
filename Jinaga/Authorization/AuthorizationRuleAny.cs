@@ -17,7 +17,7 @@ namespace Jinaga
         }
 
         /// <summary>Permits everyone, including an unauthenticated client.</summary>
-        public override Task<bool> IsAuthorized(
+        internal override Task<bool> IsAuthorized(
             IStore store,
             FactGraph graph,
             FactReference reference,

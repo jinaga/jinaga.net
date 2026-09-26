@@ -3,3 +3,6 @@
 
 // Make internal classes visible to the Jinaga.Test project.
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("Jinaga.Test")]
+
+// Make internal classes visible to the Jinaga.UnitTest project, which enforces authorization rules locally.
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("Jinaga.UnitTest")]

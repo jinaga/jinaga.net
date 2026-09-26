@@ -235,7 +235,7 @@ namespace Jinaga
         /// replicator is the authority — but a test with no replicator otherwise accepts every
         /// fact, which makes an authorization rule untestable.
         /// </summary>
-        public JinagaClient(IStore store, INetwork network, ImmutableList<Specification> purgeConditions, ILoggerFactory loggerFactory, JinagaClientOptions options, AuthorizationEngine? authorizationEngine, User? authorizedUser)
+        internal JinagaClient(IStore store, INetwork network, ImmutableList<Specification> purgeConditions, ILoggerFactory loggerFactory, JinagaClientOptions options, AuthorizationEngine? authorizationEngine, User? authorizedUser)
         {
             networkManager = new NetworkManager(network, store, loggerFactory, async (graph, added, cancellationToken) =>
             {

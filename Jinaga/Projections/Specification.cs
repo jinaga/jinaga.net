@@ -2,6 +2,7 @@ using Jinaga.Facts;
 using Jinaga.Pipelines;
 using Jinaga.Products;
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 
@@ -169,6 +170,118 @@ namespace Jinaga.Projections
         {
             return set.SelectMany(reference => graph.Predecessors(reference, role, targetType))
                 .ToImmutableList();
+        }
+
+        /// <summary>
+        /// Splits the specification before the first match that seeks successors.
+        ///
+        /// The head contains only predecessor joins, so it can run on a fact graph that has not
+        /// been saved. The tail runs on the store, given the labels of the head that it needs.
+        /// Either may be null: no head means the specification starts with a successor join, and
+        /// no tail means the whole specification is deterministic.
+        /// </summary>
+        internal (Specification? head, Specification? tail) SplitBeforeFirstSuccessor()
+        {
+            var pivotIndex = Matches.FindIndex(match =>
+                match.PathConditions.Count != 1 ||
+                match.ExistentialConditions.Count != 0 ||
+                match.PathConditions[0].RolesLeft.Count != 0);
+
+            if (pivotIndex == -1)
+            {
+                // No match seeks successors, so the whole specification is deterministic.
+                return (this, null);
+            }
+
+            var pivot = Matches[pivotIndex];
+            if (pivot.PathConditions.Count != 1)
+            {
+                return (null, this);
+            }
+
+            var condition = pivot.PathConditions[0];
+            var unknownsAsGivens = Matches
+                .Select(match => new SpecificationGiven(match.Unknown, ImmutableList<ExistentialCondition>.Empty));
+
+            if (condition.RolesRight.Count == 0)
+            {
+                // The path contains only successor joins. Put the entire match in the tail.
+                if (pivotIndex == 0)
+                {
+                    return (null, this);
+                }
+
+                var headMatches = Matches.GetRange(0, pivotIndex);
+                var tailMatches = Matches.GetRange(pivotIndex, Matches.Count - pivotIndex);
+                var head = new Specification(
+                    ReferencedLabels(headMatches, Givens),
+                    headMatches,
+                    CompoundProjection.Empty);
+                var tail = new Specification(
+                    ReferencedLabels(tailMatches, Givens.AddRange(unknownsAsGivens)),
+                    tailMatches,
+                    Projection);
+                return (head, tail);
+            }
+            else
+            {
+                // The path contains both predecessor and successor joins. Split it at a new label.
+                var usedNames = Givens.Select(g => g.Label.Name)
+                    .Concat(Matches.Select(m => m.Unknown.Name))
+                    .ToImmutableHashSet();
+                var splitName = Enumerable.Range(1, int.MaxValue)
+                    .Select(i => $"s{i}")
+                    .First(name => !usedNames.Contains(name));
+                var splitLabel = new Label(splitName, condition.RolesRight.Last().TargetType);
+
+                var headMatch = new Match(
+                    splitLabel,
+                    ImmutableList.Create(new PathCondition(
+                        ImmutableList<Role>.Empty, condition.LabelRight, condition.RolesRight)),
+                    ImmutableList<ExistentialCondition>.Empty);
+                var tailMatch = new Match(
+                    pivot.Unknown,
+                    ImmutableList.Create(new PathCondition(
+                        condition.RolesLeft, splitLabel.Name, ImmutableList<Role>.Empty)),
+                    pivot.ExistentialConditions);
+
+                var headMatches = Matches.GetRange(0, pivotIndex).Add(headMatch);
+                var tailMatches = Matches.GetRange(pivotIndex + 1, Matches.Count - pivotIndex - 1)
+                    .Insert(0, tailMatch);
+                var allLabels = Givens
+                    .AddRange(unknownsAsGivens)
+                    .Add(new SpecificationGiven(splitLabel, ImmutableList<ExistentialCondition>.Empty));
+                var head = new Specification(
+                    ReferencedLabels(headMatches, Givens),
+                    headMatches,
+                    CompoundProjection.Empty);
+                var tail = new Specification(
+                    ReferencedLabels(tailMatches, allLabels),
+                    tailMatches,
+                    Projection);
+                return (head, tail);
+            }
+        }
+
+        private static ImmutableList<SpecificationGiven> ReferencedLabels(ImmutableList<Match> matches, ImmutableList<SpecificationGiven> labels)
+        {
+            var definedLabels = matches.Select(match => match.Unknown.Name).ToImmutableHashSet();
+            var referencedLabels = matches
+                .SelectMany(LabelsInMatch)
+                .Where(label => !definedLabels.Contains(label))
+                .ToImmutableHashSet();
+            return labels
+                .Where(given => referencedLabels.Contains(given.Label.Name))
+                .ToImmutableList();
+        }
+
+        private static IEnumerable<string> LabelsInMatch(Match match)
+        {
+            return match.PathConditions
+                .Select(condition => condition.LabelRight)
+                .Concat(match.ExistentialConditions
+                    .SelectMany(condition => condition.Matches)
+                    .SelectMany(LabelsInMatch));
         }
 
         internal Specification Reduce()

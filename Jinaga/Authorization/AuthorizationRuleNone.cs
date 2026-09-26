@@ -18,7 +18,7 @@ namespace Jinaga
 
         /// <summary>Permits nobody. Present so a type can be explicitly closed rather than
         /// closed by the absence of a rule, which reads the same and means something else.</summary>
-        public override Task<bool> IsAuthorized(
+        internal override Task<bool> IsAuthorized(
             IStore store,
             FactGraph graph,
             FactReference reference,

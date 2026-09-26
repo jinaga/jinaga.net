@@ -15,7 +15,7 @@ namespace Jinaga
         /// Several rules may apply to one type; the engine accepts a fact if any of them
         /// permits it, so a rule that does not apply returns false rather than throwing.
         /// </summary>
-        public abstract Task<bool> IsAuthorized(
+        internal abstract Task<bool> IsAuthorized(
             IStore store,
             FactGraph graph,
             FactReference reference,
