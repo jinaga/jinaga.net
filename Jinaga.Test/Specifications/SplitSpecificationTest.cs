@@ -206,6 +206,59 @@ public class SplitSpecificationTest
             """);
     }
 
+    [Fact]
+    public void KeepsSeveralPredecessorConditionsOnOneMatchInHead()
+    {
+        // Two predecessor paths that must reach the same fact. Both run on the graph.
+        Specification specification = Given<Model.Comment>.Match((comment, facts) =>
+            from user in facts.OfType<User>()
+            where user == comment.author
+            where user == comment.content.site.creator
+            select user);
+
+        var (head, tail) = specification.SplitBeforeFirstSuccessor();
+
+        head.Should().BeSameAs(specification);
+        tail.Should().BeNull();
+    }
+
+    [Fact]
+    public void CarriesTheProjectedLabelIntoTheTail()
+    {
+        // The projection names a label the head binds, so the tail must be given it even
+        // though none of its matches mention it.
+        Specification specification = Given<Model.Content>.Match((content, facts) =>
+            from creator in facts.OfType<User>()
+            where creator == content.site.creator
+            from guest in facts.OfType<Model.GuestBlogger>()
+            where guest.site == content.site
+            select creator);
+
+        var (head, tail) = specification.SplitBeforeFirstSuccessor();
+
+        Describe(head).Should().Be(
+            """
+            (content: Blog.Content) {
+                creator: Jinaga.User [
+                    creator = content->site: Blog.Site->creator: Jinaga.User
+                ]
+                s1: Blog.Site [
+                    s1 = content->site: Blog.Site
+                ]
+            }
+
+            """);
+        Describe(tail).Should().Be(
+            """
+            (creator: Jinaga.User, s1: Blog.Site) {
+                guest: Blog.GuestBlogger [
+                    guest->site: Blog.Site = s1
+                ]
+            } => creator
+
+            """);
+    }
+
     private static string Describe(Specification specification)
     {
         specification.Should().NotBeNull();

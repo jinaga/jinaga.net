@@ -371,4 +371,63 @@ public class AuthorizationTest
         await creating.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*must start with a predecessor join*");
     }
+    [Fact]
+    public async Task SeveralPredecessorConditionsOnOneMatchMustAllHold()
+    {
+        // Only the site owner may comment, and only in their own name. Both paths lead to the
+        // user, and the rule is satisfied only where they meet.
+        var site = new Model.Site(Owner, "site");
+        var content = new Model.Content(site, "/index.html");
+        JinagaClient ClientAs(User user) => JinagaTest.Create(options =>
+        {
+            options.User = user;
+            options.InitialState = ImmutableList.Create<object>(site, content);
+            options.Authorization = a => a
+                .Any<User>()
+                .Type<Model.Comment>((comment, facts) =>
+                    from author in facts.OfType<User>()
+                    where author == comment.author
+                    where author == comment.content.site.creator
+                    select author);
+        });
+
+        var comment = await ClientAs(Owner).Fact(new Model.Comment(content, Guid.NewGuid(), Owner));
+        comment.Should().NotBeNull();
+
+        Func<Task> impersonating = async () =>
+            await ClientAs(Owner).Fact(new Model.Comment(content, Guid.NewGuid(), Stranger));
+        await impersonating.Should().ThrowAsync<AuthorizationException>();
+
+        Func<Task> commentingAsThemselves = async () =>
+            await ClientAs(Stranger).Fact(new Model.Comment(content, Guid.NewGuid(), Stranger));
+        await commentingAsThemselves.Should().ThrowAsync<AuthorizationException>();
+    }
+
+    [Fact]
+    public async Task AUserBoundBeforeASuccessorJoinCanBeTheOneAuthorized()
+    {
+        // The rule projects the owner, whom it reaches before looking for a guest. The owner
+        // has to survive into the part of the rule that runs on the store.
+        var site = new Model.Site(Owner, "site");
+        JinagaClient ClientWith(params object[] existing) => JinagaTest.Create(options =>
+        {
+            options.User = Owner;
+            options.InitialState = existing.ToImmutableList();
+            options.Authorization = a => a
+                .Type<Model.Content>((content, facts) =>
+                    from creator in facts.OfType<User>()
+                    where creator == content.site.creator
+                    from guest in facts.OfType<Model.GuestBlogger>()
+                    where guest.site == content.site
+                    select creator);
+        });
+
+        var content = await ClientWith(site, new Model.GuestBlogger(site, Stranger))
+            .Fact(new Model.Content(site, "/index.html"));
+        content.Should().NotBeNull();
+
+        Func<Task> postingWithNoGuest = async () =>
+            await ClientWith(site).Fact(new Model.Content(site, "/index.html"));
+        await postingWithNoGuest.Should().ThrowAsync<AuthorizationException>();
+    }
 }
