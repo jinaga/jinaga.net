@@ -7,7 +7,7 @@ disable-model-invocation: true
 # Learned persist
 
 Sweep this session for durable project learnings not yet written. Use the persist bar and destinations described below. Do not repeat work that was already written during the session.
-Before writing anything give me an overview of the items you want to write, and give me the possibility to refuse some of them. Do NOT store the fact that I accepted or refused items.
+Before writing anything, give me an overview of the items you want to write, and give me the possibility to refuse some of them. Do NOT store the fact that I accepted or refused items.
 
 These destinations are committed to the repo and shared with the team. Claude Code's auto-memory is personal and not committed; do not also save these items to auto-memory, and do not copy personal preferences from auto-memory into the repo.
 

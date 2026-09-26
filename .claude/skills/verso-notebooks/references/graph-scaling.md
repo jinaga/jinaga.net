@@ -113,7 +113,7 @@ string ExtractSvg(string html)
     var start = html.IndexOf("<svg", StringComparison.OrdinalIgnoreCase);
     var end = html.LastIndexOf("</svg>", StringComparison.OrdinalIgnoreCase);
     if (start < 0 || end < 0 || end < start)
-        return html;
+        return "";
     return html.Substring(start, end + 6 - start);
 }
 
