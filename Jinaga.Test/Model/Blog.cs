@@ -17,3 +17,6 @@ public record Comment(Content content, Guid uniqueId, User author) { }
 
 [FactType("Blog.Content.Publish")]
 public record Publish(Content content, DateTime date) { }
+
+[FactType("Blog.GuestBlogger.Revoked")]
+public record GuestBloggerRevoked(GuestBlogger invitation) { }
