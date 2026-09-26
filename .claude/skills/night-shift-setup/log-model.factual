@@ -1,0 +1,971 @@
+// Night Shift Log — the application the night-shift protocol records into.
+//
+// Send these statements to `execute` IN FILE ORDER. Do not reorder them: fact
+// types come before the specifications that walk them, specifications before
+// the actions that write them, and the manifest last because it names every
+// action and view. Within the fact types, each one follows every type it names
+// as a predecessor.
+//
+// Four batches, marked below. `execute` stops a batch at its first failure, so
+// sending them separately makes a failure name its layer. See creating-the-log.md
+// for the full ceremony, including `create application` before batch 1 and
+// `publish` between batches 3 and 4.
+
+// ---- batch 1 of 4: fact types ----
+
+fact NightShift.Practice {
+  owner: Jinaga.User;
+}
+
+fact NightShift.Administrator {
+  practice: NightShift.Practice;
+  user: Jinaga.User;
+}
+
+fact NightShift.PracticeDeletion {
+  practice: NightShift.Practice;
+  deletedAt: date;
+}
+
+fact NightShift.Repository {
+  practice: NightShift.Practice;
+  key: string;
+}
+
+fact NightShift.GitHubRepository {
+  repository: NightShift.Repository;
+  githubId: number;
+}
+
+fact NightShift.RepositoryName {
+  repository: NightShift.Repository;
+  name: string;
+  prior: NightShift.RepositoryName*;
+}
+
+fact NightShift.Sweep {
+  startedAt: date;
+  headCommit: string?;
+  repository: NightShift.Repository;
+}
+
+fact NightShift.Consideration {
+  issueNumber: number;
+  issueTitle: string?;
+  sweep: NightShift.Sweep;
+}
+
+fact NightShift.OpenPullRequestFound {
+  number: number;
+  consideration: NightShift.Consideration;
+}
+
+fact NightShift.MergedPullRequestFound {
+  number: number;
+  consideration: NightShift.Consideration;
+}
+
+fact NightShift.ClosedPullRequestFound {
+  number: number;
+  consideration: NightShift.Consideration;
+}
+
+fact NightShift.BranchFound {
+  branch: string;
+  consideration: NightShift.Consideration;
+}
+
+fact NightShift.NoPriorWorkFound {
+  consideration: NightShift.Consideration;
+}
+
+fact NightShift.Dispatch {
+  branch: string;
+  sessionId: string?;
+  sequence: number?;
+  rationale: string?;
+  consideration: NightShift.Consideration;
+}
+
+fact NightShift.Skipped {
+  rationale: string;
+  consideration: NightShift.Consideration;
+}
+
+fact NightShift.Correction {
+  detail: string;
+  recordedAt: date;
+  corrected: NightShift.Consideration;
+  discoveredIn: NightShift.Consideration?;
+}
+
+fact NightShift.PullRequestOpened {
+  number: number;
+  summary: string;
+  recordedAt: date;
+  dispatch: NightShift.Dispatch;
+}
+
+fact NightShift.Question {
+  text: string;
+  recordedAt: date;
+  dispatch: NightShift.Dispatch;
+}
+
+fact NightShift.NoChangeFound {
+  summary: string;
+  recordedAt: date;
+  dispatch: NightShift.Dispatch;
+}
+
+fact NightShift.Answer {
+  text: string;
+  recordedAt: date;
+  question: NightShift.Question;
+}
+
+// ---- batch 2 of 4: specifications ----
+
+specification practicesForAdministrator = ($user: Jinaga.User) {
+  $administrator: NightShift.Administrator [
+    $administrator->user: Jinaga.User = $user
+  ]
+  $practice: NightShift.Practice [
+    $practice = $administrator->practice: NightShift.Practice
+    !E {
+      $deletion: NightShift.PracticeDeletion [
+        $deletion->practice: NightShift.Practice = $practice
+      ]
+    }
+  ]
+} => {
+  practiceRef = &$practice
+  repositories = {
+    $repository: NightShift.Repository [
+      $repository->practice: NightShift.Practice = $practice
+    ]
+  } => {
+    repositoryRef = &$repository
+    currentNames = {
+      $n: NightShift.RepositoryName [
+        $n->repository: NightShift.Repository = $repository
+        !E {
+          $next: NightShift.RepositoryName [
+            $next->prior: NightShift.RepositoryName = $n
+          ]
+        }
+      ]
+    } => {
+      name = $n.name
+      nameRef = &$n
+    }
+  }
+}
+
+specification repositoriesInPractice = ($practice: NightShift.Practice) {
+  $repository: NightShift.Repository [
+    $repository->practice: NightShift.Practice = $practice
+  ]
+} => {
+  repositoryRef = &$repository
+  gitHubBindings = {
+    $binding: NightShift.GitHubRepository [
+      $binding->repository: NightShift.Repository = $repository
+    ]
+  } => {
+    githubId = $binding.githubId
+  }
+  currentNames = {
+    $n: NightShift.RepositoryName [
+      $n->repository: NightShift.Repository = $repository
+      !E {
+        $next: NightShift.RepositoryName [
+          $next->prior: NightShift.RepositoryName = $n
+        ]
+      }
+    ]
+  } => {
+    name = $n.name
+    nameRef = &$n
+  }
+}
+
+specification sweepsInRepository = ($repository: NightShift.Repository) {
+  $sweep: NightShift.Sweep [
+    $sweep->repository: NightShift.Repository = $repository
+  ]
+} => {
+  startedAt = $sweep.startedAt
+  headCommit = $sweep.headCommit
+  sweepRef = &$sweep
+}
+
+specification considerationsInSweep = ($sweep: NightShift.Sweep) {
+  $consideration: NightShift.Consideration [
+    $consideration->sweep: NightShift.Sweep = $sweep
+  ]
+} => {
+  issueNumber = $consideration.issueNumber
+  issueTitle = $consideration.issueTitle
+  considerationRef = &$consideration
+  openPullRequestsFound = {
+    $f: NightShift.OpenPullRequestFound [
+      $f->consideration: NightShift.Consideration = $consideration
+    ]
+  } => {
+    number = $f.number
+  }
+  mergedPullRequestsFound = {
+    $f: NightShift.MergedPullRequestFound [
+      $f->consideration: NightShift.Consideration = $consideration
+    ]
+  } => {
+    number = $f.number
+  }
+  closedPullRequestsFound = {
+    $f: NightShift.ClosedPullRequestFound [
+      $f->consideration: NightShift.Consideration = $consideration
+    ]
+  } => {
+    number = $f.number
+  }
+  branchesFound = {
+    $f: NightShift.BranchFound [
+      $f->consideration: NightShift.Consideration = $consideration
+    ]
+  } => {
+    branch = $f.branch
+  }
+  noPriorWork = {
+    $f: NightShift.NoPriorWorkFound [
+      $f->consideration: NightShift.Consideration = $consideration
+    ]
+  } => {
+    confirmed = #$f
+  }
+  skips = {
+    $skip: NightShift.Skipped [
+      $skip->consideration: NightShift.Consideration = $consideration
+    ]
+  } => {
+    rationale = $skip.rationale
+  }
+  corrections = {
+    $correction: NightShift.Correction [
+      $correction->corrected: NightShift.Consideration = $consideration
+    ]
+  } => {
+    detail = $correction.detail
+    recordedAt = $correction.recordedAt
+  }
+  dispatches = {
+    $dispatch: NightShift.Dispatch [
+      $dispatch->consideration: NightShift.Consideration = $consideration
+    ]
+  } => {
+    branch = $dispatch.branch
+    sessionId = $dispatch.sessionId
+    sequence = $dispatch.sequence
+    rationale = $dispatch.rationale
+    dispatchRef = &$dispatch
+    pullRequestsOpened = {
+      $pr: NightShift.PullRequestOpened [
+        $pr->dispatch: NightShift.Dispatch = $dispatch
+      ]
+    } => {
+      number = $pr.number
+      summary = $pr.summary
+      recordedAt = $pr.recordedAt
+    }
+    questions = {
+      $q: NightShift.Question [
+        $q->dispatch: NightShift.Dispatch = $dispatch
+      ]
+    } => {
+      text = $q.text
+      recordedAt = $q.recordedAt
+      questionRef = &$q
+      answers = {
+        $a: NightShift.Answer [
+          $a->question: NightShift.Question = $q
+        ]
+      } => {
+        text = $a.text
+        recordedAt = $a.recordedAt
+      }
+    }
+    noChanges = {
+      $nc: NightShift.NoChangeFound [
+        $nc->dispatch: NightShift.Dispatch = $dispatch
+      ]
+    } => {
+      summary = $nc.summary
+      recordedAt = $nc.recordedAt
+    }
+  }
+}
+
+specification unansweredQuestions = ($practice: NightShift.Practice) {
+  $repository: NightShift.Repository [
+    $repository->practice: NightShift.Practice = $practice
+  ]
+  $sweep: NightShift.Sweep [
+    $sweep->repository: NightShift.Repository = $repository
+  ]
+  $consideration: NightShift.Consideration [
+    $consideration->sweep: NightShift.Sweep = $sweep
+  ]
+  $dispatch: NightShift.Dispatch [
+    $dispatch->consideration: NightShift.Consideration = $consideration
+  ]
+  $question: NightShift.Question [
+    $question->dispatch: NightShift.Dispatch = $dispatch
+    !E {
+      $answer: NightShift.Answer [
+        $answer->question: NightShift.Question = $question
+      ]
+    }
+  ]
+} => {
+  issueNumber = $consideration.issueNumber
+  issueTitle = $consideration.issueTitle
+  text = $question.text
+  askedAt = $question.recordedAt
+  branch = $dispatch.branch
+  questionRef = &$question
+  repositoryNames = {
+    $n: NightShift.RepositoryName [
+      $n->repository: NightShift.Repository = $repository
+      !E {
+        $next: NightShift.RepositoryName [
+          $next->prior: NightShift.RepositoryName = $n
+        ]
+      }
+    ]
+  } => {
+    name = $n.name
+  }
+}
+
+specification skippedIssues = ($practice: NightShift.Practice) {
+  $repository: NightShift.Repository [
+    $repository->practice: NightShift.Practice = $practice
+  ]
+  $sweep: NightShift.Sweep [
+    $sweep->repository: NightShift.Repository = $repository
+  ]
+  $consideration: NightShift.Consideration [
+    $consideration->sweep: NightShift.Sweep = $sweep
+  ]
+  $skip: NightShift.Skipped [
+    $skip->consideration: NightShift.Consideration = $consideration
+  ]
+} => {
+  issueNumber = $consideration.issueNumber
+  issueTitle = $consideration.issueTitle
+  rationale = $skip.rationale
+  startedAt = $sweep.startedAt
+  considerationRef = &$consideration
+  repositoryNames = {
+    $n: NightShift.RepositoryName [
+      $n->repository: NightShift.Repository = $repository
+      !E {
+        $next: NightShift.RepositoryName [
+          $next->prior: NightShift.RepositoryName = $n
+        ]
+      }
+    ]
+  } => {
+    name = $n.name
+  }
+}
+
+specification correctedVerdicts = ($practice: NightShift.Practice) {
+  $repository: NightShift.Repository [
+    $repository->practice: NightShift.Practice = $practice
+  ]
+  $sweep: NightShift.Sweep [
+    $sweep->repository: NightShift.Repository = $repository
+  ]
+  $consideration: NightShift.Consideration [
+    $consideration->sweep: NightShift.Sweep = $sweep
+  ]
+  $correction: NightShift.Correction [
+    $correction->corrected: NightShift.Consideration = $consideration
+  ]
+} => {
+  issueNumber = $consideration.issueNumber
+  detail = $correction.detail
+  recordedAt = $correction.recordedAt
+  discoveredIn = {
+    $source: NightShift.Consideration [
+      $source = $correction->discoveredIn: NightShift.Consideration
+    ]
+  } => {
+    issueNumber = $source.issueNumber
+  }
+  repositoryNames = {
+    $n: NightShift.RepositoryName [
+      $n->repository: NightShift.Repository = $repository
+      !E {
+        $next: NightShift.RepositoryName [
+          $next->prior: NightShift.RepositoryName = $n
+        ]
+      }
+    ]
+  } => {
+    name = $n.name
+  }
+}
+
+specification consideredIssuesWithMergedWork = ($practice: NightShift.Practice) {
+  $repository: NightShift.Repository [
+    $repository->practice: NightShift.Practice = $practice
+  ]
+  $sweep: NightShift.Sweep [
+    $sweep->repository: NightShift.Repository = $repository
+  ]
+  $consideration: NightShift.Consideration [
+    $consideration->sweep: NightShift.Sweep = $sweep
+  ]
+  $found: NightShift.MergedPullRequestFound [
+    $found->consideration: NightShift.Consideration = $consideration
+  ]
+} => {
+  issueNumber = $consideration.issueNumber
+  issueTitle = $consideration.issueTitle
+  mergedPullRequest = $found.number
+  startedAt = $sweep.startedAt
+  repositoryNames = {
+    $n: NightShift.RepositoryName [
+      $n->repository: NightShift.Repository = $repository
+      !E {
+        $next: NightShift.RepositoryName [
+          $next->prior: NightShift.RepositoryName = $n
+        ]
+      }
+    ]
+  } => {
+    name = $n.name
+  }
+}
+
+// ---- batch 3 of 4: actions ----
+
+action createPractice ($admin: Jinaga.User) {
+  singleUse $owner {
+    let $practice = new NightShift.Practice($owner);
+    new NightShift.Administrator($practice, $admin);
+  }
+}
+
+action deletePractice ($practice: NightShift.Practice) {
+  let $deletion = new NightShift.PracticeDeletion($practice, now());
+}
+
+action registerGitHubRepository ($practice: NightShift.Practice, $githubId: number, $name: string) {
+  let $repository = new NightShift.Repository($practice, uuid());
+  let $binding = new NightShift.GitHubRepository($repository, $githubId);
+  let $repositoryName = new NightShift.RepositoryName($repository, $name, []);
+}
+
+action renameRepository ($repository: NightShift.Repository, $name: string, $prior: NightShift.RepositoryName) {
+  let $repositoryName = new NightShift.RepositoryName($repository, $name, [$prior]);
+}
+
+action startSweep ($repository: NightShift.Repository, $headCommit: string) {
+  let $sweep = new NightShift.Sweep(now(), $headCommit, $repository);
+}
+
+action considerIssue ($sweep: NightShift.Sweep, $issueNumber: number, $issueTitle: string) {
+  let $consideration = new NightShift.Consideration($issueNumber, $issueTitle, $sweep);
+}
+
+action findOpenPullRequest ($consideration: NightShift.Consideration, $number: number) {
+  let $found = new NightShift.OpenPullRequestFound($number, $consideration);
+}
+
+action findMergedPullRequest ($consideration: NightShift.Consideration, $number: number) {
+  let $found = new NightShift.MergedPullRequestFound($number, $consideration);
+}
+
+action findClosedPullRequest ($consideration: NightShift.Consideration, $number: number) {
+  let $found = new NightShift.ClosedPullRequestFound($number, $consideration);
+}
+
+action findBranch ($consideration: NightShift.Consideration, $branch: string) {
+  let $found = new NightShift.BranchFound($branch, $consideration);
+}
+
+action findNoPriorWork ($consideration: NightShift.Consideration) {
+  let $found = new NightShift.NoPriorWorkFound($consideration);
+}
+
+action dispatchWork ($consideration: NightShift.Consideration, $branch: string, $sessionId: string, $sequence: number, $rationale: string) {
+  let $dispatch = new NightShift.Dispatch($branch, $sessionId, $sequence, $rationale, $consideration);
+}
+
+action skipIssue ($consideration: NightShift.Consideration, $rationale: string) {
+  let $skip = new NightShift.Skipped($rationale, $consideration);
+}
+
+action openPullRequest ($dispatch: NightShift.Dispatch, $number: number, $summary: string) {
+  let $pullRequest = new NightShift.PullRequestOpened($number, $summary, now(), $dispatch);
+}
+
+action raiseQuestion ($dispatch: NightShift.Dispatch, $text: string) {
+  let $question = new NightShift.Question($text, now(), $dispatch);
+}
+
+action findNoChange ($dispatch: NightShift.Dispatch, $summary: string) {
+  let $noChange = new NightShift.NoChangeFound($summary, now(), $dispatch);
+}
+
+action answerQuestion ($question: NightShift.Question, $text: string) {
+  let $answer = new NightShift.Answer($text, now(), $question);
+}
+
+action correctVerdict ($corrected: NightShift.Consideration, $detail: string) {
+  let $correction = new NightShift.Correction($detail, now(), $corrected, null);
+}
+
+action correctVerdictFromWork ($corrected: NightShift.Consideration, $discoveredIn: NightShift.Consideration, $detail: string) {
+  let $correction = new NightShift.Correction($detail, now(), $corrected, $discoveredIn);
+}
+
+// ---- batch 4 of 4: manifest ----
+//
+// Send this batch after `publish`, then publish again. Without it the
+// application has no routing, so nothing can discover it, and no argument
+// guidance, so nothing can drive it.
+
+manifest routing <<MD
+purpose: Record what an unattended night-shift agent did on each sweep of a
+  tracked repository's labelled issue queue — which issues it considered, what
+  prior work it found for each, what it dispatched or skipped, what came of it,
+  and how open questions were later answered or verdicts corrected.
+use_when: A night-shift session or a person wants to record or review a sweep of
+  labelled issues in a tracked repository — what prior work was found for an
+  issue, why it was skipped or dispatched, what a dispatched session produced,
+  an answer to a recorded question, or a correction to an earlier verdict. Also
+  covers registering a repository to track, and recording a rename. Does NOT
+  trigger on deciding what is currently available to work; the hosting platform
+  is the queue and the only authority on that.
+examples:
+  - Start a sweep of this repository's ready issues
+  - Track a new repository for the night shift
+  - That issue already had a merged pull request, so we verified instead of fixing
+  - Dispatched issue 14, second in the chain
+  - That issue produced no defect, only regression coverage
+  - That verdict was wrong, the pull request we credited was not the reason it passed
+  - What questions are still unanswered across all my repositories?
+  - Which issues did we skip last week and why?
+  - The repository was renamed
+MD
+
+manifest guide <<MD
+## Guide
+
+A **Practice** is one person's night-shift setup. It roots at a single-use owner, so administrators reach it through `practicesForAdministrator` rather than by owning it. One practice covers every repository tracked.
+
+A **Repository** is platform-neutral and carries a generated key as its identity. What binds it to a hosting platform is a successor — today only `GitHubRepository`, holding GitHub's numeric repository id. An Azure DevOps binding would be a sibling fact type on the same Repository, so nothing recorded beneath a sweep has a platform baked into its identity. The repository's **name** is a Mutable Property, superseded through `prior`, because a rename or transfer must not orphan history.
+
+Each run is a **Sweep** of one repository, stamped with the head commit it read. Every issue examined gets one **Consideration**. Issue numbers are scoped by ownership, so the same number in two repositories never collides.
+
+**Findings and decisions are fact types, not field values.** What the claim check turned up is recorded by creating the matching fact — `OpenPullRequestFound`, `MergedPullRequestFound`, `ClosedPullRequestFound`, `BranchFound`, or `NoPriorWorkFound`. What was decided is recorded the same way — a `Dispatch` means the issue was worked, a `Skipped` means it was passed over. There is no `finding` string and no `decision` string to compare against, because a specification cannot filter on a field value. It filters on structure, so every question the log is meant to answer is a join.
+
+The same holds for outcomes. A dispatch produces a `PullRequestOpened`, a `Question`, or a `NoChangeFound` — three types, not one type with a kind. `unansweredQuestions` finds `Question` facts with no `Answer` successor, which is a real structural filter rather than a string comparison the caller has to trust.
+
+Nothing is ever edited. A wrong conclusion is corrected by adding a `Correction` against the consideration it was recorded under, ideally with `correctVerdictFromWork` naming the consideration whose work turned up the disproof.
+
+Availability is never stored here. The hosting platform is the queue and the only authority on what is currently ready. This application records what was observed and decided, and when.
+MD
+
+manifest actions.createPractice <<MD
+when: Setting up night-shift tracking for the first time. One practice covers
+  every repository you track; check practicesForAdministrator first, because a
+  second call mints a second unrelated practice.
+args:
+  admin:
+    type: Jinaga.User
+    from: the caller's own identity — pass $me
+    required: true
+MD
+
+manifest actions.deletePractice <<MD
+when: Retiring a practice that was created by mistake or superseded. Rare —
+  check that it holds no repositories you still care about, because this hides
+  it from the entry point.
+args:
+  practice:
+    type: NightShift.Practice
+    from: the practice to retire
+    required: true
+MD
+
+manifest actions.registerGitHubRepository <<MD
+when: Adding a GitHub repository to the practice, once, before its first sweep.
+  Check repositoriesInPractice first so you do not register the same repository
+  twice.
+guide: >
+  Creates a platform-neutral Repository with a generated key, binds it to GitHub
+  by numeric repository id, and records its current name. The numeric id is what
+  survives a rename or a transfer; the name is a mutable property, not identity.
+  A future Azure DevOps repository is a sibling binding on the same neutral
+  Repository, so nothing recorded under a sweep has a platform baked into it.
+args:
+  practice:
+    type: NightShift.Practice
+    from: the practice to add the repository to
+    required: true
+  githubId:
+    type: number
+    from: GitHub's numeric repository id, from the id field of the repository API
+      response
+    required: true
+  name:
+    type: string
+    from: the current owner/name, such as acme/widgets
+    required: true
+MD
+
+manifest actions.renameRepository <<MD
+when: A tracked repository was renamed or transferred, so its owner/name changed.
+guide: >
+  Writes a new name that supersedes the prior one. Identity is unaffected —
+  every sweep, consideration and outcome stays attached. Query
+  repositoriesInPractice for the current name and pass its nameRef as prior. If
+  that query returns more than one current name, two writers raced; collapse the
+  fork with a console-level new NightShift.RepositoryName naming every leaf,
+  since this action takes only one.
+args:
+  repository:
+    type: NightShift.Repository
+    from: the repository being renamed
+    required: true
+  name:
+    type: string
+    from: the new owner/name
+    required: true
+  prior:
+    type: NightShift.RepositoryName
+    from: the current name being superseded — the nameRef from repositoriesInPractice
+    required: true
+MD
+
+manifest actions.startSweep <<MD
+when: A night-shift run begins for one repository, before any issue is examined.
+  One Sweep per repository per run.
+args:
+  repository:
+    type: NightShift.Repository
+    from: the repository being swept — query repositoriesInPractice and pass the
+      row's repositoryRef
+    required: true
+  headCommit:
+    type: string
+    from: the SHA of the default branch when the sweep started
+    required: true
+MD
+
+manifest actions.considerIssue <<MD
+when: An issue from the queue is about to be examined. Record this before
+  recording what was found.
+args:
+  sweep:
+    type: NightShift.Sweep
+    from: the sweep this consideration belongs to
+    required: true
+  issueNumber:
+    type: number
+    from: the issue number
+    required: true
+  issueTitle:
+    type: string
+    from: the issue title as read
+    required: true
+MD
+
+manifest actions.findOpenPullRequest <<MD
+when: The claim check found an open pull request referencing the issue, meaning
+  someone is already working it.
+args:
+  consideration:
+    type: NightShift.Consideration
+    from: the consideration this finding belongs to
+    required: true
+  number:
+    type: number
+    from: the pull request number found
+    required: true
+MD
+
+manifest actions.findMergedPullRequest <<MD
+when: The claim check found a merged pull request referencing the issue, meaning
+  a fix already landed and the job is verification rather than repair.
+args:
+  consideration:
+    type: NightShift.Consideration
+    from: the consideration this finding belongs to
+    required: true
+  number:
+    type: number
+    from: the pull request number found
+    required: true
+MD
+
+manifest actions.findClosedPullRequest <<MD
+when: The claim check found a closed but unmerged pull request, meaning an
+  attempt was abandoned and its reasoning is worth reading.
+args:
+  consideration:
+    type: NightShift.Consideration
+    from: the consideration this finding belongs to
+    required: true
+  number:
+    type: number
+    from: the pull request number found
+    required: true
+MD
+
+manifest actions.findBranch <<MD
+when: The claim check found a branch referencing the issue with no pull request
+  attached.
+args:
+  consideration:
+    type: NightShift.Consideration
+    from: the consideration this finding belongs to
+    required: true
+  branch:
+    type: string
+    from: the branch name found
+    required: true
+MD
+
+manifest actions.findNoPriorWork <<MD
+when: The claim check found nothing — no pull request and no branch — so the
+  issue is genuinely available.
+args:
+  consideration:
+    type: NightShift.Consideration
+    from: the consideration this finding belongs to
+    required: true
+MD
+
+manifest actions.dispatchWork <<MD
+when: A considered issue has been handed to a working session. Recording this IS
+  the decision to work it; there is no separate decision value.
+args:
+  consideration:
+    type: NightShift.Consideration
+    from: the consideration that led to this dispatch
+    required: true
+  branch:
+    type: string
+    from: the pattern the session's branch will match, such as
+      claude/issue-14-*, because the slug is the working session's to choose and
+      the dispatcher cannot know it. This is the only branch the log holds. No
+      fact records the branch a session actually pushed, so what ties a dispatch
+      to the work that came of it is the pull request number on openPullRequest.
+    required: true
+  sessionId:
+    type: string
+    from: the working session's identifier
+    required: true
+  sequence:
+    type: number
+    from: 1-based position in this sweep's ordering
+    required: true
+  rationale:
+    type: string
+    from: why this issue was worked, and why in this position — the ordering
+      argument belongs here
+    required: true
+MD
+
+manifest actions.skipIssue <<MD
+when: A considered issue was passed over. Recording this IS the decision to
+  skip; there is no separate decision value.
+args:
+  consideration:
+    type: NightShift.Consideration
+    from: the consideration being skipped
+    required: true
+  rationale:
+    type: string
+    from: why it was passed over
+    required: true
+MD
+
+manifest actions.openPullRequest <<MD
+when: A dispatched session produced a pull request.
+args:
+  dispatch:
+    type: NightShift.Dispatch
+    from: the dispatch this outcome belongs to
+    required: true
+  number:
+    type: number
+    from: the pull request number
+    required: true
+  summary:
+    type: string
+    from: what the pull request concluded, in a sentence or two
+    required: true
+MD
+
+manifest actions.raiseQuestion <<MD
+when: A dispatched session hit a blocker it could not settle and recorded a
+  question instead of guessing.
+args:
+  dispatch:
+    type: NightShift.Dispatch
+    from: the dispatch that raised the question
+    required: true
+  text:
+    type: string
+    from: the question as posed, including the candidate answers
+    required: true
+MD
+
+manifest actions.findNoChange <<MD
+when: A dispatched session concluded there was nothing to fix. A real result,
+  not a failure.
+args:
+  dispatch:
+    type: NightShift.Dispatch
+    from: the dispatch that reached this conclusion
+    required: true
+  summary:
+    type: string
+    from: what was tested and what established that nothing needed changing
+    required: true
+MD
+
+manifest actions.answerQuestion <<MD
+when: A recorded question gets an answer. This is what takes it off the
+  unansweredQuestions list.
+args:
+  question:
+    type: NightShift.Question
+    from: the question being answered — take questionRef from unansweredQuestions
+    required: true
+  text:
+    type: string
+    from: the answer
+    required: true
+MD
+
+manifest actions.correctVerdict <<MD
+when: An earlier conclusion about an issue turns out to have been wrong, and no
+  later piece of work is the source.
+args:
+  corrected:
+    type: NightShift.Consideration
+    from: the consideration whose verdict was wrong
+    required: true
+  detail:
+    type: string
+    from: what was wrong and what is true instead
+    required: true
+MD
+
+manifest actions.correctVerdictFromWork <<MD
+when: Work on one issue disproved a conclusion recorded about another. The most
+  valuable thing this log holds, because it is how the ordering and attribution
+  heuristics get better.
+args:
+  corrected:
+    type: NightShift.Consideration
+    from: the consideration whose verdict was wrong
+    required: true
+  discoveredIn:
+    type: NightShift.Consideration
+    from: the consideration whose work turned up the disproof
+    required: true
+  detail:
+    type: string
+    from: what was wrong and what is true instead
+    required: true
+MD
+
+manifest views.practicesForAdministrator <<MD
+when: Find the practice the caller administers, with the repositories in it and
+  their current names. The entry point — run this first.
+args:
+  user:
+    type: Jinaga.User
+    from: the caller's own identity — pass $me
+    required: true
+MD
+
+manifest views.repositoriesInPractice <<MD
+when: List the repositories tracked by a practice, with each one's current name
+  and its GitHub binding. Run this to get a repositoryRef before starting a
+  sweep.
+args:
+  practice:
+    type: NightShift.Practice
+    from: the practice to list repositories for
+    required: true
+MD
+
+manifest views.sweepsInRepository <<MD
+when: List the runs recorded for one repository.
+args:
+  repository:
+    type: NightShift.Repository
+    from: the repository to list sweeps for
+    required: true
+MD
+
+manifest views.considerationsInSweep <<MD
+when: Review one run in full — every issue examined, what was found, what was
+  dispatched or skipped, and what came of it.
+args:
+  sweep:
+    type: NightShift.Sweep
+    from: the sweep to review
+    required: true
+MD
+
+manifest views.unansweredQuestions <<MD
+when: List questions that have no answer yet. This is how a blocking question
+  stays visible after its queue label has been cleared. Filtered by structure,
+  so every row really is an open question.
+args:
+  practice:
+    type: NightShift.Practice
+    from: the practice to check
+    required: true
+MD
+
+manifest views.skippedIssues <<MD
+when: List issues that were examined and passed over, with the reason. The
+  evidence that the claim rule is doing its job.
+args:
+  practice:
+    type: NightShift.Practice
+    from: the practice to check
+    required: true
+MD
+
+manifest views.correctedVerdicts <<MD
+when: List conclusions that a later run disproved, and where the disproof came
+  from. Read this before trusting an ordering or attribution heuristic.
+args:
+  practice:
+    type: NightShift.Practice
+    from: the practice to check
+    required: true
+MD
+
+manifest views.consideredIssuesWithMergedWork <<MD
+when: List issues where a merged pull request was found during the claim check —
+  the stale-label cases the queue label alone would have missed.
+args:
+  practice:
+    type: NightShift.Practice
+    from: the practice to check
+    required: true
+MD
