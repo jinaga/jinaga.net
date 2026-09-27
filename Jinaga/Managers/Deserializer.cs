@@ -275,7 +275,7 @@ namespace Jinaga.Managers
                     var elements = projectedResults
                         .Select(p => p.Projection)
                         .ToImmutableList();
-                    var obj = WatchedObservableCollection.Create(elementType, product.GetAnchor(), path, emitter.WatchContext);
+                    var obj = WatchedObservableCollection.Create(elementType, emitter.WatchContext.AnchorOf(parentPath, product), path, emitter.WatchContext);
                     var children = new ProjectedResultChildCollection(
                         parameterName,
                         projectedResults

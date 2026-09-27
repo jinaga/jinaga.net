@@ -102,6 +102,50 @@ namespace Jinaga.Observers
             }
         }
 
+        public FactReferenceTuple AnchorOf(string path, Product product)
+        {
+            return ResultSubsetAt(path).Of(product);
+        }
+
+        private Subset GivenSubset()
+        {
+            return specification.Givens
+                .Select(g => g.Label.Name)
+                .Aggregate(Subset.Empty, (subset, name) => subset.Add(name));
+        }
+
+        /// <summary>
+        /// The subset of labels that identify a row at <paramref name="path"/>:
+        /// the given labels, plus the unknowns of the matches at that path and at
+        /// every path above it. This is the subset the inverter assigns to the same
+        /// path, so an inverse's ResultSubset and this agree by construction.
+        /// </summary>
+        private Subset ResultSubsetAt(string path)
+        {
+            var subset = Inverter.AddUnknowns(GivenSubset(), specification.Matches);
+            var projection = specification.Projection;
+            if (string.IsNullOrEmpty(path))
+            {
+                return subset;
+            }
+
+            foreach (var name in path.Split('.'))
+            {
+                var collectionProjection = Inverter.CollectionsOf(projection, "")
+                    .Where(pair => pair.Item1 == name)
+                    .Select(pair => pair.Item2)
+                    .FirstOrDefault();
+                if (collectionProjection == null)
+                {
+                    throw new ArgumentException($"The specification has no collection at the path {path}.");
+                }
+
+                subset = Inverter.AddUnknowns(subset, collectionProjection.Matches);
+                projection = collectionProjection.Projection;
+            }
+            return subset;
+        }
+
         public void Stop()
         {
             logger.LogInformation("Observer stopping for {Specification}", specification.ToDescriptiveString());
@@ -120,10 +164,8 @@ namespace Jinaga.Observers
         {
             var results = await factManager.Read(givenTuple, specification, specification.Projection.Type, this, cancellationToken).ConfigureAwait(false);
             AddSpecificationListeners();
-            var givenSubset = specification.Givens
-                .Select(g => g.Label.Name)
-                .Aggregate(Subset.Empty, (subset, name) => subset.Add(name));
-            var resultSubset = Inverter.AddUnknowns(givenSubset, specification.Matches);
+            var givenSubset = GivenSubset();
+            var resultSubset = ResultSubsetAt("");
 
             await SynchronizeNotifyAdded(results, givenSubset, resultSubset, specification.Projection).ConfigureAwait(false);
         }
