@@ -1,0 +1,36 @@
+{"violates": ["scoped"],
+ "text":
+ "(p1: Employee) {\n    u1: Office [\n        u1 = p1->office: Office\n        !E {\n            e1: Revoked [\n                e1->revoked: Revoked = u1\n            ]\n        }\n        !E {\n            e2: Revoked [\n                e2->revoked: Revoked = e1\n            ]\n        }\n    ]\n} => u1\n",
+ "specification":
+ {"projection": {"type": "fact", "label": "u1"},
+  "matches":
+  [{"unknown": {"type": "Office", "name": "u1"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [{"predecessorType": "Office", "name": "office"}],
+      "rolesLeft": [],
+      "labelRight": "p1"},
+     {"type": "existential",
+      "matches":
+      [{"unknown": {"type": "Revoked", "name": "e1"},
+        "conditions":
+        [{"type": "path",
+          "rolesRight": [],
+          "rolesLeft": [{"predecessorType": "Revoked", "name": "revoked"}],
+          "labelRight": "u1"}]}],
+      "exists": false},
+     {"type": "existential",
+      "matches":
+      [{"unknown": {"type": "Revoked", "name": "e2"},
+        "conditions":
+        [{"type": "path",
+          "rolesRight": [],
+          "rolesLeft": [{"predecessorType": "Revoked", "name": "revoked"}],
+          "labelRight": "e1"}]}],
+      "exists": false}]}],
+  "given": [{"label": {"type": "Employee", "name": "p1"}, "conditions": []}]},
+ "source": "SpecificationParser.parseMatches discards a nested match's labels",
+ "name": "existential-joins-a-sibling-conditions-match",
+ "expected": {"wellFormed": false},
+ "description":
+ "The second existential condition joins the match the first declares. That match is not in scope outside its own condition."}

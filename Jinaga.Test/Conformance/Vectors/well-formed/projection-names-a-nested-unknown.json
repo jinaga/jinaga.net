@@ -1,0 +1,27 @@
+{"violates": ["projected"],
+ "text":
+ "(p1: Employee) {\n    u1: Office [\n        u1 = p1->office: Office\n        !E {\n            e: Revoked [\n                e->revoked: Revoked = u1\n            ]\n        }\n    ]\n} => e\n",
+ "specification":
+ {"projection": {"type": "fact", "label": "e"},
+  "matches":
+  [{"unknown": {"type": "Office", "name": "u1"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [{"predecessorType": "Office", "name": "office"}],
+      "rolesLeft": [],
+      "labelRight": "p1"},
+     {"type": "existential",
+      "matches":
+      [{"unknown": {"type": "Revoked", "name": "e"},
+        "conditions":
+        [{"type": "path",
+          "rolesRight": [],
+          "rolesLeft": [{"predecessorType": "Revoked", "name": "revoked"}],
+          "labelRight": "u1"}]}],
+      "exists": false}]}],
+  "given": [{"label": {"type": "Employee", "name": "p1"}, "conditions": []}]},
+ "source": "the theorem's Projected condition",
+ "name": "projection-names-a-nested-unknown",
+ "expected": {"wellFormed": false},
+ "description":
+ "The projection names a match declared inside an existential condition, which is not in scope outside it."}

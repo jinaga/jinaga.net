@@ -1,0 +1,17 @@
+{"violates": ["named"],
+ "text":
+ "(p1: Employee) {\n    p1: Office [\n        p1 = p1->office: Office\n    ]\n} => p1\n",
+ "specification":
+ {"projection": {"type": "fact", "label": "p1"},
+  "matches":
+  [{"unknown": {"type": "Office", "name": "p1"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [{"predecessorType": "Office", "name": "office"}],
+      "rolesLeft": [],
+      "labelRight": "p1"}]}],
+  "given": [{"label": {"type": "Employee", "name": "p1"}, "conditions": []}]},
+ "source": "SpecificationParser.parseMatch: The name ... has already been used",
+ "name": "unknown-shadows-a-given",
+ "expected": {"wellFormed": false},
+ "description": "A match declares a label that is already a given."}

@@ -11,11 +11,52 @@ namespace Jinaga
 {
     public class AuthorizationRuleSpecification : AuthorizationRule
     {
-        private Specification specification;
+        private readonly Specification specification;
+        private readonly string givenName;
+        private readonly string label;
+        private readonly Specification head;
+        private readonly Specification? tail;
 
+        /// <summary>
+        /// A rule is written once and run on every save of the type it governs, so everything its
+        /// evaluation relies on is checked here, where the rule is written.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">The specification cannot be a rule.</exception>
         public AuthorizationRuleSpecification(Specification specification)
         {
+            var wellFormed = WellFormedSpecification.Check(
+                specification, "The specification of an authorization rule");
+            if (specification.Givens.Count != 1)
+            {
+                throw new InvalidOperationException(
+                    "The specification of an authorization rule must be given a single fact.");
+            }
+            var given = specification.Givens[0];
+            if (given.ExistentialConditions.Any())
+            {
+                throw new InvalidOperationException(
+                    "The given of an authorization rule cannot have existential conditions.");
+            }
+            if (!(specification.Projection is SimpleProjection simpleProjection))
+            {
+                throw new InvalidOperationException(
+                    "The specification of an authorization rule must project a single user.");
+            }
+
+            // The head is deterministic, and runs on the graph being authorized.
+            // The tail seeks successors, and runs on the store.
+            var (head, tail) = wellFormed.SplitBeforeFirstSuccessor();
+            if (head == null)
+            {
+                throw new InvalidOperationException(
+                    "The specification of an authorization rule must start with a predecessor join. Otherwise, it is unsatisfiable.");
+            }
+
             this.specification = specification;
+            this.givenName = given.Label.Name;
+            this.label = simpleProjection.Tag;
+            this.head = head;
+            this.tail = tail;
         }
 
         public override string Describe(string type)
@@ -46,33 +87,8 @@ namespace Jinaga
                 return false;
             }
 
-            if (specification.Givens.Count != 1)
-            {
-                throw new InvalidOperationException(
-                    "The specification of an authorization rule must be given a single fact.");
-            }
-            var given = specification.Givens[0];
-            if (given.ExistentialConditions.Any())
-            {
-                throw new InvalidOperationException(
-                    "The given of an authorization rule cannot have existential conditions.");
-            }
-            if (!(specification.Projection is SimpleProjection simpleProjection))
-            {
-                throw new InvalidOperationException(
-                    "The specification of an authorization rule must project a single user.");
-            }
-            var label = simpleProjection.Tag;
-
-            var (head, tail) = specification.SplitBeforeFirstSuccessor();
-            if (head == null)
-            {
-                throw new InvalidOperationException(
-                    "The specification of an authorization rule must start with a predecessor join. Otherwise, it is unsatisfiable.");
-            }
-
             var headProducts = head.Execute(
-                FactReferenceTuple.Empty.Add(given.Label.Name, reference), graph);
+                FactReferenceTuple.Empty.Add(givenName, reference), graph);
 
             var candidates = ImmutableList<FactReference>.Empty;
             if (tail == null)

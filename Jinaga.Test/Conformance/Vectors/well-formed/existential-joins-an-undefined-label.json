@@ -1,0 +1,27 @@
+{"violates": ["scoped"],
+ "text":
+ "(p1: Employee) {\n    u1: Office [\n        u1 = p1->office: Office\n        !E {\n            e: Revoked [\n                e->revoked: Revoked = nosuch\n            ]\n        }\n    ]\n} => u1\n",
+ "specification":
+ {"projection": {"type": "fact", "label": "u1"},
+  "matches":
+  [{"unknown": {"type": "Office", "name": "u1"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [{"predecessorType": "Office", "name": "office"}],
+      "rolesLeft": [],
+      "labelRight": "p1"},
+     {"type": "existential",
+      "matches":
+      [{"unknown": {"type": "Revoked", "name": "e"},
+        "conditions":
+        [{"type": "path",
+          "rolesRight": [],
+          "rolesLeft": [{"predecessorType": "Revoked", "name": "revoked"}],
+          "labelRight": "nosuch"}]}],
+      "exists": false}]}],
+  "given": [{"label": {"type": "Employee", "name": "p1"}, "conditions": []}]},
+ "source": "SpecificationParser.parsePathCondition, in a nested match",
+ "name": "existential-joins-an-undefined-label",
+ "expected": {"wellFormed": false},
+ "description":
+ "A path condition inside an existential condition joins a label nothing declares."}

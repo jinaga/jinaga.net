@@ -1,0 +1,21 @@
+{"violates": [],
+ "text":
+ "(p1: Employee) {\n    u1: Office [\n        u1 = p1->office: Office\n    ]\n} => {\n    employee = p1\n    office = u1\n}\n",
+ "specification":
+ {"projection":
+  {"type": "composite",
+   "components":
+   [{"type": "fact", "name": "employee", "label": "p1"},
+    {"type": "fact", "name": "office", "label": "u1"}]},
+  "matches":
+  [{"unknown": {"type": "Office", "name": "u1"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [{"predecessorType": "Office", "name": "office"}],
+      "rolesLeft": [],
+      "labelRight": "p1"}]}],
+  "given": [{"label": {"type": "Employee", "name": "p1"}, "conditions": []}]},
+ "source": "the baseline",
+ "name": "composite-projection",
+ "expected": {"wellFormed": true},
+ "description": "A composite projection names a given and a top-level unknown."}

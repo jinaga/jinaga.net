@@ -1,0 +1,23 @@
+{"violates": ["scoped"],
+ "text":
+ "(p1: Employee) {\n    u1: Office [\n        u1 = u2->office: Office\n    ]\n    u2: Office [\n        u2 = p1->office: Office\n    ]\n} => u1\n",
+ "specification":
+ {"projection": {"type": "fact", "label": "u1"},
+  "matches":
+  [{"unknown": {"type": "Office", "name": "u1"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [{"predecessorType": "Office", "name": "office"}],
+      "rolesLeft": [],
+      "labelRight": "u2"}]},
+   {"unknown": {"type": "Office", "name": "u2"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [{"predecessorType": "Office", "name": "office"}],
+      "rolesLeft": [],
+      "labelRight": "p1"}]}],
+  "given": [{"label": {"type": "Employee", "name": "p1"}, "conditions": []}]},
+ "source": "scope is lexical: a match sees only the matches before it",
+ "name": "path-joins-a-later-match",
+ "expected": {"wellFormed": false},
+ "description": "A match joins a label that a later match declares."}

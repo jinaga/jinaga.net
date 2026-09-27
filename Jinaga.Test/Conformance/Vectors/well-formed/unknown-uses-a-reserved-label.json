@@ -1,0 +1,18 @@
+{"violates": ["named"],
+ "text":
+ "(p1: Employee) {\n    __s0: Office [\n        __s0 = p1->office: Office\n    ]\n} => __s0\n",
+ "specification":
+ {"projection": {"type": "fact", "label": "__s0"},
+  "matches":
+  [{"unknown": {"type": "Office", "name": "__s0"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [{"predecessorType": "Office", "name": "office"}],
+      "rolesLeft": [],
+      "labelRight": "p1"}]}],
+  "given": [{"label": {"type": "Employee", "name": "p1"}, "conditions": []}]},
+ "source": "the reserved-label rule",
+ "name": "unknown-uses-a-reserved-label",
+ "expected": {"wellFormed": false},
+ "description":
+ "A match declares a label that begins with `__`, which the split reserves for the facts it hands from the head to the tail."}

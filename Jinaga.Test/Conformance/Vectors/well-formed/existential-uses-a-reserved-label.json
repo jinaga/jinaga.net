@@ -1,0 +1,27 @@
+{"violates": ["named"],
+ "text":
+ "(p1: Employee) {\n    u1: Office [\n        u1 = p1->office: Office\n        !E {\n            __s1: Revoked [\n                __s1->revoked: Revoked = u1\n            ]\n        }\n    ]\n} => u1\n",
+ "specification":
+ {"projection": {"type": "fact", "label": "u1"},
+  "matches":
+  [{"unknown": {"type": "Office", "name": "u1"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [{"predecessorType": "Office", "name": "office"}],
+      "rolesLeft": [],
+      "labelRight": "p1"},
+     {"type": "existential",
+      "matches":
+      [{"unknown": {"type": "Revoked", "name": "__s1"},
+        "conditions":
+        [{"type": "path",
+          "rolesRight": [],
+          "rolesLeft": [{"predecessorType": "Revoked", "name": "revoked"}],
+          "labelRight": "u1"}]}],
+      "exists": false}]}],
+  "given": [{"label": {"type": "Employee", "name": "p1"}, "conditions": []}]},
+ "source": "the reserved-label rule",
+ "name": "existential-uses-a-reserved-label",
+ "expected": {"wellFormed": false},
+ "description":
+ "A match inside an existential condition declares a label that begins with `__`."}

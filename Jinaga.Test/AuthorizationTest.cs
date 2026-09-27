@@ -349,11 +349,11 @@ public class AuthorizationTest
     }
 
     [Fact]
-    public async Task ARuleThatStartsWithASuccessorIsUnsatisfiable()
+    public void ARuleThatStartsWithASuccessorIsRefusedWhereItIsWritten()
     {
-        // The fact being authorized is new, so it has no successors to start from. JinagaJS
-        // rejects such a rule as malformed rather than refusing every fact quietly.
-        var j = JinagaTest.Create(options =>
+        // The fact being authorized is new, so it has no successors to start from. The rule is
+        // refused when it is built, rather than on every write or by refusing every fact quietly.
+        Action building = () => JinagaTest.Create(options =>
         {
             options.User = Stranger;
             options.Authorization = a => a
@@ -366,11 +366,43 @@ public class AuthorizationTest
                     select user);
         });
 
-        Func<Task> creating = async () => await j.Fact(new Model.Site(Owner, "site"));
-
-        await creating.Should().ThrowAsync<InvalidOperationException>()
+        building.Should().Throw<InvalidOperationException>()
             .WithMessage("*must start with a predecessor join*");
     }
+    [Fact]
+    public void ARuleThatDeclaresAReservedLabelIsRefusedWhereItIsWritten()
+    {
+        // Labels that begin with "__" belong to the split, which names the facts it hands from
+        // the head to the tail. A rule that declares one could collide with them.
+        Action building = () => JinagaTest.Create(options =>
+        {
+            options.User = Owner;
+            options.Authorization = a => a
+                .Type<Model.Content>((content, facts) =>
+                    from __site in facts.OfType<Model.Site>()
+                    where __site == content.site
+                    from creator in facts.OfType<User>()
+                    where creator == __site.creator
+                    select creator);
+        });
+
+        building.Should().Throw<InvalidOperationException>()
+            .WithMessage("*The name '__site' is reserved*");
+    }
+
+    [Fact]
+    public void ARuleWhoseProjectionNamesNoDeclaredLabelIsRefusedWhereItIsWritten()
+    {
+        // The model builder cannot produce this shape, but a specification can be built by hand.
+        Jinaga.Projections.Specification specification = Given<Model.Content>.Match(content => content.site.creator);
+        var broken = specification.WithProjection(new Jinaga.Projections.SimpleProjection("nobody", typeof(User)));
+
+        Action building = () => new AuthorizationRuleSpecification(broken);
+
+        building.Should().Throw<InvalidOperationException>()
+            .WithMessage("The specification of an authorization rule is not valid. The projection names the label 'nobody', which has not been defined.");
+    }
+
     [Fact]
     public async Task SeveralPredecessorConditionsOnOneMatchMustAllHold()
     {

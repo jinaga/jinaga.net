@@ -1,0 +1,18 @@
+{"violates": ["scoped"],
+ "text":
+ "(p1: Employee) {\n    u1: Office [\n        u1 = nosuch->office: Office\n    ]\n} => u1\n",
+ "specification":
+ {"projection": {"type": "fact", "label": "u1"},
+  "matches":
+  [{"unknown": {"type": "Office", "name": "u1"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [{"predecessorType": "Office", "name": "office"}],
+      "rolesLeft": [],
+      "labelRight": "nosuch"}]}],
+  "given": [{"label": {"type": "Employee", "name": "p1"}, "conditions": []}]},
+ "source":
+ "SpecificationParser.parsePathCondition: The label ... has not been defined",
+ "name": "path-joins-an-undefined-label",
+ "expected": {"wellFormed": false},
+ "description": "A path condition joins a label nothing declares."}

@@ -15,7 +15,7 @@ public class SplitSpecificationTest
     {
         Specification specification = Given<Model.Site>.Match(site => site);
 
-        var (head, tail) = specification.SplitBeforeFirstSuccessor();
+        var (head, tail) = Split(specification);
 
         head.Should().BeSameAs(specification);
         tail.Should().BeNull();
@@ -26,7 +26,7 @@ public class SplitSpecificationTest
     {
         Specification specification = Given<Model.Content>.Match(content => content.site.creator);
 
-        var (head, tail) = specification.SplitBeforeFirstSuccessor();
+        var (head, tail) = Split(specification);
 
         head.Should().BeSameAs(specification);
         tail.Should().BeNull();
@@ -38,7 +38,7 @@ public class SplitSpecificationTest
         Specification specification = Given<Model.Site>.Match((site, facts) =>
             facts.OfType<Model.Content>(content => content.site == site));
 
-        var (head, tail) = specification.SplitBeforeFirstSuccessor();
+        var (head, tail) = Split(specification);
 
         head.Should().BeNull();
         tail.Should().BeSameAs(specification);
@@ -54,7 +54,7 @@ public class SplitSpecificationTest
             where guest.site == site
             select guest);
 
-        var (head, tail) = specification.SplitBeforeFirstSuccessor();
+        var (head, tail) = Split(specification);
 
         Describe(head).Should().Be(
             """
@@ -82,7 +82,7 @@ public class SplitSpecificationTest
         Specification specification = Given<Model.Content>.Match((content, facts) =>
             facts.OfType<Model.GuestBlogger>(guest => guest.site == content.site));
 
-        var (head, tail) = specification.SplitBeforeFirstSuccessor();
+        var (head, tail) = Split(specification);
 
         Describe(head).Should().Be(
             """
@@ -113,7 +113,7 @@ public class SplitSpecificationTest
             where !facts.OfType<Model.GuestBloggerRevoked>(revoked => revoked.invitation == guest).Any()
             select guest);
 
-        var (head, tail) = specification.SplitBeforeFirstSuccessor();
+        var (head, tail) = Split(specification);
 
         Describe(head).Should().Be(
             """
@@ -151,7 +151,7 @@ public class SplitSpecificationTest
             where !facts.OfType<Model.GuestBloggerRevoked>(revoked => revoked.invitation == guest).Any()
             select guest);
 
-        var (head, tail) = specification.SplitBeforeFirstSuccessor();
+        var (head, tail) = Split(specification);
 
         Describe(head).Should().Be(
             """
@@ -184,7 +184,7 @@ public class SplitSpecificationTest
         Specification specification = Given<Model.Content>.Match((s1, facts) =>
             facts.OfType<Model.GuestBlogger>(guest => guest.site == s1.site));
 
-        var (head, tail) = specification.SplitBeforeFirstSuccessor();
+        var (head, tail) = Split(specification);
 
         Describe(head).Should().Be(
             """
@@ -216,7 +216,7 @@ public class SplitSpecificationTest
             where user == comment.content.site.creator
             select user);
 
-        var (head, tail) = specification.SplitBeforeFirstSuccessor();
+        var (head, tail) = Split(specification);
 
         head.Should().BeSameAs(specification);
         tail.Should().BeNull();
@@ -234,7 +234,7 @@ public class SplitSpecificationTest
             where guest.site == content.site
             select creator);
 
-        var (head, tail) = specification.SplitBeforeFirstSuccessor();
+        var (head, tail) = Split(specification);
 
         Describe(head).Should().Be(
             """
@@ -258,6 +258,9 @@ public class SplitSpecificationTest
 
             """);
     }
+
+    private static (Specification? head, Specification? tail) Split(Specification specification) =>
+        WellFormedSpecification.Check(specification, "The specification").SplitBeforeFirstSuccessor();
 
     private static string Describe(Specification specification)
     {

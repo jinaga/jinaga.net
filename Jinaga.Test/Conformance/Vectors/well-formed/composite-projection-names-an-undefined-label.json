@@ -1,0 +1,22 @@
+{"violates": ["projected"],
+ "text":
+ "(p1: Employee) {\n    u1: Office [\n        u1 = p1->office: Office\n    ]\n} => {\n    office = u1\n    other = nosuch\n}\n",
+ "specification":
+ {"projection":
+  {"type": "composite",
+   "components":
+   [{"type": "fact", "name": "office", "label": "u1"},
+    {"type": "fact", "name": "other", "label": "nosuch"}]},
+  "matches":
+  [{"unknown": {"type": "Office", "name": "u1"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [{"predecessorType": "Office", "name": "office"}],
+      "rolesLeft": [],
+      "labelRight": "p1"}]}],
+  "given": [{"label": {"type": "Employee", "name": "p1"}, "conditions": []}]},
+ "source": "docs/contracts.md: the gap",
+ "name": "composite-projection-names-an-undefined-label",
+ "expected": {"wellFormed": false},
+ "description":
+ "One component of a composite projection names a label nothing declares."}
