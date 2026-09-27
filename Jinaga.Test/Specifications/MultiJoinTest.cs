@@ -146,6 +146,35 @@ public class MultiJoinTest
                 record = record
             }
 
+            """,
+            // The self-inverse, for a given that is saved after the watch starts.
+            """
+            (semester: University.Semester) {
+                offering: University.Offering [
+                    offering->semester: University.Semester = semester
+                ]
+                record: SearchIndex.Record [
+                    record->offering: University.Offering = offering
+                ]
+                location: University.Offering.Location [
+                    location->offering: University.Offering = offering
+                    !E {
+                        next: University.Offering.Location [
+                            next->prior: University.Offering.Location = location
+                        ]
+                    }
+                    !E {
+                        update: SearchIndex.Record.LocationUpdate [
+                            update->record: SearchIndex.Record = record
+                            update->location: University.Offering.Location = location
+                        ]
+                    }
+                ]
+            } => {
+                location = location
+                record = record
+            }
+
             """
         ]);
     }

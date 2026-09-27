@@ -58,7 +58,47 @@ namespace Jinaga.Pipelines
                 "");
             var inverses = InvertMatches(matches, labels, context);
             inverses = inverses.AddRange(InvertProjection(matches, context));
+            var selfInverse = CreateSelfInverse(specification, givenSubset, resultSubset);
+            if (selfInverse != null)
+            {
+                inverses = inverses.Add(selfInverse);
+            }
             return inverses;
+        }
+
+        /// <summary>
+        /// An observer can be started on a given that is not yet in the store.
+        /// The inverses above fire only for the specification's own unknowns, so
+        /// a row that is reachable only by walking the given -- its predecessors,
+        /// or other facts joined through one of them -- already exists when the
+        /// given is saved and no inverse ever runs for it. Answer that with an
+        /// inverse whose given is the specification's own given: when that fact
+        /// arrives, the observer re-reads the whole specification through the
+        /// ordinary inverse path, filtered to its own given tuple.
+        /// </summary>
+        private static Inverse? CreateSelfInverse(Specification specification, Subset givenSubset, Subset resultSubset)
+        {
+            // Restricted to a single given to keep the inverse set finite.
+            if (specification.Givens.Count != 1)
+            {
+                return null;
+            }
+
+            // A given carrying existential conditions is not satisfied by its own
+            // arrival, so re-reading on that arrival would be wrong.
+            if (specification.Givens.Single().ExistentialConditions.Any())
+            {
+                return null;
+            }
+
+            return new Inverse(
+                specification,
+                givenSubset,
+                InverseOperation.Add,
+                resultSubset,
+                "",
+                givenSubset
+            );
         }
 
         private static ImmutableList<Inverse> InvertMatches(ImmutableList<Match> matches, IEnumerable<Label> labels, InverterContext context)
