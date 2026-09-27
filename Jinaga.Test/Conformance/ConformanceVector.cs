@@ -39,7 +39,8 @@ public class ConformanceVector
 
     public static ConformanceVector Load(string kind, string name)
     {
-        var json = JsonDocument.Parse(File.ReadAllText(Path.Combine(DirectoryOf(kind), name + ".json")));
+        // The clone owns its own memory, so the document can return its pooled buffers.
+        using var json = JsonDocument.Parse(File.ReadAllText(Path.Combine(DirectoryOf(kind), name + ".json")));
         return new ConformanceVector(name, json.RootElement.Clone());
     }
 
