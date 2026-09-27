@@ -660,8 +660,9 @@ namespace Jinaga.Test.Pipelines
 
             var inverses = specification.ComputeInverses();
 
-            // A self-inverse per combination of givens would not stay finite, so
-            // a specification with two givens carries none.
+            // A listener registers under one given's type, and
+            // ObservableSource.AddSpecificationListener throws on any other
+            // count, so a specification with two givens carries no self-inverse.
             inverses.Should().NotContain(inverse => inverse.InverseSpecification == specification);
             inverses.Select(i => i.InverseSpecification.ToString().ReplaceLineEndings())
                 .Should().BeEquivalentTo(new[] {
@@ -710,9 +711,9 @@ namespace Jinaga.Test.Pipelines
 
             var inverses = specification.ComputeInverses();
 
-            // The given's own condition is not satisfied by its arrival, so
-            // re-reading the specification then could deliver rows that the
-            // condition excludes.
+            // Whether such a given belongs to the specification turns on facts
+            // besides the given, so its arrival is the wrong trigger for a
+            // re-read and it carries no self-inverse.
             inverses.Should().NotContain(inverse => inverse.InverseSpecification == specification);
         }
 

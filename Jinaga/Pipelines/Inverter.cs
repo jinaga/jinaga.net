@@ -78,14 +78,20 @@ namespace Jinaga.Pipelines
         /// </summary>
         private static Inverse? CreateSelfInverse(Specification specification, Subset givenSubset, Subset resultSubset)
         {
-            // Restricted to a single given to keep the inverse set finite.
+            // ObservableSource.AddSpecificationListener throws unless a
+            // specification has exactly one given, and keys its listener by that
+            // given's type, so a self-inverse over two givens has nowhere to
+            // register. jinaga.js draws the same line to keep the inverse set
+            // finite.
             if (specification.Givens.Count != 1)
             {
                 return null;
             }
 
-            // A given carrying existential conditions is not satisfied by its own
-            // arrival, so re-reading on that arrival would be wrong.
+            // Where the given carries conditions of its own, whether it belongs
+            // to the specification at all turns on facts besides the given, and
+            // OnResult filters an inverse's products by given tuple alone. Its
+            // save is therefore the wrong trigger for a whole re-read.
             if (specification.Givens.Single().ExistentialConditions.Any())
             {
                 return null;
