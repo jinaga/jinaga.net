@@ -324,11 +324,17 @@ namespace Jinaga.Observers
             foreach (var product in products)
             {
                 var resultTuple = resultSubset.Of(product);
-                if (removalsByProduct.TryGetValue(resultTuple, out var removal))
+                // Retire the row before awaiting its removal function. That function
+                // is the caller's, so it may yield, and anything the observer does
+                // while it is in flight must already see the row as gone. Claiming it
+                // under the lock is also what stops two concurrent removals of one row
+                // from both invoking it.
+                Func<Task>? removal = null;
+                lock (this)
                 {
-                    await removal().ConfigureAwait(false);
-                    lock (this)
+                    if (removalsByProduct.TryGetValue(resultTuple, out var claimed))
                     {
+                        removal = claimed;
                         removalsByProduct = removalsByProduct.Remove(resultTuple);
                         // The row is no longer delivered, so a later product that
                         // satisfies the specification again is not a duplicate.
@@ -343,6 +349,10 @@ namespace Jinaga.Observers
                             .Where(handler => !AnchorIsWithinRow(handler.Anchor, resultTuple))
                             .ToImmutableList();
                     }
+                }
+                if (removal != null)
+                {
+                    await removal().ConfigureAwait(false);
                 }
             }
         }
