@@ -1,0 +1,100 @@
+{"text":
+ "(p1: Link) {\n    u1: Owner [\n        u1->workspace: Workspace = p1->item: Item->workspace: Workspace\n        E {\n            u2: Owner [\n                u2->workspace: Workspace = p1->parent: Item->workspace: Workspace\n                u2->user: Jinaga.User = u1->user: Jinaga.User\n            ]\n        }\n    ]\n    u3: Jinaga.User [\n        u3 = u1->user: Jinaga.User\n    ]\n} => u3\n",
+ "specification":
+ {"projection": {"type": "fact", "label": "u3"},
+  "matches":
+  [{"unknown": {"type": "Owner", "name": "u1"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight":
+      [{"predecessorType": "Item", "name": "item"},
+       {"predecessorType": "Workspace", "name": "workspace"}],
+      "rolesLeft": [{"predecessorType": "Workspace", "name": "workspace"}],
+      "labelRight": "p1"},
+     {"type": "existential",
+      "matches":
+      [{"unknown": {"type": "Owner", "name": "u2"},
+        "conditions":
+        [{"type": "path",
+          "rolesRight":
+          [{"predecessorType": "Item", "name": "parent"},
+           {"predecessorType": "Workspace", "name": "workspace"}],
+          "rolesLeft": [{"predecessorType": "Workspace", "name": "workspace"}],
+          "labelRight": "p1"},
+         {"type": "path",
+          "rolesRight": [{"predecessorType": "Jinaga.User", "name": "user"}],
+          "rolesLeft": [{"predecessorType": "Jinaga.User", "name": "user"}],
+          "labelRight": "u1"}]}],
+      "exists": true}]},
+   {"unknown": {"type": "Jinaga.User", "name": "u3"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [{"predecessorType": "Jinaga.User", "name": "user"}],
+      "rolesLeft": [],
+      "labelRight": "u1"}]}],
+  "given": [{"label": {"type": "Link", "name": "p1"}, "conditions": []}]},
+ "source": "#297, formulation D of #231",
+ "name": "existential-reads-the-given",
+ "expected":
+ {"tailText":
+  "(__s0: Workspace, __s1: Workspace) {\n    u1: Owner [\n        u1->workspace: Workspace = __s0\n        E {\n            u2: Owner [\n                u2->workspace: Workspace = __s1\n                u2->user: Jinaga.User = u1->user: Jinaga.User\n            ]\n        }\n    ]\n    u3: Jinaga.User [\n        u3 = u1->user: Jinaga.User\n    ]\n} => u3\n",
+  "tailReadsGiven": false,
+  "tail":
+  {"projection": {"type": "fact", "label": "u3"},
+   "matches":
+   [{"unknown": {"type": "Owner", "name": "u1"},
+     "conditions":
+     [{"type": "path",
+       "rolesRight": [],
+       "rolesLeft": [{"predecessorType": "Workspace", "name": "workspace"}],
+       "labelRight": "__s0"},
+      {"type": "existential",
+       "matches":
+       [{"unknown": {"type": "Owner", "name": "u2"},
+         "conditions":
+         [{"type": "path",
+           "rolesRight": [],
+           "rolesLeft": [{"predecessorType": "Workspace", "name": "workspace"}],
+           "labelRight": "__s1"},
+          {"type": "path",
+           "rolesRight": [{"predecessorType": "Jinaga.User", "name": "user"}],
+           "rolesLeft": [{"predecessorType": "Jinaga.User", "name": "user"}],
+           "labelRight": "u1"}]}],
+       "exists": true}]},
+    {"unknown": {"type": "Jinaga.User", "name": "u3"},
+     "conditions":
+     [{"type": "path",
+       "rolesRight": [{"predecessorType": "Jinaga.User", "name": "user"}],
+       "rolesLeft": [],
+       "labelRight": "u1"}]}],
+   "given":
+   [{"label": {"type": "Workspace", "name": "__s0"}, "conditions": []},
+    {"label": {"type": "Workspace", "name": "__s1"}, "conditions": []}]},
+  "headText":
+  "(p1: Link) {\n    __s0: Workspace [\n        __s0 = p1->item: Item->workspace: Workspace\n    ]\n    __s1: Workspace [\n        __s1 = p1->parent: Item->workspace: Workspace\n    ]\n} => {\n    __s0 = __s0\n    __s1 = __s1\n}\n",
+  "head":
+  {"projection":
+   {"type": "composite",
+    "components":
+    [{"type": "fact", "name": "__s0", "label": "__s0"},
+     {"type": "fact", "name": "__s1", "label": "__s1"}]},
+   "matches":
+   [{"unknown": {"type": "Workspace", "name": "__s0"},
+     "conditions":
+     [{"type": "path",
+       "rolesRight":
+       [{"predecessorType": "Item", "name": "item"},
+        {"predecessorType": "Workspace", "name": "workspace"}],
+       "rolesLeft": [],
+       "labelRight": "p1"}]},
+    {"unknown": {"type": "Workspace", "name": "__s1"},
+     "conditions":
+     [{"type": "path",
+       "rolesRight":
+       [{"predecessorType": "Item", "name": "parent"},
+        {"predecessorType": "Workspace", "name": "workspace"}],
+       "rolesLeft": [],
+       "labelRight": "p1"}]}],
+   "given": [{"label": {"type": "Link", "name": "p1"}, "conditions": []}]}},
+ "description":
+ "The tail's existential condition walks from the given fact, so the given is also a given of the tail."}

@@ -1,0 +1,65 @@
+{"text":
+ "(p1: Comment) {\n    u1: Jinaga.User [\n        u1 = p1->author: Jinaga.User\n        u1 = p1->post: Post->blog: Blog->creator: Jinaga.User\n    ]\n    u2: Blog [\n        u2->creator: Jinaga.User = u1\n    ]\n} => u2\n",
+ "specification":
+ {"projection": {"type": "fact", "label": "u2"},
+  "matches":
+  [{"unknown": {"type": "Jinaga.User", "name": "u1"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [{"predecessorType": "Jinaga.User", "name": "author"}],
+      "rolesLeft": [],
+      "labelRight": "p1"},
+     {"type": "path",
+      "rolesRight":
+      [{"predecessorType": "Post", "name": "post"},
+       {"predecessorType": "Blog", "name": "blog"},
+       {"predecessorType": "Jinaga.User", "name": "creator"}],
+      "rolesLeft": [],
+      "labelRight": "p1"}]},
+   {"unknown": {"type": "Blog", "name": "u2"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [],
+      "rolesLeft": [{"predecessorType": "Jinaga.User", "name": "creator"}],
+      "labelRight": "u1"}]}],
+  "given": [{"label": {"type": "Comment", "name": "p1"}, "conditions": []}]},
+ "source": "#299",
+ "name": "predecessor-match-of-two-conditions-then-successor",
+ "expected":
+ {"tailText":
+  "(u1: Jinaga.User) {\n    u2: Blog [\n        u2->creator: Jinaga.User = u1\n    ]\n} => u2\n",
+  "tailReadsGiven": false,
+  "tail":
+  {"projection": {"type": "fact", "label": "u2"},
+   "matches":
+   [{"unknown": {"type": "Blog", "name": "u2"},
+     "conditions":
+     [{"type": "path",
+       "rolesRight": [],
+       "rolesLeft": [{"predecessorType": "Jinaga.User", "name": "creator"}],
+       "labelRight": "u1"}]}],
+   "given":
+   [{"label": {"type": "Jinaga.User", "name": "u1"}, "conditions": []}]},
+  "headText":
+  "(p1: Comment) {\n    u1: Jinaga.User [\n        u1 = p1->author: Jinaga.User\n        u1 = p1->post: Post->blog: Blog->creator: Jinaga.User\n    ]\n} => {\n    u1 = u1\n}\n",
+  "head":
+  {"projection":
+   {"type": "composite",
+    "components": [{"type": "fact", "name": "u1", "label": "u1"}]},
+   "matches":
+   [{"unknown": {"type": "Jinaga.User", "name": "u1"},
+     "conditions":
+     [{"type": "path",
+       "rolesRight": [{"predecessorType": "Jinaga.User", "name": "author"}],
+       "rolesLeft": [],
+       "labelRight": "p1"},
+      {"type": "path",
+       "rolesRight":
+       [{"predecessorType": "Post", "name": "post"},
+        {"predecessorType": "Blog", "name": "blog"},
+        {"predecessorType": "Jinaga.User", "name": "creator"}],
+       "rolesLeft": [],
+       "labelRight": "p1"}]}],
+   "given": [{"label": {"type": "Comment", "name": "p1"}, "conditions": []}]}},
+ "description":
+ "A predecessor-only match of two conditions, then a successor match. The split falls after the first match, which keeps both conditions."}

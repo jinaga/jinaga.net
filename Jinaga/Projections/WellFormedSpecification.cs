@@ -128,114 +128,112 @@ namespace Jinaga.Projections
         }
 
         /// <summary>
-        /// Splits the specification before the first match that seeks successors.
+        /// Splits the specification before its first match that the graph cannot run: one that
+        /// seeks successors or has an existential condition. That match is the pivot.
         ///
-        /// The head contains only predecessor joins, so it can run on a fact graph that has not
-        /// been saved. The tail runs on the store, given the labels of the head that it needs.
-        /// Either may be null: no head means the specification starts with a successor join, and
-        /// no tail means the whole specification is deterministic.
+        /// The head runs the matches before the pivot on the graph being authorized. It also
+        /// walks, on the tail's behalf, every predecessor path the tail takes from a label in scope
+        /// at the pivot: a given, or an unknown of a match before it. Each such walk becomes a head
+        /// match binding a split label, and the tail joins to that label instead. The walk may sit
+        /// in the pivot, in a later match, or in an existential condition at any depth, but not
+        /// beneath a negative existential condition. There the tail would test the facts the walk
+        /// reaches one at a time, and a solution that one of them excludes would still be admitted
+        /// by another.
+        ///
+        /// The tail runs on the store, given the labels in scope at the pivot that it uses, and the
+        /// head projects them. The tail is null when the graph can run the whole specification.
+        ///
+        /// This is <c>splitBeforeFirstSuccessor</c> in jinaga-spec (<c>JinagaSpec/Hoist.lean</c>),
+        /// where <c>split_correct</c> proves that the head and tail return the specification's
+        /// results for every well-formed specification.
         /// </summary>
-        public (Specification? head, Specification? tail) SplitBeforeFirstSuccessor()
+        public (Specification head, Specification? tail) SplitBeforeFirstSuccessor()
         {
             var specification = Specification;
-
-            // A match is deterministic when every one of its path conditions walks only
-            // predecessors. Several such conditions intersect, which the graph can still run.
-            var pivotIndex = specification.Matches.FindIndex(match =>
-                match.PathConditions.Count == 0 ||
-                match.ExistentialConditions.Count != 0 ||
-                match.PathConditions.Any(condition => condition.RolesLeft.Count != 0));
-
+            var pivotIndex = specification.Matches.FindIndex(match => !IsDeterministic(match));
             if (pivotIndex == -1)
             {
-                // No match seeks successors, so the whole specification is deterministic.
                 return (specification, null);
             }
 
-            var pivot = specification.Matches[pivotIndex];
-            if (pivot.PathConditions.Count != 1)
-            {
-                return (null, specification);
-            }
+            var before = specification.Matches.GetRange(0, pivotIndex);
+            var scope = specification.Givens.Select(given => given.Label.Name)
+                .Concat(before.Select(match => match.Unknown.Name))
+                .ToImmutableHashSet();
+            var hoisted = new List<Match>();
+            var tailMatches = HoistMatches(
+                specification.Matches.GetRange(pivotIndex, specification.Matches.Count - pivotIndex),
+                true, scope, hoisted);
+            var headMatches = before.AddRange(hoisted);
 
-            var condition = pivot.PathConditions[0];
-            var unknownsAsGivens = specification.Matches
-                .Select(match => new SpecificationGiven(match.Unknown, ImmutableList<ExistentialCondition>.Empty));
+            var used = tailMatches.SelectMany(LabelsInMatch)
+                .Concat(LabelsInProjection(specification.Projection))
+                .ToImmutableHashSet();
+            var tailGivens = specification.Givens
+                .Concat(headMatches.Select(match =>
+                    new SpecificationGiven(match.Unknown, ImmutableList<ExistentialCondition>.Empty)))
+                .Where(given => used.Contains(given.Label.Name))
+                .ToImmutableList();
 
-            if (condition.RolesRight.Count == 0)
-            {
-                // The path contains only successor joins. Put the entire match in the tail.
-                if (pivotIndex == 0)
-                {
-                    return (null, specification);
-                }
-
-                var headMatches = specification.Matches.GetRange(0, pivotIndex);
-                var tailMatches = specification.Matches.GetRange(pivotIndex, specification.Matches.Count - pivotIndex);
-                var head = new Specification(
-                    ReferencedLabels(headMatches, CompoundProjection.Empty, specification.Givens),
-                    headMatches,
-                    CompoundProjection.Empty);
-                var tail = new Specification(
-                    ReferencedLabels(tailMatches, specification.Projection, specification.Givens.AddRange(unknownsAsGivens)),
-                    tailMatches,
-                    specification.Projection);
-                return (head, tail);
-            }
-            else
-            {
-                // The path contains both predecessor and successor joins. Split it at a new label.
-                var usedNames = specification.Givens.Select(g => g.Label.Name)
-                    .Concat(specification.Matches.Select(m => m.Unknown.Name))
-                    .ToImmutableHashSet();
-                var splitName = Enumerable.Range(1, int.MaxValue)
-                    .Select(i => $"s{i}")
-                    .First(name => !usedNames.Contains(name));
-                var splitLabel = new Label(splitName, condition.RolesRight.Last().TargetType);
-
-                var headMatch = new Match(
-                    splitLabel,
-                    ImmutableList.Create(new PathCondition(
-                        ImmutableList<Role>.Empty, condition.LabelRight, condition.RolesRight)),
-                    ImmutableList<ExistentialCondition>.Empty);
-                var tailMatch = new Match(
-                    pivot.Unknown,
-                    ImmutableList.Create(new PathCondition(
-                        condition.RolesLeft, splitLabel.Name, ImmutableList<Role>.Empty)),
-                    pivot.ExistentialConditions);
-
-                var headMatches = specification.Matches.GetRange(0, pivotIndex).Add(headMatch);
-                var tailMatches = specification.Matches.GetRange(pivotIndex + 1, specification.Matches.Count - pivotIndex - 1)
-                    .Insert(0, tailMatch);
-                var allLabels = specification.Givens
-                    .AddRange(unknownsAsGivens)
-                    .Add(new SpecificationGiven(splitLabel, ImmutableList<ExistentialCondition>.Empty));
-                var head = new Specification(
-                    ReferencedLabels(headMatches, CompoundProjection.Empty, specification.Givens),
-                    headMatches,
-                    CompoundProjection.Empty);
-                var tail = new Specification(
-                    ReferencedLabels(tailMatches, specification.Projection, allLabels),
-                    tailMatches,
-                    specification.Projection);
-                return (head, tail);
-            }
+            var head = new Specification(
+                specification.Givens,
+                headMatches,
+                new CompoundProjection(
+                    tailGivens.ToImmutableDictionary(
+                        given => given.Label.Name,
+                        given => (Projection)new SimpleProjection(given.Label.Name, typeof(object))),
+                    typeof(object)));
+            var tail = new Specification(tailGivens, tailMatches, specification.Projection);
+            return (head, tail);
         }
 
-        private static ImmutableList<SpecificationGiven> ReferencedLabels(ImmutableList<Match> matches, Projection projection, ImmutableList<SpecificationGiven> labels)
+        // The graph can run a match that walks only predecessors, along one or more paths.
+        private static bool IsDeterministic(Match match) =>
+            match.PathConditions.Count > 0 &&
+            match.ExistentialConditions.Count == 0 &&
+            match.PathConditions.All(condition => condition.RolesLeft.Count == 0);
+
+        // Rewrite matches for the tail, moving each predecessor walk the head can take into
+        // `hoisted`. `positive` is false beneath a negative existential condition, and stays false
+        // however many conditions are nested inside it.
+        private static ImmutableList<Match> HoistMatches(
+            ImmutableList<Match> matches, bool positive, ImmutableHashSet<string> scope, List<Match> hoisted)
         {
-            // A label the projection uses has to be carried in even when no match mentions it,
-            // or a tail projecting a label bound in the head would have nothing to project.
-            var definedLabels = matches.Select(match => match.Unknown.Name).ToImmutableHashSet();
-            var referencedLabels = matches
-                .SelectMany(LabelsInMatch)
-                .Concat(LabelsInProjection(projection))
-                .Where(label => !definedLabels.Contains(label))
-                .ToImmutableHashSet();
-            return labels
-                .Where(given => referencedLabels.Contains(given.Label.Name))
+            return matches
+                .Select(match => new Match(
+                    match.Unknown,
+                    match.PathConditions
+                        .Select(condition => HoistPath(condition, positive, scope, hoisted))
+                        .ToImmutableList(),
+                    match.ExistentialConditions
+                        .Select(condition => new ExistentialCondition(
+                            condition.Exists,
+                            HoistMatches(condition.Matches, positive && condition.Exists, scope, hoisted)))
+                        .ToImmutableList()))
                 .ToImmutableList();
         }
+
+        private static PathCondition HoistPath(
+            PathCondition condition, bool positive, ImmutableHashSet<string> scope, List<Match> hoisted)
+        {
+            if (!positive || condition.RolesRight.Count == 0 || !scope.Contains(condition.LabelRight))
+            {
+                return condition;
+            }
+            var label = new Label(SplitLabel(hoisted.Count), condition.RolesRight.Last().TargetType);
+            hoisted.Add(new Match(
+                label,
+                ImmutableList.Create(new PathCondition(ImmutableList<Role>.Empty, condition.LabelRight, condition.RolesRight)),
+                ImmutableList<ExistentialCondition>.Empty));
+            return new PathCondition(condition.RolesLeft, label.Name, ImmutableList<Role>.Empty);
+        }
+
+        /// <summary>
+        /// The label the split gives the fact the head walks to for its <paramref name="index"/>th
+        /// walk. It begins with <see cref="ReservedLabelPrefix"/>, so it cannot collide with a
+        /// label a well-formed specification declares.
+        /// </summary>
+        private static string SplitLabel(int index) => $"{ReservedLabelPrefix}s{index}";
 
         private static IEnumerable<string> LabelsInMatch(Match match)
         {

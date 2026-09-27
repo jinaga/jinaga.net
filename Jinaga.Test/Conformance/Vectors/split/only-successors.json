@@ -1,0 +1,38 @@
+{"text":
+ "(p1: Company) {\n    u1: Office [\n        u1->company: Company = p1\n    ]\n} => u1\n",
+ "specification":
+ {"projection": {"type": "fact", "label": "u1"},
+  "matches":
+  [{"unknown": {"type": "Office", "name": "u1"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [],
+      "rolesLeft": [{"predecessorType": "Company", "name": "company"}],
+      "labelRight": "p1"}]}],
+  "given": [{"label": {"type": "Company", "name": "p1"}, "conditions": []}]},
+ "source":
+ "splitSpecificationSpec: should put all in tail if only successor joins",
+ "name": "only-successors",
+ "expected":
+ {"tailText":
+  "(p1: Company) {\n    u1: Office [\n        u1->company: Company = p1\n    ]\n} => u1\n",
+  "tailReadsGiven": true,
+  "tail":
+  {"projection": {"type": "fact", "label": "u1"},
+   "matches":
+   [{"unknown": {"type": "Office", "name": "u1"},
+     "conditions":
+     [{"type": "path",
+       "rolesRight": [],
+       "rolesLeft": [{"predecessorType": "Company", "name": "company"}],
+       "labelRight": "p1"}]}],
+   "given": [{"label": {"type": "Company", "name": "p1"}, "conditions": []}]},
+  "headText": "(p1: Company) {\n} => {\n    p1 = p1\n}\n",
+  "head":
+  {"projection":
+   {"type": "composite",
+    "components": [{"type": "fact", "name": "p1", "label": "p1"}]},
+   "matches": [],
+   "given": [{"label": {"type": "Company", "name": "p1"}, "conditions": []}]}},
+ "description":
+ "The first match walks successors of the given, so the head has no matches and the tail is the whole specification."}

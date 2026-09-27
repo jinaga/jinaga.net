@@ -367,7 +367,7 @@ public class AuthorizationTest
         });
 
         building.Should().Throw<InvalidOperationException>()
-            .WithMessage("*must start with a predecessor join*");
+            .WithMessage("*reads 'site' from the store: it seeks successors of 'site'*");
     }
     [Fact]
     public void ARuleThatDeclaresAReservedLabelIsRefusedWhereItIsWritten()

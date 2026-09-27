@@ -1,0 +1,55 @@
+{"text":
+ "(p1: Company) {\n    u1: Office [\n        u1->company: Company = p1\n        !E {\n            u2: Ban [\n                u2->office: Office = p1->company: Company\n            ]\n        }\n    ]\n} => u1\n",
+ "specification":
+ {"projection": {"type": "fact", "label": "u1"},
+  "matches":
+  [{"unknown": {"type": "Office", "name": "u1"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [],
+      "rolesLeft": [{"predecessorType": "Company", "name": "company"}],
+      "labelRight": "p1"},
+     {"type": "existential",
+      "matches":
+      [{"unknown": {"type": "Ban", "name": "u2"},
+        "conditions":
+        [{"type": "path",
+          "rolesRight": [{"predecessorType": "Company", "name": "company"}],
+          "rolesLeft": [{"predecessorType": "Office", "name": "office"}],
+          "labelRight": "p1"}]}],
+      "exists": false}]}],
+  "given": [{"label": {"type": "Company", "name": "p1"}, "conditions": []}]},
+ "source": "the polarity experiment: hoist's limit",
+ "name": "existential-negation-reads-the-given",
+ "expected":
+ {"tailText":
+  "(p1: Company) {\n    u1: Office [\n        u1->company: Company = p1\n        !E {\n            u2: Ban [\n                u2->office: Office = p1->company: Company\n            ]\n        }\n    ]\n} => u1\n",
+  "tailReadsGiven": true,
+  "tail":
+  {"projection": {"type": "fact", "label": "u1"},
+   "matches":
+   [{"unknown": {"type": "Office", "name": "u1"},
+     "conditions":
+     [{"type": "path",
+       "rolesRight": [],
+       "rolesLeft": [{"predecessorType": "Company", "name": "company"}],
+       "labelRight": "p1"},
+      {"type": "existential",
+       "matches":
+       [{"unknown": {"type": "Ban", "name": "u2"},
+         "conditions":
+         [{"type": "path",
+           "rolesRight": [{"predecessorType": "Company", "name": "company"}],
+           "rolesLeft": [{"predecessorType": "Office", "name": "office"}],
+           "labelRight": "p1"}]}],
+       "exists": false}]}],
+   "given": [{"label": {"type": "Company", "name": "p1"}, "conditions": []}]},
+  "headText": "(p1: Company) {\n} => {\n    p1 = p1\n}\n",
+  "head":
+  {"projection":
+   {"type": "composite",
+    "components": [{"type": "fact", "name": "p1", "label": "p1"}]},
+   "matches": [],
+   "given": [{"label": {"type": "Company", "name": "p1"}, "conditions": []}]}},
+ "description":
+ "The pivot's NEGATIVE existential condition walks predecessors of the given. Hoisting only ever moves a positive-polarity walk into the head (docs/findings.md): this one stays, so the given stays a tail given, and the rule is refused exactly as it was without hoisting."}

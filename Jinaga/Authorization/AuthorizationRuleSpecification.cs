@@ -46,14 +46,25 @@ namespace Jinaga
             // The head is deterministic, and runs on the graph being authorized.
             // The tail seeks successors, and runs on the store.
             var (head, tail) = wellFormed.SplitBeforeFirstSuccessor();
-            if (head == null)
+
+            // A rule runs while its fact is being authorized, before that fact is saved, so a
+            // tail given that fact would read nothing and refuse every write. The split moves
+            // every predecessor walk from the fact into the head where it soundly can, so what
+            // remains is a successor walk from the fact, or a predecessor walk beneath a negative
+            // existential condition.
+            var name = given.Label.Name;
+            if (tail != null && tail.Givens.Any(tailGiven => tailGiven.Label.Name == name))
             {
+                var type = given.Label.Type;
                 throw new InvalidOperationException(
-                    "The specification of an authorization rule must start with a predecessor join. Otherwise, it is unsatisfiable.");
+                    $"The specification of an authorization rule for {type} reads '{name}' from the store: " +
+                    $"it seeks successors of '{name}', or walks its predecessors inside a negative existential condition. " +
+                    $"'{name}' is the {type} being authorized, which is not yet in the store when the rule runs, so the rule could never admit anyone. " +
+                    $"Reach what the rule needs by walking predecessors of '{name}' outside any negative existential condition.");
             }
 
             this.specification = specification;
-            this.givenName = given.Label.Name;
+            this.givenName = name;
             this.label = simpleProjection.Tag;
             this.head = head;
             this.tail = tail;

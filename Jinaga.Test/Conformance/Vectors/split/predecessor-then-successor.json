@@ -1,0 +1,51 @@
+{"text":
+ "(p1: Employee) {\n    u1: Office [\n        u1 = p1->office: Office\n    ]\n    u2: President [\n        u2->office: Office = u1\n    ]\n} => u2\n",
+ "specification":
+ {"projection": {"type": "fact", "label": "u2"},
+  "matches":
+  [{"unknown": {"type": "Office", "name": "u1"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [{"predecessorType": "Office", "name": "office"}],
+      "rolesLeft": [],
+      "labelRight": "p1"}]},
+   {"unknown": {"type": "President", "name": "u2"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [],
+      "rolesLeft": [{"predecessorType": "Office", "name": "office"}],
+      "labelRight": "u1"}]}],
+  "given": [{"label": {"type": "Employee", "name": "p1"}, "conditions": []}]},
+ "source":
+ "splitSpecificationSpec: should split if predecessor and then successor",
+ "name": "predecessor-then-successor",
+ "expected":
+ {"tailText":
+  "(u1: Office) {\n    u2: President [\n        u2->office: Office = u1\n    ]\n} => u2\n",
+  "tailReadsGiven": false,
+  "tail":
+  {"projection": {"type": "fact", "label": "u2"},
+   "matches":
+   [{"unknown": {"type": "President", "name": "u2"},
+     "conditions":
+     [{"type": "path",
+       "rolesRight": [],
+       "rolesLeft": [{"predecessorType": "Office", "name": "office"}],
+       "labelRight": "u1"}]}],
+   "given": [{"label": {"type": "Office", "name": "u1"}, "conditions": []}]},
+  "headText":
+  "(p1: Employee) {\n    u1: Office [\n        u1 = p1->office: Office\n    ]\n} => {\n    u1 = u1\n}\n",
+  "head":
+  {"projection":
+   {"type": "composite",
+    "components": [{"type": "fact", "name": "u1", "label": "u1"}]},
+   "matches":
+   [{"unknown": {"type": "Office", "name": "u1"},
+     "conditions":
+     [{"type": "path",
+       "rolesRight": [{"predecessorType": "Office", "name": "office"}],
+       "rolesLeft": [],
+       "labelRight": "p1"}]}],
+   "given": [{"label": {"type": "Employee", "name": "p1"}, "conditions": []}]}},
+ "description":
+ "A predecessor match, then a match that seeks successors of it. The pivot joins directly to a label the head binds."}

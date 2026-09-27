@@ -1,0 +1,88 @@
+{"text":
+ "(p1: Link) {\n    u1: Workspace [\n        u1 = p1->item: Item->workspace: Workspace\n    ]\n    u2: Owner [\n        u2->workspace: Workspace = u1\n        u2->workspace: Workspace = p1->parent: Item->workspace: Workspace\n    ]\n    u3: Jinaga.User [\n        u3 = u2->user: Jinaga.User\n    ]\n} => u3\n",
+ "specification":
+ {"projection": {"type": "fact", "label": "u3"},
+  "matches":
+  [{"unknown": {"type": "Workspace", "name": "u1"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight":
+      [{"predecessorType": "Item", "name": "item"},
+       {"predecessorType": "Workspace", "name": "workspace"}],
+      "rolesLeft": [],
+      "labelRight": "p1"}]},
+   {"unknown": {"type": "Owner", "name": "u2"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [],
+      "rolesLeft": [{"predecessorType": "Workspace", "name": "workspace"}],
+      "labelRight": "u1"},
+     {"type": "path",
+      "rolesRight":
+      [{"predecessorType": "Item", "name": "parent"},
+       {"predecessorType": "Workspace", "name": "workspace"}],
+      "rolesLeft": [{"predecessorType": "Workspace", "name": "workspace"}],
+      "labelRight": "p1"}]},
+   {"unknown": {"type": "Jinaga.User", "name": "u3"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [{"predecessorType": "Jinaga.User", "name": "user"}],
+      "rolesLeft": [],
+      "labelRight": "u2"}]}],
+  "given": [{"label": {"type": "Link", "name": "p1"}, "conditions": []}]},
+ "source": "#231, formulation C",
+ "name": "several-paths-one-reuses-a-head-label",
+ "expected":
+ {"tailText":
+  "(u1: Workspace, __s0: Workspace) {\n    u2: Owner [\n        u2->workspace: Workspace = u1\n        u2->workspace: Workspace = __s0\n    ]\n    u3: Jinaga.User [\n        u3 = u2->user: Jinaga.User\n    ]\n} => u3\n",
+  "tailReadsGiven": false,
+  "tail":
+  {"projection": {"type": "fact", "label": "u3"},
+   "matches":
+   [{"unknown": {"type": "Owner", "name": "u2"},
+     "conditions":
+     [{"type": "path",
+       "rolesRight": [],
+       "rolesLeft": [{"predecessorType": "Workspace", "name": "workspace"}],
+       "labelRight": "u1"},
+      {"type": "path",
+       "rolesRight": [],
+       "rolesLeft": [{"predecessorType": "Workspace", "name": "workspace"}],
+       "labelRight": "__s0"}]},
+    {"unknown": {"type": "Jinaga.User", "name": "u3"},
+     "conditions":
+     [{"type": "path",
+       "rolesRight": [{"predecessorType": "Jinaga.User", "name": "user"}],
+       "rolesLeft": [],
+       "labelRight": "u2"}]}],
+   "given":
+   [{"label": {"type": "Workspace", "name": "u1"}, "conditions": []},
+    {"label": {"type": "Workspace", "name": "__s0"}, "conditions": []}]},
+  "headText":
+  "(p1: Link) {\n    u1: Workspace [\n        u1 = p1->item: Item->workspace: Workspace\n    ]\n    __s0: Workspace [\n        __s0 = p1->parent: Item->workspace: Workspace\n    ]\n} => {\n    __s0 = __s0\n    u1 = u1\n}\n",
+  "head":
+  {"projection":
+   {"type": "composite",
+    "components":
+    [{"type": "fact", "name": "u1", "label": "u1"},
+     {"type": "fact", "name": "__s0", "label": "__s0"}]},
+   "matches":
+   [{"unknown": {"type": "Workspace", "name": "u1"},
+     "conditions":
+     [{"type": "path",
+       "rolesRight":
+       [{"predecessorType": "Item", "name": "item"},
+        {"predecessorType": "Workspace", "name": "workspace"}],
+       "rolesLeft": [],
+       "labelRight": "p1"}]},
+    {"unknown": {"type": "Workspace", "name": "__s0"},
+     "conditions":
+     [{"type": "path",
+       "rolesRight":
+       [{"predecessorType": "Item", "name": "parent"},
+        {"predecessorType": "Workspace", "name": "workspace"}],
+       "rolesLeft": [],
+       "labelRight": "p1"}]}],
+   "given": [{"label": {"type": "Link", "name": "p1"}, "conditions": []}]}},
+ "description":
+ "Walk one endpoint's workspace first, then join the Owner to the other. Only the second condition needs a split label."}
