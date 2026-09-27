@@ -367,6 +367,78 @@ namespace Jinaga.Test
             officeRepository.Items.Should().ContainSingle().Which.Should().BeEquivalentTo(newOffice);
         }
 
+        [Fact]
+        public async Task ReopenedOfficeIsRemovedWhenClosedAgain()
+        {
+            var company = await j.Fact(new Company("Contoso"));
+            var office = await j.Fact(new Office(company, new City("Dallas")));
+
+            var officeObserver = j.Watch(openOfficesInCompany, company, async o =>
+            {
+                int id = await officeRepository.Insert(o);
+                return async () =>
+                {
+                    await officeRepository.Delete(id);
+                };
+            });
+            await officeObserver.Loaded;
+            officeRepository.Items.Should().ContainSingle();
+
+            var closure = await j.Fact(new OfficeClosure(office, DateTime.Now));
+            officeRepository.Items.Should().BeEmpty();
+
+            await j.Fact(new OfficeReopening(closure, DateTime.Now));
+            officeRepository.Items.Should().ContainSingle();
+
+            await j.Fact(new OfficeClosure(office, DateTime.Now.AddDays(1)));
+            officeObserver.Stop();
+
+            officeRepository.Items.Should().BeEmpty();
+        }
+
+        [Fact]
+        public async Task SecondWitnessDoesNotDeliverTheRowTwice()
+        {
+            var company = await j.Fact(new Company("Contoso"));
+            var office = await j.Fact(new Office(company, new City("Dallas")));
+            await j.Fact(new OfficeName(office, "First", new OfficeName[0]));
+
+            var officeObserver = j.Watch(namedOfficesInCompany, company, async o =>
+            {
+                int id = await officeRepository.Insert(o);
+                return async () =>
+                {
+                    await officeRepository.Delete(id);
+                };
+            });
+            await officeObserver.Loaded;
+            officeRepository.Items.Should().ContainSingle();
+
+            await j.Fact(new OfficeName(office, "Second", new OfficeName[0]));
+            officeObserver.Stop();
+
+            officeRepository.Items.Should().ContainSingle();
+        }
+
+        private static Specification<Company, Office> openOfficesInCompany = Given<Company>.Match((company, facts) =>
+            facts.OfType<Office>()
+                .Where(office => office.company == company)
+                .Where(office => !facts.OfType<OfficeClosure>()
+                    .Where(closure => closure.office == office)
+                    .Where(closure => !facts.OfType<OfficeReopening>()
+                        .Where(reopening => reopening.officeClosure == closure)
+                        .Any())
+                    .Any())
+        );
+
+        private static Specification<Company, Office> namedOfficesInCompany = Given<Company>.Match((company, facts) =>
+            facts.OfType<Office>()
+                .Where(office => office.company == company)
+                .Where(office => facts.OfType<OfficeName>()
+                    .Where(name => name.office == office)
+                    .Any())
+        );
+
         private static Specification<Company, Office> officesInCompany = Given<Company>.Match((company, facts) =>
             from office in facts.OfType<Office>()
             where office.company == company

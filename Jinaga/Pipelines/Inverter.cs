@@ -296,7 +296,7 @@ namespace Jinaga.Pipelines
             ).ToImmutableList();
         }
 
-        private static Subset AddUnknowns(Subset initialSubset, ImmutableList<Match> matches)
+        internal static Subset AddUnknowns(Subset initialSubset, ImmutableList<Match> matches)
         {
             return matches.Aggregate(
                 initialSubset,
@@ -304,7 +304,7 @@ namespace Jinaga.Pipelines
             );
         }
 
-        private static IEnumerable<(string, CollectionProjection)> CollectionsOf(Projection projection, string name)
+        internal static IEnumerable<(string, CollectionProjection)> CollectionsOf(Projection projection, string name)
         {
             if (projection is CollectionProjection collectionProjection)
             {
