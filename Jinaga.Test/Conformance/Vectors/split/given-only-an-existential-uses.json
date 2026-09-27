@@ -1,0 +1,76 @@
+{"text":
+ "(p1: Post, p2: Jinaga.User) {\n    u1: Blog [\n        u1 = p1->blog: Blog\n    ]\n    u2: Post [\n        u2->blog: Blog = u1\n        !E {\n            u3: Ban [\n                u3->user: Jinaga.User = p2\n            ]\n        }\n    ]\n} => u2\n",
+ "specification":
+ {"projection": {"type": "fact", "label": "u2"},
+  "matches":
+  [{"unknown": {"type": "Blog", "name": "u1"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [{"predecessorType": "Blog", "name": "blog"}],
+      "rolesLeft": [],
+      "labelRight": "p1"}]},
+   {"unknown": {"type": "Post", "name": "u2"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [],
+      "rolesLeft": [{"predecessorType": "Blog", "name": "blog"}],
+      "labelRight": "u1"},
+     {"type": "existential",
+      "matches":
+      [{"unknown": {"type": "Ban", "name": "u3"},
+        "conditions":
+        [{"type": "path",
+          "rolesRight": [],
+          "rolesLeft": [{"predecessorType": "Jinaga.User", "name": "user"}],
+          "labelRight": "p2"}]}],
+      "exists": false}]}],
+  "given":
+  [{"label": {"type": "Post", "name": "p1"}, "conditions": []},
+   {"label": {"type": "Jinaga.User", "name": "p2"}, "conditions": []}]},
+ "source": "#297: the head's own projection takes part in deriving its givens",
+ "name": "given-only-an-existential-uses",
+ "expected":
+ {"tailText":
+  "(p2: Jinaga.User, u1: Blog) {\n    u2: Post [\n        u2->blog: Blog = u1\n        !E {\n            u3: Ban [\n                u3->user: Jinaga.User = p2\n            ]\n        }\n    ]\n} => u2\n",
+  "tailReadsGiven": false,
+  "tail":
+  {"projection": {"type": "fact", "label": "u2"},
+   "matches":
+   [{"unknown": {"type": "Post", "name": "u2"},
+     "conditions":
+     [{"type": "path",
+       "rolesRight": [],
+       "rolesLeft": [{"predecessorType": "Blog", "name": "blog"}],
+       "labelRight": "u1"},
+      {"type": "existential",
+       "matches":
+       [{"unknown": {"type": "Ban", "name": "u3"},
+         "conditions":
+         [{"type": "path",
+           "rolesRight": [],
+           "rolesLeft": [{"predecessorType": "Jinaga.User", "name": "user"}],
+           "labelRight": "p2"}]}],
+       "exists": false}]}],
+   "given":
+   [{"label": {"type": "Jinaga.User", "name": "p2"}, "conditions": []},
+    {"label": {"type": "Blog", "name": "u1"}, "conditions": []}]},
+  "headText":
+  "(p1: Post, p2: Jinaga.User) {\n    u1: Blog [\n        u1 = p1->blog: Blog\n    ]\n} => {\n    p2 = p2\n    u1 = u1\n}\n",
+  "head":
+  {"projection":
+   {"type": "composite",
+    "components":
+    [{"type": "fact", "name": "p2", "label": "p2"},
+     {"type": "fact", "name": "u1", "label": "u1"}]},
+   "matches":
+   [{"unknown": {"type": "Blog", "name": "u1"},
+     "conditions":
+     [{"type": "path",
+       "rolesRight": [{"predecessorType": "Blog", "name": "blog"}],
+       "rolesLeft": [],
+       "labelRight": "p1"}]}],
+   "given":
+   [{"label": {"type": "Post", "name": "p1"}, "conditions": []},
+    {"label": {"type": "Jinaga.User", "name": "p2"}, "conditions": []}]}},
+ "description":
+ "The pivot's existential condition reads a second given that no head match mentions. The head is given every given, and projects the one the tail needs."}

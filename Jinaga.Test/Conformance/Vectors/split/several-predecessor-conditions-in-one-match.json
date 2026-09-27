@@ -1,0 +1,46 @@
+{"text":
+ "(p1: Comment) {\n    u1: Jinaga.User [\n        u1 = p1->author: Jinaga.User\n        u1 = p1->post: Post->blog: Blog->creator: Jinaga.User\n    ]\n} => u1\n",
+ "specification":
+ {"projection": {"type": "fact", "label": "u1"},
+  "matches":
+  [{"unknown": {"type": "Jinaga.User", "name": "u1"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [{"predecessorType": "Jinaga.User", "name": "author"}],
+      "rolesLeft": [],
+      "labelRight": "p1"},
+     {"type": "path",
+      "rolesRight":
+      [{"predecessorType": "Post", "name": "post"},
+       {"predecessorType": "Blog", "name": "blog"},
+       {"predecessorType": "Jinaga.User", "name": "creator"}],
+      "rolesLeft": [],
+      "labelRight": "p1"}]}],
+  "given": [{"label": {"type": "Comment", "name": "p1"}, "conditions": []}]},
+ "source": "#299, the comment rule",
+ "name": "several-predecessor-conditions-in-one-match",
+ "expected":
+ {"tailText": null,
+  "tailReadsGiven": false,
+  "tail": null,
+  "headText":
+  "(p1: Comment) {\n    u1: Jinaga.User [\n        u1 = p1->author: Jinaga.User\n        u1 = p1->post: Post->blog: Blog->creator: Jinaga.User\n    ]\n} => u1\n",
+  "head":
+  {"projection": {"type": "fact", "label": "u1"},
+   "matches":
+   [{"unknown": {"type": "Jinaga.User", "name": "u1"},
+     "conditions":
+     [{"type": "path",
+       "rolesRight": [{"predecessorType": "Jinaga.User", "name": "author"}],
+       "rolesLeft": [],
+       "labelRight": "p1"},
+      {"type": "path",
+       "rolesRight":
+       [{"predecessorType": "Post", "name": "post"},
+        {"predecessorType": "Blog", "name": "blog"},
+        {"predecessorType": "Jinaga.User", "name": "creator"}],
+       "rolesLeft": [],
+       "labelRight": "p1"}]}],
+   "given": [{"label": {"type": "Comment", "name": "p1"}, "conditions": []}]}},
+ "description":
+ "A match joins its unknown to two predecessor paths of the given. It is deterministic, so nothing splits."}

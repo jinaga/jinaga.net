@@ -1,0 +1,33 @@
+{"text":
+ "(p1: Employee) {\n    u1: Office [\n        u1 = p1->office: Office\n    ]\n} => u1\n",
+ "specification":
+ {"projection": {"type": "fact", "label": "u1"},
+  "matches":
+  [{"unknown": {"type": "Office", "name": "u1"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [{"predecessorType": "Office", "name": "office"}],
+      "rolesLeft": [],
+      "labelRight": "p1"}]}],
+  "given": [{"label": {"type": "Employee", "name": "p1"}, "conditions": []}]},
+ "source":
+ "splitSpecificationSpec: should put all in head if only predecessor joins",
+ "name": "only-predecessors",
+ "expected":
+ {"tailText": null,
+  "tailReadsGiven": false,
+  "tail": null,
+  "headText":
+  "(p1: Employee) {\n    u1: Office [\n        u1 = p1->office: Office\n    ]\n} => u1\n",
+  "head":
+  {"projection": {"type": "fact", "label": "u1"},
+   "matches":
+   [{"unknown": {"type": "Office", "name": "u1"},
+     "conditions":
+     [{"type": "path",
+       "rolesRight": [{"predecessorType": "Office", "name": "office"}],
+       "rolesLeft": [],
+       "labelRight": "p1"}]}],
+   "given": [{"label": {"type": "Employee", "name": "p1"}, "conditions": []}]}},
+ "description":
+ "Every match walks predecessors, so the graph can run the whole specification."}

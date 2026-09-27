@@ -10,6 +10,13 @@ generates these vectors from the definitions.
 | Directory | Test | What a vector holds |
 |---|---|---|
 | `Vectors/well-formed/` | `WellFormedVectorTest` | A specification, and whether it is well formed. |
+| `Vectors/split/` | `SplitVectorTest` | A specification, the head and tail its split produces, and whether an authorization rule over it is refused because its tail reads the fact under authorization. |
+
+`SplitVectorTest` compares the head and tail as printed by
+`ToDescriptiveString`, which prints exactly what jinaga.js's
+`describeSpecification` does, so the comparison covers the givens, matches and
+projections of each. It also checks that the loader reads the specification the
+vector's `text` describes.
 
 `vectors/README.md` in jinaga-spec describes the format. A vector's
 specification is JSON in the shape jinaga.js serializes. `ConformanceVector`
