@@ -1,0 +1,22 @@
+{"violates": ["scoped"],
+ "text":
+ "(p1: Employee) {\n    u1: Office [\n        u1 = p1->office: Office\n        u1->office: Office = u1->office: Office\n    ]\n} => u1\n",
+ "specification":
+ {"projection": {"type": "fact", "label": "u1"},
+  "matches":
+  [{"unknown": {"type": "Office", "name": "u1"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [{"predecessorType": "Office", "name": "office"}],
+      "rolesLeft": [],
+      "labelRight": "p1"},
+     {"type": "path",
+      "rolesRight": [{"predecessorType": "Office", "name": "office"}],
+      "rolesLeft": [{"predecessorType": "Office", "name": "office"}],
+      "labelRight": "u1"}]}],
+  "given": [{"label": {"type": "Employee", "name": "p1"}, "conditions": []}]},
+ "source": "the counterexample to splitPaths_correct without pivot_paths_ne",
+ "name": "path-joins-its-own-unknown",
+ "expected": {"wellFormed": false},
+ "description":
+ "A match joins its own unknown. The split reads it bound in the original and unbound in the head."}

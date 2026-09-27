@@ -1,0 +1,23 @@
+{"violates": ["named"],
+ "text":
+ "(p1: Employee) {\n    u1: Office [\n        u1 = p1->office: Office\n    ]\n    u1: Office [\n        u1 = p1->office: Office\n    ]\n} => u1\n",
+ "specification":
+ {"projection": {"type": "fact", "label": "u1"},
+  "matches":
+  [{"unknown": {"type": "Office", "name": "u1"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [{"predecessorType": "Office", "name": "office"}],
+      "rolesLeft": [],
+      "labelRight": "p1"}]},
+   {"unknown": {"type": "Office", "name": "u1"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [{"predecessorType": "Office", "name": "office"}],
+      "rolesLeft": [],
+      "labelRight": "p1"}]}],
+  "given": [{"label": {"type": "Employee", "name": "p1"}, "conditions": []}]},
+ "source": "SpecificationParser.parseMatch: The name ... has already been used",
+ "name": "unknown-shadows-an-earlier-match",
+ "expected": {"wellFormed": false},
+ "description": "Two matches declare the same label."}

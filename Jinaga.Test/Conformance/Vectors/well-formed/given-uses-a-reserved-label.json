@@ -1,0 +1,17 @@
+{"violates": ["named"],
+ "text":
+ "(__p: Employee) {\n    u1: Office [\n        u1 = __p->office: Office\n    ]\n} => u1\n",
+ "specification":
+ {"projection": {"type": "fact", "label": "u1"},
+  "matches":
+  [{"unknown": {"type": "Office", "name": "u1"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [{"predecessorType": "Office", "name": "office"}],
+      "rolesLeft": [],
+      "labelRight": "__p"}]}],
+  "given": [{"label": {"type": "Employee", "name": "__p"}, "conditions": []}]},
+ "source": "the reserved-label rule",
+ "name": "given-uses-a-reserved-label",
+ "expected": {"wellFormed": false},
+ "description": "A given begins with `__`."}
