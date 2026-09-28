@@ -102,6 +102,50 @@ namespace Jinaga.Observers
             }
         }
 
+        public FactReferenceTuple AnchorOf(string path, Product product)
+        {
+            return ResultSubsetAt(path).Of(product);
+        }
+
+        private Subset GivenSubset()
+        {
+            return specification.Givens
+                .Select(g => g.Label.Name)
+                .Aggregate(Subset.Empty, (subset, name) => subset.Add(name));
+        }
+
+        /// <summary>
+        /// The subset of labels that identify a row at <paramref name="path"/>:
+        /// the given labels, plus the unknowns of the matches at that path and at
+        /// every path above it. This is the subset the inverter assigns to the same
+        /// path, so an inverse's ResultSubset and this agree by construction.
+        /// </summary>
+        private Subset ResultSubsetAt(string path)
+        {
+            var subset = Inverter.AddUnknowns(GivenSubset(), specification.Matches);
+            var projection = specification.Projection;
+            if (string.IsNullOrEmpty(path))
+            {
+                return subset;
+            }
+
+            foreach (var name in path.Split('.'))
+            {
+                var collectionProjection = Inverter.CollectionsOf(projection, "")
+                    .Where(pair => pair.Item1 == name)
+                    .Select(pair => pair.Item2)
+                    .FirstOrDefault();
+                if (collectionProjection == null)
+                {
+                    throw new ArgumentException($"The specification has no collection at the path {path}.");
+                }
+
+                subset = Inverter.AddUnknowns(subset, collectionProjection.Matches);
+                projection = collectionProjection.Projection;
+            }
+            return subset;
+        }
+
         public void Stop()
         {
             logger.LogInformation("Observer stopping for {Specification}", specification.ToDescriptiveString());
@@ -120,11 +164,10 @@ namespace Jinaga.Observers
         {
             var results = await factManager.Read(givenTuple, specification, specification.Projection.Type, this, cancellationToken).ConfigureAwait(false);
             AddSpecificationListeners();
-            var givenSubset = specification.Givens
-                .Select(g => g.Label.Name)
-                .Aggregate(Subset.Empty, (subset, name) => subset.Add(name));
+            var givenSubset = GivenSubset();
+            var resultSubset = ResultSubsetAt("");
 
-            await SynchronizeNotifyAdded(results, givenSubset).ConfigureAwait(false);
+            await SynchronizeNotifyAdded(results, givenSubset, resultSubset, specification.Projection).ConfigureAwait(false);
         }
 
         private void AddSpecificationListeners()
@@ -153,7 +196,7 @@ namespace Jinaga.Observers
             {
                 Projection projection = inverse.InverseSpecification.Projection;
                 var results = await factManager.ComputeProjections(projection, matchingProducts, projection.Type, this, inverse.Path, cancellationToken).ConfigureAwait(false);
-                await SynchronizeNotifyAdded(results, inverse.ParentSubset).ConfigureAwait(false);
+                await SynchronizeNotifyAdded(results, inverse.ParentSubset, inverse.ResultSubset, projection).ConfigureAwait(false);
             }
             else if (inverse.Operation == InverseOperation.Remove || inverse.Operation == InverseOperation.MaybeRemove)
             {
@@ -161,9 +204,9 @@ namespace Jinaga.Observers
             }
         }
 
-        private async Task SynchronizeNotifyAdded(ImmutableList<ProjectedResult> results, Subset givenSubset)
+        private async Task SynchronizeNotifyAdded(ImmutableList<ProjectedResult> results, Subset parentSubset, Subset resultSubset, Projection projection)
         {
-            await SynchronizeOperaton(() => NotifyAdded(results, givenSubset)).ConfigureAwait(false);
+            await SynchronizeOperaton(() => NotifyAdded(results, parentSubset, resultSubset, projection)).ConfigureAwait(false);
         }
 
         private async Task SynchronizeNotifyRemoved(Inverse inverse, ImmutableList<Product> matchingProducts)
@@ -196,18 +239,21 @@ namespace Jinaga.Observers
             }
         }
 
-        private async Task NotifyAdded(ImmutableList<ProjectedResult> results, Subset parentSubset)
+        private async Task NotifyAdded(ImmutableList<ProjectedResult> results, Subset parentSubset, Subset resultSubset, Projection projection)
         {
             foreach (var result in results)
             {
                 var parentTuple = parentSubset.Of(result.Product);
+                // A row is identified at this path by the labels of the path's result
+                // subset. An inverse may bind more labels than that, such as the witness
+                // of an existential condition, and those do not identify the row.
+                var resultTuple = resultSubset.Of(result.Product);
                 var matchingAddedHandlers = addedHandlers
                     .Where(hander => hander.Anchor.Equals(parentTuple) && hander.Path == result.Path);
                 foreach (var addedHandler in matchingAddedHandlers)
                 {
                     var resultAdded = addedHandler.Added;
                     // Don't call result added if we have already called it for this tuple.
-                    var resultTuple = result.Product.GetAnchor();
                     if (FirstTimeNotified(resultTuple))
                     {
                         var removal = await resultAdded(result.Projection).ConfigureAwait(false);
@@ -221,15 +267,20 @@ namespace Jinaga.Observers
                 // Recursively notify added for specification results.
                 if (result.Collections.Any())
                 {
-                    var subset = result.Product.Names
-                        .Where(name => result.Product.GetElement(name) is SimpleElement)
-                        .Aggregate(
-                            Subset.Empty,
-                            (sub, name) => sub.Add(name)
-                        );
-                    foreach (var collection in result.Collections)
+                    foreach (var (name, collectionProjection) in Inverter.CollectionsOf(projection, ""))
                     {
-                        await NotifyAdded(collection.Results, subset).ConfigureAwait(false);
+                        var collection = result.Collections
+                            .FirstOrDefault(c => c.Name == name);
+                        if (collection == null)
+                        {
+                            continue;
+                        }
+
+                        // The child path's result subset is this path's plus the labels
+                        // that the collection's own matches bind, exactly as the inverter
+                        // derives the subset of a nested path.
+                        var collectionSubset = Inverter.AddUnknowns(resultSubset, collectionProjection.Matches);
+                        await NotifyAdded(collection.Results, resultSubset, collectionSubset, collectionProjection.Projection).ConfigureAwait(false);
                     }
                 }
             }
@@ -260,6 +311,9 @@ namespace Jinaga.Observers
                     lock (this)
                     {
                         removalsByProduct = removalsByProduct.Remove(resultTuple);
+                        // The row is no longer delivered, so a later product that
+                        // satisfies the specification again is not a duplicate.
+                        notifiedTuples = notifiedTuples.Remove(resultTuple);
                     }
                 }
             }
