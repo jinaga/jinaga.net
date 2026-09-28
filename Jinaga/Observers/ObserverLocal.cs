@@ -300,21 +300,59 @@ namespace Jinaga.Observers
             }
         }
 
+        /// <summary>
+        /// Determines whether an added handler belongs to the given row, either
+        /// because the row's own projection registered it or because a row nested
+        /// within it did. A nested row's anchor extends its ancestor's tuple, so
+        /// agreement on every label of the row's tuple identifies both.
+        /// </summary>
+        private static bool AnchorIsWithinRow(FactReferenceTuple anchor, FactReferenceTuple rowTuple)
+        {
+            foreach (var name in rowTuple.Names)
+            {
+                if (!anchor.Names.Contains(name) ||
+                    !anchor.Get(name).Equals(rowTuple.Get(name)))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
         private async Task NotifyRemoved(ImmutableList<Product> products, Subset resultSubset)
         {
             foreach (var product in products)
             {
                 var resultTuple = resultSubset.Of(product);
-                if (removalsByProduct.TryGetValue(resultTuple, out var removal))
+                // Retire the row before awaiting its removal function. That function
+                // is the caller's, so it may yield, and anything the observer does
+                // while it is in flight must already see the row as gone. Claiming it
+                // under the lock is also what stops two concurrent removals of one row
+                // from both invoking it.
+                Func<Task>? removal = null;
+                lock (this)
                 {
-                    await removal().ConfigureAwait(false);
-                    lock (this)
+                    if (removalsByProduct.TryGetValue(resultTuple, out var claimed))
                     {
+                        removal = claimed;
                         removalsByProduct = removalsByProduct.Remove(resultTuple);
                         // The row is no longer delivered, so a later product that
                         // satisfies the specification again is not a duplicate.
                         notifiedTuples = notifiedTuples.Remove(resultTuple);
+                        // A handler's lifetime is the lifetime of the row whose
+                        // projection registered it. The caller has been given this
+                        // row's removal function and has no reason to expect its
+                        // collections to keep receiving facts, so drop the handlers
+                        // the row registered, and those of every row nested beneath
+                        // it, whose anchors extend this row's tuple.
+                        addedHandlers = addedHandlers
+                            .Where(handler => !AnchorIsWithinRow(handler.Anchor, resultTuple))
+                            .ToImmutableList();
                     }
+                }
+                if (removal != null)
+                {
+                    await removal().ConfigureAwait(false);
                 }
             }
         }
