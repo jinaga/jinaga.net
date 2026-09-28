@@ -1,6 +1,8 @@
 using Jinaga.Extensions;
 using Jinaga.Pipelines;
+using Jinaga.Projections;
 using Jinaga.Test.Model;
+using System.Collections.Immutable;
 using System.Linq;
 
 namespace Jinaga.Test.Pipelines
@@ -13,7 +15,17 @@ namespace Jinaga.Test.Pipelines
             var specification = Given<Company>.Match(company => company);
 
             var inverses = specification.ComputeInverses();
-            inverses.Should().BeEmpty();
+
+            // The specification is its own inverse, so that a watch started on a
+            // company that is not yet saved delivers when that company lands.
+            inverses.Select(i => i.InverseSpecification.ToString().ReplaceLineEndings())
+                .Should().BeEquivalentTo(new[] {
+                    """
+                    (company: Corporate.Company) {
+                    } => company
+
+                    """
+                });
         }
 
         [Fact]
@@ -26,8 +38,8 @@ namespace Jinaga.Test.Pipelines
             );
 
             var inverses = specification.ComputeInverses();
-            inverses.Should().ContainSingle().Which
-                .InverseSpecification.ToString().ReplaceLineEndings().Should().Be(
+            inverses.Select(i => i.InverseSpecification.ToString().ReplaceLineEndings())
+                .Should().BeEquivalentTo(new[] {
                     """
                     (office: Corporate.Office) {
                         company: Corporate.Company [
@@ -35,8 +47,17 @@ namespace Jinaga.Test.Pipelines
                         ]
                     } => office
 
+                    """,
+                    // The self-inverse, for a given that is saved after the watch starts.
                     """
-                    );
+                    (company: Corporate.Company) {
+                        office: Corporate.Office [
+                            office->company: Corporate.Company = company
+                        ]
+                    } => office
+
+                    """
+                });
         }
 
         [Fact]
@@ -50,8 +71,20 @@ namespace Jinaga.Test.Pipelines
 
             var inverses = specification.ComputeInverses();
 
-            // When the predecessor is created, it does not have a successor yet.
-            inverses.Should().BeEmpty();
+            // When the predecessor is created, it does not have a successor yet,
+            // so the only inverse is the self-inverse. It carries the company to
+            // an observer whose office was saved after the watch started.
+            inverses.Select(i => i.InverseSpecification.ToString().ReplaceLineEndings())
+                .Should().BeEquivalentTo(new[] {
+                    """
+                    (office: Corporate.Office) {
+                        company: Corporate.Company [
+                            company = office->company: Corporate.Company
+                        ]
+                    } => company
+
+                    """
+                });
         }
 
         [Fact]
@@ -74,6 +107,18 @@ namespace Jinaga.Test.Pipelines
                     (office: Corporate.Office) {
                         company: Corporate.Company [
                             company = office->company: Corporate.Company
+                        ]
+                        city: Corporate.City [
+                            city = office->city: Corporate.City
+                        ]
+                    } => city
+
+                    """,
+                    // The self-inverse, for a given that is saved after the watch starts.
+                    """
+                    (company: Corporate.Company) {
+                        office: Corporate.Office [
+                            office->company: Corporate.Company = company
                         ]
                         city: Corporate.City [
                             city = office->city: Corporate.City
@@ -125,12 +170,27 @@ namespace Jinaga.Test.Pipelines
                         ]
                     } => office
 
+                    """,
+                    // The self-inverse, for a given that is saved after the watch starts.
+                    """
+                    (company: Corporate.Company) {
+                        office: Corporate.Office [
+                            office->company: Corporate.Company = company
+                            !E {
+                                officeClosure: Corporate.Office.Closure [
+                                    officeClosure->office: Corporate.Office = office
+                                ]
+                            }
+                        ]
+                    } => office
+
                     """
                 });
 
             inverses.Select(i => i.Operation).Should().BeEquivalentTo(new[] {
                 InverseOperation.Add,
-                InverseOperation.Remove
+                InverseOperation.Remove,
+                InverseOperation.Add
             });
         }
 
@@ -207,12 +267,35 @@ namespace Jinaga.Test.Pipelines
                     ]
                 } => booking
 
+                """,
+                // The self-inverse, for a given that is saved after the watch starts.
+                """
+                (airlineDay: Skylane.Airline.Day) {
+                    flight: Skylane.Flight [
+                        flight->airlineDay: Skylane.Airline.Day = airlineDay
+                        !E {
+                            x: Skylane.Flight.Cancellation [
+                                x->flight: Skylane.Flight = flight
+                            ]
+                        }
+                    ]
+                    booking: Skylane.Booking [
+                        booking->flight: Skylane.Flight = flight
+                        !E {
+                            x2: Skylane.Refund [
+                                x2->booking: Skylane.Booking = booking
+                            ]
+                        }
+                    ]
+                } => booking
+
                 """
                 ]);
             inverses.Select(i => i.Operation).Should().BeEquivalentTo(new[] {
                 InverseOperation.Add,
                 InverseOperation.Remove,
-                InverseOperation.Remove
+                InverseOperation.Remove,
+                InverseOperation.Add
             });
         }
 
@@ -246,11 +329,26 @@ namespace Jinaga.Test.Pipelines
                         ]
                     } => office
 
+                    """,
+                    // The self-inverse, for a given that is saved after the watch starts.
+                    """
+                    (company: Corporate.Company) {
+                        office: Corporate.Office [
+                            office->company: Corporate.Company = company
+                            E {
+                                officeClosure: Corporate.Office.Closure [
+                                    officeClosure->office: Corporate.Office = office
+                                ]
+                            }
+                        ]
+                    } => office
+
                     """
                 });
 
             inverses.Select(i => i.Operation).Should().BeEquivalentTo(new[] {
-                InverseOperation.MaybeAdd
+                InverseOperation.MaybeAdd,
+                InverseOperation.Add
             });
         }
 
@@ -336,13 +434,33 @@ namespace Jinaga.Test.Pipelines
                         ]
                     } => office
 
+                    """,
+                    // The self-inverse, for a given that is saved after the watch starts.
+                    """
+                    (company: Corporate.Company) {
+                        office: Corporate.Office [
+                            office->company: Corporate.Company = company
+                            !E {
+                                officeClosure: Corporate.Office.Closure [
+                                    officeClosure->office: Corporate.Office = office
+                                    !E {
+                                        officeReopening: Corporate.Office.Reopening [
+                                            officeReopening->officeClosure: Corporate.Office.Closure = officeClosure
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
+                    } => office
+
                     """
                 });
 
             inverses.Select(i => i.Operation).Should().BeEquivalentTo(new[] {
                 InverseOperation.Add,
                 InverseOperation.Remove,
-                InverseOperation.MaybeAdd
+                InverseOperation.MaybeAdd,
+                InverseOperation.Add
             });
         }
 
@@ -393,6 +511,22 @@ namespace Jinaga.Test.Pipelines
                             company = office->company: Corporate.Company
                         ]
                     } => name
+
+                    """,
+                    // The self-inverse, for a given that is saved after the watch starts.
+                    """
+                    (company: Corporate.Company) {
+                        office: Corporate.Office [
+                            office->company: Corporate.Company = company
+                        ]
+                    } => {
+                        Names = {
+                            name: Corporate.Office.Name [
+                                name->office: Corporate.Office = office
+                            ]
+                        } => name
+                        Office = office
+                    }
 
                     """
                 });
@@ -460,8 +594,127 @@ namespace Jinaga.Test.Pipelines
                         ]
                     } => manager
 
+                    """,
+                    // The self-inverse, for a given that is saved after the watch starts.
+                    """
+                    (office: Corporate.Office) {
+                    } => {
+                        Headcount = {
+                            headcount: Corporate.Headcount [
+                                headcount->office: Corporate.Office = office
+                                !E {
+                                    next: Corporate.Headcount [
+                                        next->prior: Corporate.Headcount = headcount
+                                    ]
+                                }
+                            ]
+                        } => headcount
+                        Managers = {
+                            manager: Corporate.Manager [
+                                manager->office: Corporate.Office = office
+                                !E {
+                                    termination: Corporate.Manager.Terminated [
+                                        termination->Manager: Corporate.Manager = manager
+                                    ]
+                                }
+                            ]
+                        } => manager
+                    }
+
                     """
                 });
+        }
+
+        [Fact]
+        public void Inverse_SelfInverseOfSingleGiven()
+        {
+            var specification = Given<Office>.Match((office, facts) =>
+                from company in facts.OfType<Company>()
+                where office.company == company
+                select company
+            );
+
+            var inverses = specification.ComputeInverses();
+
+            // The self-inverse re-reads the whole specification when the given
+            // arrives, so its given and parent are the given subset, and its
+            // result subset spans every label.
+            var selfInverse = inverses.Should().ContainSingle().Subject;
+            selfInverse.InverseSpecification.Should().BeSameAs(specification);
+            selfInverse.Operation.Should().Be(InverseOperation.Add);
+            selfInverse.GivenSubset.ToString().Should().Be("office");
+            selfInverse.ParentSubset.ToString().Should().Be("office");
+            selfInverse.ResultSubset.ToString().Should().Be("office, company");
+            selfInverse.Path.Should().Be("");
+        }
+
+        [Fact]
+        public void Inverse_NoSelfInverseOfTwoGivens()
+        {
+            var specification = Given<Company, City>.Match((company, city, facts) =>
+                from office in facts.OfType<Office>()
+                where office.company == company
+                where office.city == city
+                select office
+            );
+
+            var inverses = specification.ComputeInverses();
+
+            // A listener registers under one given's type, and
+            // ObservableSource.AddSpecificationListener throws on any other
+            // count, so a specification with two givens carries no self-inverse.
+            inverses.Should().NotContain(inverse => inverse.InverseSpecification == specification);
+            inverses.Select(i => i.InverseSpecification.ToString().ReplaceLineEndings())
+                .Should().BeEquivalentTo(new[] {
+                    """
+                    (office: Corporate.Office) {
+                        company: Corporate.Company [
+                            company = office->company: Corporate.Company
+                        ]
+                        city: Corporate.City [
+                            city = office->city: Corporate.City
+                        ]
+                    } => office
+
+                    """
+                });
+        }
+
+        [Fact]
+        public void Inverse_NoSelfInverseWhenGivenCarriesACondition()
+        {
+            // A given carrying an existential condition is the shape the inverter
+            // produces, not one the LINQ processor accepts, so build it directly.
+            var office = new Label("office", "Corporate.Office");
+            var closureOfOffice = new Match(
+                new Label("closure", "Corporate.Office.Closure"),
+                ImmutableList.Create(new PathCondition(
+                    ImmutableList.Create(new Role("office", "Corporate.Office")),
+                    "office",
+                    ImmutableList<Role>.Empty)),
+                ImmutableList<ExistentialCondition>.Empty);
+            var nameOfOffice = new Match(
+                new Label("name", "Corporate.Office.Name"),
+                ImmutableList.Create(new PathCondition(
+                    ImmutableList.Create(new Role("office", "Corporate.Office")),
+                    "office",
+                    ImmutableList<Role>.Empty)),
+                ImmutableList<ExistentialCondition>.Empty);
+            var specification = new Specification(
+                ImmutableList.Create(new SpecificationGiven(
+                    office,
+                    ImmutableList.Create(new ExistentialCondition(
+                        false,
+                        ImmutableList.Create(closureOfOffice))))),
+                ImmutableList.Create(nameOfOffice),
+                new SimpleProjection("name", typeof(OfficeName)));
+
+            var inverses = specification.ComputeInverses();
+
+            // Whether such a given belongs to the specification turns on facts
+            // besides the given, so its arrival is the wrong trigger for a
+            // re-read and it carries no self-inverse.
+            inverses.Should().NotContain(inverse => inverse.InverseSpecification == specification);
         }
 
         [Fact]

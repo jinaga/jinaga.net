@@ -35,7 +35,9 @@ public class ExecuteInverseTest
         );
 
         var inverses = specification.ComputeInverses();
-        inverses.Count.Should().Be(3);
+        // Three inverses for the unknowns and the existential conditions, plus
+        // the self-inverse that re-reads the specification when the root arrives.
+        inverses.Count.Should().Be(4);
         inverses[0].InverseSpecification.ToDescriptiveString().Should().Be(
             "(child: Sources [\n" +
             "    E {\n" +
@@ -102,6 +104,9 @@ public class ExecuteInverseTest
             "    ]\n" +
             "} => source\n"
         );
+
+        inverses[3].InverseSpecification.ToDescriptiveString()
+            .Should().Be(specification.ToDescriptiveString());
 
         var inverse0Sql = inverses[0].InverseSpecification.ToSql();
         inverse0Sql.SqlQuery.Sql.Should().Be(

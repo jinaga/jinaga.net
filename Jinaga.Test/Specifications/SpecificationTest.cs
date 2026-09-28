@@ -1708,6 +1708,23 @@ namespace Jinaga.Test.Specifications.Specifications
                         ]
                     } => manager
 
+                    """,
+                    // The self-inverse, for a given that is saved after the watch starts.
+                    """
+                    (closure: Corporate.Company) {
+                        office: Corporate.Office [
+                            office->company: Corporate.Company = closure
+                            !E {
+                                closure2: Corporate.Office.Closure [
+                                    closure2->office: Corporate.Office = office
+                                ]
+                            }
+                        ]
+                        manager: Corporate.Manager [
+                            manager->office: Corporate.Office = office
+                        ]
+                    } => manager
+
                     """
                 ]
             );
