@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using Jinaga.DefaultImplementations;
 using Jinaga.Facts;
 using Jinaga.Managers;
+using Jinaga.Services;
 using Jinaga.Storage;
 using Jinaga.Store.SQLite.Database;
 using Jinaga.Store.SQLite.Test.Models;
@@ -92,7 +93,9 @@ public class PurgeDependentRowsTest
         var facts = await store.GetAllFacts();
         facts.Select(fact => fact.Reference).Should().Contain(siteReference);
 
-        var graph = await store.Load(ImmutableList.Create(siteReference), CancellationToken.None);
+        // Load is an explicit IStore implementation, so it is reachable only
+        // through the interface.
+        var graph = await ((IStore)store).Load(ImmutableList.Create(siteReference), CancellationToken.None);
         graph.GetSignatures(siteReference).Should().BeEmpty();
     }
 
