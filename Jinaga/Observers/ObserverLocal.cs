@@ -29,12 +29,10 @@ namespace Jinaga.Observers
 
         private ImmutableList<SpecificationListener> listeners =
             ImmutableList<SpecificationListener>.Empty;
-        private ImmutableDictionary<FactReferenceTuple, Func<Task>> removalsByProduct =
-            ImmutableDictionary<FactReferenceTuple, Func<Task>>.Empty;
         private ImmutableList<AddedHandler> addedHandlers =
             ImmutableList<AddedHandler>.Empty;
-        private ImmutableHashSet<FactReferenceTuple> notifiedTuples =
-            ImmutableHashSet<FactReferenceTuple>.Empty;
+        private ImmutableDictionary<FactReferenceTuple, RowState> rowStates =
+            ImmutableDictionary<FactReferenceTuple, RowState>.Empty;
         protected ImmutableList<string> feeds = ImmutableList<string>.Empty;
 
         internal ObserverLocal(Specification specification, FactReferenceTuple givenTuple, FactManager factManager, Func<object, Task<Func<Task>>> onAdded, ILoggerFactory loggerFactory)
@@ -253,15 +251,32 @@ namespace Jinaga.Observers
                 foreach (var addedHandler in matchingAddedHandlers)
                 {
                     var resultAdded = addedHandler.Added;
-                    // Don't call result added if we have already called it for this tuple.
-                    if (FirstTimeNotified(resultTuple))
+                    // Don't call result added if the row already has a state: either
+                    // its handler is running or it has already been delivered.
+                    if (!ClaimRow(resultTuple))
                     {
-                        var removal = await resultAdded(result.Projection).ConfigureAwait(false);
+                        continue;
+                    }
+
+                    Func<Task> removal;
+                    try
+                    {
+                        removal = await resultAdded(result.Projection).ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                        // The handler never produced a removal function, so the row
+                        // was never delivered. Drop it, which leaves a later
+                        // notification for the same row free to call the handler
+                        // again.
                         lock (this)
                         {
-                            removalsByProduct = removalsByProduct.Add(resultTuple, removal);
+                            rowStates = rowStates.Remove(resultTuple);
                         }
+                        throw;
                     }
+
+                    await SettleRow(resultTuple, removal).ConfigureAwait(false);
                 }
 
                 // Recursively notify added for specification results.
@@ -286,18 +301,74 @@ namespace Jinaga.Observers
             }
         }
 
-        private bool FirstTimeNotified(FactReferenceTuple resultTuple)
+        /// <summary>
+        /// Takes the row for this notification, marking it in flight for the
+        /// duration of the caller's added handler. A row that already has a state
+        /// belongs to another notification, so this returns false and the handler
+        /// is not called.
+        /// </summary>
+        private bool ClaimRow(FactReferenceTuple resultTuple)
         {
             lock (this)
             {
-                if (!notifiedTuples.Contains(resultTuple))
+                if (rowStates.ContainsKey(resultTuple))
                 {
-                    notifiedTuples = notifiedTuples.Add(resultTuple);
-                    return true;
+                    return false;
                 }
 
-                return false;
+                rowStates = rowStates.Add(resultTuple, new RowInFlight(removalRequested: false));
+                return true;
             }
+        }
+
+        /// <summary>
+        /// Settles a row whose added handler has just returned its removal
+        /// function. Normally the row becomes delivered and holds that function
+        /// until a removal arrives. A removal that arrived while the handler was
+        /// running has no function to call at the time, so it is recorded on the
+        /// in-flight row and honored here instead: the function is called once and
+        /// the row does not enter the observed state.
+        /// </summary>
+        private async Task SettleRow(FactReferenceTuple resultTuple, Func<Task> removal)
+        {
+            bool removalRequested;
+            lock (this)
+            {
+                removalRequested =
+                    rowStates.TryGetValue(resultTuple, out var state) &&
+                    state is RowInFlight inFlight &&
+                    inFlight.RemovalRequested;
+                if (removalRequested)
+                {
+                    RetireRow(resultTuple);
+                }
+                else
+                {
+                    rowStates = rowStates.SetItem(resultTuple, new RowDelivered(removal));
+                }
+            }
+            if (removalRequested)
+            {
+                await removal().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Drops a row and the added handlers that belong to it. Call while holding
+        /// the lock.
+        ///
+        /// A handler's lifetime is the lifetime of the row whose projection
+        /// registered it. The caller has been given this row's removal function and
+        /// has no reason to expect its collections to keep receiving facts, so drop
+        /// the handlers the row registered, and those of every row nested beneath
+        /// it, whose anchors extend this row's tuple.
+        /// </summary>
+        private void RetireRow(FactReferenceTuple resultTuple)
+        {
+            rowStates = rowStates.Remove(resultTuple);
+            addedHandlers = addedHandlers
+                .Where(handler => !AnchorIsWithinRow(handler.Anchor, resultTuple))
+                .ToImmutableList();
         }
 
         /// <summary>
@@ -332,29 +403,78 @@ namespace Jinaga.Observers
                 Func<Task>? removal = null;
                 lock (this)
                 {
-                    if (removalsByProduct.TryGetValue(resultTuple, out var claimed))
+                    if (rowStates.TryGetValue(resultTuple, out var state))
                     {
-                        removal = claimed;
-                        removalsByProduct = removalsByProduct.Remove(resultTuple);
-                        // The row is no longer delivered, so a later product that
-                        // satisfies the specification again is not a duplicate.
-                        notifiedTuples = notifiedTuples.Remove(resultTuple);
-                        // A handler's lifetime is the lifetime of the row whose
-                        // projection registered it. The caller has been given this
-                        // row's removal function and has no reason to expect its
-                        // collections to keep receiving facts, so drop the handlers
-                        // the row registered, and those of every row nested beneath
-                        // it, whose anchors extend this row's tuple.
-                        addedHandlers = addedHandlers
-                            .Where(handler => !AnchorIsWithinRow(handler.Anchor, resultTuple))
-                            .ToImmutableList();
+                        if (state is RowDelivered delivered)
+                        {
+                            // The row is delivered, so its removal function is known.
+                            // Dropping the row here also means a later product that
+                            // satisfies the specification again is not a duplicate.
+                            removal = delivered.Removal;
+                            RetireRow(resultTuple);
+                        }
+                        else
+                        {
+                            // The added handler has not returned a removal function
+                            // yet. Record the request against the in-flight row so
+                            // that SettleRow honors it. A second removal in the same
+                            // interval finds the request already recorded, so the
+                            // function is still called exactly once.
+                            rowStates = rowStates.SetItem(
+                                resultTuple, new RowInFlight(removalRequested: true));
+                        }
                     }
+                    // A row with no state was never notified, so there is nothing to
+                    // remove and nothing to remember.
                 }
                 if (removal != null)
                 {
                     await removal().ConfigureAwait(false);
                 }
             }
+        }
+
+        /// <summary>
+        /// The state of one row of the observed result set.
+        ///
+        /// A row the observer has notified is in exactly one of two states: its
+        /// added handler is still running, or that handler has returned the
+        /// function to call when the row is removed. A row the observer has not
+        /// notified has no state, which is the absence of an entry rather than a
+        /// third case.
+        /// </summary>
+        private abstract class RowState
+        {
+        }
+
+        /// <summary>
+        /// The row's added handler has been called and has not returned, so the
+        /// observer does not yet hold a function to call when the row is removed.
+        /// A removal that arrives in that interval is recorded here and honored as
+        /// soon as the handler supplies one.
+        /// </summary>
+        private sealed class RowInFlight : RowState
+        {
+            internal RowInFlight(bool removalRequested)
+            {
+                RemovalRequested = removalRequested;
+            }
+
+            internal bool RemovalRequested { get; }
+        }
+
+        /// <summary>
+        /// The row's added handler has returned, and the function it returned is
+        /// the one to call when the row is removed.
+        /// </summary>
+        private sealed class RowDelivered : RowState
+        {
+            internal RowDelivered(Func<Task> removal)
+            {
+                Removal = removal;
+            }
+
+            internal Func<Task> Removal { get; }
         }
     }
 }
