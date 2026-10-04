@@ -884,9 +884,11 @@ namespace Jinaga.Store.SQLite
                 }
 
                 (string sql, ImmutableList<object> parameters) = PurgeSqlFromSpecification(description);
-                connFactory.WithConn((conn, i) =>
+                connFactory.WithTxn((conn, i) =>
                 {
-                    return conn.ExecuteNonQuery(sql, parameters.ToArray());
+                    CollectPurgeTargets(conn, sql, parameters.ToArray());
+                    DeletePurgeTargets(conn);
+                    return 0;
                 });
             }
             return Task.CompletedTask;
@@ -947,9 +949,8 @@ WITH candidates AS (
     )
     {triggerAncestorClauses}
 )
-DELETE
-FROM fact
-WHERE fact_id IN (SELECT fact_id FROM targets);";
+INSERT OR IGNORE INTO purge_targets (fact_id)
+SELECT fact_id FROM targets;";
             var parameters = queryDescription.Parameters.RemoveAt(1);
 
             return (sql, parameters);
@@ -1044,7 +1045,8 @@ WHERE fact_id IN (SELECT fact_id FROM targets);";
             connFactory.WithTxn(
                 (conn, id) =>
                 {
-                    conn.ExecuteNonQuery(purgeCommand, parameters.ToArray());
+                    CollectPurgeTargets(conn, purgeCommand, parameters.ToArray());
+                    DeletePurgeTargets(conn);
                     return 0;
                 },
                 true
@@ -1086,10 +1088,54 @@ WHERE fact_id IN (SELECT fact_id FROM targets);";
                 "        ON a.ancestor_fact_id = pr.fact_id\n" +
                 "    WHERE a.fact_id NOT IN (SELECT * FROM triggers_and_ancestors)\n" +
                 ")\n" +
-                "DELETE\n" +
-                "FROM fact\n" +
-                "WHERE fact_id IN (SELECT fact_id FROM targets)\n";
+                "INSERT OR IGNORE INTO purge_targets (fact_id)\n" +
+                "SELECT fact_id FROM targets\n";
             return sql;
+        }
+
+        // A fact's edges, ancestors and signatures are derived from the fact. The
+        // schema declares no foreign keys and nothing enables PRAGMA foreign_keys,
+        // so a purge has to delete those rows itself. Otherwise they outlive the
+        // fact, and because fact_id is a PRIMARY KEY without AUTOINCREMENT, SQLite
+        // hands the id of the deleted fact to the next fact saved, which then
+        // inherits the rows left behind.
+        //
+        // The queries that find the targets read the very tables these deletes
+        // empty, so the targets are collected into a temporary table first and the
+        // deletes run from that. The whole sequence runs in one transaction.
+        private const string CreatePurgeTargetsSql = @"
+            CREATE TEMP TABLE IF NOT EXISTS purge_targets (
+                fact_id INTEGER NOT NULL PRIMARY KEY
+            )";
+
+        private const string ClearPurgeTargetsSql = @"DELETE FROM purge_targets";
+
+        private static readonly ImmutableList<string> DeletePurgeTargetsSql = ImmutableList.Create(
+            @"DELETE FROM edge
+                WHERE successor_fact_id IN (SELECT fact_id FROM purge_targets)
+                    OR predecessor_fact_id IN (SELECT fact_id FROM purge_targets)",
+            @"DELETE FROM ancestor
+                WHERE fact_id IN (SELECT fact_id FROM purge_targets)
+                    OR ancestor_fact_id IN (SELECT fact_id FROM purge_targets)",
+            @"DELETE FROM signature
+                WHERE fact_id IN (SELECT fact_id FROM purge_targets)",
+            @"DELETE FROM fact
+                WHERE fact_id IN (SELECT fact_id FROM purge_targets)"
+        );
+
+        private static void CollectPurgeTargets(Conn conn, string sql, object[] parameters)
+        {
+            conn.ExecuteNonQuery(CreatePurgeTargetsSql);
+            conn.ExecuteNonQuery(ClearPurgeTargetsSql);
+            conn.ExecuteNonQuery(sql, parameters);
+        }
+
+        private static void DeletePurgeTargets(Conn conn)
+        {
+            foreach (var sql in DeletePurgeTargetsSql)
+            {
+                conn.ExecuteNonQuery(sql);
+            }
         }
     }
 }

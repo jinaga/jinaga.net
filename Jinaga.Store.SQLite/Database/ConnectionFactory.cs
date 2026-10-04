@@ -26,6 +26,7 @@ namespace Jinaga.Store.SQLite.Database
                 WithTxn((conn, id) =>
                     {
                         Migrations.Migration202412.CreateDb(conn);
+                        Migrations.Migration202610.DeleteOrphanedRows(conn);
                         return 0;
                     },
                     false
