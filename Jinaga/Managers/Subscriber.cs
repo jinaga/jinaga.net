@@ -175,9 +175,11 @@ namespace Jinaga.Managers
                     {
                         await registerFeedAgain!(cancellationToken).ConfigureAwait(false);
                     }
-                    catch (TaskCanceledException)
+                    catch (OperationCanceledException)
                     {
-                        // The subscriber was stopped while the feed was being declared.
+                        // The connection this declaration belongs to was cancelled, either by the
+                        // refresh timer or by a stop. Its reconnect belongs to whatever cancelled
+                        // it, so this is not an error.
                         return;
                     }
                     catch (Exception ex)

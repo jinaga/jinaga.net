@@ -358,7 +358,11 @@ namespace Jinaga.Managers
                 var hash = IdentityUtilities.ComputeSpecificationHash(specification, givenTuple);
                 if (feedsCache.TryGetValue(hash, out var cached))
                 {
-                    if (!cached.IsFaulted)
+                    // A cancelled declaration is not a faulted one, and a declaration made for a
+                    // subscriber carries that subscriber's connection token, which its refresh
+                    // timer cancels every few minutes. Serving either back would hand every later
+                    // caller the same failure.
+                    if (!cached.IsFaulted && !cached.IsCanceled)
                     {
                         return cached;
                     }

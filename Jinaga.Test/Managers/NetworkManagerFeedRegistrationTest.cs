@@ -28,6 +28,23 @@ public class NetworkManagerFeedRegistrationTest
     );
 
     [Fact]
+    public async Task Query_WhenADeclarationIsCancelled_DoesNotLeaveItInTheFeedCache()
+    {
+        // A declaration made for a subscriber carries that subscriber's connection token, which
+        // its refresh timer cancels every few minutes. A cancelled task is not a faulted one, so
+        // the feed cache has to recognize it as one it must not serve.
+        var network = new ScriptedStreamNetwork { Feed = "offices", CancelNextDeclaration = true };
+        var options = new JinagaClientOptions();
+        var j = new JinagaClient(new MemoryStore(), network, [], NullLoggerFactory.Instance, options);
+        var contoso = new Company("contoso");
+
+        var offices = await j.Query(officesInCompany, contoso);
+
+        Assert.Empty(offices);
+        Assert.Equal(2, network.FeedsCallCount);
+    }
+
+    [Fact]
     public async Task Subscribe_WhenTheReplicatorForgetsTheFeed_DeclaresItAgain()
     {
         var network = new ScriptedStreamNetwork { Feed = "offices" };

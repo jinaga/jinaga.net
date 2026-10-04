@@ -80,6 +80,13 @@ namespace Jinaga.Test.Fakes
         public Task FeedsGate { get; set; }
 
         /// <summary>
+        /// When set, the next declaration is cancelled rather than answered, as one made with a
+        /// subscriber's connection token is when the refresh timer cancels that token. The flag
+        /// clears itself, so the declaration after it is answered.
+        /// </summary>
+        public bool CancelNextDeclaration { get; set; }
+
+        /// <summary>
         /// The references the next response delivers. <see cref="ResponseGraph"/> has to carry
         /// facts for each of them, because that is what <see cref="Load"/> answers with.
         /// </summary>
@@ -145,10 +152,19 @@ namespace Jinaga.Test.Fakes
         public async Task<ImmutableList<string>> Feeds(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
         {
             Task feedsGate = FeedsGate;
+            bool cancel;
             lock (gate)
             {
                 feedsCallCount++;
+                cancel = CancelNextDeclaration;
+                CancelNextDeclaration = false;
                 Release(feedsWaiters, feedsCallCount);
+            }
+            if (cancel)
+            {
+                using var cancelled = new CancellationTokenSource();
+                cancelled.Cancel();
+                cancelled.Token.ThrowIfCancellationRequested();
             }
             if (feedsGate != null)
             {
