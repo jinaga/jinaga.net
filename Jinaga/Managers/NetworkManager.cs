@@ -189,7 +189,8 @@ namespace Jinaga.Managers
                 {
                     if (!this.subscribers.TryGetValue(feed, out var subscriber))
                     {
-                        subscriber = new Subscriber(feed, this.network, this.store, this.logger, this.notifyObservers);
+                        subscriber = new Subscriber(feed, this.network, this.store, this.logger, this.notifyObservers,
+                            cancellationToken => RegisterFeedsAgain(givenTuple, reducedSpecification, cancellationToken));
                         this.subscribers = this.subscribers.Add(feed, subscriber);
                     }
                     return subscriber;
@@ -367,6 +368,18 @@ namespace Jinaga.Managers
                 feedsCache = feedsCache.Add(hash, feeds);
                 return feeds;
             }
+        }
+
+        /// <summary>
+        /// Declares the feeds of a specification to the replicator again, after it has
+        /// forgotten one of them. The cached feed list is evicted first, so a concurrent
+        /// Fetch or Subscribe of the same specification waits for this declaration rather
+        /// than reusing a feed the replicator no longer knows.
+        /// </summary>
+        private async Task RegisterFeedsAgain(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
+        {
+            RemoveFeedsFromCache(givenTuple, specification);
+            await GetFeedsFromCache(givenTuple, specification, cancellationToken).ConfigureAwait(false);
         }
 
         private void RemoveFeedsFromCache(FactReferenceTuple givenTuple, Specification specification)

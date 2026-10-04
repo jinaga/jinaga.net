@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Jinaga.Facts;
+using Jinaga.Http;
 using Jinaga.Services;
 using Microsoft.Extensions.Logging;
 
@@ -16,6 +17,7 @@ namespace Jinaga.Managers
         private IStore store;
         private readonly ILogger logger;
         private Func<FactGraph, ImmutableList<Fact>, CancellationToken, Task> notifyObservers;
+        private readonly Func<CancellationToken, Task>? registerFeedAgain;
 
         private int refCount = 0;
         private string bookmark = string.Empty;
@@ -24,11 +26,13 @@ namespace Jinaga.Managers
         private CancellationTokenSource? cancellationTokenSource;
         private Timer? timer;
         private int reconnectAttempt = 0;
+        private int registering = 0;
 
         private readonly TimeSpan reconnectInitialDelay;
         private readonly TimeSpan reconnectMaxDelay;
 
         public Subscriber(string feed, INetwork network, IStore store, ILogger logger, Func<FactGraph, ImmutableList<Fact>, CancellationToken, Task> notifyObservers,
+            Func<CancellationToken, Task>? registerFeedAgain = null,
             TimeSpan? reconnectInitialDelay = null, TimeSpan? reconnectMaxDelay = null)
         {
             this.feed = feed;
@@ -36,6 +40,7 @@ namespace Jinaga.Managers
             this.store = store;
             this.logger = logger;
             this.notifyObservers = notifyObservers;
+            this.registerFeedAgain = registerFeedAgain;
             this.reconnectInitialDelay = reconnectInitialDelay ?? TimeSpan.FromSeconds(1);
             this.reconnectMaxDelay = reconnectMaxDelay ?? TimeSpan.FromSeconds(30);
         }
@@ -128,6 +133,14 @@ namespace Jinaga.Managers
                     resolved = true;
                     taskCompletionSource.SetException(ex);
                 }
+                else if (ex is FeedNotFoundException && registerFeedAgain != null)
+                {
+                    // The replicator no longer holds this feed, so reconnecting to the same
+                    // hash cannot succeed however long we back off. Ask the owner of the feed
+                    // to declare it again, which restores the same hash.
+                    logger.LogWarning(ex, "The replicator does not know this feed. Registering it again.");
+                    RegisterAgainAndReconnect(taskCompletionSource, cancellationToken);
+                }
                 else
                 {
                     // The initial connection already succeeded, so this is a mid-stream failure
@@ -136,6 +149,53 @@ namespace Jinaga.Managers
                     logger.LogWarning(ex, "Error on feed stream after connection established. Scheduling reconnect.");
                     ScheduleReconnect(taskCompletionSource, cancellationToken);
                 }
+            });
+        }
+
+        private void RegisterAgainAndReconnect(TaskCompletionSource<bool> taskCompletionSource, CancellationToken cancellationToken)
+        {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+
+            // Every backoff tick on a forgotten feed reports the same loss. One registration
+            // answers all of them, so the ones that arrive while it is in flight are dropped
+            // rather than turned into a storm of declarations.
+            if (Interlocked.CompareExchange(ref registering, 1, 0) != 0)
+            {
+                return;
+            }
+
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    try
+                    {
+                        await registerFeedAgain!(cancellationToken).ConfigureAwait(false);
+                    }
+                    catch (TaskCanceledException)
+                    {
+                        // The subscriber was stopped while the feed was being declared.
+                        return;
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogError(ex, "Error declaring the feed to the replicator again.");
+                    }
+                }
+                finally
+                {
+                    // Clear the gate before reconnecting, so a stream that reports the feed
+                    // lost again is answered by a new declaration rather than dropped.
+                    Interlocked.Exchange(ref registering, 0);
+                }
+
+                // Reconnect through the same backoff as any other failure. The feed's hash is
+                // a function of its definition, so the declaration restored the same hash and
+                // the stream resumes from the bookmark it stopped at.
+                ScheduleReconnect(taskCompletionSource, cancellationToken);
             });
         }
 
