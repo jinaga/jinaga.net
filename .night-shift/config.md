@@ -65,10 +65,9 @@ dotnet test Jinaga.Test --no-build --verbosity normal
 dotnet test Jinaga.Store.SQLite.Test --no-build --verbosity normal
 ```
 
-The solution needs both the .NET 8 and .NET 10 SDKs. `NuGet.config` names a
-`GitHub` package source at `https://nuget.pkg.github.com/Jinaga/index.json`;
-CI authenticates to it with the workflow token before restoring. If
-`dotnet restore` fails on that source with an authorization error, that is an
+The solution needs both the .NET 8 and .NET 10 SDKs. `NuGet.config` clears
+inherited sources and names nuget.org as the only one, so restore needs no
+credentials. If `dotnet restore` cannot reach nuget.org, that is an
 environment finding to report, not a reason to edit `NuGet.config`.
 
 ## CI workflow
