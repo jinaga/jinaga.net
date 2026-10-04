@@ -14,7 +14,6 @@ jobs:
     permissions:
       id-token: write   # required: OIDC token for NuGet trusted publishing
       contents: read    # checkout
-      packages: read    # restore from the GitHub NuGet source
 
     steps:
     - uses: actions/checkout@v4
