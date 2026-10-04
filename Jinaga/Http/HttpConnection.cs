@@ -19,6 +19,12 @@ namespace Jinaga.Http
         private const string JinagaGraphContentType = "application/x-jinaga-graph-v1";
         private const string JinagaFeedStreamContentType = "application/x-jinaga-feed-stream";
 
+        /// <summary>
+        /// 419 is not a member of <see cref="HttpStatusCode"/>. Deployments use it to signal an
+        /// expired token, and jinaga.js re-authenticates on it (src/http/fetch.ts).
+        /// </summary>
+        private const HttpStatusCode PageExpired = (HttpStatusCode)419;
+
         private readonly HttpClient httpClient;
         private readonly ILoggerFactory loggerFactory;
         private readonly Action<HttpRequestHeaders> setRequestHeaders;
@@ -28,8 +34,22 @@ namespace Jinaga.Http
         private readonly ILogger logger;
 
         public HttpConnection(Uri baseUrl, ILoggerFactory loggerFactory, Action<HttpRequestHeaders> setRequestHeaders, Func<Task<JinagaAuthenticationState>> reauthenticate, Action<JinagaAuthenticationState> setAuthenticationState, RetryConfiguration retryConfiguration)
+            : this(new HttpClient(), baseUrl, loggerFactory, setRequestHeaders, reauthenticate, setAuthenticationState, retryConfiguration)
         {
-            this.httpClient = new HttpClient();
+        }
+
+        /// <summary>
+        /// Sends requests through the given message handler rather than the network.
+        /// This is the seam that lets a test drive the status-code behavior of this class.
+        /// </summary>
+        internal HttpConnection(HttpMessageHandler messageHandler, Uri baseUrl, ILoggerFactory loggerFactory, Action<HttpRequestHeaders> setRequestHeaders, Func<Task<JinagaAuthenticationState>> reauthenticate, Action<JinagaAuthenticationState> setAuthenticationState, RetryConfiguration retryConfiguration)
+            : this(new HttpClient(messageHandler), baseUrl, loggerFactory, setRequestHeaders, reauthenticate, setAuthenticationState, retryConfiguration)
+        {
+        }
+
+        private HttpConnection(HttpClient httpClient, Uri baseUrl, ILoggerFactory loggerFactory, Action<HttpRequestHeaders> setRequestHeaders, Func<Task<JinagaAuthenticationState>> reauthenticate, Action<JinagaAuthenticationState> setAuthenticationState, RetryConfiguration retryConfiguration)
+        {
+            this.httpClient = httpClient;
             this.logger = loggerFactory.CreateLogger<HttpConnection>();
             this.retryConfiguration = retryConfiguration;
 
@@ -181,7 +201,7 @@ namespace Jinaga.Http
                 using var request = new HttpRequestMessage(HttpMethod.Options, path);
                 logger.LogTrace("HTTP {method} {baseAddress}{path}", request.Method, httpClient.BaseAddress, request.RequestUri);
                 using var response = await httpClient.SendAsync(request).ConfigureAwait(false);
-                await CheckForError(response, stopwatch).ConfigureAwait(false);
+                await CheckForError(response, stopwatch, request.RequestUri).ConfigureAwait(false);
                 var acceptedContentTypes = response.Headers
                     .Where(h => h.Key.ToLowerInvariant() == "accept-post")
                     .SelectMany(h => h.Value)
@@ -247,8 +267,7 @@ namespace Jinaga.Http
                 logger.LogTrace("HTTP {method} {baseAddress}{path}", request.Method, httpClient.BaseAddress, request.RequestUri);
                 setRequestHeaders(request.Headers);
                 using var response = await httpClient.SendAsync(request).ConfigureAwait(false);
-                if (response.StatusCode == HttpStatusCode.Unauthorized ||
-                    response.StatusCode == HttpStatusCode.ProxyAuthenticationRequired)
+                if (CredentialIsStale(response.StatusCode))
                 {
                     logger.LogTrace("HTTP response {statusCode}: Re-authenticating", response.StatusCode);
                     var authenticationState = await reauthenticate().ConfigureAwait(false);
@@ -258,7 +277,7 @@ namespace Jinaga.Http
                         using var retryRequest = createRequest();
                         setRequestHeaders(retryRequest.Headers);
                         using var retryResponse = await httpClient.SendAsync(retryRequest).ConfigureAwait(false);
-                        await CheckForError(retryResponse, stopwatch).ConfigureAwait(false);
+                        await CheckForError(retryResponse, stopwatch, retryRequest.RequestUri).ConfigureAwait(false);
                         var retryResult = await processResponse(retryResponse).ConfigureAwait(false);
                         return retryResult;
                     }
@@ -269,7 +288,7 @@ namespace Jinaga.Http
                 }
                 else
                 {
-                    await CheckForError(response, stopwatch).ConfigureAwait(false);
+                    await CheckForError(response, stopwatch, request.RequestUri).ConfigureAwait(false);
                     var result = await processResponse(response).ConfigureAwait(false);
                     return result;
                 }
@@ -290,8 +309,7 @@ namespace Jinaga.Http
                 try
                 {
                     response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
-                    if (response.StatusCode == HttpStatusCode.Unauthorized ||
-                        response.StatusCode == HttpStatusCode.ProxyAuthenticationRequired)
+                    if (CredentialIsStale(response.StatusCode))
                     {
                         logger.LogTrace("HTTP response {statusCode}: Re-authenticating", response.StatusCode);
                         var authenticationState = await reauthenticate().ConfigureAwait(false);
@@ -302,7 +320,7 @@ namespace Jinaga.Http
                             setRequestHeaders(retryRequest.Headers);
                             response.Dispose();
                             response = await httpClient.SendAsync(retryRequest, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
-                            await CheckForError(response, stopwatch).ConfigureAwait(false);
+                            await CheckForError(response, stopwatch, retryRequest.RequestUri).ConfigureAwait(false);
                             var retryResult = await processResponse(response).ConfigureAwait(false);
                             // We've transferred ownership of the response to the ObservableStream.
                             response = null;
@@ -315,7 +333,7 @@ namespace Jinaga.Http
                     }
                     else
                     {
-                        await CheckForError(response, stopwatch).ConfigureAwait(false);
+                        await CheckForError(response, stopwatch, request.RequestUri).ConfigureAwait(false);
                         var result = await processResponse(response).ConfigureAwait(false);
                         // We've transferred ownership of the response to the ObservableStream.
                         response = null;
@@ -332,7 +350,18 @@ namespace Jinaga.Http
             }).ConfigureAwait(false);
         }
 
-        private async Task CheckForError(HttpResponseMessage response, Stopwatch stopwatch)
+        /// <summary>
+        /// The set of statuses with which a replicator reports that the credential presented is
+        /// stale, stated once for both of the sites that re-authenticate.
+        /// </summary>
+        private static bool CredentialIsStale(HttpStatusCode statusCode)
+        {
+            return statusCode == HttpStatusCode.Unauthorized ||
+                statusCode == HttpStatusCode.ProxyAuthenticationRequired ||
+                statusCode == PageExpired;
+        }
+
+        private async Task CheckForError(HttpResponseMessage response, Stopwatch stopwatch, Uri? requestUri)
         {
             if (!response.IsSuccessStatusCode)
             {
@@ -345,11 +374,10 @@ namespace Jinaga.Http
                 }
                 catch
                 {
-                    // Fall back on the default behavior.
+                    // The status still classifies the failure, so report it with an empty body.
                     logger.LogError("HTTP error {statusCode} after {elapsedMilliseconds} ms", response.StatusCode, stopwatch.ElapsedMilliseconds);
-                    response.EnsureSuccessStatusCode();
                 }
-                throw new HttpRequestException($"Error {response.StatusCode}: {body}");
+                throw JinagaHttpException.ForResponse(response.StatusCode, body, requestUri);
             }
             else
             {
