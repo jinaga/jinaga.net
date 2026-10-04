@@ -69,10 +69,11 @@ namespace Jinaga.Store.SQLite
                 {
                     var envelope = graph.GetEnvelope(factReference);
 
-                    connFactory.WithTxn(
+                    bool inserted = connFactory.WithTxn(
                         (conn, id) =>
                             {
                                 string sql;
+                                bool factInserted = false;
 
                                 // Select or insert into FactType table.  Gets a FactTypeId
                                 sql = @"
@@ -104,7 +105,7 @@ namespace Jinaga.Store.SQLite
                                 var factId = conn.ExecuteScalar(sql, envelope.Fact.Reference.Hash, factTypeId);
                                 if (factId == "")
                                 {
-                                    newFacts = newFacts.Add(envelope.Fact);
+                                    factInserted = true;
                                     string data = Fact.Canonicalize(envelope.Fact.Fields, envelope.Fact.Predecessors);
                                     sql = @"
                                         INSERT OR IGNORE INTO fact (fact_type_id, hash, data) 
@@ -209,11 +210,18 @@ namespace Jinaga.Store.SQLite
                                     ";
                                     conn.ExecuteNonQuery(sql, factId, publicKeyId, signature.Signature);
                                 }
-                                return 0;
+                                return factInserted;
                             },
                         true
                     );
 
+                    // Append only once the transaction has committed. A rolled
+                    // back attempt is retried, so a list mutated inside the
+                    // callback would carry the fact once per attempt.
+                    if (inserted)
+                    {
+                        newFacts = newFacts.Add(envelope.Fact);
+                    }
                 }
                 logger.LogInformation("SQLite saved {count} facts", newFacts.Count);
                 return Task.FromResult(newFacts);

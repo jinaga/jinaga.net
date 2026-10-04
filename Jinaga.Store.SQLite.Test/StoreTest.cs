@@ -871,15 +871,139 @@ public class StoreTest
 
     }
 
-    private static FactReference ReferenceOfFact(object fact)
+    [Fact]
+    public async Task SaveUnderWriteLockContentionReturnsTheNewFactOnce()
+    {
+        // Delete the database file if present.
+        if (File.Exists(SQLitePath))
+            File.Delete(SQLitePath);
+
+        IStore sqliteStore = GivenSQLiteStore();
+
+        // Store one fact of the type without contention, so that the contended
+        // save below gets past the insert into fact_type and reaches the insert
+        // into fact, which is the first statement that needs the write lock.
+        await sqliteStore.Save(GraphOf(new Airline("IA")), false, default);
+
+        var graph = GraphOf(new Airline("JB"));
+        var added = await WhileAnotherConnectionHoldsTheWriteLock(
+            () => sqliteStore.Save(graph, false, default));
+
+        added.Should().ContainSingle().Which.Reference.Should().Be(graph.Last);
+    }
+
+    [Fact]
+    public async Task SaveUnderWriteLockContentionNotifiesAListenerOnce()
+    {
+        // Delete the database file if present.
+        if (File.Exists(SQLitePath))
+            File.Delete(SQLitePath);
+
+        var sqliteStore = GivenSQLiteStore();
+        var loggerFactory = NullLoggerFactory.Instance;
+        var networkManager = new NetworkManager(GivenLocalNetwork(), sqliteStore, loggerFactory, (FactGraph g, ImmutableList<Fact> l, CancellationToken c) => Task.CompletedTask);
+        var factManager = new FactManager(sqliteStore, networkManager, [], loggerFactory, 0);
+
+        // Store one airline without contention, so that the contended save
+        // below gets past the insert into fact_type and reaches the insert into
+        // fact, which is the first statement that needs the write lock.
+        await factManager.SaveLocal(factManager.Serialize(new Airline("IA")), default);
+
+        var daysOfAirline = Given<Airline>.Match((a, facts) =>
+            from day in facts.OfType<AirlineDay>()
+            where day.airline == a
+            select day);
+
+        int notificationCount = 0;
+        var listener = factManager.AddSpecificationListener(daysOfAirline,
+            (products, cancellationToken) =>
+            {
+                Interlocked.Increment(ref notificationCount);
+                return Task.CompletedTask;
+            });
+
+        var graph = factManager.Serialize(new Airline("JB"));
+        await WhileAnotherConnectionHoldsTheWriteLock(
+            () => factManager.SaveLocal(graph, default));
+
+        factManager.RemoveSpecificationListener(listener);
+        notificationCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task SaveOfAStoredFactReturnsNothingWithAndWithoutContention()
+    {
+        // Delete the database file if present.
+        if (File.Exists(SQLitePath))
+            File.Delete(SQLitePath);
+
+        IStore sqliteStore = GivenSQLiteStore();
+        var graph = GraphOf(new Airline("IA"));
+        await sqliteStore.Save(graph, false, default);
+
+        var withoutContention = await sqliteStore.Save(graph, false, default);
+        withoutContention.Should().BeEmpty();
+
+        var withContention = await WhileAnotherConnectionHoldsTheWriteLock(
+            () => sqliteStore.Save(graph, false, default));
+        withContention.Should().BeEmpty();
+    }
+
+    /// <summary>
+    /// Runs an operation while a second connection holds the SQLite write lock,
+    /// releasing the lock only after the operation's first attempt has failed.
+    /// </summary>
+    private static async Task<T> WhileAnotherConnectionHoldsTheWriteLock<T>(Func<Task<T>> operation)
+    {
+        var lockAcquired = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseRequested = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var holder = Task.Run(() =>
+        {
+            Conn? conn = null;
+            try
+            {
+                conn = new Conn(SQLitePath, 99);
+                conn.ExecuteNonQuery("BEGIN IMMEDIATE");
+                lockAcquired.SetResult(true);
+                releaseRequested.Task.Wait();
+                conn.ExecuteNonQuery("ROLLBACK");
+            }
+            catch (Exception exception)
+            {
+                lockAcquired.TrySetException(exception);
+                throw;
+            }
+            finally
+            {
+                conn?.Close();
+            }
+        });
+
+        await lockAcquired.Task;
+        var running = Task.Run(operation);
+
+        // A connection's busy timeout is 10 ms and the first retry pauses are 0
+        // and 100 ms, so holding the lock for longer than that guarantees that
+        // at least one attempt begins, fails, and is retried.
+        await Task.Delay(300);
+        releaseRequested.SetResult(true);
+        await holder;
+        return await running;
+    }
+
+    private static FactGraph GraphOf(object fact)
     {
         var store = new MemoryStore();
         var loggerFactory = NullLoggerFactory.Instance;
         var networkManager = new NetworkManager(new LocalNetwork(), store, loggerFactory, (FactGraph g, ImmutableList<Fact> l, CancellationToken c) => Task.CompletedTask);
         var factManager = new FactManager(store, networkManager, [], loggerFactory, 0);
-        var graph = factManager.Serialize(fact);
-        var lastRef = graph.Last;
-        return lastRef;
+        return factManager.Serialize(fact);
+    }
+
+    private static FactReference ReferenceOfFact(object fact)
+    {
+        return GraphOf(fact).Last;
     }
 
     private static JinagaClient GivenJinagaClient(IStore? store = null, INetwork? network = null)
