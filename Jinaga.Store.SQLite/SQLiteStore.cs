@@ -689,26 +689,33 @@ namespace Jinaga.Store.SQLite
                 true
             );
 
-            // Convert the graph records to FactGraph objects.
-            var factGraphs = graphsFromDb.Select(g => DeserializeFactGraph(g.graph_data)).ToImmutableList();
-
-            // If there are graphs, then the next bookmark is the largest fact ID.
-            int lastFactId = 0;
-            if (factGraphs.Count > 0)
-            {
-                lastFactId = graphsFromDb.Max(g => g.fact_id);
-            }
-
-            // Merge the graphs.
+            // Merge the graphs, and record the bookmark that acknowledges each
+            // queued fact. A row's graph ends with the fact that was queued,
+            // preceded by its ancestors. The bookmark deletes every row up to
+            // a fact ID, so it runs as the highest ID seen so far rather than
+            // this row's own ID.
             var mergedGraph = FactGraph.Empty;
-            foreach (var graph in factGraphs)
+            var queuedFacts = ImmutableList.CreateBuilder<QueuedFact>();
+            int highestFactId = 0;
+            int count = 0;
+            foreach (var graphFromDb in graphsFromDb)
             {
+                var graph = DeserializeFactGraph(graphFromDb.graph_data);
                 mergedGraph = mergedGraph.Merge(graph);
+                if (graphFromDb.fact_id > highestFactId)
+                {
+                    highestFactId = graphFromDb.fact_id;
+                }
+                if (graph.FactReferences.Count > 0)
+                {
+                    queuedFacts.Add(new QueuedFact(graph.Last, highestFactId.ToString()));
+                }
+                count++;
             }
 
-            // Return the graphs and the next bookmark.
-            logger.LogTrace("SQLite read {count} queued graphs", factGraphs.Count);
-            return Task.FromResult(new QueuedFacts(mergedGraph, lastFactId.ToString()));
+            // Return the graphs and the bookmarks that acknowledge them.
+            logger.LogTrace("SQLite read {count} queued graphs", count);
+            return Task.FromResult(new QueuedFacts(mergedGraph, queuedFacts.ToImmutable()));
         }
 
         private FactGraph DeserializeFactGraph(string json)

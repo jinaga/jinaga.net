@@ -368,7 +368,9 @@ namespace Jinaga.Storage
         {
             lock (this)
             {
-                var facts = feed.Skip(bookmark)
+                int firstQueued = bookmark;
+                var queuedReferences = feed.Skip(firstQueued).ToImmutableList();
+                var facts = queuedReferences
                     .SelectMany(reference => ancestors[reference])
                     .Distinct()
                     .Select(reference => factsByReference[reference]);
@@ -388,9 +390,17 @@ namespace Jinaga.Storage
                 }
                 var graph = builder.Build();
 
-                return Task.FromResult(new QueuedFacts(
-                    graph, feed.Count.ToString()
-                ));
+                // The bookmark counts the facts that have been sent, so the
+                // bookmark that acknowledges the fact at a given position is
+                // one past that position.
+                var queuedFacts = queuedReferences
+                    .Select((reference, index) => new QueuedFact(
+                        reference,
+                        (firstQueued + index + 1).ToString()
+                    ))
+                    .ToImmutableList();
+
+                return Task.FromResult(new QueuedFacts(graph, queuedFacts));
             }
         }
 
