@@ -184,7 +184,23 @@ namespace Jinaga.Store.SQLite.Database.Migrations
             }
         }
 
-        private static List<QueuedFacts> LoadFactGraphsFromQueueBookmark(Conn conn)
+        /// <summary>
+        /// One row destined for the outbound queue: the graph of a queued fact
+        /// and its ancestors, and the fact ID that identifies the row.
+        /// </summary>
+        private class QueuedGraph
+        {
+            public FactGraph Graph { get; }
+            public int FactId { get; }
+
+            public QueuedGraph(FactGraph graph, int factId)
+            {
+                Graph = graph;
+                FactId = factId;
+            }
+        }
+
+        private static List<QueuedGraph> LoadFactGraphsFromQueueBookmark(Conn conn)
         {
             // Load the current bookmark from the bookmark table.
             string sql;
@@ -234,7 +250,7 @@ namespace Jinaga.Store.SQLite.Database.Migrations
             var factsFromDb = conn.ExecuteQuery<FactWithBookmarkIdAndSignatureFromDb>(sql);
 
             // Produce a graph for each bookmark.
-            var graphs = new List<QueuedFacts>();
+            var graphs = new List<QueuedGraph>();
             FactGraphBuilder graphBuilder = null;
             int lastBookmark = 0;
             foreach (var fact in factsFromDb)
@@ -243,7 +259,7 @@ namespace Jinaga.Store.SQLite.Database.Migrations
                 {
                     if (graphBuilder != null)
                     {
-                        graphs.Add(new QueuedFacts(graphBuilder.Build(), lastBookmark.ToString()));
+                        graphs.Add(new QueuedGraph(graphBuilder.Build(), lastBookmark));
                     }
                     graphBuilder = new FactGraphBuilder();
                     lastBookmark = fact.bookmark;
@@ -253,12 +269,12 @@ namespace Jinaga.Store.SQLite.Database.Migrations
             }
             if (graphBuilder != null)
             {
-                graphs.Add(new QueuedFacts(graphBuilder.Build(), lastBookmark.ToString()));
+                graphs.Add(new QueuedGraph(graphBuilder.Build(), lastBookmark));
             }
             return graphs;
         }
 
-        private static void SaveFactGraphsToOutboundQueue(Conn conn, List<QueuedFacts> queuedGraph)
+        private static void SaveFactGraphsToOutboundQueue(Conn conn, List<QueuedGraph> queuedGraph)
         {
             var sql = @"
                 INSERT INTO outbound_queue (fact_id, graph_data) 
@@ -267,7 +283,7 @@ namespace Jinaga.Store.SQLite.Database.Migrations
             foreach (var graph in queuedGraph)
             {
                 var graphData = graph.Graph.ToJson();
-                conn.ExecuteNonQuery(sql, graph.NextBookmark, graphData);
+                conn.ExecuteNonQuery(sql, graph.FactId, graphData);
             }
         }
     }
