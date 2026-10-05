@@ -122,7 +122,8 @@ public sealed class DotGraph
                 {
                     throw Error("unterminated string");
                 }
-                if (Peek == '\\' && position + 1 < line.Length && line[position + 1] == '"')
+                if (Peek == '\\' && position + 1 < line.Length &&
+                    (line[position + 1] == '"' || line[position + 1] == '\\'))
                 {
                     position++;
                 }

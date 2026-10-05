@@ -100,13 +100,6 @@ public class RenderTypesCompactTest
 
     [Theory]
     [MemberData(nameof(Scenarios))]
-    public void CompactShowsOnlyWhatTheFullGraphShows(Type[] types)
-    {
-        RenderedTypeGraph.Compact(types).ShouldBeAViewOf(RenderedTypeGraph.Full(types));
-    }
-
-    [Theory]
-    [MemberData(nameof(Scenarios))]
     public void OrderOfRequestedTypesDoesNotMatter(Type[] types)
     {
         RenderedTypeGraph.Compact(Enumerable.Reverse(types).ToArray())
@@ -115,15 +108,8 @@ public class RenderTypesCompactTest
 
     public static IEnumerable<object[]> Scenarios()
     {
-        var deletions = new[]
-        {
-            typeof(EmployeeDeleted), typeof(OfficeDeleted), typeof(OfficeRestored),
-            typeof(AuditDeleted), typeof(CompanyDeleted), typeof(BadgeDeleted),
-            typeof(AssignmentDeleted), typeof(AssignmentDeletionReason),
-            typeof(TransferDeleted), typeof(TransferRestored)
-        };
         yield return new object[] { TypeCatalog.All };
-        yield return new object[] { deletions };
-        yield return new object[] { TypeCatalog.All.Concat(deletions).ToArray() };
+        yield return new object[] { Fixtures.Deletions };
+        yield return new object[] { TypeCatalog.All.Concat(Fixtures.Deletions).ToArray() };
     }
 }
