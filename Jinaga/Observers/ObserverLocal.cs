@@ -263,7 +263,7 @@ namespace Jinaga.Observers
                     {
                         removal = await resultAdded(result.Projection).ConfigureAwait(false);
                     }
-                    catch
+                    catch (Exception ex)
                     {
                         // The handler never produced a removal function, so the row
                         // was never delivered. Drop it, which leaves a later
@@ -273,7 +273,16 @@ namespace Jinaga.Observers
                         {
                             rowStates = rowStates.Remove(resultTuple);
                         }
-                        throw;
+
+                        // The observer is the boundary between Jinaga and caller
+                        // code, so a handler that throws is confined to its own row.
+                        // Rethrowing would end this loop, end the notification of
+                        // every later listener including other observers', and fail
+                        // a save that has already committed, none of which the code
+                        // that saved the fact did anything to deserve. Log it and
+                        // carry on with the next row.
+                        logger.LogError(ex, "Added handler threw for {Specification}", specification.ToDescriptiveString());
+                        continue;
                     }
 
                     await SettleRow(resultTuple, removal).ConfigureAwait(false);

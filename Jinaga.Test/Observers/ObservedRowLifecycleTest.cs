@@ -144,10 +144,10 @@ public class ObservedRowLifecycleTest
 
         try
         {
-            // The exception escaping the observer is its own defect, tracked
-            // separately. What this asserts is the state the row is left in.
-            Func<Task> loaded = () => watch.Loaded;
-            await loaded.Should().ThrowAsync<InvalidOperationException>();
+            // The observer confines the handler's exception to its own row, so
+            // the watch loads normally. What this asserts is the state the row
+            // is left in.
+            await watch.Loaded;
 
             // Nothing was delivered for this row, so there is nothing to remove.
             var deleted = await j.Fact(new CourseDeleted(course, DateTime.UtcNow));
