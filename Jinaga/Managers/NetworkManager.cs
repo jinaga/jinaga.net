@@ -19,6 +19,7 @@ namespace Jinaga.Managers
         private readonly IStore store;
         private readonly ILogger logger;
         private readonly Func<FactGraph, ImmutableList<Fact>, CancellationToken, Task> notifyObservers;
+        private readonly int maxBatchSize;
 
         private ImmutableDictionary<string, Task<ImmutableList<string>>> feedsCache =
             ImmutableDictionary<string, Task<ImmutableList<string>>>.Empty;
@@ -32,12 +33,16 @@ namespace Jinaga.Managers
 
         public event JinagaStatusChanged? OnStatusChanged;
 
-        public NetworkManager(INetwork network, IStore store, ILoggerFactory loggerFactory, Func<FactGraph, ImmutableList<Fact>, CancellationToken, Task> notifyObservers)
+        public NetworkManager(INetwork network, IStore store, ILoggerFactory loggerFactory, Func<FactGraph, ImmutableList<Fact>, CancellationToken, Task> notifyObservers, int maxBatchSize)
         {
+            if (maxBatchSize <= 0)
+                throw new ArgumentOutOfRangeException(nameof(maxBatchSize), maxBatchSize, "The maximum batch size must be greater than zero.");
+
             this.network = network;
             this.store = store;
             this.logger = loggerFactory.CreateLogger<NetworkManager>();
             this.notifyObservers = notifyObservers;
+            this.maxBatchSize = maxBatchSize;
 
             network.OnAuthenticationStateChanged += SetAuthenticationState;
         }
@@ -51,30 +56,140 @@ namespace Jinaga.Managers
         {
             // Get the queued facts.
             var queue = await store.GetQueue().ConfigureAwait(false);
-            if (queue.Graph.FactReferences.Count == 0)
+            if (queue.Facts.Count == 0)
             {
                 SetSaveStatus(false, null, 0);
                 return;
             }
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-            logger.LogInformation("Save started with {0} facts.", queue.Graph.FactReferences.Count);
-            SetSaveStatus(true, null, queue.Graph.FactReferences.Count);
+            logger.LogInformation("Save started with {0} facts.", queue.Facts.Count);
+            SetSaveStatus(true, null, queue.Facts.Count);
 
+            int remaining = queue.Facts.Count;
             try
             {
-                // Send the facts using the network provider.
-                await network.Save(queue.Graph, cancellationToken).ConfigureAwait(false);
-                // Update the queue.
-                await store.SetQueueBookmark(queue.NextBookmark).ConfigureAwait(false);
+                // Send the facts in batches, so that a queue which has grown
+                // past a request size limit between here and the replicator
+                // still drains. A batch that succeeds advances the bookmark,
+                // so a failure part way through leaves the batches that
+                // succeeded out of the queue and the rest in it.
+                foreach (var batch in SplitIntoBatches(queue))
+                {
+                    if (batch.Graph.FactReferences.Count > 0)
+                    {
+                        await network.Save(batch.Graph, cancellationToken).ConfigureAwait(false);
+                    }
+                    await store.SetQueueBookmark(batch.Bookmark).ConfigureAwait(false);
+                    remaining -= batch.Count;
+                    if (remaining > 0)
+                    {
+                        SetSaveStatus(true, null, remaining);
+                    }
+                }
                 logger.LogInformation("Save completed after {elapsedMilliseconds} ms.", stopwatch.ElapsedMilliseconds);
                 SetSaveStatus(false, null, 0);
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Save failed after {elapsedMilliseconds} ms.", stopwatch.ElapsedMilliseconds);
-                SetSaveStatus(false, ex, queue.Graph.FactReferences.Count);
+                SetSaveStatus(false, ex, remaining);
                 throw;
             }
+        }
+
+        private class SaveBatch
+        {
+            public FactGraph Graph { get; }
+            public string Bookmark { get; }
+            public int Count { get; }
+
+            public SaveBatch(FactGraph graph, string bookmark, int count)
+            {
+                Graph = graph;
+                Bookmark = bookmark;
+                Count = count;
+            }
+        }
+
+        /// <summary>
+        /// Divides the queue into consecutive batches of at most maxBatchSize
+        /// facts, oldest first.
+        ///
+        /// A batch carries the ancestors of the facts it sends, including ones
+        /// an earlier batch already sent, because the graph wire format names a
+        /// predecessor by its position within the same request. The bound
+        /// therefore applies to the whole request rather than to the facts that
+        /// are new to it, which is what makes it a bound on request size.
+        ///
+        /// A single queued fact whose ancestors already exceed the bound is
+        /// sent on its own and over the bound, so that the queue still drains.
+        /// </summary>
+        private IEnumerable<SaveBatch> SplitIntoBatches(QueuedFacts queue)
+        {
+            // A store can report a queued fact that its graph does not carry,
+            // if an ancestor of that fact is missing. Such a fact could not be
+            // sent before this change either, so the bookmark still moves past
+            // it rather than stalling the queue on it.
+            var available = new HashSet<FactReference>(queue.Graph.FactReferences);
+
+            int index = 0;
+            while (index < queue.Facts.Count)
+            {
+                var graph = FactGraph.Empty;
+                var included = new HashSet<FactReference>();
+                string bookmark = queue.Facts[index].Bookmark;
+                int count = 0;
+                while (index < queue.Facts.Count)
+                {
+                    var reference = queue.Facts[index].Reference;
+                    if (available.Contains(reference))
+                    {
+                        var additions = AncestorsNotIncluded(queue.Graph, reference, included);
+                        if (count > 0 && included.Count + additions.Count > maxBatchSize)
+                        {
+                            break;
+                        }
+                        foreach (var addition in additions)
+                        {
+                            graph = graph.Add(queue.Graph.GetEnvelope(addition));
+                            included.Add(addition);
+                        }
+                    }
+                    bookmark = queue.Facts[index].Bookmark;
+                    count++;
+                    index++;
+                }
+                if (included.Count > maxBatchSize)
+                {
+                    logger.LogWarning("A queued fact and its ancestors are {0} facts, which exceeds the maximum batch size of {1}. Sending it as one batch.", included.Count, maxBatchSize);
+                }
+                yield return new SaveBatch(graph, bookmark, count);
+            }
+        }
+
+        /// <summary>
+        /// The fact and the ancestors it needs that the batch does not already
+        /// have, in topological order.
+        /// </summary>
+        private static ImmutableList<FactReference> AncestorsNotIncluded(FactGraph graph, FactReference reference, HashSet<FactReference> included)
+        {
+            var additions = ImmutableList.CreateBuilder<FactReference>();
+            var visited = new HashSet<FactReference>();
+            Visit(graph, reference, included, visited, additions);
+            return additions.ToImmutable();
+        }
+
+        private static void Visit(FactGraph graph, FactReference reference, HashSet<FactReference> included, HashSet<FactReference> visited, ImmutableList<FactReference>.Builder additions)
+        {
+            if (included.Contains(reference) || !visited.Add(reference))
+            {
+                return;
+            }
+            foreach (var predecessor in graph.GetFact(reference).GetAllPredecessorReferences())
+            {
+                Visit(graph, predecessor, included, visited, additions);
+            }
+            additions.Add(reference);
         }
 
         public async Task Fetch(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)

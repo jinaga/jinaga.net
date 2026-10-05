@@ -996,7 +996,7 @@ public class StoreTest
     {
         var store = new MemoryStore();
         var loggerFactory = NullLoggerFactory.Instance;
-        var networkManager = new NetworkManager(new LocalNetwork(), store, loggerFactory, (FactGraph g, ImmutableList<Fact> l, CancellationToken c) => Task.CompletedTask);
+        var networkManager = new NetworkManager(new LocalNetwork(), store, loggerFactory, (FactGraph g, ImmutableList<Fact> l, CancellationToken c) => Task.CompletedTask, new JinagaClientOptions().MaxBatchSize);
         var factManager = new FactManager(store, networkManager, [], loggerFactory, 0);
         return factManager.Serialize(fact);
     }

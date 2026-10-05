@@ -243,7 +243,7 @@ namespace Jinaga
                 {
                     await factManager.NotifyObservers(graph, added, cancellationToken).ConfigureAwait(false);
                 }
-            });
+            }, options.MaxBatchSize);
             factManager = new FactManager(store, networkManager, purgeConditions, loggerFactory, options.QueueProcessingDelay, authorizationEngine, authorizedUser);
             logger = loggerFactory.CreateLogger<JinagaClient>();
 
