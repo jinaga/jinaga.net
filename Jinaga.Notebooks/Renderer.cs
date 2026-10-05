@@ -11,10 +11,12 @@ public static class Renderer
         return GraphvizRenderer.RenderGraph(graph);
     }
 
-    // Same fact-type graph as RenderTypes. A lone …Deleted successor (no other predecessors or
-    // successors) turns its fact orange, and that …Deleted fact is omitted. It is greenyellow when
-    // that deletion's only successor is a lone …Restored; both facts are omitted.
-    // In a notebook: Renderer.RenderTypesCompact(typeof(Tenant), typeof(InspectorDeleted), typeof(InspectorRestored), ...);
+    // Same fact-type graph as RenderTypes, with deletion markers folded into the fact they mark.
+    // A fact "X" whose only marker successor is "X.Deleted" (no other predecessors or successors)
+    // is filled orange, and "X.Deleted" is omitted. It is filled greenyellow when that deletion's
+    // only successor is "X.Restored" (no other predecessors or successors); both are omitted.
+    // Pass the marker types along with the facts:
+    // Renderer.RenderTypesCompact(typeof(Tenant), typeof(InspectorDeleted), typeof(InspectorRestored), ...);
 
     public static HtmlString RenderTypesCompact(params Type[] types)
     {

@@ -114,9 +114,11 @@ public static class Renderer
             .ToImmutableArray();
     }
 
-    private static bool EndsWithName(Type type, string suffix)
+    // A marker is named for the fact it marks: "Corporate.Office" is deleted by
+    // "Corporate.Office.Deleted" and restored by "Corporate.Office.Restored".
+    private static bool IsMarkerOf(Type marker, Type fact, string suffix)
     {
-        return type.FactTypeName().EndsWith(suffix, StringComparison.Ordinal);
+        return marker.FactTypeName() == fact.FactTypeName() + suffix;
     }
 
     private static ImmutableArray<Type> SuccessorsOf(
@@ -138,12 +140,12 @@ public static class Renderer
         return predecessors.Length > 0 && predecessors.All(predecessor => predecessor.Type == expected);
     }
 
-    private static bool TryBareDeletion(
+    private static bool IsBareDeletion(
         Type fact,
         Type deleted,
         ImmutableDictionary<Type, ImmutableArray<CompactPredecessor>> predecessorsByType)
     {
-        return EndsWithName(deleted, "Deleted")
+        return IsMarkerOf(deleted, fact, ".Deleted")
             && SolePredecessor(deleted, fact, predecessorsByType)
             && SuccessorsOf(deleted, predecessorsByType).Length == 0;
     }
@@ -155,10 +157,10 @@ public static class Renderer
         out Type restored)
     {
         restored = null;
-        if (!EndsWithName(deleted, "Deleted") || !SolePredecessor(deleted, fact, predecessorsByType))
+        if (!IsMarkerOf(deleted, fact, ".Deleted") || !SolePredecessor(deleted, fact, predecessorsByType))
             return false;
         var successors = SuccessorsOf(deleted, predecessorsByType);
-        if (successors.Length != 1 || !EndsWithName(successors[0], "Restored"))
+        if (successors.Length != 1 || !IsMarkerOf(successors[0], fact, ".Restored"))
             return false;
         restored = successors[0];
         return SolePredecessor(restored, deleted, predecessorsByType)
@@ -173,7 +175,7 @@ public static class Renderer
         {
             foreach (var deleted in SuccessorsOf(fact, predecessorsByType))
             {
-                if (TryBareDeletion(fact, deleted, predecessorsByType))
+                if (IsBareDeletion(fact, deleted, predecessorsByType))
                     hidden.Add(deleted);
                 else if (TryRestoredDeletion(fact, deleted, predecessorsByType, out var restored))
                 {
@@ -194,7 +196,7 @@ public static class Renderer
         {
             if (TryRestoredDeletion(factClass, deleted, predecessorsByType, out _))
                 return "greenyellow";
-            if (TryBareDeletion(factClass, deleted, predecessorsByType))
+            if (IsBareDeletion(factClass, deleted, predecessorsByType))
                 sawOrange = true;
         }
         return sawOrange ? "orange" : null;
