@@ -65,6 +65,24 @@ public static class Fixtures
         yield return ("a fact type name with a quote", Render(new Quoted("x")));
     }
 
+    /// <summary>
+    /// A document Graphviz draws while warning about every node, so that it
+    /// writes far more to standard error than a pipe buffer holds. Nothing the
+    /// renderers emit looks like this; it is here so that running Graphviz over
+    /// a document is exercised with both of its output streams full.
+    /// </summary>
+    public static (string Description, string Dot) NoisyDocument()
+    {
+        // Graphviz warns once per unsupported style and quotes the whole style
+        // name back, so a long name buys the volume with few enough nodes to
+        // lay out in milliseconds.
+        var padding = new string('x', 300);
+        var statements = Enumerable.Range(0, 400)
+            .Select(index => $"    \"n{index}\" [style=notastyle{index}{padding}]");
+        return ("a document Graphviz warns about at every node",
+            string.Join("\n", new[] { "digraph {", "    rankdir=BT" }.Concat(statements).Append("}")));
+    }
+
     public static IEnumerable<(string Description, string Dot)> All(JinagaClient j) =>
-        TypeGraphs().Concat(FactGraphs(j));
+        TypeGraphs().Concat(FactGraphs(j)).Append(NoisyDocument());
 }

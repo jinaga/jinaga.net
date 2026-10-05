@@ -26,10 +26,18 @@ public static class Graphviz
         process.StartInfo.RedirectStandardError = true;
         process.Start();
 
+        // Drain both output pipes concurrently. Reading one to the end before
+        // touching the other deadlocks as soon as Graphviz fills the pipe it is
+        // not being read from: it blocks writing, so the stream being read
+        // never reaches end of file. Graphviz warns once per unsupported style,
+        // which is enough to fill that buffer on a graph of a few thousand
+        // nodes.
+        var output = Task.Run(() => process.StandardOutput.ReadToEnd());
+        var errorOutput = Task.Run(() => process.StandardError.ReadToEnd());
         process.StandardInput.Write(dot);
         process.StandardInput.Close();
-        var svg = process.StandardOutput.ReadToEnd();
-        var error = process.StandardError.ReadToEnd();
+        var svg = output.Result;
+        var error = errorOutput.Result;
         process.WaitForExit();
 
         if (process.ExitCode != 0)
