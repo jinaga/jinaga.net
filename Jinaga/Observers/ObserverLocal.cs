@@ -35,6 +35,14 @@ namespace Jinaga.Observers
             ImmutableDictionary<FactReferenceTuple, RowState>.Empty;
         protected ImmutableList<string> feeds = ImmutableList<string>.Empty;
 
+        /// <summary>
+        /// True while the initial read is in flight, meaning from before the
+        /// listeners are registered until the rows of that read have been
+        /// delivered. Only in that interval can a removal arrive for a row the
+        /// observer is about to deliver from a result set computed before it.
+        /// </summary>
+        private bool initialReadInFlight;
+
         internal ObserverLocal(Specification specification, FactReferenceTuple givenTuple, FactManager factManager, Func<object, Task<Func<Task>>> onAdded, ILoggerFactory loggerFactory)
         {
             this.specification = specification;
@@ -160,12 +168,60 @@ namespace Jinaga.Observers
 
         protected async Task Read(CancellationToken cancellationToken)
         {
-            var results = await factManager.Read(givenTuple, specification, specification.Projection.Type, this, cancellationToken).ConfigureAwait(false);
-            AddSpecificationListeners();
-            var givenSubset = GivenSubset();
-            var resultSubset = ResultSubsetAt("");
+            // Register the listeners before the read rather than after it. A fact
+            // saved while the read is in flight is in neither the read's result set
+            // nor a listener's reach when the listeners come second, so the watch
+            // never shows it. Coming first, the listener delivers it. A fact that
+            // lands in both the result set and a notification is still delivered
+            // once, because ClaimRow refuses the second of the two.
+            BeginInitialRead();
+            try
+            {
+                AddSpecificationListeners();
+                var results = await factManager.Read(givenTuple, specification, specification.Projection.Type, this, cancellationToken).ConfigureAwait(false);
+                var givenSubset = GivenSubset();
+                var resultSubset = ResultSubsetAt("");
 
-            await SynchronizeNotifyAdded(results, givenSubset, resultSubset, specification.Projection).ConfigureAwait(false);
+                await SynchronizeNotifyAdded(results, givenSubset, resultSubset, specification.Projection).ConfigureAwait(false);
+            }
+            finally
+            {
+                EndInitialRead();
+            }
+        }
+
+        /// <summary>
+        /// Opens the interval in which a removal can reach a row that the initial
+        /// read is about to deliver. <see cref="NotifyRemoved"/> records such a
+        /// removal as <see cref="RowRemovedBeforeDelivery"/>, and only within this
+        /// interval: outside it a row with no state has nothing pending, and
+        /// recording one would cancel that row's next legitimate add.
+        /// </summary>
+        private void BeginInitialRead()
+        {
+            lock (this)
+            {
+                initialReadInFlight = true;
+            }
+        }
+
+        /// <summary>
+        /// Closes that interval. A row still carrying
+        /// <see cref="RowRemovedBeforeDelivery"/> is one the read never delivered,
+        /// so the state has no delivery left to cancel. Drop it, because from here
+        /// on it would cancel a later add of that row instead.
+        /// </summary>
+        private void EndInitialRead()
+        {
+            lock (this)
+            {
+                initialReadInFlight = false;
+                var undelivered = rowStates
+                    .Where(pair => pair.Value is RowRemovedBeforeDelivery)
+                    .Select(pair => pair.Key)
+                    .ToImmutableList();
+                rowStates = rowStates.RemoveRange(undelivered);
+            }
         }
 
         private void AddSpecificationListeners()
@@ -315,13 +371,23 @@ namespace Jinaga.Observers
         /// duration of the caller's added handler. A row that already has a state
         /// belongs to another notification, so this returns false and the handler
         /// is not called.
+        ///
+        /// A row whose removal arrived before it was ever delivered is the one
+        /// state that is consumed here rather than left alone: this delivery is
+        /// the one the removal cancels, so the handler is not called and the state
+        /// goes with it. What follows for that row is a new add, not the delivery
+        /// that was cancelled.
         /// </summary>
         private bool ClaimRow(FactReferenceTuple resultTuple)
         {
             lock (this)
             {
-                if (rowStates.ContainsKey(resultTuple))
+                if (rowStates.TryGetValue(resultTuple, out var state))
                 {
+                    if (state is RowRemovedBeforeDelivery)
+                    {
+                        rowStates = rowStates.Remove(resultTuple);
+                    }
                     return false;
                 }
 
@@ -422,7 +488,7 @@ namespace Jinaga.Observers
                             removal = delivered.Removal;
                             RetireRow(resultTuple);
                         }
-                        else
+                        else if (state is RowInFlight)
                         {
                             // The added handler has not returned a removal function
                             // yet. Record the request against the in-flight row so
@@ -432,9 +498,24 @@ namespace Jinaga.Observers
                             rowStates = rowStates.SetItem(
                                 resultTuple, new RowInFlight(removalRequested: true));
                         }
+                        // A row already cancelled before delivery stays cancelled.
+                        // A second removal in that interval has no handler to wait
+                        // for and no function to call.
                     }
-                    // A row with no state was never notified, so there is nothing to
-                    // remove and nothing to remember.
+                    else if (initialReadInFlight)
+                    {
+                        // The initial read is still in flight, so this row may yet
+                        // be delivered out of a result set that was computed before
+                        // this removal. Remember the removal against the row, and
+                        // ClaimRow cancels that one delivery when it arrives.
+                        rowStates = rowStates.Add(
+                            resultTuple, new RowRemovedBeforeDelivery());
+                    }
+                    // Outside that interval a row with no state was never notified,
+                    // so there is nothing to remove and nothing to remember.
+                    // Recording a removal here would cancel the row's next
+                    // legitimate add, which a second removal of an already retired
+                    // row would otherwise do.
                 }
                 if (removal != null)
                 {
@@ -446,11 +527,15 @@ namespace Jinaga.Observers
         /// <summary>
         /// The state of one row of the observed result set.
         ///
-        /// A row the observer has notified is in exactly one of two states: its
-        /// added handler is still running, or that handler has returned the
-        /// function to call when the row is removed. A row the observer has not
-        /// notified has no state, which is the absence of an entry rather than a
-        /// third case.
+        /// A row the observer has notified is in one of two states: its added
+        /// handler is still running, or that handler has returned the function to
+        /// call when the row is removed. A row the observer has not notified has
+        /// no state, which is the absence of an entry rather than a further case.
+        ///
+        /// The third state belongs to a row the observer has not notified and is
+        /// about to: a removal reached it while the initial read was in flight.
+        /// That state means something only in that interval, so it is recorded
+        /// only while the read is in flight and dropped when the read ends.
         /// </summary>
         private abstract class RowState
         {
@@ -484,6 +569,18 @@ namespace Jinaga.Observers
             }
 
             internal Func<Task> Removal { get; }
+        }
+
+        /// <summary>
+        /// A removal arrived for this row while the initial read was in flight and
+        /// before the row had been delivered, so there was no added handler to
+        /// wait for and no removal function to call. The read may still deliver
+        /// the row out of a result set computed before the removal, and ClaimRow
+        /// cancels that one delivery rather than calling the handler for a row
+        /// that is already gone.
+        /// </summary>
+        private sealed class RowRemovedBeforeDelivery : RowState
+        {
         }
     }
 }
