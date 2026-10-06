@@ -21,7 +21,7 @@ public class GraphvizTest
     {
         foreach (var (description, dot) in Fixtures.All(j))
         {
-            var svg = Graphviz.ToSvg(dot);
+            var svg = RenderToSvg(dot);
 
             var document = XDocument.Parse(svg);
             document.Root?.Name.LocalName.Should().Be("svg",
@@ -34,11 +34,21 @@ public class GraphvizTest
     {
         foreach (var (description, dot) in Fixtures.All(j))
         {
-            var drawn = NodesDrawnBy(Graphviz.ToSvg(dot));
+            var drawn = NodesDrawnBy(RenderToSvg(dot));
 
             drawn.Should().BeEquivalentTo(DotGraph.Parse(dot).Nodes.Keys,
                 "Graphviz should draw one node per fact in {0}", description);
         }
+    }
+
+    /// <summary>
+    /// Draws through <see cref="GraphvizRenderer"/>, the renderer the package
+    /// itself uses, so these tests exercise the production path rather than a
+    /// copy of it.
+    /// </summary>
+    private static string RenderToSvg(string dot)
+    {
+        return GraphvizRenderer.RenderGraph(dot).Value;
     }
 
     private static IEnumerable<string> NodesDrawnBy(string svg)
