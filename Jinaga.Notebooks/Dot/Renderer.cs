@@ -4,13 +4,6 @@ namespace Jinaga.Notebooks.Dot;
 
 public static class Renderer
 {
-    public enum Cardinality
-    {
-        One,
-        Many,
-        Optional
-    }
-
     /// <summary>
     /// The graph of the fact types given and the predecessors they reach.
     /// </summary>

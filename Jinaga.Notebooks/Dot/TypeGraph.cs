@@ -20,6 +20,17 @@ internal enum Marking
 }
 
 /// <summary>
+/// How many predecessors a role names. A role names one, or many, or one that
+/// the fact may leave out. The problem has these three cases and no others.
+/// </summary>
+internal enum Cardinality
+{
+    One,
+    Many,
+    Optional
+}
+
+/// <summary>
 /// A fact type in a graph, and how it is marked. Its name follows from the
 /// class, so it is read from the class rather than carried beside it.
 /// </summary>
@@ -35,7 +46,7 @@ internal sealed record PredecessorEdge(
     Type Successor,
     string Role,
     Type Predecessor,
-    Renderer.Cardinality Cardinality)
+    Cardinality Cardinality)
 {
     public string SuccessorName => Successor.FactTypeName();
     public string PredecessorName => Predecessor.FactTypeName();
@@ -162,13 +173,13 @@ internal sealed class TypeGraph
         }
     }
 
-    private static string Punctuation(Renderer.Cardinality cardinality)
+    private static string Punctuation(Cardinality cardinality)
     {
         switch (cardinality)
         {
-            case Renderer.Cardinality.One: return "";
-            case Renderer.Cardinality.Many: return "*";
-            case Renderer.Cardinality.Optional: return "?";
+            case Cardinality.One: return "";
+            case Cardinality.Many: return "*";
+            case Cardinality.Optional: return "?";
             default: throw new ArgumentException($"Unknown cardinality {cardinality}", nameof(cardinality));
         }
     }
@@ -184,7 +195,7 @@ internal sealed class TypeGraph
                 if (elementType != null && IsFactType(elementType))
                 {
                     yield return new PredecessorEdge(
-                        factClass, property.Name, elementType, Renderer.Cardinality.Many);
+                        factClass, property.Name, elementType, Cardinality.Many);
                 }
             }
             else if (IsFactType(propertyType))
@@ -192,8 +203,8 @@ internal sealed class TypeGraph
                 yield return new PredecessorEdge(
                     factClass, property.Name, propertyType,
                     IsNullable(property, nullability)
-                        ? Renderer.Cardinality.Optional
-                        : Renderer.Cardinality.One);
+                        ? Cardinality.Optional
+                        : Cardinality.One);
             }
         }
     }
