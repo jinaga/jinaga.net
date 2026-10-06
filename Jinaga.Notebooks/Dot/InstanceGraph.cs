@@ -27,6 +27,32 @@ internal sealed record FactNode(
 internal sealed record FactEdge(string Successor, string Role, string Predecessor);
 
 /// <summary>
+/// How much of a fact graph to show: how deep <see cref="InstanceGraph.Discover(JinagaClient, InstanceGraphOptions, object[])"/>
+/// looks into a projection object for facts, and how much of a string field
+/// <see cref="InstanceGraph.ToDot"/> writes before it cuts it short.
+/// </summary>
+public sealed record InstanceGraphOptions
+{
+    /// <summary>
+    /// What the overloads that take no options pass on.
+    /// </summary>
+    public static readonly InstanceGraphOptions Default = new();
+
+    /// <summary>
+    /// How deep into a projection object to look for facts. A fact at any depth
+    /// from 0 through this value is found, so a projection that nests facts
+    /// deeper needs a greater value to show them.
+    /// </summary>
+    public int SearchDepth { get; init; } = 5;
+
+    /// <summary>
+    /// How many characters of a string field to show. A longer value is cut to
+    /// this length and followed by an ellipsis.
+    /// </summary>
+    public int FieldLength { get; init; } = 20;
+}
+
+/// <summary>
 /// The facts found in a set of projections, together with their predecessors and
 /// the roles that connect them. The facts are collected once, in
 /// <see cref="Discover"/>, and a DOT document is this graph written out by
@@ -34,27 +60,39 @@ internal sealed record FactEdge(string Successor, string Role, string Predecesso
 /// </summary>
 internal sealed class InstanceGraph
 {
-    private const int SearchDepth = 5;
-    private const int FieldLength = 20;
+    // Only the field length outlives discovery. The search depth is spent
+    // finding the facts, so the graph that comes out of it does not vary by it.
+    private readonly int fieldLength;
 
     public ImmutableList<FactNode> Nodes { get; }
     public ImmutableList<FactEdge> Edges { get; }
 
-    private InstanceGraph(ImmutableList<FactNode> nodes, ImmutableList<FactEdge> edges)
+    private InstanceGraph(ImmutableList<FactNode> nodes, ImmutableList<FactEdge> edges, int fieldLength)
     {
         Nodes = nodes;
         Edges = edges;
+        this.fieldLength = fieldLength;
     }
 
     /// <summary>
     /// Finds the facts within the projections given, and the predecessors they
-    /// reach. A fact that was asked for is marked as requested.
+    /// reach, showing as much of each fact as the default options allow.
     /// </summary>
     public static InstanceGraph Discover(JinagaClient jinagaClient, params object[] projections)
     {
+        return Discover(jinagaClient, InstanceGraphOptions.Default, projections);
+    }
+
+    /// <summary>
+    /// Finds the facts within the projections given, and the predecessors they
+    /// reach. A fact that was asked for is marked as requested. The options say
+    /// how deep to look and how much of a string field to show.
+    /// </summary>
+    public static InstanceGraph Discover(JinagaClient jinagaClient, InstanceGraphOptions options, params object[] projections)
+    {
         var graph = FactGraph.Empty;
         var requested = ImmutableHashSet<FactReference>.Empty;
-        foreach (var fact in projections.SelectMany(projection => GetFacts(projection, SearchDepth)))
+        foreach (var fact in projections.SelectMany(projection => GetFacts(projection, options.SearchDepth)))
         {
             var factGraph = jinagaClient.Graph(fact);
             graph = graph.AddGraph(factGraph);
@@ -80,7 +118,7 @@ internal sealed class InstanceGraph
                 }
             }
         }
-        return new InstanceGraph(nodes, edges);
+        return new InstanceGraph(nodes, edges, options.FieldLength);
     }
 
     /// <summary>
@@ -106,7 +144,7 @@ internal sealed class InstanceGraph
         return string.Join("\n", lines.Add("}"));
     }
 
-    private static string Label(FactNode node)
+    private string Label(FactNode node)
     {
         string typeRow = @$"<TR><TD COLSPAN=""2"">{Encode(node.Type)}</TD></TR>";
         var fieldRows = string.Join("", node.Fields
@@ -124,7 +162,7 @@ internal sealed class InstanceGraph
 
     // Every null shows as "null", whatever the C# type that produced it, so that
     // a null is never shown the way an empty string is shown.
-    private static string Display(FieldValue value)
+    private string Display(FieldValue value)
     {
         switch (value)
         {
@@ -141,10 +179,10 @@ internal sealed class InstanceGraph
         }
     }
 
-    private static string Limit(string stringValue)
+    private string Limit(string stringValue)
     {
-        return stringValue.Length > FieldLength
-            ? $"{stringValue.Substring(0, FieldLength)}..."
+        return stringValue.Length > fieldLength
+            ? $"{stringValue.Substring(0, fieldLength)}..."
             : stringValue;
     }
 

@@ -1,3 +1,4 @@
+using Jinaga.Notebooks.Dot;
 using Jinaga.Notebooks.Test.Models;
 
 namespace Jinaga.Notebooks.Test.FactGraphs;
@@ -139,6 +140,32 @@ public class RenderFactsTest
 
         RenderedFactGraph.Of(j, fiveDeep).ShouldShowExactly(acme);
         RenderedFactGraph.Of(j, sixDeep).ShouldShowNothing();
+    }
+
+    [Fact]
+    public void SearchDepthDecidesHowDeepAFactIsLookedFor()
+    {
+        var sixDeep = new { f = new { a = new { b = new { c = new { d = new { e = acme } } } } } };
+
+        RenderedFactGraph.Of(j, sixDeep).ShouldShowNothing();
+        RenderedFactGraph.Of(j, new InstanceGraphOptions { SearchDepth = 6 }, sixDeep).ShouldShowExactly(acme);
+        RenderedFactGraph.Of(j, new InstanceGraphOptions { SearchDepth = 7 }, sixDeep).ShouldShowExactly(acme);
+    }
+
+    [Fact]
+    public void FieldLengthDecidesHowMuchOfAStringFieldIsShown()
+    {
+        // Thirty characters, each one telling, so that a failure says where the
+        // field was cut rather than only that it was.
+        const string city = "Abcdefghijklmnopqrstuvwxyz1234";
+        var office = new Office(acme, city);
+
+        RenderedFactGraph.Of(j, office)
+            .ShouldShow(office).WithField(nameof(Office.city), city.Substring(0, 20) + "...");
+        RenderedFactGraph.Of(j, new InstanceGraphOptions { FieldLength = 30 }, office)
+            .ShouldShow(office).WithField(nameof(Office.city), city);
+        RenderedFactGraph.Of(j, new InstanceGraphOptions { FieldLength = 10 }, office)
+            .ShouldShow(office).WithField(nameof(Office.city), city.Substring(0, 10) + "...");
     }
 
     [Fact]
