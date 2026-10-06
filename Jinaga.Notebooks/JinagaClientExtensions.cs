@@ -26,4 +26,9 @@ public static class JinagaClientExtensions
     {
         return Renderer.RenderTypes(types);
     }
+
+    public static HtmlString RenderTypesCompact(this JinagaClient jinagaClient, params Type[] types)
+    {
+        return Renderer.RenderTypesCompact(types);
+    }
 }
