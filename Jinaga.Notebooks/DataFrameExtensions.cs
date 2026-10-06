@@ -41,10 +41,25 @@ public static class DataFrameExtensions
                 var values = items.Select(item => (int?)prop.GetValue(item)).ToList();
                 dataFrame.Columns.Add(new Int32DataFrameColumn(prop.Name, values));
             }
+            else if (propertyType == typeof(long) || propertyType == typeof(long?))
+            {
+                var values = items.Select(item => (long?)prop.GetValue(item)).ToList();
+                dataFrame.Columns.Add(new Int64DataFrameColumn(prop.Name, values));
+            }
             else if (propertyType == typeof(double) || propertyType == typeof(double?))
             {
                 var values = items.Select(item => (double?)prop.GetValue(item)).ToList();
                 dataFrame.Columns.Add(new DoubleDataFrameColumn(prop.Name, values));
+            }
+            else if (propertyType == typeof(float) || propertyType == typeof(float?))
+            {
+                var values = items.Select(item => (float?)prop.GetValue(item)).ToList();
+                dataFrame.Columns.Add(new SingleDataFrameColumn(prop.Name, values));
+            }
+            else if (propertyType == typeof(decimal) || propertyType == typeof(decimal?))
+            {
+                var values = items.Select(item => (decimal?)prop.GetValue(item)).ToList();
+                dataFrame.Columns.Add(new DecimalDataFrameColumn(prop.Name, values));
             }
             else if (propertyType == typeof(bool) || propertyType == typeof(bool?))
             {
