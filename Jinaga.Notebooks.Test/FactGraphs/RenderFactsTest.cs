@@ -86,13 +86,13 @@ public class RenderFactsTest
     }
 
     [Fact]
-    public void NullStringIsShownEmpty()
+    public void NullStringIsShownAsNull()
     {
         var badge = new Badge(alice, "B-17", 3, true, null);
 
         var graph = RenderedFactGraph.Of(j, badge);
 
-        graph.ShouldShow(badge).WithField(nameof(Badge.note), "");
+        graph.ShouldShow(badge).WithField(nameof(Badge.note), "null");
     }
 
     [Fact]

@@ -90,12 +90,12 @@ public sealed class RenderedFact
         match.Success.Should().BeTrue("the label of {0} should be a table of its type and fields, but was {1}", fact, label);
         var fields = Field.Matches(match.Groups["fields"].Value)
             .Select(field => (
-                Uri.UnescapeDataString(field.Groups["name"].Value),
+                HttpUtility.HtmlDecode(field.Groups["name"].Value),
                 HttpUtility.HtmlDecode(field.Groups["value"].Value)))
             .ToList();
         return new RenderedFact(
             fact,
-            Uri.UnescapeDataString(match.Groups["type"].Value),
+            HttpUtility.HtmlDecode(match.Groups["type"].Value),
             match.Groups["border"].Value == "1",
             fields);
     }

@@ -70,23 +70,6 @@ public sealed class RenderedTypeGraph
         Dot.Edges.Should().BeEquivalentTo(other.Dot.Edges);
     }
 
-    /// <summary>
-    /// This graph shows a subset of what the full graph shows: every fact type and
-    /// predecessor it shows is in the full graph, and every fact type it leaves out
-    /// is a deletion or restoration marker.
-    /// </summary>
-    public void ShouldBeAViewOf(RenderedTypeGraph full)
-    {
-        Dot.Nodes.Keys.Should().BeSubsetOf(full.Dot.Nodes.Keys);
-        full.Dot.Nodes.Keys.Except(Dot.Nodes.Keys)
-            .Where(name => !name.EndsWith(".Deleted") && !name.EndsWith(".Restored"))
-            .Should().BeEmpty("only deletion and restoration markers may be left out");
-        foreach (var edge in Dot.Edges)
-        {
-            full.Dot.Edges.Should().ContainEquivalentOf(edge);
-        }
-    }
-
     private IEnumerable<(string Predecessor, string Role, Cardinality Cardinality)> PredecessorsOf(string successor)
     {
         foreach (var edge in Dot.Edges.Where(edge => edge.From == successor))
