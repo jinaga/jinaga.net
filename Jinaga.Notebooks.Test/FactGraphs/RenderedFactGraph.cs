@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using System.Web;
+using Jinaga.Notebooks.Dot;
 using Jinaga.Notebooks.Test.Dot;
 using Jinaga.Repository;
 
@@ -26,6 +27,9 @@ public sealed class RenderedFactGraph
 
     public static RenderedFactGraph Of(JinagaClient j, params object[] projections) =>
         new(j, DotGraph.Parse(Jinaga.Notebooks.Dot.JinagaClientExtensions.RenderFacts(j, projections)));
+
+    public static RenderedFactGraph Of(JinagaClient j, InstanceGraphOptions options, params object[] projections) =>
+        new(j, DotGraph.Parse(Jinaga.Notebooks.Dot.JinagaClientExtensions.RenderFacts(j, options, projections)));
 
     public RenderedFact ShouldShow(object fact)
     {
