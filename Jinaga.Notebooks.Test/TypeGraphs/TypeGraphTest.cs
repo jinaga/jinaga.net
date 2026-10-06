@@ -1,6 +1,5 @@
 using Jinaga.Notebooks.Dot;
 using Jinaga.Notebooks.Test.Models;
-using Cardinality = Jinaga.Notebooks.Dot.Renderer.Cardinality;
 
 namespace Jinaga.Notebooks.Test.TypeGraphs;
 

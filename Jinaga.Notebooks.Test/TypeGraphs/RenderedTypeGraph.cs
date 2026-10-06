@@ -1,3 +1,4 @@
+using Jinaga.Notebooks.Dot;
 using Jinaga.Notebooks.Test.Dot;
 using Jinaga.Repository;
 using static Jinaga.Notebooks.Dot.Renderer;
@@ -44,7 +45,7 @@ public sealed class RenderedTypeGraph
         Dot.Nodes.Keys.Should().BeEquivalentTo(factTypes.Select(type => type.FactTypeName()));
     }
 
-    public void ShouldShowPredecessor<TSuccessor, TPredecessor>(
+    internal void ShouldShowPredecessor<TSuccessor, TPredecessor>(
         string role,
         Cardinality cardinality = Cardinality.One)
     {

@@ -1,5 +1,5 @@
+using Jinaga.Notebooks.Dot;
 using Jinaga.Notebooks.Test.Models;
-using static Jinaga.Notebooks.Dot.Renderer;
 
 namespace Jinaga.Notebooks.Test.TypeGraphs;
 

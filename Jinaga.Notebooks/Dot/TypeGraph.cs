@@ -12,7 +12,7 @@ namespace Jinaga.Notebooks.Dot;
 /// into the fact it marks, and records the fold as a marking. The problem has
 /// these three cases and no others.
 /// </summary>
-public enum Marking
+internal enum Marking
 {
     None,
     Deletable,
@@ -20,10 +20,21 @@ public enum Marking
 }
 
 /// <summary>
+/// How many predecessors a role names. A role names one, or many, or one that
+/// the fact may leave out. The problem has these three cases and no others.
+/// </summary>
+internal enum Cardinality
+{
+    One,
+    Many,
+    Optional
+}
+
+/// <summary>
 /// A fact type in a graph, and how it is marked. Its name follows from the
 /// class, so it is read from the class rather than carried beside it.
 /// </summary>
-public sealed record FactTypeNode(Type FactClass, Marking Marking)
+internal sealed record FactTypeNode(Type FactClass, Marking Marking)
 {
     public string Name => FactClass.FactTypeName();
 }
@@ -31,11 +42,11 @@ public sealed record FactTypeNode(Type FactClass, Marking Marking)
 /// <summary>
 /// One role by which a fact type names a predecessor.
 /// </summary>
-public sealed record PredecessorEdge(
+internal sealed record PredecessorEdge(
     Type Successor,
     string Role,
     Type Predecessor,
-    Renderer.Cardinality Cardinality)
+    Cardinality Cardinality)
 {
     public string SuccessorName => Successor.FactTypeName();
     public string PredecessorName => Predecessor.FactTypeName();
@@ -47,7 +58,7 @@ public sealed record PredecessorEdge(
 /// compact graph is this graph with <see cref="CollapseDeletion"/> applied, and
 /// a DOT document is this graph written out by <see cref="ToDot"/>.
 /// </summary>
-public sealed class TypeGraph
+internal sealed class TypeGraph
 {
     public ImmutableList<FactTypeNode> Nodes { get; }
     public ImmutableList<PredecessorEdge> Edges { get; }
@@ -162,13 +173,13 @@ public sealed class TypeGraph
         }
     }
 
-    private static string Punctuation(Renderer.Cardinality cardinality)
+    private static string Punctuation(Cardinality cardinality)
     {
         switch (cardinality)
         {
-            case Renderer.Cardinality.One: return "";
-            case Renderer.Cardinality.Many: return "*";
-            case Renderer.Cardinality.Optional: return "?";
+            case Cardinality.One: return "";
+            case Cardinality.Many: return "*";
+            case Cardinality.Optional: return "?";
             default: throw new ArgumentException($"Unknown cardinality {cardinality}", nameof(cardinality));
         }
     }
@@ -184,7 +195,7 @@ public sealed class TypeGraph
                 if (elementType != null && IsFactType(elementType))
                 {
                     yield return new PredecessorEdge(
-                        factClass, property.Name, elementType, Renderer.Cardinality.Many);
+                        factClass, property.Name, elementType, Cardinality.Many);
                 }
             }
             else if (IsFactType(propertyType))
@@ -192,8 +203,8 @@ public sealed class TypeGraph
                 yield return new PredecessorEdge(
                     factClass, property.Name, propertyType,
                     IsNullable(property, nullability)
-                        ? Renderer.Cardinality.Optional
-                        : Renderer.Cardinality.One);
+                        ? Cardinality.Optional
+                        : Cardinality.One);
             }
         }
     }
