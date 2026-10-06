@@ -15,7 +15,7 @@ namespace Jinaga.Notebooks.Dot;
 /// A fact in a graph: how it is identified, what it shows, and whether it was
 /// one of the facts asked for.
 /// </summary>
-public sealed record FactNode(
+internal sealed record FactNode(
     string Hash,
     string Type,
     ImmutableList<Field> Fields,
@@ -24,7 +24,7 @@ public sealed record FactNode(
 /// <summary>
 /// One role by which a fact names a predecessor.
 /// </summary>
-public sealed record FactEdge(string Successor, string Role, string Predecessor);
+internal sealed record FactEdge(string Successor, string Role, string Predecessor);
 
 /// <summary>
 /// The facts found in a set of projections, together with their predecessors and
@@ -32,7 +32,7 @@ public sealed record FactEdge(string Successor, string Role, string Predecessor)
 /// <see cref="Discover"/>, and a DOT document is this graph written out by
 /// <see cref="ToDot"/>.
 /// </summary>
-public sealed class InstanceGraph
+internal sealed class InstanceGraph
 {
     private const int SearchDepth = 5;
     private const int FieldLength = 20;

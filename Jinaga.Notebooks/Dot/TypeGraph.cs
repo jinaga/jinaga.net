@@ -12,7 +12,7 @@ namespace Jinaga.Notebooks.Dot;
 /// into the fact it marks, and records the fold as a marking. The problem has
 /// these three cases and no others.
 /// </summary>
-public enum Marking
+internal enum Marking
 {
     None,
     Deletable,
@@ -23,7 +23,7 @@ public enum Marking
 /// A fact type in a graph, and how it is marked. Its name follows from the
 /// class, so it is read from the class rather than carried beside it.
 /// </summary>
-public sealed record FactTypeNode(Type FactClass, Marking Marking)
+internal sealed record FactTypeNode(Type FactClass, Marking Marking)
 {
     public string Name => FactClass.FactTypeName();
 }
@@ -31,7 +31,7 @@ public sealed record FactTypeNode(Type FactClass, Marking Marking)
 /// <summary>
 /// One role by which a fact type names a predecessor.
 /// </summary>
-public sealed record PredecessorEdge(
+internal sealed record PredecessorEdge(
     Type Successor,
     string Role,
     Type Predecessor,
@@ -47,7 +47,7 @@ public sealed record PredecessorEdge(
 /// compact graph is this graph with <see cref="CollapseDeletion"/> applied, and
 /// a DOT document is this graph written out by <see cref="ToDot"/>.
 /// </summary>
-public sealed class TypeGraph
+internal sealed class TypeGraph
 {
     public ImmutableList<FactTypeNode> Nodes { get; }
     public ImmutableList<PredecessorEdge> Edges { get; }
