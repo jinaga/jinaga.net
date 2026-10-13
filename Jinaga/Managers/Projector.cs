@@ -44,6 +44,10 @@ namespace Jinaga.Managers
             {
                 return new[] { product.GetFactReference(hash.Tag) };
             }
+            else if (projection is SignerProjection signer)
+            {
+                return new[] { product.GetFactReference(signer.Tag) };
+            }
             else
             {
                 throw new NotImplementedException();
@@ -75,6 +79,12 @@ namespace Jinaga.Managers
             {
                 return products
                     .Select(product => product.GetFactReference(field.Tag))
+                    .ToImmutableList();
+            }
+            else if (projection is SignerProjection signer)
+            {
+                return products
+                    .Select(product => product.GetFactReference(signer.Tag))
                     .ToImmutableList();
             }
             else
@@ -113,6 +123,12 @@ namespace Jinaga.Managers
             {
                 return products
                     .Select(product => product.GetFactReference(hash.Tag))
+                    .ToImmutableList();
+            }
+            else if (projection is SignerProjection signer)
+            {
+                return products
+                    .Select(product => product.GetFactReference(signer.Tag))
                     .ToImmutableList();
             }
             else

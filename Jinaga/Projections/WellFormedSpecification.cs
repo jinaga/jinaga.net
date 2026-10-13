@@ -120,6 +120,8 @@ namespace Jinaga.Projections
                     return new[] { field.Tag };
                 case HashProjection hash:
                     return new[] { hash.Tag };
+                case SignerProjection signer:
+                    return new[] { signer.Tag };
                 case CompoundProjection compound:
                     return compound.Names.SelectMany(name => ProjectedLabels(compound.GetProjection(name)));
                 default:
@@ -254,6 +256,8 @@ namespace Jinaga.Projections
                     return new[] { field.Tag };
                 case HashProjection hash:
                     return new[] { hash.Tag };
+                case SignerProjection signer:
+                    return new[] { signer.Tag };
                 case CompoundProjection compound:
                     return compound.Names
                         .SelectMany(name => LabelsInProjection(compound.GetProjection(name)));

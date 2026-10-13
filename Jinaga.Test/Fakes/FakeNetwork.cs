@@ -31,6 +31,13 @@ internal class FakeNetwork : INetwork
     public FactGraph UploadedGraph { get; private set; } = FactGraph.Empty;
     public ImmutableList<Fact> UploadedFacts => UploadedGraph.FactReferences.Select(UploadedGraph.GetFact).ToImmutableList();
 
+    /// <summary>
+    /// The specifications the client asked for feeds with, in order, exactly as it handed
+    /// them over. A test that cares what reaches the wire takes one of these rather than
+    /// rebuilding a specification of its own.
+    /// </summary>
+    public List<(FactReferenceTuple givenTuple, Specification specification)> RequestedFeeds { get; } = new();
+
     public FakeNetwork(ITestOutputHelper output)
     {
         this.output = output;
@@ -94,6 +101,7 @@ internal class FakeNetwork : INetwork
 
     public Task<ImmutableList<string>> Feeds(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
     {
+        RequestedFeeds.Add((givenTuple, specification));
         return Task.FromResult(feeds.Select(feed => feed.Name).ToImmutableList());
     }
 

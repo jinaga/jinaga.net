@@ -219,6 +219,20 @@ namespace Jinaga.Repository
                         throw new SpecificationException($"Cannot hash {value.ToDescriptiveString()}.");
                     }
                 }
+                else if (methodCallExpression.Method.DeclaringType == typeof(FactRepository) &&
+                    methodCallExpression.Method.Name == nameof(FactRepository.SignersOf) &&
+                    methodCallExpression.Arguments.Count == 1)
+                {
+                    var value = ProcessProjection(methodCallExpression.Arguments[0], symbolTable);
+                    if (value is SimpleProjection simpleProjection)
+                    {
+                        return new SignerProjection(simpleProjection.Tag, methodCallExpression.Arguments[0].Type);
+                    }
+                    else
+                    {
+                        throw new SpecificationException($"Cannot find the signers of {value.ToDescriptiveString()}. Give the fact a label first.");
+                    }
+                }
             }
             throw new SpecificationException($"Unsupported type of projection {expression}.");
         }
@@ -422,6 +436,7 @@ namespace Jinaga.Repository
 
         private PredicateContext ProcessPredicate(Expression body, SymbolTable symbolTable)
         {
+            RejectSignersOf(body);
             if (body is BinaryExpression { NodeType: ExpressionType.Equal } binary)
             {
                 var left = ProcessReference(binary.Left, symbolTable);
@@ -539,6 +554,47 @@ namespace Jinaga.Repository
                 return LinqProcessor.And(left, right);
             }
             throw new SpecificationException($"Unsupported predicate type {body}.");
+        }
+
+        /// <summary>
+        /// Refuses a condition that reads provenance.
+        ///
+        /// <see cref="Match"/>, <see cref="PathCondition"/> and <see cref="ExistentialCondition"/>
+        /// have no way to name a <see cref="SignerProjection"/>, so "provenance affects matching"
+        /// cannot be represented in the specification model at all. C# lets someone write the
+        /// expression anyway, so the front end refuses it here rather than silently dropping it
+        /// or matching on something else.
+        /// </summary>
+        private static void RejectSignersOf(Expression body)
+        {
+            var call = FindSignersOf(body);
+            if (call != null)
+            {
+                throw new SpecificationException($"Cannot use {nameof(FactRepository.SignersOf)} in a condition: {call}. Provenance is a projection, so it cannot affect matching.");
+            }
+        }
+
+        private static MethodCallExpression? FindSignersOf(Expression expression)
+        {
+            var finder = new SignersOfFinder();
+            finder.Visit(expression);
+            return finder.Found;
+        }
+
+        private class SignersOfFinder : ExpressionVisitor
+        {
+            public MethodCallExpression? Found { get; private set; }
+
+            protected override Expression VisitMethodCall(MethodCallExpression node)
+            {
+                if (Found == null &&
+                    node.Method.DeclaringType == typeof(FactRepository) &&
+                    node.Method.Name == nameof(FactRepository.SignersOf))
+                {
+                    Found = node;
+                }
+                return base.VisitMethodCall(node);
+            }
         }
 
         private static Expression RemoveSpanConversion(Expression expression)
