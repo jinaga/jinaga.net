@@ -58,6 +58,20 @@ namespace Jinaga.Store.SQLite
 
         Task<ImmutableList<Fact>> IStore.Save(FactGraph graph, bool queue, CancellationToken cancellationToken)
         {
+            return Save(graph, queue, null, cancellationToken);
+        }
+
+        Task<ImmutableList<Fact>> IStore.Save(FactGraph graph, bool queue, string author, CancellationToken cancellationToken)
+        {
+            return Save(graph, queue, author, cancellationToken);
+        }
+
+        /// <summary>
+        /// Saves the facts in the graph, recording <paramref name="author"/> as the
+        /// local author of each fact it queues. A null author records nothing.
+        /// </summary>
+        private Task<ImmutableList<Fact>> Save(FactGraph graph, bool queue, string author, CancellationToken cancellationToken)
+        {
             if (graph.FactReferences.IsEmpty)
             {
                 return Task.FromResult(ImmutableList<Fact>.Empty);
@@ -141,6 +155,20 @@ namespace Jinaga.Store.SQLite
                                             VALUES (@0, @1)
                                         ";
                                         conn.ExecuteNonQuery(sql, factId, graphData);
+
+                                        // Only a fact that is new to the store reaches
+                                        // here, so a fact never picks up a second author.
+                                        // The record outlives the queue row: the fix for
+                                        // the queue reads it, and so will provenance.
+                                        if (author != null)
+                                        {
+                                            var authorPublicKeyId = GetOrInsertPublicKeyId(conn, author);
+                                            sql = @"
+                                                INSERT OR IGNORE INTO fact_author (fact_id, public_key_id)
+                                                VALUES (@0, @1)
+                                            ";
+                                            conn.ExecuteNonQuery(sql, factId, authorPublicKeyId);
+                                        }
                                     }
 
                                     // For each predecessor of the inserted fact ...
@@ -194,26 +222,7 @@ namespace Jinaga.Store.SQLite
                                 foreach (var signature in envelope.Signatures)
                                 {
                                     // Select or insert into the public_key table.  Gets a public_key_id.
-                                    sql = @"
-                                        SELECT public_key_id 
-                                        FROM public_key 
-                                        WHERE public_key = @0
-                                    ";
-                                    var publicKeyId = conn.ExecuteScalar(sql, signature.PublicKey);
-                                    if (publicKeyId == "")
-                                    {
-                                        sql = @"
-                                            INSERT OR IGNORE INTO public_key (public_key) 
-                                            VALUES (@0)
-                                        ";
-                                        conn.ExecuteNonQuery(sql, signature.PublicKey);
-                                        sql = @"
-                                            SELECT public_key_id 
-                                            FROM public_key 
-                                            WHERE public_key = @0
-                                        ";
-                                        publicKeyId = conn.ExecuteScalar(sql, signature.PublicKey);
-                                    }
+                                    var publicKeyId = GetOrInsertPublicKeyId(conn, signature.PublicKey);
 
                                     // Insert into the signature table if it doesn't already exist.
                                     sql = @"
@@ -271,6 +280,35 @@ namespace Jinaga.Store.SQLite
                 .ToImmutableList();
         }
 
+        /// <summary>
+        /// The public_key_id for the given key, inserting the key if the database
+        /// does not have it yet. Every reference to a key resolves through this
+        /// table, so a key has one spelling in the database.
+        /// </summary>
+        private string GetOrInsertPublicKeyId(Conn conn, string publicKey)
+        {
+            string sql = @"
+                SELECT public_key_id
+                FROM public_key
+                WHERE public_key = @0
+            ";
+            var publicKeyId = conn.ExecuteScalar(sql, publicKey);
+            if (publicKeyId == "")
+            {
+                sql = @"
+                    INSERT OR IGNORE INTO public_key (public_key)
+                    VALUES (@0)
+                ";
+                conn.ExecuteNonQuery(sql, publicKey);
+                sql = @"
+                    SELECT public_key_id
+                    FROM public_key
+                    WHERE public_key = @0
+                ";
+                publicKeyId = conn.ExecuteScalar(sql, publicKey);
+            }
+            return publicKeyId;
+        }
 
         private string getFactId(Conn conn, FactReference factReference)
         {
@@ -804,48 +842,111 @@ namespace Jinaga.Store.SQLite
 
         public Task<QueuedFacts> GetQueue()
         {
-            // Load the graphs from the outbound_queue table.
-            var graphsFromDb = connFactory.WithConn(
+            return Task.FromResult(ReadQueue(null, routeByAuthor: false));
+        }
+
+        Task<QueuedFacts> IStore.GetQueue(string currentAuthor)
+        {
+            return Task.FromResult(ReadQueue(currentAuthor, routeByAuthor: true));
+        }
+
+        /// <summary>
+        /// The outbound queue, oldest first. When <paramref name="routeByAuthor"/>
+        /// is set, a fact another user authored is left out, and so is a fact whose
+        /// ancestor is still queued under another user.
+        /// </summary>
+        private QueuedFacts ReadQueue(string currentAuthor, bool routeByAuthor)
+        {
+            // Load the graphs from the outbound_queue table, each with the key of
+            // the user who authored it. The authorship record is a separate table,
+            // so the queue carries no author column of its own.
+            var rowsFromDb = connFactory.WithConn(
                 (conn, id) =>
                 {
                     string sql;
                     sql = $@"
-                        SELECT q.fact_id, q.graph_data
+                        SELECT q.fact_id, q.graph_data, pk.public_key AS author
                         FROM outbound_queue q
+                        LEFT JOIN fact_author fa
+                            ON fa.fact_id = q.fact_id
+                        LEFT JOIN public_key pk
+                            ON pk.public_key_id = fa.public_key_id
                         ORDER BY q.queue_id
                     ";
                     return conn.ExecuteQuery<GraphFromDb>(sql);
                 },
                 true
-            );
+            ).ToImmutableList();
+
+            // A row's graph ends with the fact that was queued, preceded by its
+            // ancestors, so the rows alone say which queued facts are ancestors of
+            // which others.
+            var rows = rowsFromDb
+                .Select(row => (row, graph: DeserializeFactGraph(row.graph_data)))
+                .ToImmutableList();
+            var authorByQueuedReference = rows
+                .Where(entry => entry.graph.FactReferences.Count > 0 && entry.row.author != null)
+                .GroupBy(entry => entry.graph.Last)
+                .ToImmutableDictionary(group => group.Key, group => group.First().row.author);
 
             // Merge the graphs, and record the bookmark that acknowledges each
-            // queued fact. A row's graph ends with the fact that was queued,
-            // preceded by its ancestors. The bookmark deletes every row up to
-            // a fact ID, so it runs as the highest ID seen so far rather than
-            // this row's own ID.
+            // queued fact. The bookmark deletes every row up to a fact ID, so it
+            // runs as the highest ID seen so far rather than this row's own ID. It
+            // stops advancing at the first held fact, so acknowledging a fact sent
+            // after that one cannot delete the one that was held.
             var mergedGraph = FactGraph.Empty;
             var queuedFacts = ImmutableList.CreateBuilder<QueuedFact>();
             int highestFactId = 0;
+            bool holding = false;
             int count = 0;
-            foreach (var graphFromDb in graphsFromDb)
+            foreach (var (row, graph) in rows)
             {
-                var graph = DeserializeFactGraph(graphFromDb.graph_data);
-                mergedGraph = mergedGraph.Merge(graph);
-                if (graphFromDb.fact_id > highestFactId)
+                count++;
+                if (routeByAuthor &&
+                    graph.FactReferences.Count > 0 &&
+                    !CanSend(graph, row.author, currentAuthor, authorByQueuedReference))
                 {
-                    highestFactId = graphFromDb.fact_id;
+                    holding = true;
+                    continue;
+                }
+                mergedGraph = mergedGraph.Merge(graph);
+                if (!holding && row.fact_id > highestFactId)
+                {
+                    highestFactId = row.fact_id;
                 }
                 if (graph.FactReferences.Count > 0)
                 {
                     queuedFacts.Add(new QueuedFact(graph.Last, highestFactId.ToString()));
                 }
-                count++;
             }
 
             // Return the graphs and the bookmarks that acknowledge them.
             logger.LogTrace("SQLite read {count} queued graphs", count);
-            return Task.FromResult(new QueuedFacts(mergedGraph, queuedFacts.ToImmutable()));
+            return new QueuedFacts(mergedGraph, queuedFacts.ToImmutable());
+        }
+
+        /// <summary>
+        /// Whether the queued fact at the end of this graph may be uploaded under
+        /// the current author.
+        /// </summary>
+        private static bool CanSend(FactGraph graph, string author, string currentAuthor, IImmutableDictionary<FactReference, string> authorByQueuedReference)
+        {
+            if (author != null && author != currentAuthor)
+            {
+                return false;
+            }
+            foreach (var reference in graph.FactReferences)
+            {
+                // A sent ancestor is already attributed on the replica, so only an
+                // ancestor still waiting in the queue holds its descendant back.
+                if (reference != graph.Last &&
+                    authorByQueuedReference.TryGetValue(reference, out var ancestorAuthor) &&
+                    ancestorAuthor != currentAuthor)
+                {
+                    return false;
+                }
+            }
+            return true;
         }
 
         private FactGraph DeserializeFactGraph(string json)
@@ -928,6 +1029,51 @@ namespace Jinaga.Store.SQLite
                 }
             }
             return predecessors;
+        }
+
+        Task IStore.AcknowledgeQueue(ImmutableList<QueuedFact> facts)
+        {
+            if (facts.IsEmpty)
+            {
+                return Task.CompletedTask;
+            }
+
+            // Delete the rows for the facts that were sent. A sender that holds
+            // some facts back no longer sends a prefix of the queue, so it names
+            // the facts it sent rather than a position in it.
+            connFactory.WithTxn(
+                (conn, id) =>
+                {
+                    foreach (var fact in facts)
+                    {
+                        var factId = getFactId(conn, fact.Reference);
+                        if (factId != "")
+                        {
+                            conn.ExecuteNonQuery(
+                                @"DELETE FROM outbound_queue WHERE fact_id = @0",
+                                factId);
+                        }
+                    }
+
+                    // A row whose fact has been purged cannot be named by its
+                    // reference, because nothing maps the reference back to a
+                    // fact ID. Left in place it would be read and sent on every
+                    // attempt and never acknowledged, so the queue would stop
+                    // draining. The bookmark used to delete it as a side effect
+                    // of acknowledging a later fact.
+                    conn.ExecuteNonQuery(@"
+                        DELETE FROM outbound_queue
+                        WHERE NOT EXISTS (
+                            SELECT 1 FROM fact f WHERE f.fact_id = outbound_queue.fact_id
+                        )
+                    ");
+
+                    return 0;
+                },
+                true
+            );
+
+            return Task.CompletedTask;
         }
 
         public Task SetQueueBookmark(string bookmark)
@@ -1222,12 +1368,12 @@ SELECT fact_id FROM targets;";
             return sql;
         }
 
-        // A fact's edges, ancestors and signatures are derived from the fact. The
-        // schema declares no foreign keys and nothing enables PRAGMA foreign_keys,
-        // so a purge has to delete those rows itself. Otherwise they outlive the
-        // fact, and because fact_id is a PRIMARY KEY without AUTOINCREMENT, SQLite
-        // hands the id of the deleted fact to the next fact saved, which then
-        // inherits the rows left behind.
+        // A fact's edges, ancestors, signatures and authorship record are all
+        // derived from the fact. The schema declares no foreign keys and nothing
+        // enables PRAGMA foreign_keys, so a purge has to delete those rows
+        // itself. Otherwise they outlive the fact, and because fact_id is a
+        // PRIMARY KEY without AUTOINCREMENT, SQLite hands the id of the deleted
+        // fact to the next fact saved, which then inherits the rows left behind.
         //
         // The queries that find the targets read the very tables these deletes
         // empty, so the targets are collected into a temporary table first and the
@@ -1247,6 +1393,8 @@ SELECT fact_id FROM targets;";
                 WHERE fact_id IN (SELECT fact_id FROM purge_targets)
                     OR ancestor_fact_id IN (SELECT fact_id FROM purge_targets)",
             @"DELETE FROM signature
+                WHERE fact_id IN (SELECT fact_id FROM purge_targets)",
+            @"DELETE FROM fact_author
                 WHERE fact_id IN (SELECT fact_id FROM purge_targets)",
             @"DELETE FROM fact
                 WHERE fact_id IN (SELECT fact_id FROM purge_targets)"

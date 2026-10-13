@@ -35,5 +35,57 @@ namespace Jinaga.Services
         Task<IEnumerable<Fact>> GetAllFacts();
         Task Purge(ImmutableList<Specification> purgeConditions);
         Task PurgeDescendants(FactReference purgeRoot, ImmutableList<FactReference> triggers);
+
+        /// <summary>
+        /// Saves the facts in the graph, recording who authored the ones it queues.
+        ///
+        /// Each fact that is new to the store and queued for upload is recorded as
+        /// authored by <paramref name="author"/>. A fact the store already holds records
+        /// nothing, so a fact has at most one local author. The record is replica-local:
+        /// it never enters a <see cref="FactEnvelope"/> or a <see cref="FactGraph"/>, so
+        /// no serializer can carry it to a replicator.
+        ///
+        /// The record outlives the fact's queue entry. Acknowledging a fact removes it
+        /// from the queue and leaves the authorship record in place.
+        /// </summary>
+        /// <param name="graph">The facts to save</param>
+        /// <param name="queue">True to queue the new facts for upload</param>
+        /// <param name="author">Public key of the user who is saving, or null if nobody is</param>
+        /// <param name="cancellationToken">To cancel the operation</param>
+        /// <returns>The facts that were added to the store</returns>
+        Task<ImmutableList<Fact>> Save(FactGraph graph, bool queue, string? author, CancellationToken cancellationToken)
+            => Save(graph, queue, cancellationToken);
+
+        /// <summary>
+        /// The queued facts that may be uploaded while <paramref name="currentAuthor"/> is
+        /// the authenticated user.
+        ///
+        /// A queued fact is included only when its own author is
+        /// <paramref name="currentAuthor"/> or it has none, and no queued ancestor of it
+        /// has a different author. Every other queued fact is held: <see cref="GetQueue"/>
+        /// still returns it, and it is included again once its author is current. An
+        /// ancestor with no author travels with its descendant, because nobody claimed it.
+        ///
+        /// The bookmarks on the result still acknowledge a prefix of the queue, so one
+        /// never runs past a held fact.
+        /// </summary>
+        /// <param name="currentAuthor">Public key of the authenticated user, or null if nobody is</param>
+        /// <returns>The sendable queued facts, oldest first, with their ancestors</returns>
+        Task<QueuedFacts> GetQueue(string? currentAuthor)
+            => GetQueue();
+
+        /// <summary>
+        /// Removes the given facts from the outbound queue.
+        ///
+        /// A sender that holds some facts back acknowledges the ones it sent rather than a
+        /// position in the queue, because the facts it sent are no longer a prefix of it.
+        /// A store that does not route by author has only a prefix to advance, which is
+        /// what this does by default.
+        /// </summary>
+        /// <param name="facts">The facts that were sent, oldest first</param>
+        Task AcknowledgeQueue(ImmutableList<QueuedFact> facts)
+            => facts.IsEmpty
+                ? Task.CompletedTask
+                : SetQueueBookmark(facts[facts.Count - 1].Bookmark);
     }
 }

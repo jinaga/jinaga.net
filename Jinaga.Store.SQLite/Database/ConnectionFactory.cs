@@ -27,6 +27,7 @@ namespace Jinaga.Store.SQLite.Database
                     {
                         Migrations.Migration202412.CreateDb(conn);
                         Migrations.Migration202610.DeleteOrphanedRows(conn);
+                        Migrations.Migration202611.CreateFactAuthorTable(conn);
                         return 0;
                     },
                     false

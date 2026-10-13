@@ -20,6 +20,7 @@ namespace Jinaga.Managers
         private readonly ILogger logger;
         private readonly Func<FactGraph, ImmutableList<Fact>, CancellationToken, Task> notifyObservers;
         private readonly int maxBatchSize;
+        private readonly IIdentitySource? identitySource;
 
         private ImmutableDictionary<string, Task<ImmutableList<string>>> feedsCache =
             ImmutableDictionary<string, Task<ImmutableList<string>>>.Empty;
@@ -34,6 +35,11 @@ namespace Jinaga.Managers
         public event JinagaStatusChanged? OnStatusChanged;
 
         public NetworkManager(INetwork network, IStore store, ILoggerFactory loggerFactory, Func<FactGraph, ImmutableList<Fact>, CancellationToken, Task> notifyObservers, int maxBatchSize)
+            : this(network, store, loggerFactory, notifyObservers, maxBatchSize, null)
+        {
+        }
+
+        public NetworkManager(INetwork network, IStore store, ILoggerFactory loggerFactory, Func<FactGraph, ImmutableList<Fact>, CancellationToken, Task> notifyObservers, int maxBatchSize, IIdentitySource? identitySource)
         {
             if (maxBatchSize <= 0)
                 throw new ArgumentOutOfRangeException(nameof(maxBatchSize), maxBatchSize, "The maximum batch size must be greater than zero.");
@@ -43,6 +49,7 @@ namespace Jinaga.Managers
             this.logger = loggerFactory.CreateLogger<NetworkManager>();
             this.notifyObservers = notifyObservers;
             this.maxBatchSize = maxBatchSize;
+            this.identitySource = identitySource;
 
             network.OnAuthenticationStateChanged += SetAuthenticationState;
         }
@@ -54,8 +61,11 @@ namespace Jinaga.Managers
 
         public async Task Save(CancellationToken cancellationToken)
         {
-            // Get the queued facts.
-            var queue = await store.GetQueue().ConfigureAwait(false);
+            // Get the facts that may be sent under the user who is logged in now.
+            // A fact another user authored stays in the queue rather than being
+            // uploaded with this user's token and signed with this user's key.
+            var currentAuthor = identitySource?.CurrentUser?.publicKey;
+            var queue = await store.GetQueue(currentAuthor).ConfigureAwait(false);
             if (queue.Facts.Count == 0)
             {
                 SetSaveStatus(false, null, 0);
@@ -79,7 +89,7 @@ namespace Jinaga.Managers
                     {
                         await network.Save(batch.Graph, cancellationToken).ConfigureAwait(false);
                     }
-                    await store.SetQueueBookmark(batch.Bookmark).ConfigureAwait(false);
+                    await store.AcknowledgeQueue(batch.Facts).ConfigureAwait(false);
                     remaining -= batch.Count;
                     if (remaining > 0)
                     {
@@ -100,14 +110,19 @@ namespace Jinaga.Managers
         private class SaveBatch
         {
             public FactGraph Graph { get; }
-            public string Bookmark { get; }
-            public int Count { get; }
 
-            public SaveBatch(FactGraph graph, string bookmark, int count)
+            /// <summary>
+            /// The queue entries this batch covers, which are the ones to
+            /// acknowledge once it has been sent.
+            /// </summary>
+            public ImmutableList<QueuedFact> Facts { get; }
+
+            public int Count => Facts.Count;
+
+            public SaveBatch(FactGraph graph, ImmutableList<QueuedFact> facts)
             {
                 Graph = graph;
-                Bookmark = bookmark;
-                Count = count;
+                Facts = facts;
             }
         }
 
@@ -137,15 +152,14 @@ namespace Jinaga.Managers
             {
                 var graph = FactGraph.Empty;
                 var included = new HashSet<FactReference>();
-                string bookmark = queue.Facts[index].Bookmark;
-                int count = 0;
+                var facts = ImmutableList.CreateBuilder<QueuedFact>();
                 while (index < queue.Facts.Count)
                 {
                     var reference = queue.Facts[index].Reference;
                     if (available.Contains(reference))
                     {
                         var additions = AncestorsNotIncluded(queue.Graph, reference, included);
-                        if (count > 0 && included.Count + additions.Count > maxBatchSize)
+                        if (facts.Count > 0 && included.Count + additions.Count > maxBatchSize)
                         {
                             break;
                         }
@@ -155,15 +169,14 @@ namespace Jinaga.Managers
                             included.Add(addition);
                         }
                     }
-                    bookmark = queue.Facts[index].Bookmark;
-                    count++;
+                    facts.Add(queue.Facts[index]);
                     index++;
                 }
                 if (included.Count > maxBatchSize)
                 {
                     logger.LogWarning("A queued fact and its ancestors are {0} facts, which exceeds the maximum batch size of {1}. Sending it as one batch.", included.Count, maxBatchSize);
                 }
-                yield return new SaveBatch(graph, bookmark, count);
+                yield return new SaveBatch(graph, facts.ToImmutable());
             }
         }
 

@@ -35,6 +35,11 @@ namespace Jinaga
 
         /// <summary>
         /// The strategy to use for authenticating with the Jinaga replicator.
+        ///
+        /// An object that also implements <see cref="IIdentitySource"/> tells the client
+        /// who is logged in. The client then records that user as the local author of the
+        /// facts it queues, and holds a queued fact back while a different user is logged
+        /// in, rather than uploading it under their token.
         /// </summary>
         public IHttpAuthenticationProvider? HttpAuthenticationProvider { get; set; }
 
@@ -237,14 +242,18 @@ namespace Jinaga
         /// </summary>
         internal JinagaClient(IStore store, INetwork network, ImmutableList<Specification> purgeConditions, ILoggerFactory loggerFactory, JinagaClientOptions options, AuthorizationEngine? authorizationEngine, User? authorizedUser)
         {
+            // The authentication provider is the only place a current user comes from.
+            // Reading it from the same object that sets the upload token is what keeps
+            // the recorded author and the token from naming different users.
+            var identitySource = options.HttpAuthenticationProvider as IIdentitySource;
             networkManager = new NetworkManager(network, store, loggerFactory, async (graph, added, cancellationToken) =>
             {
                 if (factManager != null)
                 {
                     await factManager.NotifyObservers(graph, added, cancellationToken).ConfigureAwait(false);
                 }
-            }, options.MaxBatchSize);
-            factManager = new FactManager(store, networkManager, purgeConditions, loggerFactory, options.QueueProcessingDelay, authorizationEngine, authorizedUser);
+            }, options.MaxBatchSize, identitySource);
+            factManager = new FactManager(store, networkManager, purgeConditions, loggerFactory, options.QueueProcessingDelay, authorizationEngine, authorizedUser, identitySource);
             logger = loggerFactory.CreateLogger<JinagaClient>();
 
             Local = new LocalJinagaClient(factManager, loggerFactory);
