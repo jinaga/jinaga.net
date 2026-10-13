@@ -87,5 +87,27 @@ namespace Jinaga.Services
             => facts.IsEmpty
                 ? Task.CompletedTask
                 : SetQueueBookmark(facts[facts.Count - 1].Bookmark);
+
+        /// <summary>
+        /// The public key of the user who authored each of the given facts on this replica,
+        /// as recorded by <see cref="Save(FactGraph, bool, string?, CancellationToken)"/>.
+        ///
+        /// A replica signs nothing, so a fact this device created carries no signature until
+        /// a replicator returns one, and the feed paths skip a fact the replica already holds.
+        /// The authorship record is what this replica knows about who asserted such a fact,
+        /// which is why provenance reads it alongside the stored signatures.
+        ///
+        /// Like a date learned, an author travels beside the graph rather than inside it, so
+        /// nothing can serialize it onto the network. A fact with no recorded author is absent
+        /// from the result, and so is a reference the store does not hold.
+        ///
+        /// A store that records no authors returns nothing, which leaves provenance reading
+        /// the stored signatures alone.
+        /// </summary>
+        /// <param name="references">The facts whose local authors to read</param>
+        /// <param name="cancellationToken">To cancel the operation</param>
+        /// <returns>The public key of each fact's local author, where it has one</returns>
+        Task<ImmutableDictionary<FactReference, string>> LoadLocalAuthors(ImmutableList<FactReference> references, CancellationToken cancellationToken)
+            => Task.FromResult(ImmutableDictionary<FactReference, string>.Empty);
     }
 }

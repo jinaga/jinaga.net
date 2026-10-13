@@ -503,6 +503,71 @@ namespace Jinaga.Store.SQLite
         }
 
         /// <summary>
+        /// The local author of each fact that has one, read from the fact_author table the
+        /// queue routes by, so provenance and routing cannot disagree about who authored a
+        /// fact. A fact with no row, and a reference the store does not hold, are both absent.
+        /// </summary>
+        Task<ImmutableDictionary<FactReference, string>> IStore.LoadLocalAuthors(ImmutableList<FactReference> references, CancellationToken cancellationToken)
+        {
+            if (references.IsEmpty)
+            {
+                return Task.FromResult(ImmutableDictionary<FactReference, string>.Empty);
+            }
+
+            // SQLite enforces a maximum number of bound parameters per statement, and each
+            // reference binds two of them, so batch the query the way LoadDatesLearned does.
+            const int maxReferencesPerBatch = 400;
+
+            var builder = ImmutableDictionary.CreateBuilder<FactReference, string>();
+            foreach (var batch in references
+                .Distinct()
+                .Select((f, i) => new { f, i })
+                .GroupBy(x => x.i / maxReferencesPerBatch)
+                .Select(g => g.Select(x => x.f).ToImmutableList()))
+            {
+                var authorsFromDb = connFactory.WithConn(
+                    (conn, id) =>
+                    {
+                        var referenceValues = batch.Select((f, i) => $"(@{2 * i}, @{2 * i + 1})").ToArray();
+
+                        var parameters = new List<object>();
+                        foreach (var reference in batch)
+                        {
+                            parameters.Add(reference.Hash);
+                            parameters.Add(reference.Type);
+                        }
+
+                        string sql = $@"
+                                SELECT
+                                    f.hash,
+                                    t.name,
+                                    pk.public_key
+                                FROM fact f
+                                JOIN fact_type t
+                                    ON f.fact_type_id = t.fact_type_id
+                                JOIN fact_author fa
+                                    ON fa.fact_id = f.fact_id
+                                JOIN public_key pk
+                                    ON pk.public_key_id = fa.public_key_id
+                                WHERE (f.hash,t.name)
+                                    IN (VALUES {String.Join(",", referenceValues)} )
+                            ";
+
+                        return conn.ExecuteQuery<LocalAuthorFromDb>(sql, parameters.ToArray());
+                    },
+                    true   //exponential backoff
+                );
+
+                foreach (var row in authorsFromDb)
+                {
+                    builder[new FactReference(row.name, row.hash)] = row.public_key;
+                }
+            }
+
+            return Task.FromResult(builder.ToImmutable());
+        }
+
+        /// <summary>
         /// Reads a date_learned column. The column defaults to CURRENT_TIMESTAMP, which SQLite
         /// writes in UTC with one-second resolution, so the result is always UTC.
         /// </summary>

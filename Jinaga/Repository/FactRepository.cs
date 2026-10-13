@@ -21,11 +21,22 @@ namespace Jinaga.Repository
         public abstract IObservableCollection<TProjection> Observable<TProjection>(IQueryable<TProjection> queryable);
 
         /// <summary>
-        /// The users whose public keys have signed the fact, as this replica knows them.
+        /// The users this replica knows asserted the fact, including its own user.
+        ///
+        /// These are the users whose public keys have signed the fact, together with the user
+        /// who authored it on this replica if it has one. A client signs nothing: the
+        /// replicator signs on upload, and a signature for a fact this replica already holds
+        /// is not fetched again, so without the local author the facts a user just created on
+        /// this device would show no signer at all.
+        ///
+        /// Each user appears once, keyed by public key, so the same user reached through a
+        /// signature and through local authorship is one signer. A verified signer is not
+        /// distinguished from a locally witnessed author, because provenance never takes part
+        /// in matching and never authorizes.
         ///
         /// Signatures are kept beside a fact, not inside it, so reading provenance does not
         /// change the fact's identity: two users asserting the same thing still produce one
-        /// fact. The result is a snapshot of the signatures held when the result is produced,
+        /// fact. The result is a snapshot of what the store holds when the result is produced,
         /// and a signature that arrives later does not update a result already delivered.
         ///
         /// Provenance cannot affect matching. This method exists only inside a specification's
@@ -34,7 +45,7 @@ namespace Jinaga.Repository
         /// </summary>
         /// <typeparam name="TFact">The type of the fact</typeparam>
         /// <param name="fact">The labeled fact whose signers to project</param>
-        /// <returns>One user per signing public key</returns>
+        /// <returns>One user per asserting public key</returns>
         public abstract IEnumerable<User> SignersOf<TFact>(TFact fact)
             where TFact : class;
 

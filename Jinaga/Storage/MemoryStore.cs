@@ -332,6 +332,25 @@ namespace Jinaga.Storage
             }
         }
 
+        /// <summary>
+        /// The local author of each fact that has one. Read from the same record the queue
+        /// routes by, so provenance and routing cannot disagree about who authored a fact.
+        /// </summary>
+        public Task<ImmutableDictionary<FactReference, string>> LoadLocalAuthors(ImmutableList<FactReference> references, CancellationToken cancellationToken)
+        {
+            lock (this)
+            {
+                var localAuthors = references
+                    .Distinct()
+                    .Where(reference => authorByReference.ContainsKey(reference))
+                    .ToImmutableDictionary(
+                        reference => reference,
+                        reference => authorByReference[reference]
+                    );
+                return Task.FromResult(localAuthors);
+            }
+        }
+
         private IEnumerable<Edge> CreateEdges(Fact successor, Predecessor predecessor)
         {
             switch (predecessor)
