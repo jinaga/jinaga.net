@@ -33,6 +33,8 @@ namespace Jinaga.Managers
                 return DeserializeHashProjection(emitter, hashProjection, type, products, path);
             else if (projection is SignerProjection signerProjection)
                 return DeserializeSignerProjection(emitter, signerProjection, type, products, path);
+            else if (projection is DateLearnedProjection dateLearnedProjection)
+                return DeserializeDateLearnedProjection(emitter, dateLearnedProjection, type, products, path);
             else
                 throw new ArgumentException($"Unknown projection type {projection.GetType().Name}");
         }
@@ -198,6 +200,22 @@ namespace Jinaga.Managers
                 var projectedResult = new ProjectedResult(
                     product,
                     SignersOf(emitter, signerProjection, type, product),
+                    path,
+                    ImmutableList<ProjectedResultChildCollection>.Empty
+                );
+                productProjections = productProjections.Add(projectedResult);
+            }
+            return productProjections;
+        }
+
+        private static ImmutableList<ProjectedResult> DeserializeDateLearnedProjection(Emitter emitter, DateLearnedProjection dateLearnedProjection, Type type, ImmutableList<Product> products, string path)
+        {
+            var productProjections = ImmutableList<ProjectedResult>.Empty;
+            foreach (var product in products)
+            {
+                var projectedResult = new ProjectedResult(
+                    product,
+                    emitter.GetDateLearned(product.GetFactReference(dateLearnedProjection.Tag)),
                     path,
                     ImmutableList<ProjectedResultChildCollection>.Empty
                 );
@@ -394,6 +412,15 @@ namespace Jinaga.Managers
             else if (projection is SignerProjection signerProjection)
             {
                 var obj = SignersOf(emitter, signerProjection, parameterType, product);
+                return (obj, null);
+            }
+            else if (projection is DateLearnedProjection dateLearnedProjection)
+            {
+                if (parameterType != typeof(DateTime))
+                {
+                    throw new ArgumentException($"A date learned is expected to be a DateTime, not {parameterType.Name}.");
+                }
+                var obj = emitter.GetDateLearned(product.GetFactReference(dateLearnedProjection.Tag));
                 return (obj, null);
             }
             else

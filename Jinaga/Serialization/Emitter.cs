@@ -21,12 +21,28 @@ namespace Jinaga.Serialization
 
         private readonly ConditionalWeakTable<object, FactGraph> graphByFact;
 
-        public Emitter(FactGraph graph, DeserializerCache deserializerCache, ConditionalWeakTable<object, FactGraph> graphByFact, IWatchContext? watchContext = null)
+        /// <summary>
+        /// Dates learned travel beside the graph rather than inside it, because the graph is
+        /// what the serializer sends to the network and a date learned is replica-local.
+        /// </summary>
+        private readonly ImmutableDictionary<FactReference, DateTime> datesLearned;
+
+        public Emitter(FactGraph graph, DeserializerCache deserializerCache, ConditionalWeakTable<object, FactGraph> graphByFact, IWatchContext? watchContext = null, ImmutableDictionary<FactReference, DateTime>? datesLearned = null)
         {
             this.Graph = graph;
             DeserializerCache = deserializerCache;
             this.graphByFact = graphByFact;
             WatchContext = watchContext;
+            this.datesLearned = datesLearned ?? ImmutableDictionary<FactReference, DateTime>.Empty;
+        }
+
+        public DateTime GetDateLearned(FactReference reference)
+        {
+            if (!datesLearned.TryGetValue(reference, out var dateLearned))
+            {
+                throw new InvalidOperationException($"The store did not report when it learned {reference.Type} {reference.Hash}.");
+            }
+            return dateLearned;
         }
 
         public TFact Deserialize<TFact>(FactReference reference)

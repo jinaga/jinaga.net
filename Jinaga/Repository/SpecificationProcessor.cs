@@ -233,6 +233,20 @@ namespace Jinaga.Repository
                         throw new SpecificationException($"Cannot find the signers of {value.ToDescriptiveString()}. Give the fact a label first.");
                     }
                 }
+                else if (methodCallExpression.Method.DeclaringType == typeof(FactRepository) &&
+                    methodCallExpression.Method.Name == nameof(FactRepository.DateLearned) &&
+                    methodCallExpression.Arguments.Count == 1)
+                {
+                    var value = ProcessProjection(methodCallExpression.Arguments[0], symbolTable);
+                    if (value is SimpleProjection simpleProjection)
+                    {
+                        return new DateLearnedProjection(simpleProjection.Tag, methodCallExpression.Arguments[0].Type);
+                    }
+                    else
+                    {
+                        throw new SpecificationException($"Cannot find the date learned of {value.ToDescriptiveString()}. Give the fact a label first.");
+                    }
+                }
             }
             throw new SpecificationException($"Unsupported type of projection {expression}.");
         }

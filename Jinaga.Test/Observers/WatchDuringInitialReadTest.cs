@@ -281,6 +281,9 @@ public class WatchDuringInitialReadTest
         public Task<FactGraph> Load(ImmutableList<FactReference> references, CancellationToken cancellationToken) =>
             inner.Load(references, cancellationToken);
 
+        public Task<ImmutableDictionary<FactReference, DateTime>> LoadDatesLearned(ImmutableList<FactReference> references, CancellationToken cancellationToken) =>
+            inner.LoadDatesLearned(references, cancellationToken);
+
         public Task<string> LoadBookmark(string feed) => inner.LoadBookmark(feed);
 
         public Task<ImmutableList<FactReference>> ListKnown(ImmutableList<FactReference> factReferences) =>

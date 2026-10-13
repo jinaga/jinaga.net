@@ -16,6 +16,7 @@ namespace Jinaga.Storage
     {
         private volatile ImmutableDictionary<FactReference, Fact> factsByReference = ImmutableDictionary<FactReference, Fact>.Empty;
         private volatile ImmutableDictionary<FactReference, ImmutableList<FactSignature>> signaturesByReference = ImmutableDictionary<FactReference, ImmutableList<FactSignature>>.Empty;
+        private volatile ImmutableDictionary<FactReference, DateTime> datesLearnedByReference = ImmutableDictionary<FactReference, DateTime>.Empty;
         private ImmutableList<Edge> edges = ImmutableList<Edge>.Empty;
         private volatile ImmutableDictionary<FactReference, ImmutableList<FactReference>> ancestors = ImmutableDictionary<FactReference, ImmutableList<FactReference>>.Empty;
         private volatile ImmutableDictionary<string, string> bookmarks = ImmutableDictionary<string, string>.Empty;
@@ -35,6 +36,12 @@ namespace Jinaga.Storage
                     .ToImmutableList();
                 factsByReference = factsByReference.AddRange(newFacts
                     .Select(fact => new KeyValuePair<FactReference, Fact>(fact.Reference, fact))
+                );
+                // Only facts that were not already here are new, so saving a fact again --
+                // whether on its own or carrying an added signature -- leaves its date alone.
+                var dateLearned = DateTime.UtcNow;
+                datesLearnedByReference = datesLearnedByReference.AddRange(newFacts
+                    .Select(fact => new KeyValuePair<FactReference, DateTime>(fact.Reference, dateLearned))
                 );
                 if (queue)
                 {
@@ -242,6 +249,11 @@ namespace Jinaga.Storage
                         var element = new SimpleElement(tuple.Get(signerProjection.Tag));
                         product = product.With(signerProjection.Tag, element);
                     }
+                    else if (childProjection is DateLearnedProjection dateLearnedProjection)
+                    {
+                        var element = new SimpleElement(tuple.Get(dateLearnedProjection.Tag));
+                        product = product.With(dateLearnedProjection.Tag, element);
+                    }
                     else
                     {
                         throw new Exception($"Unsupported projection type {childProjection.GetType().Name}.");
@@ -271,6 +283,21 @@ namespace Jinaga.Storage
             }
             var graph = builder.Build();
             return Task.FromResult(graph);
+        }
+
+        public Task<ImmutableDictionary<FactReference, DateTime>> LoadDatesLearned(ImmutableList<FactReference> references, CancellationToken cancellationToken)
+        {
+            lock (this)
+            {
+                var datesLearned = references
+                    .Distinct()
+                    .Where(reference => datesLearnedByReference.ContainsKey(reference))
+                    .ToImmutableDictionary(
+                        reference => reference,
+                        reference => datesLearnedByReference[reference]
+                    );
+                return Task.FromResult(datesLearned);
+            }
         }
 
         private IEnumerable<Edge> CreateEdges(Fact successor, Predecessor predecessor)
@@ -478,6 +505,11 @@ namespace Jinaga.Storage
                     .ToImmutableDictionary(pair => pair.Key, pair => pair.Value);
 
                 signaturesByReference = signaturesByReference
+                    .Where(pair => factsByReference.ContainsKey(pair.Key))
+                    .ToImmutableDictionary(pair => pair.Key, pair => pair.Value);
+
+                // A purged fact that arrives again is learned again, so it gets a new date.
+                datesLearnedByReference = datesLearnedByReference
                     .Where(pair => factsByReference.ContainsKey(pair.Key))
                     .ToImmutableDictionary(pair => pair.Key, pair => pair.Value);
 

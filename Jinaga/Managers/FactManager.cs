@@ -174,7 +174,8 @@ namespace Jinaga.Managers
                 .SelectMany(product => product.GetFactReferences())
                 .ToImmutableList();
             var graph = await store.Load(references, cancellationToken).ConfigureAwait(false);
-            return DeserializeProductsFromGraph(graph, specification.Projection, products, type, "", watchContext);
+            var datesLearned = await LoadDatesLearned(specification.Projection, references, cancellationToken).ConfigureAwait(false);
+            return DeserializeProductsFromGraph(graph, specification.Projection, products, type, "", watchContext, datesLearned);
         }
 
         public async Task<ImmutableList<Product>> Query(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
@@ -200,7 +201,24 @@ namespace Jinaga.Managers
         {
             var references = Projector.GetFactReferences(projection, products, type);
             var graph = await store.Load(references, cancellationToken).ConfigureAwait(false);
-            return DeserializeProductsFromGraph(graph, projection, products, type, path, watchContext);
+            var datesLearned = await LoadDatesLearned(projection, references, cancellationToken).ConfigureAwait(false);
+            return DeserializeProductsFromGraph(graph, projection, products, type, path, watchContext, datesLearned);
+        }
+
+        /// <summary>
+        /// Asks the store when it learned the projected facts, but only when the projection
+        /// reads that date. Every other specification pays nothing for it.
+        /// </summary>
+        private async Task<ImmutableDictionary<FactReference, DateTime>?> LoadDatesLearned(
+            Projection projection,
+            ImmutableList<FactReference> references,
+            CancellationToken cancellationToken)
+        {
+            if (!Projector.ProjectsDateLearned(projection))
+            {
+                return null;
+            }
+            return await store.LoadDatesLearned(references, cancellationToken).ConfigureAwait(false);
         }
 
         public FactGraph Serialize(object prototype)
@@ -231,11 +249,12 @@ namespace Jinaga.Managers
             ImmutableList<Product> products,
             Type type,
             string path,
-            IWatchContext? watchContext)
+            IWatchContext? watchContext,
+            ImmutableDictionary<FactReference, DateTime>? datesLearned = null)
         {
             lock (this)
             {
-                var emitter = new Emitter(graph, deserializerCache, graphByFact, watchContext);
+                var emitter = new Emitter(graph, deserializerCache, graphByFact, watchContext, datesLearned);
                 ImmutableList<ProjectedResult> results = Deserializer.Deserialize(emitter, projection, type, products, path);
                 deserializerCache = emitter.DeserializerCache;
                 return results;
