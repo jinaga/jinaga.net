@@ -69,26 +69,23 @@ namespace Jinaga.Store.SQLite
                 {
                     var envelope = graph.GetEnvelope(factReference);
 
-                    // Refuse a fact whose predecessors are in neither the
-                    // graph nor the store. This check runs before the
-                    // transaction below, because WithTxn retries whatever its
-                    // callback throws, which would hold the failure back by
-                    // the sum of the backoff's pauses.
-                    var missingPredecessors = connFactory.WithConn(
-                        (conn, id) => FindMissingPredecessors(conn, envelope.Fact),
-                        true
-                    );
-                    if (!missingPredecessors.IsEmpty)
-                    {
-                        throw new InvalidOperationException(
-                            $"Cannot save the fact {envelope.Fact.Reference} because it has predecessors that are in neither the graph nor the store: {string.Join(", ", missingPredecessors)}.");
-                    }
-
                     bool inserted = connFactory.WithTxn(
                         (conn, id) =>
                             {
                                 string sql;
                                 bool factInserted = false;
+
+                                // Refuse a fact whose predecessors are in
+                                // neither the graph nor the store. The check
+                                // shares the transaction with the write, so no
+                                // other connection can remove a predecessor
+                                // between them.
+                                var missingPredecessors = FindMissingPredecessors(conn, envelope.Fact);
+                                if (!missingPredecessors.IsEmpty)
+                                {
+                                    throw new InvalidOperationException(
+                                        $"Cannot save the fact {envelope.Fact.Reference} because it has predecessors that are in neither the graph nor the store: {string.Join(", ", missingPredecessors)}.");
+                                }
 
                                 // Select or insert into FactType table.  Gets a FactTypeId
                                 sql = @"

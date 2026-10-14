@@ -1076,7 +1076,7 @@ public class StoreTest
             select day.date);
         var j = GivenJinagaClient(sqliteStore);
         var dates = await j.Query(daysOfAirline, airline);
-        dates.Should().ContainSingle().Which.Should().Be(DateTime.Parse("2021-07-04").Date);
+        dates.Should().ContainSingle().Which.Should().Be(DateTime.Parse("2021-07-04").Date.ToUniversalTime());
     }
 
     /// <summary>
