@@ -137,6 +137,13 @@ namespace Jinaga.Projections
                         var element = new SimpleElement(tuple.Get(fieldProjection.Tag));
                         product = product.With(name, element);
                     }
+                    else if (childProjection is HashProjection hashProjection)
+                    {
+                        // Keyed by the tag, as MemoryStore.ExecuteProjection does, because
+                        // DeserializeHashProjection reads the reference back by tag.
+                        var element = new SimpleElement(tuple.Get(hashProjection.Tag));
+                        product = product.With(hashProjection.Tag, element);
+                    }
                     else
                     {
                         throw new Exception($"Unsupported projection type {childProjection.GetType().Name}.");
