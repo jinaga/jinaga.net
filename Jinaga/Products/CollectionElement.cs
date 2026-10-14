@@ -30,7 +30,9 @@ namespace Jinaga.Products
 
         public override int GetHashCode()
         {
-            return Products.GetHashCode();
+            // Hash the products as a set, the way Equals compares them: independent of
+            // order, and with duplicates removed so that XOR does not cancel them.
+            return Products.Distinct().SetHash();
         }
     }
 }
