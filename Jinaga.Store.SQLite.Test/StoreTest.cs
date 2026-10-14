@@ -949,6 +949,109 @@ public class StoreTest
         withContention.Should().BeEmpty();
     }
 
+    [Fact]
+    public async Task SaveOfAFactWhosePredecessorIsMissingThrowsNamingBothReferences()
+    {
+        // Delete the database file if present.
+        if (File.Exists(SQLitePath))
+            File.Delete(SQLitePath);
+
+        IStore sqliteStore = GivenSQLiteStore();
+        var airline = new Airline("IA");
+        var graph = GraphOfOnly(new AirlineDay(airline, DateTime.Parse("2021-07-04").Date));
+        var successor = graph.Last;
+        var missingPredecessor = ReferenceOfFact(airline);
+
+        Func<Task> save = () => sqliteStore.Save(graph, false, default);
+
+        var exception = (await save.Should().ThrowAsync<InvalidOperationException>()).Which;
+        exception.Message.Should().Contain(successor.Type);
+        exception.Message.Should().Contain(successor.Hash);
+        exception.Message.Should().Contain(missingPredecessor.Type);
+        exception.Message.Should().Contain(missingPredecessor.Hash);
+    }
+
+    [Fact]
+    public async Task SaveOfAFactWhosePredecessorIsMissingLeavesTheStoreAndTheQueueUnchanged()
+    {
+        // Delete the database file if present.
+        if (File.Exists(SQLitePath))
+            File.Delete(SQLitePath);
+
+        IStore sqliteStore = GivenSQLiteStore();
+        var graph = GraphOfOnly(new AirlineDay(new Airline("IA"), DateTime.Parse("2021-07-04").Date));
+        var successor = graph.Last;
+
+        var queueBefore = await sqliteStore.GetQueue();
+
+        Func<Task> saveWithoutQueueing = () => sqliteStore.Save(graph, false, default);
+        await saveWithoutQueueing.Should().ThrowAsync<InvalidOperationException>();
+
+        Func<Task> saveWithQueueing = () => sqliteStore.Save(graph, true, default);
+        await saveWithQueueing.Should().ThrowAsync<InvalidOperationException>();
+
+        var loaded = await sqliteStore.Load(ImmutableList.Create(successor), default);
+        loaded.FactReferences.Should().BeEmpty();
+
+        var queueAfter = await sqliteStore.GetQueue();
+        queueAfter.Graph.FactReferences.Should().Equal(queueBefore.Graph.FactReferences);
+        queueAfter.Facts.Select(f => f.Reference).Should()
+            .Equal(queueBefore.Facts.Select(f => f.Reference));
+    }
+
+    [Fact]
+    public async Task SaveOfAFactWhosePredecessorIsMissingFailsWithoutWaitingForTheBackoff()
+    {
+        // Delete the database file if present.
+        if (File.Exists(SQLitePath))
+            File.Delete(SQLitePath);
+
+        IStore sqliteStore = GivenSQLiteStore();
+        var graph = GraphOfOnly(new AirlineDay(new Airline("IA"), DateTime.Parse("2021-07-04").Date));
+
+        Func<Task> save = () => sqliteStore.Save(graph, false, default);
+
+        var timer = Stopwatch.StartNew();
+        await save.Should().ThrowAsync<InvalidOperationException>();
+        timer.Stop();
+
+        timer.Elapsed.Should().BeLessThan(TimeSpan.FromSeconds(1));
+    }
+
+    [Fact]
+    public async Task SaveOfAFactWhosePredecessorIsStoredButAbsentFromTheGraphStoresTheEdge()
+    {
+        // Delete the database file if present.
+        if (File.Exists(SQLitePath))
+            File.Delete(SQLitePath);
+
+        IStore sqliteStore = GivenSQLiteStore();
+        var airline = new Airline("IA");
+        await sqliteStore.Save(GraphOf(airline), false, default);
+
+        var graph = GraphOfOnly(new AirlineDay(airline, DateTime.Parse("2021-07-04").Date));
+        var successor = graph.Last;
+
+        var saved = await sqliteStore.Save(graph, false, default);
+        saved.Should().ContainSingle().Which.Reference.Should().Be(successor);
+
+        // The ancestor closure of the day now reaches the airline, so loading
+        // the day returns both facts.
+        var loaded = await sqliteStore.Load(ImmutableList.Create(successor), default);
+        loaded.FactReferences.Should().BeEquivalentTo(
+            [successor, ReferenceOfFact(airline)]);
+
+        // A query for the successors of the airline reads the edge, so a query
+        // that finds the day proves that the edge was stored.
+        var daysOfAirline = Given<Airline>.Match((a, facts) =>
+            from day in facts.OfType<AirlineDay>()
+            where day.airline == a
+            select day.date);
+        var j = GivenJinagaClient(sqliteStore);
+        var dates = await j.Query(daysOfAirline, airline);
+        dates.Should().ContainSingle().Which.Should().Be(DateTime.Parse("2021-07-04").Date);
+    }
+
     /// <summary>
     /// Runs an operation while a second connection holds the SQLite write lock,
     /// releasing the lock only after the operation's first attempt has failed.
@@ -999,6 +1102,16 @@ public class StoreTest
         var networkManager = new NetworkManager(new LocalNetwork(), store, loggerFactory, (FactGraph g, ImmutableList<Fact> l, CancellationToken c) => Task.CompletedTask, new JinagaClientOptions().MaxBatchSize);
         var factManager = new FactManager(store, networkManager, [], loggerFactory, 0);
         return factManager.Serialize(fact);
+    }
+
+    /// <summary>
+    /// Serializes a fact and returns a graph that holds only that fact,
+    /// leaving out the predecessors that serialization put in front of it.
+    /// </summary>
+    private static FactGraph GraphOfOnly(object fact)
+    {
+        var graph = GraphOf(fact);
+        return FactGraph.Empty.Add(graph.GetEnvelope(graph.Last));
     }
 
     private static FactReference ReferenceOfFact(object fact)
