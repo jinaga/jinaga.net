@@ -166,6 +166,30 @@ namespace Jinaga.Test.Specifications
         }
 
         [Fact]
+        public async Task SignersOf_PredecessorQueryReadsTheStoredSignatures()
+        {
+            var site = await GivenSite();
+            await j.Fact(new Content(site, "index.html"));
+            var first = KeyPair.Generate();
+            var second = KeyPair.Generate();
+            await SignFact(new Content(site, "index.html"), first, second);
+
+            // Walks only to a predecessor, so it would be routed to the graph path if
+            // the projection allowed it. The given is a fresh prototype, so its graph
+            // carries none of the signatures the store holds.
+            var specification = Given<Content>.Match((content, facts) =>
+                from s in facts.OfType<Site>()
+                where content.site == s
+                select new ContentSigners(content, facts.SignersOf(content)));
+
+            var results = await j.Query(specification, new Content(site, "index.html"));
+
+            results.Should().ContainSingle().Subject
+                .signers.Select(signer => signer.publicKey)
+                .Should().BeEquivalentTo(new[] { first.PublicKey, second.PublicKey });
+        }
+
+        [Fact]
         public async Task SignersOf_WatchAgreesWithQuery()
         {
             await j.SingleUse(async principal =>

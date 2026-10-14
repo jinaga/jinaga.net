@@ -19,7 +19,13 @@ namespace Jinaga.Projections
         public string Tag { get; }
         public Type FactRuntimeType { get; }
 
-        public override bool CanRunOnGraph => true;
+        /// <summary>
+        /// Signatures live in the store, not in the graph a query starts from. That graph is
+        /// the client's serialization of the given, which carries a signature only when this
+        /// client signed the fact itself, so a specification that projects signers cannot be
+        /// satisfied from a graph alone.
+        /// </summary>
+        public override bool CanRunOnGraph => false;
 
         public SignerProjection(string tag, Type factRuntimeType) :
             base(typeof(IEnumerable<User>))
