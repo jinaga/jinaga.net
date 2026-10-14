@@ -211,40 +211,17 @@ namespace Jinaga.Storage
 
         private Product ExecuteProjection(FactReferenceTuple tuple, Product product, Projection projection)
         {
+            // CreateProduct has already put every label of the tuple into the product, and
+            // that is all a simple, field, hash or signer projection reads back. Only a
+            // collection adds anything.
             if (projection is CompoundProjection compoundProjection)
             {
                 foreach (var name in compoundProjection.Names)
                 {
-                    var childProjection = compoundProjection.GetProjection(name);
-                    if (childProjection is SimpleProjection simpleProjection)
-                    {
-                        var element = new SimpleElement(tuple.Get(simpleProjection.Tag));
-                        product = product.With(simpleProjection.Tag, element);
-                    }
-                    else if (childProjection is CollectionProjection collectionProjection)
+                    if (compoundProjection.GetProjection(name) is CollectionProjection collectionProjection)
                     {
                         var products = ExecuteMatchesAndProjection(tuple, collectionProjection.Matches, collectionProjection.Projection);
-                        var element = new CollectionElement(products);
-                        product = product.With(name, element);
-                    }
-                    else if (childProjection is FieldProjection fieldProjection)
-                    {
-                        var element = new SimpleElement(tuple.Get(fieldProjection.Tag));
-                        product = product.With(fieldProjection.Tag, element);
-                    }
-                    else if (childProjection is HashProjection hashProjection)
-                    {
-                        var element = new SimpleElement(tuple.Get(hashProjection.Tag));
-                        product = product.With(hashProjection.Tag, element);
-                    }
-                    else if (childProjection is SignerProjection signerProjection)
-                    {
-                        var element = new SimpleElement(tuple.Get(signerProjection.Tag));
-                        product = product.With(signerProjection.Tag, element);
-                    }
-                    else
-                    {
-                        throw new Exception($"Unsupported projection type {childProjection.GetType().Name}.");
+                        product = product.With(name, new CollectionElement(products));
                     }
                 }
             }
