@@ -237,6 +237,11 @@ namespace Jinaga.Storage
                         var element = new SimpleElement(tuple.Get(hashProjection.Tag));
                         product = product.With(hashProjection.Tag, element);
                     }
+                    else if (childProjection is SignerProjection signerProjection)
+                    {
+                        var element = new SimpleElement(tuple.Get(signerProjection.Tag));
+                        product = product.With(signerProjection.Tag, element);
+                    }
                     else
                     {
                         throw new Exception($"Unsupported projection type {childProjection.GetType().Name}.");

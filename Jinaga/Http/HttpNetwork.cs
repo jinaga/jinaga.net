@@ -52,9 +52,7 @@ namespace Jinaga.Http
 
         public async Task<ImmutableList<string>> Feeds(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
         {
-            string declarationString = specification.GenerateDeclarationString(givenTuple);
-            string specificationString = GenerateSpecificationString(specification);
-            string request = $"{declarationString}\n{specificationString}";
+            string request = CreateFeedsRequest(givenTuple, specification);
             var response = await webClient.Feeds(request).ConfigureAwait(false);
             var feeds = response.Feeds.ToImmutableList();
             return feeds;
@@ -122,6 +120,19 @@ namespace Jinaga.Http
                 Type = reference.Type,
                 Hash = reference.Hash
             };
+        }
+
+        /// <summary>
+        /// The body of the feeds request: the givens, then the specification with every
+        /// projection that is not a collection stripped out. The replicator matches facts and
+        /// does not project, so a projection that only shapes the local result never reaches
+        /// the wire.
+        /// </summary>
+        internal static string CreateFeedsRequest(FactReferenceTuple givenTuple, Specification specification)
+        {
+            string declarationString = specification.GenerateDeclarationString(givenTuple);
+            string specificationString = GenerateSpecificationString(specification);
+            return $"{declarationString}\n{specificationString}";
         }
 
         private static string GenerateSpecificationString(Specification specification)

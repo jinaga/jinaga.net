@@ -430,80 +430,107 @@ public class StoreTest
     }
 
     [Fact]
-    public void ExponentialBackoffOk()
+    public async Task BackoffRetriesBusyUntilLockIsReleased()
     {
-        output.WriteLine($"{MyStopWatch.Start()}: BEGIN OF TESTS at {DateTime.Now}");
-        string dbFolderName = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        string dbFullName = Path.Combine(dbFolderName, "jinaga.db");
-        File.Delete(dbFullName);
-        ConnectionFactory connFactory = new(dbFullName);
-        output.WriteLine($"{MyStopWatch.Elapsed()}: New database created");
+        var connFactory = GivenFreshConnectionFactory("backoff.db");
+        var lockHolder = GivenWriteLockHeld("backoff.db");
+        var release = ReleaseWriteLockAfter(lockHolder, TimeSpan.FromMilliseconds(300));
 
-        try
-        {
-            var nbOfRecordsInserted = connFactory.WithConn((conn, id) =>
-                {
-                    string sql;
-                    sql = "INSERT INTO fact_type(name) VALUES (@0)";
-                    //This statement will save a record
-                    conn.ExecuteNonQuery(sql, $"{DateTime.Now} - {Stopwatch.GetTimestamp(),15:N0}");
-                    sql = "INSERT INTO fact_type(NonExistingColumnName) VALUES (@0)";
-                    //This statement will fail, hence this 'insert' AND the previous 'insert' will be repeated by the backoff algo.
-                    //As both 'inserts' are independant (not part of a transaction), on every attempt the first 'insert' will save a record.
-                    return conn.ExecuteNonQuery(sql, $"ERROR @ {DateTime.Now} - {Stopwatch.GetTimestamp(),15:N0}");
-                },
-                true
-            );
-        }
-        catch (Exception e)
-        {
-            output.WriteLine("MyError: {0}", e.ToString());
-        }
-
-        var recordsReadAfterBackoff = connFactory.WithConn((conn, id) =>
+        int attempts = 0;
+        var inserted = connFactory.WithConn((conn, id) =>
             {
-                string sql;
-                sql = "SELECT * FROM fact_type ORDER BY name";
-                return conn.ExecuteQuery<FactType>(sql);
+                attempts++;
+                return conn.ExecuteNonQuery("INSERT INTO fact_type(name) VALUES (@0)", "after lock");
+            }
+        );
+        await release;
+
+        inserted.Should().Be(1);
+        attempts.Should().BeGreaterThan(1);
+        FactTypeNames(connFactory).Should().Equal("after lock");
+    }
+
+    [Fact]
+    public async Task BackoffRetriesBusyTransactionUntilLockIsReleased()
+    {
+        var connFactory = GivenFreshConnectionFactory("backoff.db");
+        var lockHolder = GivenWriteLockHeld("backoff.db");
+        var release = ReleaseWriteLockAfter(lockHolder, TimeSpan.FromMilliseconds(300));
+
+        int attempts = 0;
+        connFactory.WithTxn((conn, id) =>
+            {
+                attempts++;
+                conn.ExecuteNonQuery("INSERT INTO fact_type(name) VALUES (@0)", "first");
+                return conn.ExecuteNonQuery("INSERT INTO fact_type(name) VALUES (@0)", "second");
+            }
+        );
+        await release;
+
+        attempts.Should().BeGreaterThan(1);
+        FactTypeNames(connFactory).Should().Equal("first", "second");
+    }
+
+    [Fact]
+    public void BackoffDoesNotRetrySchemaError()
+    {
+        var connFactory = GivenFreshConnectionFactory("backoff.db");
+
+        int attempts = 0;
+        Action save = () => connFactory.WithConn((conn, id) =>
+            {
+                attempts++;
+                conn.ExecuteNonQuery("INSERT INTO fact_type(name) VALUES (@0)", "before error");
+                return conn.ExecuteNonQuery("INSERT INTO fact_type(NonExistingColumnName) VALUES (@0)", "error");
             }
         );
 
-        output.WriteLine("recordsReadAfterBackoff: {0}", "\r\n\t" + string.Join("\r\n\t", recordsReadAfterBackoff));
-        recordsReadAfterBackoff.Count().Should().Be(8);
+        save.Should().Throw<SQLiteException>()
+            .Which.Result.Should().Be(SQLite.Result.Error);
+        attempts.Should().Be(1);
+        FactTypeNames(connFactory).Should().Equal("before error");
+    }
 
-        try
-        {
-            var nbOfRecordsInserted = connFactory.WithConn((conn, id) =>
-                {
-                    string sql;
-                    sql = "INSERT INTO fact_type(name) VALUES (@0)";
-                    //This statement will save a record
-                    conn.ExecuteNonQuery(sql, $"{DateTime.Now} - {Stopwatch.GetTimestamp(),15:N0}");
-                    sql = "INSERT INTO fact_type(NonExistingColumnName) VALUES (@0)";
-                    //This statement will fail, hence this 'insert' AND the previous 'insert' will be repeated by the backoff algo.
-                    //As both 'inserts' are independent (not part of a transaction), on every attempt the first 'insert' will save a record.
-                    return conn.ExecuteNonQuery(sql, $"ERROR @ {DateTime.Now} - {Stopwatch.GetTimestamp(),15:N0}");
-                },
-                false
-            );
-        }
-        catch (Exception e)
-        {
-            output.WriteLine("MyError: {0}", e.ToString());
-        }
+    private static ConnectionFactory GivenFreshConnectionFactory(string fileName)
+    {
+        string dbFullName = BackoffDbPath(fileName);
+        Directory.CreateDirectory(Path.GetDirectoryName(dbFullName)!);
+        foreach (var suffix in new[] { "", "-wal", "-shm" })
+            File.Delete(dbFullName + suffix);
+        return new ConnectionFactory(dbFullName);
+    }
 
-        var recordsReadInTotal = connFactory.WithConn((conn, id) =>
+    // Holds the database's write lock on a second connection, so that every
+    // other writer gets SQLITE_BUSY once its busy timeout expires.
+    private static Conn GivenWriteLockHeld(string fileName)
+    {
+        var conn = new Conn(BackoffDbPath(fileName), 99);
+        conn.ExecuteNonQuery("BEGIN IMMEDIATE TRANSACTION");
+        return conn;
+    }
+
+    private static Task ReleaseWriteLockAfter(Conn conn, TimeSpan delay)
+    {
+        return Task.Run(async () =>
         {
-            string sql;
-            sql = "SELECT * FROM fact_type ORDER BY name";
-            return conn.ExecuteQuery<FactType>(sql);
-        }
+            await Task.Delay(delay);
+            conn.ExecuteNonQuery("ROLLBACK TRANSACTION");
+            conn.Close();
+        });
+    }
+
+    private static string BackoffDbPath(string fileName) => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "JinagaSQLiteTest",
+        fileName);
+
+    private static IEnumerable<string> FactTypeNames(ConnectionFactory connFactory)
+    {
+        return connFactory.WithConn((conn, id) =>
+            conn.ExecuteQuery<FactType>("SELECT * FROM fact_type ORDER BY fact_type_id")
+                .Select(factType => factType.name)
+                .ToList()
         );
-
-        output.WriteLine("recordsReadInTotal: {0}", "\r\n\t" + string.Join("\r\n\t", recordsReadInTotal));
-        recordsReadInTotal.Count().Should().Be(9);
-        output.WriteLine($"{MyStopWatch.Elapsed()}: END OF TESTS at {DateTime.Now}");
-
     }
 
 
@@ -949,6 +976,109 @@ public class StoreTest
         withContention.Should().BeEmpty();
     }
 
+    [Fact]
+    public async Task SaveOfAFactWhosePredecessorIsMissingThrowsNamingBothReferences()
+    {
+        // Delete the database file if present.
+        if (File.Exists(SQLitePath))
+            File.Delete(SQLitePath);
+
+        IStore sqliteStore = GivenSQLiteStore();
+        var airline = new Airline("IA");
+        var graph = GraphOfOnly(new AirlineDay(airline, DateTime.Parse("2021-07-04").Date));
+        var successor = graph.Last;
+        var missingPredecessor = ReferenceOfFact(airline);
+
+        Func<Task> save = () => sqliteStore.Save(graph, false, default);
+
+        var exception = (await save.Should().ThrowAsync<InvalidOperationException>()).Which;
+        exception.Message.Should().Contain(successor.Type);
+        exception.Message.Should().Contain(successor.Hash);
+        exception.Message.Should().Contain(missingPredecessor.Type);
+        exception.Message.Should().Contain(missingPredecessor.Hash);
+    }
+
+    [Fact]
+    public async Task SaveOfAFactWhosePredecessorIsMissingLeavesTheStoreAndTheQueueUnchanged()
+    {
+        // Delete the database file if present.
+        if (File.Exists(SQLitePath))
+            File.Delete(SQLitePath);
+
+        IStore sqliteStore = GivenSQLiteStore();
+        var graph = GraphOfOnly(new AirlineDay(new Airline("IA"), DateTime.Parse("2021-07-04").Date));
+        var successor = graph.Last;
+
+        var queueBefore = await sqliteStore.GetQueue();
+
+        Func<Task> saveWithoutQueueing = () => sqliteStore.Save(graph, false, default);
+        await saveWithoutQueueing.Should().ThrowAsync<InvalidOperationException>();
+
+        Func<Task> saveWithQueueing = () => sqliteStore.Save(graph, true, default);
+        await saveWithQueueing.Should().ThrowAsync<InvalidOperationException>();
+
+        var loaded = await sqliteStore.Load(ImmutableList.Create(successor), default);
+        loaded.FactReferences.Should().BeEmpty();
+
+        var queueAfter = await sqliteStore.GetQueue();
+        queueAfter.Graph.FactReferences.Should().Equal(queueBefore.Graph.FactReferences);
+        queueAfter.Facts.Select(f => f.Reference).Should()
+            .Equal(queueBefore.Facts.Select(f => f.Reference));
+    }
+
+    [Fact]
+    public async Task SaveOfAFactWhosePredecessorIsMissingFailsWithoutWaitingForTheBackoff()
+    {
+        // Delete the database file if present.
+        if (File.Exists(SQLitePath))
+            File.Delete(SQLitePath);
+
+        IStore sqliteStore = GivenSQLiteStore();
+        var graph = GraphOfOnly(new AirlineDay(new Airline("IA"), DateTime.Parse("2021-07-04").Date));
+
+        Func<Task> save = () => sqliteStore.Save(graph, false, default);
+
+        var timer = Stopwatch.StartNew();
+        await save.Should().ThrowAsync<InvalidOperationException>();
+        timer.Stop();
+
+        timer.Elapsed.Should().BeLessThan(TimeSpan.FromSeconds(1));
+    }
+
+    [Fact]
+    public async Task SaveOfAFactWhosePredecessorIsStoredButAbsentFromTheGraphStoresTheEdge()
+    {
+        // Delete the database file if present.
+        if (File.Exists(SQLitePath))
+            File.Delete(SQLitePath);
+
+        IStore sqliteStore = GivenSQLiteStore();
+        var airline = new Airline("IA");
+        await sqliteStore.Save(GraphOf(airline), false, default);
+
+        var graph = GraphOfOnly(new AirlineDay(airline, DateTime.Parse("2021-07-04").Date));
+        var successor = graph.Last;
+
+        var saved = await sqliteStore.Save(graph, false, default);
+        saved.Should().ContainSingle().Which.Reference.Should().Be(successor);
+
+        // The ancestor closure of the day now reaches the airline, so loading
+        // the day returns both facts.
+        var loaded = await sqliteStore.Load(ImmutableList.Create(successor), default);
+        loaded.FactReferences.Should().BeEquivalentTo(
+            [successor, ReferenceOfFact(airline)]);
+
+        // A query for the successors of the airline reads the edge, so a query
+        // that finds the day proves that the edge was stored.
+        var daysOfAirline = Given<Airline>.Match((a, facts) =>
+            from day in facts.OfType<AirlineDay>()
+            where day.airline == a
+            select day.date);
+        var j = GivenJinagaClient(sqliteStore);
+        var dates = await j.Query(daysOfAirline, airline);
+        dates.Should().ContainSingle().Which.Should().Be(DateTime.Parse("2021-07-04").Date.ToUniversalTime());
+    }
+
     /// <summary>
     /// Runs an operation while a second connection holds the SQLite write lock,
     /// releasing the lock only after the operation's first attempt has failed.
@@ -999,6 +1129,16 @@ public class StoreTest
         var networkManager = new NetworkManager(new LocalNetwork(), store, loggerFactory, (FactGraph g, ImmutableList<Fact> l, CancellationToken c) => Task.CompletedTask, new JinagaClientOptions().MaxBatchSize);
         var factManager = new FactManager(store, networkManager, [], loggerFactory, 0);
         return factManager.Serialize(fact);
+    }
+
+    /// <summary>
+    /// Serializes a fact and returns a graph that holds only that fact,
+    /// leaving out the predecessors that serialization put in front of it.
+    /// </summary>
+    private static FactGraph GraphOfOnly(object fact)
+    {
+        var graph = GraphOf(fact);
+        return FactGraph.Empty.Add(graph.GetEnvelope(graph.Last));
     }
 
     private static FactReference ReferenceOfFact(object fact)

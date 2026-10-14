@@ -137,6 +137,13 @@ namespace Jinaga.Projections
                         var element = new SimpleElement(tuple.Get(fieldProjection.Tag));
                         product = product.With(name, element);
                     }
+                    else if (childProjection is SignerProjection signerProjection)
+                    {
+                        // Keyed by the tag, as MemoryStore does, so a product the graph builds
+                        // and the same product the store builds are equal.
+                        var element = new SimpleElement(tuple.Get(signerProjection.Tag));
+                        product = product.With(signerProjection.Tag, element);
+                    }
                     else if (childProjection is HashProjection hashProjection)
                     {
                         // Keyed by the tag, as MemoryStore.ExecuteProjection does, because
