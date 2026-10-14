@@ -75,6 +75,18 @@ namespace Jinaga.Store.SQLite
                                 string sql;
                                 bool factInserted = false;
 
+                                // Refuse a fact whose predecessors are in
+                                // neither the graph nor the store. The check
+                                // shares the transaction with the write, so no
+                                // other connection can remove a predecessor
+                                // between them.
+                                var missingPredecessors = FindMissingPredecessors(conn, envelope.Fact);
+                                if (!missingPredecessors.IsEmpty)
+                                {
+                                    throw new InvalidOperationException(
+                                        $"Cannot save the fact {envelope.Fact.Reference} because it has predecessors that are in neither the graph nor the store: {string.Join(", ", missingPredecessors)}.");
+                                }
+
                                 // Select or insert into FactType table.  Gets a FactTypeId
                                 sql = @"
                                     SELECT fact_type_id 
@@ -228,6 +240,37 @@ namespace Jinaga.Store.SQLite
             }
 
         }
+
+        /// <summary>
+        /// Returns the predecessors of a fact that are not yet stored, which
+        /// is empty when every predecessor resolves. Save stores a graph in
+        /// topological order, each fact in its own transaction, so by the
+        /// time it reaches a successor every predecessor that the graph
+        /// carries is already stored. One that is still absent is therefore
+        /// in neither the graph nor the store.
+        /// A predecessor that does not resolve has no fact ID, and the empty
+        /// string that the lookup returns would go into
+        /// edge.predecessor_fact_id and ancestor.ancestor_fact_id. SQLite's
+        /// type affinity stores it as text even though both columns are
+        /// declared INTEGER NOT NULL, so the fact would be stored with an
+        /// edge to nothing and an ancestor closure that lacks the
+        /// predecessor's ancestors, which every later query and purge reads
+        /// as true.
+        /// A fact that is already stored writes no edges, so its predecessors
+        /// are not checked.
+        /// </summary>
+        private ImmutableList<FactReference> FindMissingPredecessors(Conn conn, Fact fact)
+        {
+            if (getFactId(conn, fact.Reference) != "")
+            {
+                return ImmutableList<FactReference>.Empty;
+            }
+
+            return fact.GetAllPredecessorReferences()
+                .Where(predecessorReference => getFactId(conn, predecessorReference) == "")
+                .ToImmutableList();
+        }
+
 
         private string getFactId(Conn conn, FactReference factReference)
         {
