@@ -198,7 +198,7 @@ namespace Jinaga.Managers
             string path,
             CancellationToken cancellationToken)
         {
-            var references = Projector.GetFactReferences(projection, products, type);
+            var references = Projector.GetFactReferences(projection, products);
             var graph = await store.Load(references, cancellationToken).ConfigureAwait(false);
             return DeserializeProductsFromGraph(graph, projection, products, type, path, watchContext);
         }

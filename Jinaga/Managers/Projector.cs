@@ -60,39 +60,6 @@ namespace Jinaga.Managers
             }
             else if (projection is CompoundProjection compound)
             {
-                var references = (
-                    from product in products
-                    from name in compound.Names
-                    from reference in GetFactReferences(
-                        compound.GetProjection(name),
-                        product,
-                        name)
-                    select reference
-                ).Distinct().ToImmutableList();
-                return references;
-            }
-            else if (projection is FieldProjection field)
-            {
-                return products
-                    .Select(product => product.GetFactReference(field.Tag))
-                    .ToImmutableList();
-            }
-            else
-            {
-                throw new NotImplementedException();
-            }
-        }
-
-        public static ImmutableList<FactReference> GetFactReferences(Projection projection, ImmutableList<Product> products, Type type)
-        {
-            if (projection is SimpleProjection simple)
-            {
-                return products
-                    .Select(product => product.GetFactReference(simple.Tag))
-                    .ToImmutableList();
-            }
-            else if (projection is CompoundProjection compound)
-            {
                 return (
                     from product in products
                     from name in compound.Names
