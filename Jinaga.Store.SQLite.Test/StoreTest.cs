@@ -430,80 +430,107 @@ public class StoreTest
     }
 
     [Fact]
-    public void ExponentialBackoffOk()
+    public async Task BackoffRetriesBusyUntilLockIsReleased()
     {
-        output.WriteLine($"{MyStopWatch.Start()}: BEGIN OF TESTS at {DateTime.Now}");
-        string dbFolderName = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        string dbFullName = Path.Combine(dbFolderName, "jinaga.db");
-        File.Delete(dbFullName);
-        ConnectionFactory connFactory = new(dbFullName);
-        output.WriteLine($"{MyStopWatch.Elapsed()}: New database created");
+        var connFactory = GivenFreshConnectionFactory("backoff.db");
+        var lockHolder = GivenWriteLockHeld("backoff.db");
+        var release = ReleaseWriteLockAfter(lockHolder, TimeSpan.FromMilliseconds(300));
 
-        try
-        {
-            var nbOfRecordsInserted = connFactory.WithConn((conn, id) =>
-                {
-                    string sql;
-                    sql = "INSERT INTO fact_type(name) VALUES (@0)";
-                    //This statement will save a record
-                    conn.ExecuteNonQuery(sql, $"{DateTime.Now} - {Stopwatch.GetTimestamp(),15:N0}");
-                    sql = "INSERT INTO fact_type(NonExistingColumnName) VALUES (@0)";
-                    //This statement will fail, hence this 'insert' AND the previous 'insert' will be repeated by the backoff algo.
-                    //As both 'inserts' are independant (not part of a transaction), on every attempt the first 'insert' will save a record.
-                    return conn.ExecuteNonQuery(sql, $"ERROR @ {DateTime.Now} - {Stopwatch.GetTimestamp(),15:N0}");
-                },
-                true
-            );
-        }
-        catch (Exception e)
-        {
-            output.WriteLine("MyError: {0}", e.ToString());
-        }
-
-        var recordsReadAfterBackoff = connFactory.WithConn((conn, id) =>
+        int attempts = 0;
+        var inserted = connFactory.WithConn((conn, id) =>
             {
-                string sql;
-                sql = "SELECT * FROM fact_type ORDER BY name";
-                return conn.ExecuteQuery<FactType>(sql);
+                attempts++;
+                return conn.ExecuteNonQuery("INSERT INTO fact_type(name) VALUES (@0)", "after lock");
+            }
+        );
+        await release;
+
+        inserted.Should().Be(1);
+        attempts.Should().BeGreaterThan(1);
+        FactTypeNames(connFactory).Should().Equal("after lock");
+    }
+
+    [Fact]
+    public async Task BackoffRetriesBusyTransactionUntilLockIsReleased()
+    {
+        var connFactory = GivenFreshConnectionFactory("backoff.db");
+        var lockHolder = GivenWriteLockHeld("backoff.db");
+        var release = ReleaseWriteLockAfter(lockHolder, TimeSpan.FromMilliseconds(300));
+
+        int attempts = 0;
+        connFactory.WithTxn((conn, id) =>
+            {
+                attempts++;
+                conn.ExecuteNonQuery("INSERT INTO fact_type(name) VALUES (@0)", "first");
+                return conn.ExecuteNonQuery("INSERT INTO fact_type(name) VALUES (@0)", "second");
+            }
+        );
+        await release;
+
+        attempts.Should().BeGreaterThan(1);
+        FactTypeNames(connFactory).Should().Equal("first", "second");
+    }
+
+    [Fact]
+    public void BackoffDoesNotRetrySchemaError()
+    {
+        var connFactory = GivenFreshConnectionFactory("backoff.db");
+
+        int attempts = 0;
+        Action save = () => connFactory.WithConn((conn, id) =>
+            {
+                attempts++;
+                conn.ExecuteNonQuery("INSERT INTO fact_type(name) VALUES (@0)", "before error");
+                return conn.ExecuteNonQuery("INSERT INTO fact_type(NonExistingColumnName) VALUES (@0)", "error");
             }
         );
 
-        output.WriteLine("recordsReadAfterBackoff: {0}", "\r\n\t" + string.Join("\r\n\t", recordsReadAfterBackoff));
-        recordsReadAfterBackoff.Count().Should().Be(8);
+        save.Should().Throw<SQLiteException>()
+            .Which.Result.Should().Be(SQLite.Result.Error);
+        attempts.Should().Be(1);
+        FactTypeNames(connFactory).Should().Equal("before error");
+    }
 
-        try
-        {
-            var nbOfRecordsInserted = connFactory.WithConn((conn, id) =>
-                {
-                    string sql;
-                    sql = "INSERT INTO fact_type(name) VALUES (@0)";
-                    //This statement will save a record
-                    conn.ExecuteNonQuery(sql, $"{DateTime.Now} - {Stopwatch.GetTimestamp(),15:N0}");
-                    sql = "INSERT INTO fact_type(NonExistingColumnName) VALUES (@0)";
-                    //This statement will fail, hence this 'insert' AND the previous 'insert' will be repeated by the backoff algo.
-                    //As both 'inserts' are independent (not part of a transaction), on every attempt the first 'insert' will save a record.
-                    return conn.ExecuteNonQuery(sql, $"ERROR @ {DateTime.Now} - {Stopwatch.GetTimestamp(),15:N0}");
-                },
-                false
-            );
-        }
-        catch (Exception e)
-        {
-            output.WriteLine("MyError: {0}", e.ToString());
-        }
+    private static ConnectionFactory GivenFreshConnectionFactory(string fileName)
+    {
+        string dbFullName = BackoffDbPath(fileName);
+        Directory.CreateDirectory(Path.GetDirectoryName(dbFullName)!);
+        foreach (var suffix in new[] { "", "-wal", "-shm" })
+            File.Delete(dbFullName + suffix);
+        return new ConnectionFactory(dbFullName);
+    }
 
-        var recordsReadInTotal = connFactory.WithConn((conn, id) =>
+    // Holds the database's write lock on a second connection, so that every
+    // other writer gets SQLITE_BUSY once its busy timeout expires.
+    private static Conn GivenWriteLockHeld(string fileName)
+    {
+        var conn = new Conn(BackoffDbPath(fileName), 99);
+        conn.ExecuteNonQuery("BEGIN IMMEDIATE TRANSACTION");
+        return conn;
+    }
+
+    private static Task ReleaseWriteLockAfter(Conn conn, TimeSpan delay)
+    {
+        return Task.Run(async () =>
         {
-            string sql;
-            sql = "SELECT * FROM fact_type ORDER BY name";
-            return conn.ExecuteQuery<FactType>(sql);
-        }
+            await Task.Delay(delay);
+            conn.ExecuteNonQuery("ROLLBACK TRANSACTION");
+            conn.Close();
+        });
+    }
+
+    private static string BackoffDbPath(string fileName) => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "JinagaSQLiteTest",
+        fileName);
+
+    private static IEnumerable<string> FactTypeNames(ConnectionFactory connFactory)
+    {
+        return connFactory.WithConn((conn, id) =>
+            conn.ExecuteQuery<FactType>("SELECT * FROM fact_type ORDER BY fact_type_id")
+                .Select(factType => factType.name)
+                .ToList()
         );
-
-        output.WriteLine("recordsReadInTotal: {0}", "\r\n\t" + string.Join("\r\n\t", recordsReadInTotal));
-        recordsReadInTotal.Count().Should().Be(9);
-        output.WriteLine($"{MyStopWatch.Elapsed()}: END OF TESTS at {DateTime.Now}");
-
     }
 
 
