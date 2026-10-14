@@ -58,7 +58,7 @@ namespace Jinaga.Managers
 
         /// <summary>
         /// Processes the queue again when the authenticated user changes, so that
-        /// the facts held for a returning author upload without the application
+        /// the facts held for a returning user upload without the application
         /// saving anything new.
         /// </summary>
         private void CurrentUserChanged(User? user)
@@ -113,7 +113,7 @@ namespace Jinaga.Managers
         {
             VerifyNotUnloaded();
             await Authorize(graph, cancellationToken).ConfigureAwait(false);
-            // The author is read from the same object that supplies the upload
+            // The saver is read from the same object that supplies the upload
             // token, so the fact cannot be recorded against one user and sent
             // under another.
             var added = await store.Save(graph, true, identitySource?.CurrentUser?.publicKey, cancellationToken).ConfigureAwait(false);

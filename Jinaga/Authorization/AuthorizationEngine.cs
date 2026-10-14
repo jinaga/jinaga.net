@@ -61,6 +61,47 @@ namespace Jinaga.Authorization
             }
         }
 
+        /// <summary>
+        /// Whether the rules admit the fact from anyone, including an upload that names no user.
+        ///
+        /// Only an <c>Any</c> rule admits a fact with no user: a specification rule must project
+        /// the user, and a <c>No</c> rule admits nobody. That is also the one case in which a
+        /// replicator keeps no signature for the fact, since jinaga-server's
+        /// <c>AuthorizationKeystore.save</c> keeps only the keys the engine lists, and an
+        /// <c>Any</c> rule lists none. So a fact admitted here can be uploaded under any user
+        /// without being attributed to them.
+        /// </summary>
+        internal Task<bool> AdmitsWithoutSignature(
+            FactGraph graph,
+            FactReference reference,
+            CancellationToken cancellationToken)
+        {
+            return IsAuthorized(graph, reference, null, cancellationToken);
+        }
+
+        /// <summary>
+        /// Whether a replicator would sign the fact with this user's key if the user uploaded it.
+        ///
+        /// It signs with the uploader's key when the rules admit the fact from that user, unless
+        /// they admit it from anyone, in which case it signs with no key at all.
+        /// </summary>
+        /// <param name="graph">The fact and its ancestors</param>
+        /// <param name="reference">The fact</param>
+        /// <param name="userReference">The user's <c>Jinaga.User</c> fact</param>
+        /// <param name="cancellationToken">To cancel the operation</param>
+        internal async Task<bool> WouldSignWith(
+            FactGraph graph,
+            FactReference reference,
+            FactReference userReference,
+            CancellationToken cancellationToken)
+        {
+            if (await AdmitsWithoutSignature(graph, reference, cancellationToken).ConfigureAwait(false))
+            {
+                return false;
+            }
+            return await IsAuthorized(graph, reference, userReference, cancellationToken).ConfigureAwait(false);
+        }
+
         private async Task<bool> IsAuthorized(
             FactGraph graph,
             FactReference reference,

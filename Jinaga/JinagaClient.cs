@@ -37,11 +37,27 @@ namespace Jinaga
         /// The strategy to use for authenticating with the Jinaga replicator.
         ///
         /// An object that also implements <see cref="IIdentitySource"/> tells the client
-        /// who is logged in. The client then records that user as the local author of the
-        /// facts it queues, and holds a queued fact back while a different user is logged
-        /// in, rather than uploading it under their token.
+        /// who is logged in. The client then records which users saved each fact it queues,
+        /// and holds a queued fact back while a user who did not save it is logged in, rather
+        /// than uploading it under their token. See <see cref="AuthorizationRules"/> for the
+        /// facts it need not hold.
         /// </summary>
         public IHttpAuthenticationProvider? HttpAuthenticationProvider { get; set; }
+
+        /// <summary>
+        /// The authorization rules the replicator enforces, or null if the client is not told.
+        ///
+        /// The client does not enforce these; the replicator does. It reads them to know which
+        /// queued facts another user may upload. A fact that one user saved is held while a
+        /// different user is logged in, because the replicator would sign it with the uploader's
+        /// key or reject it. A fact whose rule is <c>Any</c> is neither signed nor rejected, so
+        /// with rules the client sends it under whoever is logged in. Without rules it holds every
+        /// fact another user saved, including one that an <c>Any</c> rule would admit, such as
+        /// a <see cref="User"/>.
+        ///
+        /// Pass the same rules the replicator is configured with.
+        /// </summary>
+        public AuthorizationRules? AuthorizationRules { get; set; }
 
         /// <summary>
         /// Configuration for retry behavior when network connections fail.
@@ -244,15 +260,20 @@ namespace Jinaga
         {
             // The authentication provider is the only place a current user comes from.
             // Reading it from the same object that sets the upload token is what keeps
-            // the recorded author and the token from naming different users.
+            // the recorded saver and the token from naming different users.
             var identitySource = options.HttpAuthenticationProvider as IIdentitySource;
+            // The replicator's rules, read to route the queue. This engine refuses
+            // nothing; the one passed in, if any, is what enforces rules locally.
+            var routingEngine = options.AuthorizationRules == null
+                ? null
+                : new AuthorizationEngine(options.AuthorizationRules, store);
             networkManager = new NetworkManager(network, store, loggerFactory, async (graph, added, cancellationToken) =>
             {
                 if (factManager != null)
                 {
                     await factManager.NotifyObservers(graph, added, cancellationToken).ConfigureAwait(false);
                 }
-            }, options.MaxBatchSize, identitySource);
+            }, options.MaxBatchSize, identitySource, routingEngine);
             factManager = new FactManager(store, networkManager, purgeConditions, loggerFactory, options.QueueProcessingDelay, authorizationEngine, authorizedUser, identitySource);
             logger = loggerFactory.CreateLogger<JinagaClient>();
 

@@ -23,13 +23,14 @@ namespace Jinaga.Storage
         private volatile ImmutableDictionary<string, DateTime> mruDates = ImmutableDictionary<string, DateTime>.Empty;
         private volatile ImmutableList<QueueEntry> queueEntries = ImmutableList<QueueEntry>.Empty;
         private volatile int queuedCount = 0;
-        private volatile ImmutableDictionary<FactReference, string> authorByReference = ImmutableDictionary<FactReference, string>.Empty;
+        private volatile ImmutableDictionary<FactReference, ImmutableHashSet<string>> saversByReference = ImmutableDictionary<FactReference, ImmutableHashSet<string>>.Empty;
 
         /// <summary>
         /// One fact waiting in the outbound queue, with the position at which it
         /// was queued. A bookmark acknowledges a position, so the position has to
-        /// outlive the entries queued before it: holding a fact back leaves a gap
-        /// in the queue, and the positions of the facts after it do not shift.
+        /// outlive the entries queued before it: a fact held back leaves a gap in
+        /// the queue when the facts after it are acknowledged, and the positions of
+        /// those facts do not shift.
         /// </summary>
         private class QueueEntry
         {
@@ -50,7 +51,7 @@ namespace Jinaga.Storage
             return Save(graph, queue, null, cancellationToken);
         }
 
-        public Task<ImmutableList<Fact>> Save(FactGraph graph, bool queue, string? author, CancellationToken cancellationToken)
+        public Task<ImmutableList<Fact>> Save(FactGraph graph, bool queue, string? savedBy, CancellationToken cancellationToken)
         {
             lock (this)
             {
@@ -73,11 +74,21 @@ namespace Jinaga.Storage
                     {
                         queueEntries = queueEntries.Add(new QueueEntry(fact.Reference, queuedCount));
                         queuedCount++;
-                        if (author != null)
+                    }
+                    if (savedBy != null && !graph.FactReferences.IsEmpty)
+                    {
+                        // The user saved the fact they asked for, whether or not
+                        // the store already had it, and every fact this save added.
+                        var saved = newFacts
+                            .Select(fact => fact.Reference)
+                            .Append(graph.Last)
+                            .Distinct();
+                        foreach (var reference in saved)
                         {
-                            // Only a fact that is new to the store reaches here, so a
-                            // fact never picks up a second author.
-                            authorByReference = authorByReference.Add(fact.Reference, author);
+                            var savers = saversByReference.TryGetValue(reference, out var existing)
+                                ? existing
+                                : ImmutableHashSet<string>.Empty;
+                            saversByReference = saversByReference.SetItem(reference, savers.Add(savedBy));
                         }
                     }
                 }
@@ -432,103 +443,55 @@ namespace Jinaga.Storage
         {
             lock (this)
             {
-                return Task.FromResult(BuildQueue(entry => true));
+                var queuedReferences = queueEntries
+                    .Select(entry => entry.Reference)
+                    .ToImmutableList();
+                var facts = queuedReferences
+                    .SelectMany(reference => ancestors[reference])
+                    .Distinct()
+                    .Select(reference => factsByReference[reference]);
+
+                // Write the facts and their ancestors to a fact graph.
+                var builder = new FactGraphBuilder();
+                foreach (var fact in facts)
+                {
+                    if (signaturesByReference.TryGetValue(fact.Reference, out var signatures))
+                    {
+                        builder.Add(new FactEnvelope(fact, signatures));
+                    }
+                    else
+                    {
+                        builder.Add(new FactEnvelope(fact, ImmutableList<FactSignature>.Empty));
+                    }
+                }
+                var graph = builder.Build();
+
+                // The bookmark counts positions in the queue, so the bookmark
+                // that acknowledges the fact at a given position is one past it.
+                var queuedFacts = queueEntries
+                    .Select(entry => new QueuedFact(
+                        entry.Reference,
+                        (entry.Position + 1).ToString()
+                    ))
+                    .ToImmutableList();
+
+                return Task.FromResult(new QueuedFacts(graph, queuedFacts));
             }
         }
 
-        public Task<QueuedFacts> GetQueue(string? currentAuthor)
+        public Task<ImmutableDictionary<FactReference, ImmutableHashSet<string>>> LoadSavers(ImmutableList<FactReference> references, CancellationToken cancellationToken)
         {
             lock (this)
             {
-                var queued = queueEntries
-                    .Select(entry => entry.Reference)
-                    .ToImmutableHashSet();
-                return Task.FromResult(BuildQueue(
-                    entry => CanSend(entry.Reference, currentAuthor, queued)));
+                var savers = references
+                    .Distinct()
+                    .Where(reference => saversByReference.ContainsKey(reference))
+                    .ToImmutableDictionary(
+                        reference => reference,
+                        reference => saversByReference[reference]
+                    );
+                return Task.FromResult(savers);
             }
-        }
-
-        /// <summary>
-        /// The queue entries that pass the filter, with their ancestors, oldest
-        /// first. Assumes the lock is held.
-        /// </summary>
-        private QueuedFacts BuildQueue(Func<QueueEntry, bool> include)
-        {
-            var queuedReferences = ImmutableList.CreateBuilder<FactReference>();
-            var queuedFacts = ImmutableList.CreateBuilder<QueuedFact>();
-
-            // A bookmark acknowledges every fact queued at or before its
-            // position, so it must not run past a fact that is being held. It
-            // stops advancing at the first held entry, which leaves the facts
-            // after that one acknowledged by reference rather than by position.
-            int acknowledgedPosition = 0;
-            bool holding = false;
-            foreach (var entry in queueEntries)
-            {
-                if (!include(entry))
-                {
-                    holding = true;
-                    continue;
-                }
-                if (!holding)
-                {
-                    acknowledgedPosition = entry.Position + 1;
-                }
-                queuedReferences.Add(entry.Reference);
-                queuedFacts.Add(new QueuedFact(entry.Reference, acknowledgedPosition.ToString()));
-            }
-
-            var facts = queuedReferences
-                .SelectMany(reference => ancestors[reference])
-                .Distinct()
-                .Select(reference => factsByReference[reference]);
-
-            // Write the facts and their ancestors to a fact graph.
-            var builder = new FactGraphBuilder();
-            foreach (var fact in facts)
-            {
-                if (signaturesByReference.TryGetValue(fact.Reference, out var signatures))
-                {
-                    builder.Add(new FactEnvelope(fact, signatures));
-                }
-                else
-                {
-                    builder.Add(new FactEnvelope(fact, ImmutableList<FactSignature>.Empty));
-                }
-            }
-            var graph = builder.Build();
-
-            return new QueuedFacts(graph, queuedFacts.ToImmutable());
-        }
-
-        /// <summary>
-        /// Whether the fact may be uploaded under the current author. Assumes the
-        /// lock is held.
-        /// </summary>
-        private bool CanSend(FactReference reference, string? currentAuthor, IImmutableSet<FactReference> queued)
-        {
-            if (HasOtherAuthor(reference, currentAuthor))
-            {
-                return false;
-            }
-            foreach (var ancestor in ancestors[reference])
-            {
-                // A sent ancestor is already attributed on the replica, so only an
-                // ancestor still waiting in the queue holds its descendant back.
-                if (ancestor != reference &&
-                    queued.Contains(ancestor) &&
-                    HasOtherAuthor(ancestor, currentAuthor))
-                {
-                    return false;
-                }
-            }
-            return true;
-        }
-
-        private bool HasOtherAuthor(FactReference reference, string? currentAuthor)
-        {
-            return authorByReference.TryGetValue(reference, out var author) &&
-                author != currentAuthor;
         }
 
         public Task SetQueueBookmark(string bookmark)
@@ -635,10 +598,10 @@ namespace Jinaga.Storage
                     .Where(entry => factsByReference.ContainsKey(entry.Reference))
                     .ToImmutableList();
 
-                // The authorship record is derived from the fact, so it goes when
+                // Who saved a fact is recorded against the fact, so it goes when
                 // the fact goes. Left behind, it would attribute a fact that is
-                // learned again to whoever authored the copy that was purged.
-                authorByReference = authorByReference
+                // learned again to whoever saved the copy that was purged.
+                saversByReference = saversByReference
                     .Where(pair => factsByReference.ContainsKey(pair.Key))
                     .ToImmutableDictionary(pair => pair.Key, pair => pair.Value);
 
