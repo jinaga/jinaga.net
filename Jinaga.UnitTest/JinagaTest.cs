@@ -79,8 +79,10 @@ namespace Jinaga.UnitTest
                 return new JinagaClient(store, network, ImmutableList<Specification>.Empty, loggerFactory, clientOptions);
             }
 
-            var rules = AuthorizationRules.Build(testOptions.Authorization);
-            var engine = new AuthorizationEngine(rules, store);
+            // The rules go through the same option an application sets, so the test checks
+            // with the engine the client builds from it. Only the user differs: a test fixes
+            // it, where an application checks as whoever is logged in.
+            clientOptions.AuthorizationRules = AuthorizationRules.Build(testOptions.Authorization);
 
             return new JinagaClient(
                 store,
@@ -88,8 +90,7 @@ namespace Jinaga.UnitTest
                 ImmutableList<Specification>.Empty,
                 loggerFactory,
                 clientOptions,
-                engine,
-                testOptions.User);
+                AuthorizingUser.Fixed(testOptions.User));
         }
     }
 }

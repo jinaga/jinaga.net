@@ -67,6 +67,8 @@ namespace Jinaga
         /// author, as the replicator would. A refused fact is not stored or queued. With nobody
         /// logged in, the check cannot run and the save goes ahead unchecked; routing still
         /// governs its upload. A type with no rule is refused, as the replicator refuses it.
+        /// Facts saved inside <see cref="JinagaClient.SingleUse{T}"/> are not checked, because the replicator
+        /// also authorizes them by the single-use principal's signature.
         /// </description></item>
         /// </list>
         ///
@@ -264,26 +266,26 @@ namespace Jinaga
         /// <param name="network">A strategy to communicate with a remote replicator</param>
         /// <param name="loggerFactory">A factory configured for logging</param>
         public JinagaClient(IStore store, INetwork network, ImmutableList<Specification> purgeConditions, ILoggerFactory loggerFactory, JinagaClientOptions options)
-            : this(store, network, purgeConditions, loggerFactory, options, null, (User?)null)
+            : this(store, network, purgeConditions, loggerFactory, options, AuthorizingUser.LoggedIn(options.HttpAuthenticationProvider as IIdentitySource))
         {
         }
 
         /// <summary>
-        /// Creates a client that enforces authorization rules locally.
+        /// Creates a client that checks saves against <see cref="JinagaClientOptions.AuthorizationRules"/>
+        /// as the given user.
         ///
-        /// Intended for tests. A client connected to a replicator does not need this — the
-        /// replicator is the authority — but a test with no replicator otherwise accepts every
-        /// fact, which makes an authorization rule untestable.
+        /// <c>Jinaga.UnitTest</c> uses this to fix the user every save is checked as. Every other
+        /// client checks as whoever is logged in.
         /// </summary>
-        internal JinagaClient(IStore store, INetwork network, ImmutableList<Specification> purgeConditions, ILoggerFactory loggerFactory, JinagaClientOptions options, AuthorizationEngine? authorizationEngine, User? authorizedUser)
+        internal JinagaClient(IStore store, INetwork network, ImmutableList<Specification> purgeConditions, ILoggerFactory loggerFactory, JinagaClientOptions options, AuthorizingUser authorizingUser)
         {
             // The authentication provider is the only place a current user comes from.
             // Reading it from the same object that sets the upload token is what keeps
             // the recorded saver and the token from naming different users.
             var identitySource = options.HttpAuthenticationProvider as IIdentitySource;
-            // The replicator's rules, read to route the queue. This engine refuses
-            // nothing; the one passed in, if any, is what enforces rules locally.
-            var routingEngine = options.AuthorizationRules == null
+            // One evaluation of the app's rules, shared by routing and the save check, so
+            // the two cannot read the rules differently.
+            var authorizationEngine = options.AuthorizationRules == null
                 ? null
                 : new AuthorizationEngine(options.AuthorizationRules, store);
             networkManager = new NetworkManager(network, store, loggerFactory, async (graph, added, cancellationToken) =>
@@ -292,8 +294,8 @@ namespace Jinaga
                 {
                     await factManager.NotifyObservers(graph, added, cancellationToken).ConfigureAwait(false);
                 }
-            }, options.MaxBatchSize, identitySource, routingEngine);
-            factManager = new FactManager(store, networkManager, purgeConditions, loggerFactory, options.QueueProcessingDelay, authorizationEngine, authorizedUser, identitySource);
+            }, options.MaxBatchSize, identitySource, authorizationEngine);
+            factManager = new FactManager(store, networkManager, purgeConditions, loggerFactory, options.QueueProcessingDelay, authorizationEngine, authorizingUser, identitySource);
             logger = loggerFactory.CreateLogger<JinagaClient>();
 
             Local = new LocalJinagaClient(factManager, loggerFactory);
@@ -383,11 +385,19 @@ namespace Jinaga
         /// Process a new fact.
         /// The fact is stored locally and queued for sending upstream.
         /// Active observers are notified to update the user interface.
+        ///
+        /// With <see cref="JinagaClientOptions.AuthorizationRules"/> configured and a user logged
+        /// in, the fact is first checked against the rules as that user. A rule that walks
+        /// successors reads the local store, so load the facts that authorize the user before
+        /// saving; see <see cref="Jinaga.Authorization.AuthorizationException"/>.
         /// </summary>
         /// <typeparam name="TFact">The type of the new fact</typeparam>
         /// <param name="prototype">The new fact</param>
         /// <returns>A copy of the fact as saved</returns>
         /// <exception cref="ArgumentNullException">If the fact is null</exception>
+        /// <exception cref="Jinaga.Authorization.AuthorizationException">
+        /// If the rules do not permit the logged-in user to author the fact. Nothing is stored.
+        /// </exception>
         public async Task<TFact> Fact<TFact>(TFact prototype) where TFact : class
         {
             try
