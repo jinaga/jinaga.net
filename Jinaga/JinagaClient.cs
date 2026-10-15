@@ -45,17 +45,36 @@ namespace Jinaga
         public IHttpAuthenticationProvider? HttpAuthenticationProvider { get; set; }
 
         /// <summary>
-        /// The authorization rules the replicator enforces, or null if the client is not told.
+        /// The application's authorization rules, as the replicator enforces them, or null if the
+        /// client is not told.
         ///
-        /// The client does not enforce these; the replicator does. It reads them to know which
-        /// queued facts another user may upload. A fact that one user saved is held while a
-        /// different user is logged in, because the replicator would sign it with the uploader's
-        /// key or reject it. A fact whose rule is <c>Any</c> is neither signed nor rejected, so
-        /// with rules the client sends it under whoever is logged in. Without rules it holds every
-        /// fact another user saved, including one that an <c>Any</c> rule would admit, such as
-        /// a <see cref="User"/>.
+        /// Pass the same rules the replicator is configured with, ideally built by the same
+        /// function. The client uses one evaluation of them for two things:
         ///
-        /// Pass the same rules the replicator is configured with.
+        /// <list type="bullet">
+        /// <item><description>
+        /// <b>Routing uploads.</b> A queued fact that one user saved is held while a different
+        /// user is logged in, because the replicator would sign it with the uploader's key or
+        /// reject it. A fact whose rule is <c>Any</c> is neither signed nor rejected, so the
+        /// client sends it under whoever is logged in. Without rules it holds every fact another
+        /// user saved, including one that an <c>Any</c> rule would admit, such as a
+        /// <see cref="User"/>.
+        /// </description></item>
+        /// <item><description>
+        /// <b>Refusing a save early.</b> When a user is logged in, the client checks a fact
+        /// against these rules as that user before saving it, and throws
+        /// <see cref="Jinaga.Authorization.AuthorizationException"/> for a fact the user may not
+        /// author, as the replicator would. A refused fact is not stored or queued. With nobody
+        /// logged in, the check cannot run and the save goes ahead unchecked; routing still
+        /// governs its upload. A type with no rule is refused, as the replicator refuses it.
+        /// </description></item>
+        /// </list>
+        ///
+        /// A rule that walks only predecessors is decided exactly, because a fact's predecessors
+        /// are saved with it. A rule that walks successors, such as "a member of the project",
+        /// reads the local store. A replica that has not loaded the facts that authorize the
+        /// user can refuse a save that the replicator would accept. Query or load those facts
+        /// before saving.
         /// </summary>
         public AuthorizationRules? AuthorizationRules { get; set; }
 
