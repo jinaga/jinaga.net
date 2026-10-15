@@ -16,6 +16,7 @@ namespace Jinaga.Storage
     {
         private volatile ImmutableDictionary<FactReference, Fact> factsByReference = ImmutableDictionary<FactReference, Fact>.Empty;
         private volatile ImmutableDictionary<FactReference, ImmutableList<FactSignature>> signaturesByReference = ImmutableDictionary<FactReference, ImmutableList<FactSignature>>.Empty;
+        private volatile ImmutableDictionary<FactReference, DateTime> datesLearnedByReference = ImmutableDictionary<FactReference, DateTime>.Empty;
         private ImmutableList<Edge> edges = ImmutableList<Edge>.Empty;
         private volatile ImmutableDictionary<FactReference, ImmutableList<FactReference>> ancestors = ImmutableDictionary<FactReference, ImmutableList<FactReference>>.Empty;
         private volatile ImmutableDictionary<string, string> bookmarks = ImmutableDictionary<string, string>.Empty;
@@ -35,6 +36,12 @@ namespace Jinaga.Storage
                     .ToImmutableList();
                 factsByReference = factsByReference.AddRange(newFacts
                     .Select(fact => new KeyValuePair<FactReference, Fact>(fact.Reference, fact))
+                );
+                // Only facts that were not already here are new, so saving a fact again --
+                // whether on its own or carrying an added signature -- leaves its date alone.
+                var dateLearned = DateTime.UtcNow;
+                datesLearnedByReference = datesLearnedByReference.AddRange(newFacts
+                    .Select(fact => new KeyValuePair<FactReference, DateTime>(fact.Reference, dateLearned))
                 );
                 if (queue)
                 {
@@ -212,7 +219,7 @@ namespace Jinaga.Storage
         private Product ExecuteProjection(FactReferenceTuple tuple, Product product, Projection projection)
         {
             // CreateProduct has already put every label of the tuple into the product, and
-            // that is all a simple, field, hash or signer projection reads back. Only a
+            // that is all a projection other than a collection reads back. Only a
             // collection adds anything.
             if (projection is CompoundProjection compoundProjection)
             {
@@ -248,6 +255,21 @@ namespace Jinaga.Storage
             }
             var graph = builder.Build();
             return Task.FromResult(graph);
+        }
+
+        public Task<ImmutableDictionary<FactReference, DateTime>> LoadDatesLearned(ImmutableList<FactReference> references, CancellationToken cancellationToken)
+        {
+            lock (this)
+            {
+                var datesLearned = references
+                    .Distinct()
+                    .Where(reference => datesLearnedByReference.ContainsKey(reference))
+                    .ToImmutableDictionary(
+                        reference => reference,
+                        reference => datesLearnedByReference[reference]
+                    );
+                return Task.FromResult(datesLearned);
+            }
         }
 
         private IEnumerable<Edge> CreateEdges(Fact successor, Predecessor predecessor)
@@ -455,6 +477,11 @@ namespace Jinaga.Storage
                     .ToImmutableDictionary(pair => pair.Key, pair => pair.Value);
 
                 signaturesByReference = signaturesByReference
+                    .Where(pair => factsByReference.ContainsKey(pair.Key))
+                    .ToImmutableDictionary(pair => pair.Key, pair => pair.Value);
+
+                // A purged fact that arrives again is learned again, so it gets a new date.
+                datesLearnedByReference = datesLearnedByReference
                     .Where(pair => factsByReference.ContainsKey(pair.Key))
                     .ToImmutableDictionary(pair => pair.Key, pair => pair.Value);
 

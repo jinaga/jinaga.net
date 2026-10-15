@@ -405,6 +405,82 @@ namespace Jinaga.Store.SQLite
         }
 
 
+        Task<ImmutableDictionary<FactReference, DateTime>> IStore.LoadDatesLearned(ImmutableList<FactReference> references, CancellationToken cancellationToken)
+        {
+            if (references.IsEmpty)
+            {
+                return Task.FromResult(ImmutableDictionary<FactReference, DateTime>.Empty);
+            }
+
+            // SQLite enforces a maximum number of bound parameters per statement, and each
+            // reference binds two of them, so batch the query the way ListKnown does.
+            const int maxReferencesPerBatch = 400;
+
+            var builder = ImmutableDictionary.CreateBuilder<FactReference, DateTime>();
+            foreach (var batch in references
+                .Distinct()
+                .Select((f, i) => new { f, i })
+                .GroupBy(x => x.i / maxReferencesPerBatch)
+                .Select(g => g.Select(x => x.f).ToImmutableList()))
+            {
+                var datesFromDb = connFactory.WithConn(
+                    (conn, id) =>
+                    {
+                        var referenceValues = batch.Select((f, i) => $"(@{2 * i}, @{2 * i + 1})").ToArray();
+
+                        var parameters = new List<object>();
+                        foreach (var reference in batch)
+                        {
+                            parameters.Add(reference.Hash);
+                            parameters.Add(reference.Type);
+                        }
+
+                        string sql = $@"
+                                SELECT
+                                    f.hash,
+                                    t.name,
+                                    f.date_learned
+                                FROM fact f
+                                JOIN fact_type t
+                                    ON f.fact_type_id = t.fact_type_id
+                                WHERE (f.hash,t.name)
+                                    IN (VALUES {String.Join(",", referenceValues)} )
+                            ";
+
+                        return conn.ExecuteQuery<DateLearnedFromDb>(sql, parameters.ToArray());
+                    },
+                    true   //exponential backoff
+                );
+
+                foreach (var row in datesFromDb)
+                {
+                    if (TryParseDateLearned(row.date_learned, out var dateLearned))
+                    {
+                        builder[new FactReference(row.name, row.hash)] = dateLearned;
+                    }
+                }
+            }
+
+            return Task.FromResult(builder.ToImmutable());
+        }
+
+        /// <summary>
+        /// Reads a date_learned column. The column defaults to CURRENT_TIMESTAMP, which SQLite
+        /// writes in UTC with one-second resolution, so the result is always UTC.
+        /// </summary>
+        private static bool TryParseDateLearned(string value, out DateTime dateLearned)
+        {
+            const DateTimeStyles utc = DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal;
+            if (DateTime.TryParseExact(value, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture, utc, out var parsed) ||
+                DateTime.TryParse(value, CultureInfo.InvariantCulture, utc, out parsed))
+            {
+                dateLearned = parsed;
+                return true;
+            }
+            dateLearned = default;
+            return false;
+        }
+
         public Task<ImmutableList<FactReference>> ListKnown(ImmutableList<FactReference> factReferences)
         {
 

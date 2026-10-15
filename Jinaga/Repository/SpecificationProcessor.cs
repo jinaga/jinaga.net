@@ -233,6 +233,20 @@ namespace Jinaga.Repository
                         throw new SpecificationException($"Cannot find the signers of {value.ToDescriptiveString()}. Give the fact a label first.");
                     }
                 }
+                else if (methodCallExpression.Method.DeclaringType == typeof(FactRepository) &&
+                    methodCallExpression.Method.Name == nameof(FactRepository.DateLearned) &&
+                    methodCallExpression.Arguments.Count == 1)
+                {
+                    var value = ProcessProjection(methodCallExpression.Arguments[0], symbolTable);
+                    if (value is SimpleProjection simpleProjection)
+                    {
+                        return new DateLearnedProjection(simpleProjection.Tag, methodCallExpression.Arguments[0].Type);
+                    }
+                    else
+                    {
+                        throw new SpecificationException($"Cannot find the date learned of {value.ToDescriptiveString()}. Give the fact a label first.");
+                    }
+                }
             }
             throw new SpecificationException($"Unsupported type of projection {expression}.");
         }
@@ -436,7 +450,7 @@ namespace Jinaga.Repository
 
         private PredicateContext ProcessPredicate(Expression body, SymbolTable symbolTable)
         {
-            RejectSignersOf(body);
+            RejectMetadata(body);
             if (body is BinaryExpression { NodeType: ExpressionType.Equal } binary)
             {
                 var left = ProcessReference(binary.Left, symbolTable);
@@ -557,31 +571,33 @@ namespace Jinaga.Repository
         }
 
         /// <summary>
-        /// Refuses a condition that reads provenance.
+        /// Refuses a condition that reads a fact's metadata: its signers or the date this
+        /// replica learned it.
         ///
         /// <see cref="Match"/>, <see cref="PathCondition"/> and <see cref="ExistentialCondition"/>
-        /// have no way to name a <see cref="SignerProjection"/>, so "provenance affects matching"
-        /// cannot be represented in the specification model at all. C# lets someone write the
+        /// have no way to name a <see cref="SignerProjection"/> or a
+        /// <see cref="DateLearnedProjection"/>, so "metadata affects matching" cannot be
+        /// represented in the specification model at all. C# lets someone write the
         /// expression anyway, so the front end refuses it here rather than silently dropping it
         /// or matching on something else.
         /// </summary>
-        private static void RejectSignersOf(Expression body)
+        private static void RejectMetadata(Expression body)
         {
-            var call = FindSignersOf(body);
+            var call = FindMetadata(body);
             if (call != null)
             {
-                throw new SpecificationException($"Cannot use {nameof(FactRepository.SignersOf)} in a condition: {call}. Provenance is a projection, so it cannot affect matching.");
+                throw new SpecificationException($"Cannot use {call.Method.Name} in a condition: {call}. Metadata about a fact is a projection, so it cannot affect matching.");
             }
         }
 
-        private static MethodCallExpression? FindSignersOf(Expression expression)
+        private static MethodCallExpression? FindMetadata(Expression expression)
         {
-            var finder = new SignersOfFinder();
+            var finder = new MetadataFinder();
             finder.Visit(expression);
             return finder.Found;
         }
 
-        private class SignersOfFinder : ExpressionVisitor
+        private class MetadataFinder : ExpressionVisitor
         {
             public MethodCallExpression? Found { get; private set; }
 
@@ -589,7 +605,8 @@ namespace Jinaga.Repository
             {
                 if (Found == null &&
                     node.Method.DeclaringType == typeof(FactRepository) &&
-                    node.Method.Name == nameof(FactRepository.SignersOf))
+                    (node.Method.Name == nameof(FactRepository.SignersOf) ||
+                     node.Method.Name == nameof(FactRepository.DateLearned)))
                 {
                     Found = node;
                 }

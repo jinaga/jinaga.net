@@ -16,6 +16,20 @@ namespace Jinaga.Services
         Task<ImmutableList<Fact>> Save(FactGraph graph, bool queue, CancellationToken cancellationToken);
         Task<ImmutableList<Product>> Read(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken);
         Task<FactGraph> Load(ImmutableList<FactReference> references, CancellationToken cancellationToken);
+
+        /// <summary>
+        /// The UTC moment at which this store first saved each of the given facts.
+        ///
+        /// The dates are replica-local and are deliberately kept out of <see cref="FactGraph"/>,
+        /// so that nothing can serialize them onto the network. A reference the store does not
+        /// hold is absent from the result.
+        ///
+        /// A store that does not override this reports no dates. Only a specification that
+        /// projects <see cref="Repository.FactRepository.DateLearned{TFact}(TFact)"/> then fails;
+        /// every other specification runs as before.
+        /// </summary>
+        Task<ImmutableDictionary<FactReference, DateTime>> LoadDatesLearned(ImmutableList<FactReference> references, CancellationToken cancellationToken)
+            => Task.FromResult(ImmutableDictionary<FactReference, DateTime>.Empty);
         Task<string> LoadBookmark(string feed);
         Task<ImmutableList<FactReference>> ListKnown(ImmutableList<FactReference> factReferences);
         Task SaveBookmark(string feed, string bookmark);
