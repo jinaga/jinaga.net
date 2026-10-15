@@ -74,6 +74,11 @@ public class DateLearnedTest
 
         var learned = await WhenQueryDateLearned(site);
 
+        // date_learned has one-second resolution, so a re-save within the same second could
+        // re-stamp it with the same value and go unnoticed. Wait until the clock has moved
+        // past that second, so that any re-stamp shows up as a different date.
+        await WhenTheClockPasses(learned);
+
         await j.Fact(new Post(site, "2026-10-13"));
         var afterPlainResave = await WhenQueryDateLearned(site);
         afterPlainResave.Should().Be(learned);
@@ -199,6 +204,14 @@ public class DateLearnedTest
     {
         var results = await j.Query(postWithDateLearned, site);
         return results.Should().ContainSingle().Subject.learned;
+    }
+
+    private static async Task WhenTheClockPasses(DateTime instant)
+    {
+        while (TruncateToSecond(DateTime.UtcNow) <= TruncateToSecond(instant))
+        {
+            await Task.Delay(50);
+        }
     }
 
     private static DateTime TruncateToSecond(DateTime value) =>

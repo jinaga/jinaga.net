@@ -470,14 +470,11 @@ namespace Jinaga.Store.SQLite
         /// </summary>
         private static bool TryParseDateLearned(string value, out DateTime dateLearned)
         {
-            if (DateTime.TryParseExact(value, "yyyy-MM-dd HH:mm:ss", null, DateTimeStyles.AssumeUniversal, out var parsed))
+            const DateTimeStyles utc = DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal;
+            if (DateTime.TryParseExact(value, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture, utc, out var parsed) ||
+                DateTime.TryParse(value, CultureInfo.InvariantCulture, utc, out parsed))
             {
-                dateLearned = parsed.ToUniversalTime();
-                return true;
-            }
-            if (DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out parsed))
-            {
-                dateLearned = parsed.ToUniversalTime();
+                dateLearned = parsed;
                 return true;
             }
             dateLearned = default;

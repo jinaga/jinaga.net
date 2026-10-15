@@ -50,6 +50,11 @@ namespace Jinaga.Repository
         /// date a replica learned it says nothing about when, or by whom, it was written. A
         /// fact that is purged and learned again is learned again: it gets a new date.
         ///
+        /// Because the date lives in the store and not in the fact, a specification that
+        /// projects it is always run against the store, never against a graph of facts alone.
+        /// A query that would otherwise be answered from the facts already in hand, such as
+        /// one that only walks predecessors, reads the store and fetches from the network.
+        ///
         /// Provenance cannot affect matching. This method exists only inside a specification's
         /// projection; using it in a condition throws
         /// <see cref="SpecificationException"/>.
