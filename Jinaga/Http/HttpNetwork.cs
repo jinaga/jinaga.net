@@ -150,10 +150,10 @@ namespace Jinaga.Http
         }
 
         /// <summary>
-        /// The body of the feeds request: the givens, then the specification with every
-        /// projection that is not a collection stripped out. The replicator matches facts and
-        /// does not project, so a projection that only shapes the local result never reaches
-        /// the wire.
+        /// The body of the feeds request: the givens, then the reduced specification. The
+        /// replicator matches facts and does not project, so a projection that only shapes
+        /// the local result never reaches the wire. Which projections those are is
+        /// <see cref="Specification.Reduce"/>'s to decide; this method only asks.
         /// </summary>
         internal static string CreateFeedsRequest(FactReferenceTuple givenTuple, Specification specification)
         {
@@ -164,44 +164,7 @@ namespace Jinaga.Http
 
         private static string GenerateSpecificationString(Specification specification)
         {
-            var specificationWithOnlyCollections = new Specification(
-                specification.Givens,
-                specification.Matches,
-                ProjectionWithOnlyCollections(specification.Projection));
-            return specificationWithOnlyCollections.ToDescriptiveString();
-        }
-
-        private static Projection ProjectionWithOnlyCollections(Projection projection)
-        {
-            return MaybeProjectionWithOnlyCollections(projection) ??
-                new CompoundProjection(ImmutableDictionary<string, Projection>.Empty, typeof(object));
-        }
-
-        private static Projection? MaybeProjectionWithOnlyCollections(Projection projection)
-        {
-            if (projection is CollectionProjection collectionProjection)
-            {
-                return new CollectionProjection(
-                    collectionProjection.Matches,
-                    ProjectionWithOnlyCollections(collectionProjection.Projection),
-                    projection.Type
-                );
-            }
-            else if (projection is CompoundProjection compoundProjection)
-            {
-                var namedProjections = compoundProjection.Names
-                    .Select(name => (name, projection: MaybeProjectionWithOnlyCollections(compoundProjection.GetProjection(name))))
-                    .Where(p => p.projection != null)
-                    .ToImmutableDictionary(
-                        p => p.name,
-                        p => p.projection!
-                    );
-                return new CompoundProjection(namedProjections, projection.Type);
-            }
-            else
-            {
-                return null;
-            }
+            return specification.Reduce().ToDescriptiveString();
         }
     }
 }

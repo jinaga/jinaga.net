@@ -11,6 +11,13 @@ namespace Jinaga.Test.Fakes
     {
         private readonly FakeNetwork innerNetwork;
         public int SaveCallCount { get; private set; } = 0;
+
+        /// <summary>
+        /// How many times the client declared a specification's feeds. Two calls for
+        /// specifications that reduce to the same thing is a duplicate registration.
+        /// </summary>
+        public int FeedsCallCount { get; private set; } = 0;
+
         public FactGraph UploadedGraph => innerNetwork.UploadedGraph;
         public ImmutableList<Fact> UploadedFacts => innerNetwork.UploadedFacts;
 
@@ -32,6 +39,7 @@ namespace Jinaga.Test.Fakes
 
         public Task<ImmutableList<string>> Feeds(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
         {
+            FeedsCallCount++;
             return innerNetwork.Feeds(givenTuple, specification, cancellationToken);
         }
 
