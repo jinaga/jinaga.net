@@ -1,4 +1,5 @@
-﻿using Jinaga.Facts;
+﻿using Jinaga.Authorization;
+using Jinaga.Facts;
 using Jinaga.Identity;
 using Jinaga.Projections;
 using Jinaga.Services;
@@ -20,6 +21,8 @@ namespace Jinaga.Managers
         private readonly ILogger logger;
         private readonly Func<FactGraph, ImmutableList<Fact>, CancellationToken, Task> notifyObservers;
         private readonly int maxBatchSize;
+        private readonly IIdentitySource? identitySource;
+        private readonly AuthorizationEngine? authorizationEngine;
 
         private ImmutableDictionary<string, Task<ImmutableList<string>>> feedsCache =
             ImmutableDictionary<string, Task<ImmutableList<string>>>.Empty;
@@ -34,6 +37,17 @@ namespace Jinaga.Managers
         public event JinagaStatusChanged? OnStatusChanged;
 
         public NetworkManager(INetwork network, IStore store, ILoggerFactory loggerFactory, Func<FactGraph, ImmutableList<Fact>, CancellationToken, Task> notifyObservers, int maxBatchSize)
+            : this(network, store, loggerFactory, notifyObservers, maxBatchSize, null, null)
+        {
+        }
+
+        /// <param name="identitySource">Reports who is logged in, or null if the client cannot tell</param>
+        /// <param name="authorizationEngine">
+        /// Evaluates the application's authorization rules, or null if the client was not given
+        /// them. Used only to decide which queued facts another user may upload; it refuses
+        /// nothing.
+        /// </param>
+        internal NetworkManager(INetwork network, IStore store, ILoggerFactory loggerFactory, Func<FactGraph, ImmutableList<Fact>, CancellationToken, Task> notifyObservers, int maxBatchSize, IIdentitySource? identitySource, AuthorizationEngine? authorizationEngine)
         {
             if (maxBatchSize <= 0)
                 throw new ArgumentOutOfRangeException(nameof(maxBatchSize), maxBatchSize, "The maximum batch size must be greater than zero.");
@@ -43,6 +57,8 @@ namespace Jinaga.Managers
             this.logger = loggerFactory.CreateLogger<NetworkManager>();
             this.notifyObservers = notifyObservers;
             this.maxBatchSize = maxBatchSize;
+            this.identitySource = identitySource;
+            this.authorizationEngine = authorizationEngine;
 
             network.OnAuthenticationStateChanged += SetAuthenticationState;
         }
@@ -52,10 +68,21 @@ namespace Jinaga.Managers
             return await network.Login(cancellationToken).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Uploads the queued facts that may travel under the user who is logged in now.
+        ///
+        /// Facts held for another user stay in the queue, and are not counted in the queue
+        /// length that <see cref="JinagaStatus.QueueLength"/> reports: when only held facts
+        /// remain, the status reports nothing pending.
+        /// </summary>
         public async Task Save(CancellationToken cancellationToken)
         {
-            // Get the queued facts.
+            // The user the facts are sent under. Every attempt to send checks
+            // that this user is still the one logged in, so a fact cannot leave
+            // under the token of a user who logged in while it was being sent.
+            var uploader = identitySource?.CurrentUser?.publicKey;
             var queue = await store.GetQueue().ConfigureAwait(false);
+            queue = await SelectSendable(queue, uploader, cancellationToken).ConfigureAwait(false);
             if (queue.Facts.Count == 0)
             {
                 SetSaveStatus(false, null, 0);
@@ -70,16 +97,19 @@ namespace Jinaga.Managers
             {
                 // Send the facts in batches, so that a queue which has grown
                 // past a request size limit between here and the replicator
-                // still drains. A batch that succeeds advances the bookmark,
-                // so a failure part way through leaves the batches that
-                // succeeded out of the queue and the rest in it.
+                // still drains. A batch that succeeds is acknowledged, so a
+                // failure part way through leaves the batches that succeeded
+                // out of the queue and the rest in it.
                 foreach (var batch in SplitIntoBatches(queue))
                 {
                     if (batch.Graph.FactReferences.Count > 0)
                     {
-                        await network.Save(batch.Graph, cancellationToken).ConfigureAwait(false);
+                        // Checked here for an INetwork that does not check each
+                        // attempt itself; HttpNetwork checks again before every one.
+                        UploaderChangedException.ThrowIfChanged(identitySource, uploader);
+                        await network.Save(batch.Graph, uploader, cancellationToken).ConfigureAwait(false);
                     }
-                    await store.SetQueueBookmark(batch.Bookmark).ConfigureAwait(false);
+                    await store.AcknowledgeQueue(batch.Facts).ConfigureAwait(false);
                     remaining -= batch.Count;
                     if (remaining > 0)
                     {
@@ -89,6 +119,14 @@ namespace Jinaga.Managers
                 logger.LogInformation("Save completed after {elapsedMilliseconds} ms.", stopwatch.ElapsedMilliseconds);
                 SetSaveStatus(false, null, 0);
             }
+            catch (UploaderChangedException)
+            {
+                // Not a failure. The facts that were not sent stay queued, and
+                // the change of user has already scheduled the queue to be
+                // processed again under whoever is logged in now.
+                logger.LogInformation("Save stopped after {elapsedMilliseconds} ms because the user changed.", stopwatch.ElapsedMilliseconds);
+                SetSaveStatus(false, null, remaining);
+            }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Save failed after {elapsedMilliseconds} ms.", stopwatch.ElapsedMilliseconds);
@@ -97,17 +135,116 @@ namespace Jinaga.Managers
             }
         }
 
+        /// <summary>
+        /// The queued facts that may be uploaded under <paramref name="uploader"/>.
+        ///
+        /// A queued fact is held when somebody saved it, the uploader is not among them, and the
+        /// rules would not admit it without a signature. Without rules, nothing is known to be
+        /// admitted without a signature, so every fact another user saved is held. With rules,
+        /// a fact whose rule is <c>Any</c> may travel under anyone: the replicator keeps no
+        /// signature for it, so uploading it neither attributes it to the uploader nor fails.
+        /// A fact nobody saved goes under whoever is logged in.
+        ///
+        /// A fact is sent only if it and every queued ancestor in its graph may be, because the
+        /// ancestors travel in the same request.
+        /// </summary>
+        private async Task<QueuedFacts> SelectSendable(QueuedFacts queue, string? uploader, CancellationToken cancellationToken)
+        {
+            if (queue.Facts.IsEmpty)
+            {
+                return queue;
+            }
+
+            var queuedReferences = queue.Facts
+                .Select(fact => fact.Reference)
+                .ToImmutableList();
+            var savers = await store.LoadSavers(queuedReferences, cancellationToken).ConfigureAwait(false);
+            if (savers.IsEmpty)
+            {
+                return queue;
+            }
+
+            var held = new HashSet<FactReference>();
+            foreach (var reference in queuedReferences)
+            {
+                if (savers.TryGetValue(reference, out var saversOfFact) &&
+                    !saversOfFact.IsEmpty &&
+                    (uploader == null || !saversOfFact.Contains(uploader)) &&
+                    !await AdmitsWithoutSignature(queue.Graph, reference, cancellationToken).ConfigureAwait(false))
+                {
+                    held.Add(reference);
+                }
+            }
+            if (held.Count == 0)
+            {
+                return queue;
+            }
+
+            var available = new HashSet<FactReference>(queue.Graph.FactReferences);
+            var sendable = queue.Facts
+                .Where(fact => !held.Contains(fact.Reference) &&
+                    !HasAncestorIn(queue.Graph, available, fact.Reference, held))
+                .ToImmutableList();
+            return new QueuedFacts(queue.Graph, sendable);
+        }
+
+        private async Task<bool> AdmitsWithoutSignature(FactGraph graph, FactReference reference, CancellationToken cancellationToken)
+        {
+            if (authorizationEngine == null)
+            {
+                return false;
+            }
+            return await authorizationEngine
+                .AdmitsWithoutSignature(graph, reference, cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Whether any strict ancestor of the fact, as the graph records it, is in the set.
+        /// </summary>
+        private static bool HasAncestorIn(FactGraph graph, HashSet<FactReference> available, FactReference reference, HashSet<FactReference> set)
+        {
+            var visited = new HashSet<FactReference>();
+            var pending = new Stack<FactReference>();
+            pending.Push(reference);
+            while (pending.Count > 0)
+            {
+                var current = pending.Pop();
+                if (!available.Contains(current))
+                {
+                    continue;
+                }
+                foreach (var predecessor in graph.GetFact(current).GetAllPredecessorReferences())
+                {
+                    if (set.Contains(predecessor))
+                    {
+                        return true;
+                    }
+                    if (visited.Add(predecessor))
+                    {
+                        pending.Push(predecessor);
+                    }
+                }
+            }
+            return false;
+        }
+
         private class SaveBatch
         {
             public FactGraph Graph { get; }
-            public string Bookmark { get; }
-            public int Count { get; }
 
-            public SaveBatch(FactGraph graph, string bookmark, int count)
+            /// <summary>
+            /// The queue entries this batch covers, which are the ones to
+            /// acknowledge once it has been sent.
+            /// </summary>
+            public ImmutableList<QueuedFact> Facts { get; }
+
+            public int Count => Facts.Count;
+
+            public SaveBatch(FactGraph graph, ImmutableList<QueuedFact> facts)
             {
                 Graph = graph;
-                Bookmark = bookmark;
-                Count = count;
+                Facts = facts;
             }
         }
 
@@ -137,15 +274,14 @@ namespace Jinaga.Managers
             {
                 var graph = FactGraph.Empty;
                 var included = new HashSet<FactReference>();
-                string bookmark = queue.Facts[index].Bookmark;
-                int count = 0;
+                var facts = ImmutableList.CreateBuilder<QueuedFact>();
                 while (index < queue.Facts.Count)
                 {
                     var reference = queue.Facts[index].Reference;
                     if (available.Contains(reference))
                     {
                         var additions = AncestorsNotIncluded(queue.Graph, reference, included);
-                        if (count > 0 && included.Count + additions.Count > maxBatchSize)
+                        if (facts.Count > 0 && included.Count + additions.Count > maxBatchSize)
                         {
                             break;
                         }
@@ -155,15 +291,14 @@ namespace Jinaga.Managers
                             included.Add(addition);
                         }
                     }
-                    bookmark = queue.Facts[index].Bookmark;
-                    count++;
+                    facts.Add(queue.Facts[index]);
                     index++;
                 }
                 if (included.Count > maxBatchSize)
                 {
                     logger.LogWarning("A queued fact and its ancestors are {0} facts, which exceeds the maximum batch size of {1}. Sending it as one batch.", included.Count, maxBatchSize);
                 }
-                yield return new SaveBatch(graph, bookmark, count);
+                yield return new SaveBatch(graph, facts.ToImmutable());
             }
         }
 

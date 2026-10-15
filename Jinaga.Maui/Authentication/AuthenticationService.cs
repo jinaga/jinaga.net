@@ -9,7 +9,7 @@ namespace Jinaga.Maui.Authentication;
 /// <summary>
 /// Provides authentication services, including token management and user authentication.
 /// </summary>
-public class AuthenticationService : IHttpAuthenticationProvider, IAuthenticationService
+public class AuthenticationService : IHttpAuthenticationProvider, IAuthenticationService, IIdentitySource
 {
     private readonly ITokenStorage tokenStorage;
     private readonly UserProvider userProvider;
@@ -22,6 +22,47 @@ public class AuthenticationService : IHttpAuthenticationProvider, IAuthenticatio
     private readonly object stateLock = new();
     private bool initialized;
     private AuthenticationResult authenticationState = AuthenticationResult.Empty;
+
+    /// <summary>
+    /// Raised when the authenticated user changes, including on log out.
+    /// </summary>
+    public event IIdentitySource.CurrentUserChanged? OnCurrentUserChanged;
+
+    /// <summary>
+    /// The user who is currently authenticated, or null if nobody is.
+    ///
+    /// This is the same object that sets the authorization header, so the user
+    /// the client records as a fact's author is the user whose token uploads it.
+    /// </summary>
+    public User? CurrentUser
+    {
+        get
+        {
+            lock (stateLock)
+            {
+                return authenticationState.User;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Replaces the authentication state, announcing the change if the user is
+    /// now a different one. Raised outside the lock, because a handler processes
+    /// the outbound queue and would otherwise hold it for a network round trip.
+    /// </summary>
+    private void SetAuthenticationState(AuthenticationResult result)
+    {
+        User? previousUser;
+        lock (stateLock)
+        {
+            previousUser = authenticationState.User;
+            authenticationState = result;
+        }
+        if (previousUser != result.User)
+        {
+            OnCurrentUserChanged?.Invoke(result.User);
+        }
+    }
 
     /// <summary>
     /// Initializes the authentication service.
@@ -83,10 +124,7 @@ public class AuthenticationService : IHttpAuthenticationProvider, IAuthenticatio
                 logger.LogInformation("Initialized authentication service with valid token");
             }
 
-            lock (stateLock)
-            {
-                authenticationState = loaded;
-            }
+            SetAuthenticationState(loaded);
             userProvider.SetUser(loaded.User);
             return true;
         }
@@ -125,10 +163,7 @@ public class AuthenticationService : IHttpAuthenticationProvider, IAuthenticatio
                 return false;
             }
 
-            lock (stateLock)
-            {
-                authenticationState = result;
-            }
+            SetAuthenticationState(result);
             userProvider.SetUser(result.User);
             await tokenStorage.SaveTokenAndUser(result).ConfigureAwait(false);
             logger.LogInformation("Logged in");
@@ -156,10 +191,7 @@ public class AuthenticationService : IHttpAuthenticationProvider, IAuthenticatio
         }
 
         await RevokeToken(cachedAuthenticationToken).ConfigureAwait(false);
-        lock (stateLock)
-        {
-            authenticationState = AuthenticationResult.Empty;
-        }
+        SetAuthenticationState(AuthenticationResult.Empty);
         userProvider.ClearUser();
         await tokenStorage.SaveTokenAndUser(AuthenticationResult.Empty).ConfigureAwait(false);
         logger.LogInformation("Logged out");
@@ -197,12 +229,8 @@ public class AuthenticationService : IHttpAuthenticationProvider, IAuthenticatio
             if (refreshedToken == null)
             {
                 // Failed to refresh token.
-                AuthenticationResult authenticationResult;
-                lock (stateLock)
-                {
-                    authenticationResult = new AuthenticationResult(AuthenticationResult.Empty.Token, authenticationState.User);
-                    authenticationState = authenticationResult;
-                }
+                var authenticationResult = new AuthenticationResult(AuthenticationResult.Empty.Token, CurrentUser);
+                SetAuthenticationState(authenticationResult);
                 await tokenStorage.SaveTokenAndUser(authenticationResult).ConfigureAwait(false);
                 logger.LogInformation("Token refresh failed. Cleared authentication token.");
                 return JinagaAuthenticationState.AuthenticationExpired;
@@ -210,12 +238,8 @@ public class AuthenticationService : IHttpAuthenticationProvider, IAuthenticatio
             else
             {
                 // Refreshed token.
-                AuthenticationResult authenticationResult;
-                lock (stateLock)
-                {
-                    authenticationResult = new AuthenticationResult(refreshedToken, authenticationState.User);
-                    authenticationState = authenticationResult;
-                }
+                var authenticationResult = new AuthenticationResult(refreshedToken, CurrentUser);
+                SetAuthenticationState(authenticationResult);
                 await tokenStorage.SaveTokenAndUser(authenticationResult).ConfigureAwait(false);
                 logger.LogInformation("Token refresh succeeded.");
                 return JinagaAuthenticationState.Authenticated;
@@ -249,11 +273,8 @@ public class AuthenticationService : IHttpAuthenticationProvider, IAuthenticatio
         oauthClient.ValidateState(state);
         var tokenResponse = await oauthClient.GetTokenResponse(code).ConfigureAwait(false);
         var authenticationToken = ResponseToToken(tokenResponse);
-        lock (stateLock)
-        {
-            // Set the authentication token so that it can be used to get the user
-            authenticationState = new AuthenticationResult(authenticationToken, null);
-        }
+        // Set the authentication token so that it can be used to get the user
+        SetAuthenticationState(new AuthenticationResult(authenticationToken, null));
         var (user, profile) = await jinagaClient.Login().ConfigureAwait(false);
         await updateUserName(jinagaClient, user, profile);
         return new AuthenticationResult(authenticationToken, user);

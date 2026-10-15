@@ -105,6 +105,16 @@ namespace Jinaga.Http
 
         public Task PostJson<TRequest>(string path, TRequest request)
         {
+            return PostJson(path, request, () => { });
+        }
+
+        /// <summary>
+        /// Posts the request as JSON, calling <paramref name="beforeEachAttempt"/> before every
+        /// attempt to send it: the first, each retry after a connection failure, and the one
+        /// after re-authenticating. The callback stops the post by throwing.
+        /// </summary>
+        public Task PostJson<TRequest>(string path, TRequest request, Action beforeEachAttempt)
+        {
             return WithHttpClient(() =>
                 {
                     var httpRequest = new HttpRequestMessage(HttpMethod.Post, path);
@@ -113,10 +123,21 @@ namespace Jinaga.Http
                     httpRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue(JsonContentType));
                     return httpRequest;
                 },
-                httpResponse => Task.FromResult(true));
+                httpResponse => Task.FromResult(true),
+                beforeEachAttempt);
         }
 
         public Task PostGraph(string path, FactGraph graph)
+        {
+            return PostGraph(path, graph, () => { });
+        }
+
+        /// <summary>
+        /// Posts the graph, calling <paramref name="beforeEachAttempt"/> before every attempt
+        /// to send it: the first, each retry after a connection failure, and the one after
+        /// re-authenticating. The callback stops the post by throwing.
+        /// </summary>
+        public Task PostGraph(string path, FactGraph graph, Action beforeEachAttempt)
         {
             return WithHttpClient(() =>
             {
@@ -133,7 +154,8 @@ namespace Jinaga.Http
 
                 return httpRequest;
             },
-            httpResponse => Task.FromResult(true));
+            httpResponse => Task.FromResult(true),
+            beforeEachAttempt);
         }
 
         public Task<FactGraph> PostLoad(string path, LoadRequest request)
@@ -256,15 +278,21 @@ namespace Jinaga.Http
             }
         }
 
+        /// <param name="beforeEachAttempt">
+        /// Called before every request is sent, including each retry and the request after
+        /// re-authenticating. It stops the operation by throwing, before anything is sent.
+        /// </param>
         private async Task<T> WithHttpClient<T>(
             Func<HttpRequestMessage> createRequest,
-            Func<HttpResponseMessage, Task<T>> processResponse)
+            Func<HttpResponseMessage, Task<T>> processResponse,
+            Action? beforeEachAttempt = null)
         {
             return await ExecuteWithRetry(async () =>
             {
                 var stopwatch = Stopwatch.StartNew();
                 using var request = createRequest();
                 logger.LogTrace("HTTP {method} {baseAddress}{path}", request.Method, httpClient.BaseAddress, request.RequestUri);
+                beforeEachAttempt?.Invoke();
                 setRequestHeaders(request.Headers);
                 using var response = await httpClient.SendAsync(request).ConfigureAwait(false);
                 if (CredentialIsStale(response.StatusCode))
@@ -275,6 +303,7 @@ namespace Jinaga.Http
                     if (authenticationState == JinagaAuthenticationState.Authenticated)
                     {
                         using var retryRequest = createRequest();
+                        beforeEachAttempt?.Invoke();
                         setRequestHeaders(retryRequest.Headers);
                         using var retryResponse = await httpClient.SendAsync(retryRequest).ConfigureAwait(false);
                         await CheckForError(retryResponse, stopwatch, retryRequest.RequestUri).ConfigureAwait(false);

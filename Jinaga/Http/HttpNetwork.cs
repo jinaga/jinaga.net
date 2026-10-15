@@ -5,6 +5,8 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -13,26 +15,40 @@ namespace Jinaga.Http
     public class HttpNetwork : INetwork
     {
         private readonly WebClient webClient;
+        private readonly IIdentitySource? identitySource;
 
         public event INetwork.AuthenticationStateChanged? OnAuthenticationStateChanged;
 
         public HttpNetwork(Uri baseUrl, IHttpAuthenticationProvider? authenticationProvider, ILoggerFactory loggerFactory, RetryConfiguration retryConfiguration)
+            : this(null, baseUrl, authenticationProvider, loggerFactory, retryConfiguration)
         {
-            webClient = new WebClient(new HttpConnection(baseUrl, loggerFactory,
-                headers =>
-                {
-                    if (authenticationProvider != null)
-                        authenticationProvider.SetRequestHeaders(headers);
-                },
-                () => authenticationProvider != null
-                    ? authenticationProvider.Reauthenticate()
-                    : Task.FromResult(JinagaAuthenticationState.NotAuthenticated),
-                authenticationState =>
-                {
-                    OnAuthenticationStateChanged?.Invoke(authenticationState);
-                },
-                retryConfiguration
-            ));
+        }
+
+        /// <summary>
+        /// Sends requests through the given message handler, or the network when it is null.
+        /// The handler is the seam that lets a test script the replicator's responses.
+        /// </summary>
+        internal HttpNetwork(HttpMessageHandler? messageHandler, Uri baseUrl, IHttpAuthenticationProvider? authenticationProvider, ILoggerFactory loggerFactory, RetryConfiguration retryConfiguration)
+        {
+            // The user an upload checks for is read from the object that sets
+            // its token, so the two cannot name different users.
+            identitySource = authenticationProvider as IIdentitySource;
+
+            Action<HttpRequestHeaders> setRequestHeaders = headers =>
+            {
+                if (authenticationProvider != null)
+                    authenticationProvider.SetRequestHeaders(headers);
+            };
+            Func<Task<JinagaAuthenticationState>> reauthenticate = () => authenticationProvider != null
+                ? authenticationProvider.Reauthenticate()
+                : Task.FromResult(JinagaAuthenticationState.NotAuthenticated);
+            Action<JinagaAuthenticationState> setAuthenticationState = authenticationState =>
+            {
+                OnAuthenticationStateChanged?.Invoke(authenticationState);
+            };
+            webClient = new WebClient(messageHandler == null
+                ? new HttpConnection(baseUrl, loggerFactory, setRequestHeaders, reauthenticate, setAuthenticationState, retryConfiguration)
+                : new HttpConnection(messageHandler, baseUrl, loggerFactory, setRequestHeaders, reauthenticate, setAuthenticationState, retryConfiguration));
         }
 
         public async Task<(FactGraph graph, UserProfile profile)> Login(CancellationToken cancellationToken)
@@ -48,6 +64,17 @@ namespace Jinaga.Http
         public Task Save(FactGraph graph, CancellationToken cancellationToken)
         {
             return webClient.Save(graph);
+        }
+
+        /// <summary>
+        /// Uploads the facts, checking before every attempt to send them, including a retry
+        /// and the attempt after re-authenticating, that <paramref name="uploader"/> is still
+        /// the user logged in. A refreshed token for the same user goes through. A different
+        /// user, or nobody, stops the upload before anything more is sent.
+        /// </summary>
+        public Task Save(FactGraph graph, string? uploader, CancellationToken cancellationToken)
+        {
+            return webClient.Save(graph, () => UploaderChangedException.ThrowIfChanged(identitySource, uploader));
         }
 
         public async Task<ImmutableList<string>> Feeds(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)

@@ -135,8 +135,30 @@ internal class FakeNetwork : INetwork
         return graph;
     }
 
+    /// <summary>
+    /// Everything that has been uploaded, merged into one graph.
+    /// </summary>
+    public FactGraph UploadedGraph { get; private set; } = FactGraph.Empty;
+
+    /// <summary>
+    /// Reads the user who is logged in. A test that sets this gets an entry in
+    /// <see cref="UploadedUnderUsers"/> for every upload, so it can show which
+    /// identity a fact was sent under rather than only that it was sent.
+    /// </summary>
+    public Func<User?>? CurrentUser { get; set; }
+
+    private readonly List<User?> uploadedUnderUsers = new();
+
+    /// <summary>
+    /// The user who was logged in at each upload, in order. An entry is null
+    /// where nobody was.
+    /// </summary>
+    public IReadOnlyList<User?> UploadedUnderUsers => uploadedUnderUsers;
+
     public Task Save(FactGraph graph, CancellationToken cancellationToken)
     {
-        throw new NotImplementedException();
+        uploadedUnderUsers.Add(CurrentUser?.Invoke());
+        UploadedGraph = UploadedGraph.AddGraph(graph);
+        return Task.CompletedTask;
     }
 }

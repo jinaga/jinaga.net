@@ -21,12 +21,37 @@ namespace Jinaga.Storage
         private volatile ImmutableDictionary<FactReference, ImmutableList<FactReference>> ancestors = ImmutableDictionary<FactReference, ImmutableList<FactReference>>.Empty;
         private volatile ImmutableDictionary<string, string> bookmarks = ImmutableDictionary<string, string>.Empty;
         private volatile ImmutableDictionary<string, DateTime> mruDates = ImmutableDictionary<string, DateTime>.Empty;
-        private volatile ImmutableList<FactReference> feed = ImmutableList<FactReference>.Empty;
-        private volatile int bookmark = 0;
+        private volatile ImmutableList<QueueEntry> queueEntries = ImmutableList<QueueEntry>.Empty;
+        private volatile int queuedCount = 0;
+        private volatile ImmutableDictionary<FactReference, ImmutableHashSet<string>> saversByReference = ImmutableDictionary<FactReference, ImmutableHashSet<string>>.Empty;
+
+        /// <summary>
+        /// One fact waiting in the outbound queue, with the position at which it
+        /// was queued. A bookmark acknowledges a position, so the position has to
+        /// outlive the entries queued before it: a fact held back leaves a gap in
+        /// the queue when the facts after it are acknowledged, and the positions of
+        /// those facts do not shift.
+        /// </summary>
+        private class QueueEntry
+        {
+            public FactReference Reference { get; }
+            public int Position { get; }
+
+            public QueueEntry(FactReference reference, int position)
+            {
+                Reference = reference;
+                Position = position;
+            }
+        }
 
         public bool IsPersistent => false;
 
         public Task<ImmutableList<Fact>> Save(FactGraph graph, bool queue, CancellationToken cancellationToken)
+        {
+            return Save(graph, queue, null, cancellationToken);
+        }
+
+        public Task<ImmutableList<Fact>> Save(FactGraph graph, bool queue, string? savedBy, CancellationToken cancellationToken)
         {
             lock (this)
             {
@@ -45,9 +70,27 @@ namespace Jinaga.Storage
                 );
                 if (queue)
                 {
-                    feed = feed.AddRange(newFacts
-                        .Select(fact => fact.Reference)
-                    );
+                    foreach (var fact in newFacts)
+                    {
+                        queueEntries = queueEntries.Add(new QueueEntry(fact.Reference, queuedCount));
+                        queuedCount++;
+                    }
+                    if (savedBy != null && !graph.FactReferences.IsEmpty)
+                    {
+                        // The user saved the fact they asked for, whether or not
+                        // the store already had it, and every fact this save added.
+                        var saved = newFacts
+                            .Select(fact => fact.Reference)
+                            .Append(graph.Last)
+                            .Distinct();
+                        foreach (var reference in saved)
+                        {
+                            var savers = saversByReference.TryGetValue(reference, out var existing)
+                                ? existing
+                                : ImmutableHashSet<string>.Empty;
+                            saversByReference = saversByReference.SetItem(reference, savers.Add(savedBy));
+                        }
+                    }
                 }
                 var newPredecessors = newFacts
                     .Select(fact => (
@@ -372,8 +415,9 @@ namespace Jinaga.Storage
         {
             lock (this)
             {
-                int firstQueued = bookmark;
-                var queuedReferences = feed.Skip(firstQueued).ToImmutableList();
+                var queuedReferences = queueEntries
+                    .Select(entry => entry.Reference)
+                    .ToImmutableList();
                 var facts = queuedReferences
                     .SelectMany(reference => ancestors[reference])
                     .Distinct()
@@ -394,13 +438,12 @@ namespace Jinaga.Storage
                 }
                 var graph = builder.Build();
 
-                // The bookmark counts the facts that have been sent, so the
-                // bookmark that acknowledges the fact at a given position is
-                // one past that position.
-                var queuedFacts = queuedReferences
-                    .Select((reference, index) => new QueuedFact(
-                        reference,
-                        (firstQueued + index + 1).ToString()
+                // The bookmark counts positions in the queue, so the bookmark
+                // that acknowledges the fact at a given position is one past it.
+                var queuedFacts = queueEntries
+                    .Select(entry => new QueuedFact(
+                        entry.Reference,
+                        (entry.Position + 1).ToString()
                     ))
                     .ToImmutableList();
 
@@ -408,13 +451,43 @@ namespace Jinaga.Storage
             }
         }
 
+        public Task<ImmutableDictionary<FactReference, ImmutableHashSet<string>>> LoadSavers(ImmutableList<FactReference> references, CancellationToken cancellationToken)
+        {
+            lock (this)
+            {
+                var savers = references
+                    .Distinct()
+                    .Where(reference => saversByReference.ContainsKey(reference))
+                    .ToImmutableDictionary(
+                        reference => reference,
+                        reference => saversByReference[reference]
+                    );
+                return Task.FromResult(savers);
+            }
+        }
+
         public Task SetQueueBookmark(string bookmark)
         {
             lock (this)
             {
-                int nextBookmark = int.Parse(bookmark);
-                if (nextBookmark > this.bookmark)
-                    this.bookmark = nextBookmark;
+                int acknowledgedPosition = int.Parse(bookmark);
+                queueEntries = queueEntries
+                    .Where(entry => entry.Position >= acknowledgedPosition)
+                    .ToImmutableList();
+                return Task.CompletedTask;
+            }
+        }
+
+        public Task AcknowledgeQueue(ImmutableList<QueuedFact> facts)
+        {
+            lock (this)
+            {
+                var acknowledged = facts
+                    .Select(fact => fact.Reference)
+                    .ToImmutableHashSet();
+                queueEntries = queueEntries
+                    .Where(entry => !acknowledged.Contains(entry.Reference))
+                    .ToImmutableList();
                 return Task.CompletedTask;
             }
         }
@@ -493,9 +566,16 @@ namespace Jinaga.Storage
                     .Where(pair => factsByReference.ContainsKey(pair.Key))
                     .ToImmutableDictionary(pair => pair.Key, pair => pair.Value);
 
-                feed = feed
-                    .Where(reference => factsByReference.ContainsKey(reference))
+                queueEntries = queueEntries
+                    .Where(entry => factsByReference.ContainsKey(entry.Reference))
                     .ToImmutableList();
+
+                // Who saved a fact is recorded against the fact, so it goes when
+                // the fact goes. Left behind, it would attribute a fact that is
+                // learned again to whoever saved the copy that was purged.
+                saversByReference = saversByReference
+                    .Where(pair => factsByReference.ContainsKey(pair.Key))
+                    .ToImmutableDictionary(pair => pair.Key, pair => pair.Value);
 
                 return Task.CompletedTask;
             }

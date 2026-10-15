@@ -27,19 +27,21 @@ namespace Jinaga.Managers
 
         private readonly AuthorizationEngine? authorizationEngine;
         private readonly User? authorizedUser;
+        private readonly IIdentitySource? identitySource;
 
         private bool unloaded = false;
         private ImmutableList<TaskHandle> pendingTasks = ImmutableList<TaskHandle>.Empty;
 
         public FactManager(IStore store, NetworkManager networkManager, ImmutableList<Specification> purgeConditions, ILoggerFactory loggerFactory, int queueProcessingDelay)
-            : this(store, networkManager, purgeConditions, loggerFactory, queueProcessingDelay, null, null)
+            : this(store, networkManager, purgeConditions, loggerFactory, queueProcessingDelay, null, null, null)
         {
         }
 
-        internal FactManager(IStore store, NetworkManager networkManager, ImmutableList<Specification> purgeConditions, ILoggerFactory loggerFactory, int queueProcessingDelay, AuthorizationEngine? authorizationEngine, User? authorizedUser)
+        internal FactManager(IStore store, NetworkManager networkManager, ImmutableList<Specification> purgeConditions, ILoggerFactory loggerFactory, int queueProcessingDelay, AuthorizationEngine? authorizationEngine, User? authorizedUser, IIdentitySource? identitySource)
         {
             this.authorizationEngine = authorizationEngine;
             this.authorizedUser = authorizedUser;
+            this.identitySource = identitySource;
             this.store = store;
             this.networkManager = networkManager;
             this.loggerFactory = loggerFactory;
@@ -47,6 +49,25 @@ namespace Jinaga.Managers
             observableSource = new ObservableSource(store);
             purgeManager = new PurgeManager(store, purgeConditions);
             queueProcessor = new QueueProcessor(networkManager, loggerFactory, queueProcessingDelay);
+
+            if (identitySource != null)
+            {
+                identitySource.OnCurrentUserChanged += CurrentUserChanged;
+            }
+        }
+
+        /// <summary>
+        /// Processes the queue again when the authenticated user changes, so that
+        /// the facts held for a returning user upload without the application
+        /// saving anything new.
+        /// </summary>
+        private void CurrentUserChanged(User? user)
+        {
+            if (unloaded)
+            {
+                return;
+            }
+            queueProcessor.ScheduleProcessing();
         }
 
         private SerializerCache serializerCache = SerializerCache.Empty;
@@ -92,7 +113,10 @@ namespace Jinaga.Managers
         {
             VerifyNotUnloaded();
             await Authorize(graph, cancellationToken).ConfigureAwait(false);
-            var added = await store.Save(graph, true, cancellationToken).ConfigureAwait(false);
+            // The saver is read from the same object that supplies the upload
+            // token, so the fact cannot be recorded against one user and sent
+            // under another.
+            var added = await store.Save(graph, true, identitySource?.CurrentUser?.publicKey, cancellationToken).ConfigureAwait(false);
             await observableSource.Notify(graph, added, cancellationToken).ConfigureAwait(false);
             await purgeManager.TriggerPurge(added, cancellationToken).ConfigureAwait(false);
 
@@ -313,6 +337,10 @@ namespace Jinaga.Managers
         public async Task Unload()
         {
             VerifyNotUnloaded();
+            if (identitySource != null)
+            {
+                identitySource.OnCurrentUserChanged -= CurrentUserChanged;
+            }
             await queueProcessor.ProcessQueueNow(default).ConfigureAwait(false);
             await queueProcessor.DisposeAsync().ConfigureAwait(false);
             unloaded = true;
