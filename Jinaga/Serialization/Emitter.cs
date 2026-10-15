@@ -27,20 +27,13 @@ namespace Jinaga.Serialization
         /// </summary>
         private readonly ImmutableDictionary<FactReference, DateTime> datesLearned;
 
-        /// <summary>
-        /// Local authors travel beside the graph for the same reason dates learned do: the
-        /// graph is what the serializer sends, and an authorship record is replica-local.
-        /// </summary>
-        private readonly ImmutableDictionary<FactReference, string> localAuthors;
-
-        public Emitter(FactGraph graph, DeserializerCache deserializerCache, ConditionalWeakTable<object, FactGraph> graphByFact, IWatchContext? watchContext = null, ImmutableDictionary<FactReference, DateTime>? datesLearned = null, ImmutableDictionary<FactReference, string>? localAuthors = null)
+        public Emitter(FactGraph graph, DeserializerCache deserializerCache, ConditionalWeakTable<object, FactGraph> graphByFact, IWatchContext? watchContext = null, ImmutableDictionary<FactReference, DateTime>? datesLearned = null)
         {
             this.Graph = graph;
             DeserializerCache = deserializerCache;
             this.graphByFact = graphByFact;
             WatchContext = watchContext;
             this.datesLearned = datesLearned ?? ImmutableDictionary<FactReference, DateTime>.Empty;
-            this.localAuthors = localAuthors ?? ImmutableDictionary<FactReference, string>.Empty;
         }
 
         public DateTime GetDateLearned(FactReference reference)
@@ -50,21 +43,6 @@ namespace Jinaga.Serialization
                 throw new InvalidOperationException($"The store did not report when it learned {reference.Type} {reference.Hash}.");
             }
             return dateLearned;
-        }
-
-        /// <summary>
-        /// The public key of the user who authored the fact on this replica, or null if the
-        /// store recorded none.
-        ///
-        /// Absence is an ordinary answer rather than an error, unlike a missing date learned:
-        /// a fact that arrived from a feed, or one saved while nobody was logged in, has no
-        /// local author and is attributed by its signatures alone.
-        /// </summary>
-        public string? GetLocalAuthor(FactReference reference)
-        {
-            return localAuthors.TryGetValue(reference, out var author)
-                ? author
-                : null;
         }
 
         public TFact Deserialize<TFact>(FactReference reference)

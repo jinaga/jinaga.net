@@ -61,16 +61,17 @@ namespace Jinaga.Store.SQLite
             return Save(graph, queue, null, cancellationToken);
         }
 
-        Task<ImmutableList<Fact>> IStore.Save(FactGraph graph, bool queue, string author, CancellationToken cancellationToken)
+        Task<ImmutableList<Fact>> IStore.Save(FactGraph graph, bool queue, string savedBy, CancellationToken cancellationToken)
         {
-            return Save(graph, queue, author, cancellationToken);
+            return Save(graph, queue, savedBy, cancellationToken);
         }
 
         /// <summary>
-        /// Saves the facts in the graph, recording <paramref name="author"/> as the
-        /// local author of each fact it queues. A null author records nothing.
+        /// Saves the facts in the graph. When the facts are queued, records that
+        /// <paramref name="savedBy"/> saved the graph's last fact and every fact
+        /// this save adds. A null <paramref name="savedBy"/> records nothing.
         /// </summary>
-        private Task<ImmutableList<Fact>> Save(FactGraph graph, bool queue, string author, CancellationToken cancellationToken)
+        private Task<ImmutableList<Fact>> Save(FactGraph graph, bool queue, string savedBy, CancellationToken cancellationToken)
         {
             if (graph.FactReferences.IsEmpty)
             {
@@ -155,20 +156,6 @@ namespace Jinaga.Store.SQLite
                                             VALUES (@0, @1)
                                         ";
                                         conn.ExecuteNonQuery(sql, factId, graphData);
-
-                                        // Only a fact that is new to the store reaches
-                                        // here, so a fact never picks up a second author.
-                                        // The record outlives the queue row: the fix for
-                                        // the queue reads it, and so will provenance.
-                                        if (author != null)
-                                        {
-                                            var authorPublicKeyId = GetOrInsertPublicKeyId(conn, author);
-                                            sql = @"
-                                                INSERT OR IGNORE INTO fact_author (fact_id, public_key_id)
-                                                VALUES (@0, @1)
-                                            ";
-                                            conn.ExecuteNonQuery(sql, factId, authorPublicKeyId);
-                                        }
                                     }
 
                                     // For each predecessor of the inserted fact ...
@@ -217,6 +204,21 @@ namespace Jinaga.Store.SQLite
                                                 break;
                                         }
                                     }
+                                }
+
+                                // The user saved the fact they asked for, whether or
+                                // not the store already had it, and every fact this
+                                // save added. The record outlives the queue row: the
+                                // queue reads it, and so can provenance.
+                                if (queue && savedBy != null &&
+                                    (factInserted || factReference.Equals(graph.Last)))
+                                {
+                                    var saverPublicKeyId = GetOrInsertPublicKeyId(conn, savedBy);
+                                    sql = @"
+                                        INSERT OR IGNORE INTO fact_saver (fact_id, public_key_id)
+                                        VALUES (@0, @1)
+                                    ";
+                                    conn.ExecuteNonQuery(sql, factId, saverPublicKeyId);
                                 }
 
                                 foreach (var signature in envelope.Signatures)
@@ -496,71 +498,6 @@ namespace Jinaga.Store.SQLite
                     {
                         builder[new FactReference(row.name, row.hash)] = dateLearned;
                     }
-                }
-            }
-
-            return Task.FromResult(builder.ToImmutable());
-        }
-
-        /// <summary>
-        /// The local author of each fact that has one, read from the fact_author table the
-        /// queue routes by, so provenance and routing cannot disagree about who authored a
-        /// fact. A fact with no row, and a reference the store does not hold, are both absent.
-        /// </summary>
-        Task<ImmutableDictionary<FactReference, string>> IStore.LoadLocalAuthors(ImmutableList<FactReference> references, CancellationToken cancellationToken)
-        {
-            if (references.IsEmpty)
-            {
-                return Task.FromResult(ImmutableDictionary<FactReference, string>.Empty);
-            }
-
-            // SQLite enforces a maximum number of bound parameters per statement, and each
-            // reference binds two of them, so batch the query the way LoadDatesLearned does.
-            const int maxReferencesPerBatch = 400;
-
-            var builder = ImmutableDictionary.CreateBuilder<FactReference, string>();
-            foreach (var batch in references
-                .Distinct()
-                .Select((f, i) => new { f, i })
-                .GroupBy(x => x.i / maxReferencesPerBatch)
-                .Select(g => g.Select(x => x.f).ToImmutableList()))
-            {
-                var authorsFromDb = connFactory.WithConn(
-                    (conn, id) =>
-                    {
-                        var referenceValues = batch.Select((f, i) => $"(@{2 * i}, @{2 * i + 1})").ToArray();
-
-                        var parameters = new List<object>();
-                        foreach (var reference in batch)
-                        {
-                            parameters.Add(reference.Hash);
-                            parameters.Add(reference.Type);
-                        }
-
-                        string sql = $@"
-                                SELECT
-                                    f.hash,
-                                    t.name,
-                                    pk.public_key
-                                FROM fact f
-                                JOIN fact_type t
-                                    ON f.fact_type_id = t.fact_type_id
-                                JOIN fact_author fa
-                                    ON fa.fact_id = f.fact_id
-                                JOIN public_key pk
-                                    ON pk.public_key_id = fa.public_key_id
-                                WHERE (f.hash,t.name)
-                                    IN (VALUES {String.Join(",", referenceValues)} )
-                            ";
-
-                        return conn.ExecuteQuery<LocalAuthorFromDb>(sql, parameters.ToArray());
-                    },
-                    true   //exponential backoff
-                );
-
-                foreach (var row in authorsFromDb)
-                {
-                    builder[new FactReference(row.name, row.hash)] = row.public_key;
                 }
             }
 
@@ -907,111 +844,112 @@ namespace Jinaga.Store.SQLite
 
         public Task<QueuedFacts> GetQueue()
         {
-            return Task.FromResult(ReadQueue(null, routeByAuthor: false));
-        }
-
-        Task<QueuedFacts> IStore.GetQueue(string currentAuthor)
-        {
-            return Task.FromResult(ReadQueue(currentAuthor, routeByAuthor: true));
-        }
-
-        /// <summary>
-        /// The outbound queue, oldest first. When <paramref name="routeByAuthor"/>
-        /// is set, a fact another user authored is left out, and so is a fact whose
-        /// ancestor is still queued under another user.
-        /// </summary>
-        private QueuedFacts ReadQueue(string currentAuthor, bool routeByAuthor)
-        {
-            // Load the graphs from the outbound_queue table, each with the key of
-            // the user who authored it. The authorship record is a separate table,
-            // so the queue carries no author column of its own.
-            var rowsFromDb = connFactory.WithConn(
+            // Load the graphs from the outbound_queue table.
+            var graphsFromDb = connFactory.WithConn(
                 (conn, id) =>
                 {
                     string sql;
                     sql = $@"
-                        SELECT q.fact_id, q.graph_data, pk.public_key AS author
+                        SELECT q.fact_id, q.graph_data
                         FROM outbound_queue q
-                        LEFT JOIN fact_author fa
-                            ON fa.fact_id = q.fact_id
-                        LEFT JOIN public_key pk
-                            ON pk.public_key_id = fa.public_key_id
                         ORDER BY q.queue_id
                     ";
                     return conn.ExecuteQuery<GraphFromDb>(sql);
                 },
                 true
-            ).ToImmutableList();
-
-            // A row's graph ends with the fact that was queued, preceded by its
-            // ancestors, so the rows alone say which queued facts are ancestors of
-            // which others.
-            var rows = rowsFromDb
-                .Select(row => (row, graph: DeserializeFactGraph(row.graph_data)))
-                .ToImmutableList();
-            var authorByQueuedReference = rows
-                .Where(entry => entry.graph.FactReferences.Count > 0 && entry.row.author != null)
-                .GroupBy(entry => entry.graph.Last)
-                .ToImmutableDictionary(group => group.Key, group => group.First().row.author);
+            );
 
             // Merge the graphs, and record the bookmark that acknowledges each
-            // queued fact. The bookmark deletes every row up to a fact ID, so it
-            // runs as the highest ID seen so far rather than this row's own ID. It
-            // stops advancing at the first held fact, so acknowledging a fact sent
-            // after that one cannot delete the one that was held.
+            // queued fact. A row's graph ends with the fact that was queued,
+            // preceded by its ancestors. The bookmark deletes every row up to
+            // a fact ID, so it runs as the highest ID seen so far rather than
+            // this row's own ID.
             var mergedGraph = FactGraph.Empty;
             var queuedFacts = ImmutableList.CreateBuilder<QueuedFact>();
             int highestFactId = 0;
-            bool holding = false;
             int count = 0;
-            foreach (var (row, graph) in rows)
+            foreach (var graphFromDb in graphsFromDb)
             {
-                count++;
-                if (routeByAuthor &&
-                    graph.FactReferences.Count > 0 &&
-                    !CanSend(graph, row.author, currentAuthor, authorByQueuedReference))
-                {
-                    holding = true;
-                    continue;
-                }
+                var graph = DeserializeFactGraph(graphFromDb.graph_data);
                 mergedGraph = mergedGraph.Merge(graph);
-                if (!holding && row.fact_id > highestFactId)
+                if (graphFromDb.fact_id > highestFactId)
                 {
-                    highestFactId = row.fact_id;
+                    highestFactId = graphFromDb.fact_id;
                 }
                 if (graph.FactReferences.Count > 0)
                 {
                     queuedFacts.Add(new QueuedFact(graph.Last, highestFactId.ToString()));
                 }
+                count++;
             }
 
             // Return the graphs and the bookmarks that acknowledge them.
             logger.LogTrace("SQLite read {count} queued graphs", count);
-            return new QueuedFacts(mergedGraph, queuedFacts.ToImmutable());
+            return Task.FromResult(new QueuedFacts(mergedGraph, queuedFacts.ToImmutable()));
         }
 
-        /// <summary>
-        /// Whether the queued fact at the end of this graph may be uploaded under
-        /// the current author.
-        /// </summary>
-        private static bool CanSend(FactGraph graph, string author, string currentAuthor, IImmutableDictionary<FactReference, string> authorByQueuedReference)
+        Task<ImmutableDictionary<FactReference, ImmutableHashSet<string>>> IStore.LoadSavers(ImmutableList<FactReference> references, CancellationToken cancellationToken)
         {
-            if (author != null && author != currentAuthor)
+            if (references.IsEmpty)
             {
-                return false;
+                return Task.FromResult(ImmutableDictionary<FactReference, ImmutableHashSet<string>>.Empty);
             }
-            foreach (var reference in graph.FactReferences)
+
+            // Each reference binds two parameters, so batch the query the way
+            // LoadDatesLearned does.
+            const int maxReferencesPerBatch = 400;
+
+            var builder = ImmutableDictionary.CreateBuilder<FactReference, ImmutableHashSet<string>>();
+            foreach (var batch in references
+                .Distinct()
+                .Select((f, i) => new { f, i })
+                .GroupBy(x => x.i / maxReferencesPerBatch)
+                .Select(g => g.Select(x => x.f).ToImmutableList()))
             {
-                // A sent ancestor is already attributed on the replica, so only an
-                // ancestor still waiting in the queue holds its descendant back.
-                if (reference != graph.Last &&
-                    authorByQueuedReference.TryGetValue(reference, out var ancestorAuthor) &&
-                    ancestorAuthor != currentAuthor)
+                var saversFromDb = connFactory.WithConn(
+                    (conn, id) =>
+                    {
+                        var referenceValues = batch.Select((f, i) => $"(@{2 * i}, @{2 * i + 1})").ToArray();
+
+                        var parameters = new List<object>();
+                        foreach (var reference in batch)
+                        {
+                            parameters.Add(reference.Hash);
+                            parameters.Add(reference.Type);
+                        }
+
+                        string sql = $@"
+                                SELECT
+                                    f.hash,
+                                    t.name,
+                                    pk.public_key
+                                FROM fact f
+                                JOIN fact_type t
+                                    ON f.fact_type_id = t.fact_type_id
+                                JOIN fact_saver s
+                                    ON s.fact_id = f.fact_id
+                                JOIN public_key pk
+                                    ON pk.public_key_id = s.public_key_id
+                                WHERE (f.hash,t.name)
+                                    IN (VALUES {String.Join(",", referenceValues)} )
+                            ";
+
+                        return conn.ExecuteQuery<SaverFromDb>(sql, parameters.ToArray());
+                    },
+                    true   //exponential backoff
+                );
+
+                foreach (var row in saversFromDb)
                 {
-                    return false;
+                    var reference = new FactReference(row.name, row.hash);
+                    var savers = builder.TryGetValue(reference, out var existing)
+                        ? existing
+                        : ImmutableHashSet<string>.Empty;
+                    builder[reference] = savers.Add(row.public_key);
                 }
             }
-            return true;
+
+            return Task.FromResult(builder.ToImmutable());
         }
 
         private FactGraph DeserializeFactGraph(string json)
@@ -1433,7 +1371,7 @@ SELECT fact_id FROM targets;";
             return sql;
         }
 
-        // A fact's edges, ancestors, signatures and authorship record are all
+        // A fact's edges, ancestors, signatures and savers are all
         // derived from the fact. The schema declares no foreign keys and nothing
         // enables PRAGMA foreign_keys, so a purge has to delete those rows
         // itself. Otherwise they outlive the fact, and because fact_id is a
@@ -1459,7 +1397,7 @@ SELECT fact_id FROM targets;";
                     OR ancestor_fact_id IN (SELECT fact_id FROM purge_targets)",
             @"DELETE FROM signature
                 WHERE fact_id IN (SELECT fact_id FROM purge_targets)",
-            @"DELETE FROM fact_author
+            @"DELETE FROM fact_saver
                 WHERE fact_id IN (SELECT fact_id FROM purge_targets)",
             @"DELETE FROM fact
                 WHERE fact_id IN (SELECT fact_id FROM purge_targets)"

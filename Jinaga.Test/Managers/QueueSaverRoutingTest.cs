@@ -23,11 +23,12 @@ namespace Jinaga.Test.Managers;
 /// next user to log in, signed with that user's key and attributed to them on
 /// every replica, permanently.
 ///
-/// A fact is now recorded against the user who saved it, and the queue sends it
-/// only while that user is logged in. Nothing is dropped: a fact its author is
-/// not there to send stays in the queue.
+/// The store now records which users saved each fact, and the queue sends a
+/// fact somebody saved only while one of them is logged in, or while the rules
+/// admit it from anyone. Nothing is dropped: a fact none of its savers is there
+/// to send stays in the queue.
 /// </summary>
-public class QueueAuthorRoutingTest
+public class QueueSaverRoutingTest
 {
     /// <summary>
     /// Long enough that the debounce never elapses during a test, so the only
@@ -40,7 +41,7 @@ public class QueueAuthorRoutingTest
 
     private readonly ITestOutputHelper output;
 
-    public QueueAuthorRoutingTest(ITestOutputHelper output)
+    public QueueSaverRoutingTest(ITestOutputHelper output)
     {
         this.output = output;
     }
@@ -64,7 +65,7 @@ public class QueueAuthorRoutingTest
     }
 
     [Fact]
-    public async Task Push_WhenTheAuthorLogsBackIn_SendsWhatWasHeldWithoutANewSave()
+    public async Task Push_WhenTheSaverLogsBackIn_SendsWhatWasHeldWithoutANewSave()
     {
         var (j, store, network, identity) = CreateClient();
 
@@ -109,6 +110,107 @@ public class QueueAuthorRoutingTest
         await j.Push();
         UploadedHashes(network).Should().Contain(j.Hash(course));
         QueuedHashes(store).Should().BeEmpty();
+    }
+
+    /// <summary>
+    /// The case a single author per fact lost: B saving a fact A already saved
+    /// is something this replica saw, and it makes the fact B's to send too.
+    /// </summary>
+    [Fact]
+    public async Task Push_AfterAnotherUserSavesTheSameFact_SendsTheirDescendantsWithoutTheFirstUser()
+    {
+        var (j, store, network, identity) = CreateClient();
+
+        identity.SetCurrentUser(UserA);
+        var school = await j.Fact(new School(Guid.NewGuid()));
+        identity.SetCurrentUser(UserB);
+        await j.Fact(school);
+        var course = await j.Fact(new Course(school, "Math 101"));
+
+        await j.Push();
+
+        UploadedHashes(network).Should().Contain(j.Hash(school));
+        UploadedHashes(network).Should().Contain(j.Hash(course));
+        network.UploadedUnderUsers.Should().Equal(UserB);
+        QueuedHashes(store).Should().BeEmpty();
+    }
+
+    /// <summary>
+    /// A Jinaga.User has no predecessors and is normally admitted by Any, so
+    /// anybody may introduce one, and a replicator signs it with nobody's key.
+    /// Holding it for the user who first mentioned it would hold every other
+    /// user's fact that mentions it, possibly for good.
+    /// </summary>
+    [Fact]
+    public async Task Push_WithRulesThatAdmitAnyUser_SendsAMessageToAUserAnotherUserIntroduced()
+    {
+        var (j, store, network, identity) = CreateClient(RoutingModel.Rules);
+        var x = new User("---FAKE PUBLIC KEY X---");
+
+        // A, offline, adds a new user to a project, then logs out.
+        identity.SetCurrentUser(UserA);
+        var project = await j.Fact(new RoutingProject(UserA, Guid.NewGuid()));
+        var membership = await j.Fact(new RoutingMembership(project, x));
+        identity.SetCurrentUser(null);
+
+        // B logs in and writes to the user A introduced.
+        identity.SetCurrentUser(UserB);
+        var message = await j.Fact(new RoutingMessage(x, UserB, "Welcome"));
+
+        await j.Push();
+
+        UploadedHashes(network).Should().Contain(j.Hash(message));
+        UploadedHashes(network).Should().Contain(j.Hash(x));
+        UploadedHashes(network).Should().NotContain(j.Hash(project));
+        UploadedHashes(network).Should().NotContain(j.Hash(membership));
+        network.UploadedUnderUsers.Should().Equal(UserB);
+        QueuedHashes(store).Should().Equal(j.Hash(project), j.Hash(membership));
+    }
+
+    /// <summary>
+    /// The same scenario with no rules. The client cannot tell that the user
+    /// fact would be admitted from anyone, so it holds the message with it
+    /// rather than risk signing a fact A saved with B's key.
+    /// </summary>
+    [Fact]
+    public async Task Push_WithoutRules_HoldsAMessageToAUserAnotherUserIntroduced()
+    {
+        var (j, store, network, identity) = CreateClient();
+        var x = new User("---FAKE PUBLIC KEY X---");
+
+        identity.SetCurrentUser(UserA);
+        var project = await j.Fact(new RoutingProject(UserA, Guid.NewGuid()));
+        await j.Fact(new RoutingMembership(project, x));
+        identity.SetCurrentUser(null);
+
+        identity.SetCurrentUser(UserB);
+        var message = await j.Fact(new RoutingMessage(x, UserB, "Welcome"));
+
+        await j.Push();
+
+        UploadedHashes(network).Should().NotContain(j.Hash(message));
+        UploadedHashes(network).Should().NotContain(j.Hash(x));
+        QueuedHashes(store).Should().Contain(j.Hash(message));
+    }
+
+    /// <summary>
+    /// Rules decide only which facts may travel without one of their savers.
+    /// A fact under a rule that would sign it with the uploader's key is still
+    /// held for the user who saved it.
+    /// </summary>
+    [Fact]
+    public async Task Push_WithRules_StillHoldsAFactWhoseRuleWouldSignIt()
+    {
+        var (j, store, network, identity) = CreateClient(RoutingModel.Rules);
+
+        identity.SetCurrentUser(UserA);
+        var project = await j.Fact(new RoutingProject(UserA, Guid.NewGuid()));
+        identity.SetCurrentUser(UserB);
+
+        await j.Push();
+
+        UploadedHashes(network).Should().NotContain(j.Hash(project));
+        QueuedHashes(store).Should().Equal(j.Hash(project));
     }
 
     [Fact]
@@ -174,7 +276,7 @@ public class QueueAuthorRoutingTest
     public async Task Push_WithAStoreThatOverridesNoneOfTheNewMembers_SendsEveryQueuedFact()
     {
         var inner = new MemoryStore();
-        var store = new StoreWithoutAuthorRouting(inner);
+        var store = new StoreWithoutSaverRouting(inner);
         var network = new FakeNetwork(output);
         var identity = new FakeIdentitySource();
         network.CurrentUser = () => identity.CurrentUser;
@@ -197,8 +299,8 @@ public class QueueAuthorRoutingTest
 
         await j.Push();
 
-        // The store records no authors, so there is nothing to route by and the
-        // queue drains the way it did before authors existed.
+        // The store records no savers, so there is nothing to route by and the
+        // queue drains the way it did before savers existed.
         UploadedHashes(network).Should().Contain(j.Hash(schoolA));
         UploadedHashes(network).Should().Contain(j.Hash(schoolB));
         var queue = await store.GetQueue();
@@ -211,11 +313,11 @@ public class QueueAuthorRoutingTest
     /// author takes them up. The default implementations are what has to keep it
     /// working.
     /// </summary>
-    private class StoreWithoutAuthorRouting : IStore
+    private class StoreWithoutSaverRouting : IStore
     {
         private readonly IStore inner;
 
-        public StoreWithoutAuthorRouting(IStore inner)
+        public StoreWithoutSaverRouting(IStore inner)
         {
             this.inner = inner;
         }
@@ -257,7 +359,7 @@ public class QueueAuthorRoutingTest
             inner.PurgeDescendants(purgeRoot, triggers);
     }
 
-    private (JinagaClient j, PersistentMemoryStore store, FakeNetwork network, FakeIdentitySource identity) CreateClient()
+    private (JinagaClient j, PersistentMemoryStore store, FakeNetwork network, FakeIdentitySource identity) CreateClient(AuthorizationRules? rules = null)
     {
         var store = new PersistentMemoryStore();
         var network = new FakeNetwork(output);
@@ -266,6 +368,7 @@ public class QueueAuthorRoutingTest
         var options = new JinagaClientOptions
         {
             HttpAuthenticationProvider = identity,
+            AuthorizationRules = rules,
             QueueProcessingDelay = DelayLongerThanAnyTest
         };
         var j = new JinagaClient(
@@ -285,7 +388,7 @@ public class QueueAuthorRoutingTest
     }
 
     /// <summary>
-    /// What the queue still holds, whoever authored it, in the order it was
+    /// What the queue still holds, whoever saved it, in the order it was
     /// queued.
     /// </summary>
     private static IEnumerable<string> QueuedHashes(PersistentMemoryStore store)
@@ -295,4 +398,26 @@ public class QueueAuthorRoutingTest
             .Select(fact => fact.Reference.Hash)
             .ToImmutableList();
     }
+}
+
+[FactType("Test.Routing.Project")]
+public record RoutingProject(User creator, Guid identifier);
+
+[FactType("Test.Routing.Membership")]
+public record RoutingMembership(RoutingProject project, User member);
+
+[FactType("Test.Routing.Message")]
+public record RoutingMessage(User to, User from, string text);
+
+/// <summary>
+/// The rules a replicator for this model would run. A user is admitted from
+/// anyone, as Jinaga.User normally is; everything else names who may write it.
+/// </summary>
+public static class RoutingModel
+{
+    public static AuthorizationRules Rules { get; } = AuthorizationRules.Build(rules => rules
+        .Any<User>()
+        .Type<RoutingProject>(project => project.creator)
+        .Type<RoutingMembership>(membership => membership.project.creator)
+        .Type<RoutingMessage>(message => message.from));
 }

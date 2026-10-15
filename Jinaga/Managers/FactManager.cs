@@ -26,21 +26,21 @@ namespace Jinaga.Managers
         private readonly QueueProcessor queueProcessor;
 
         private readonly AuthorizationEngine? authorizationEngine;
-        private readonly User? authorizedUser;
+        private readonly AuthorizingUser authorizingUser;
         private readonly IIdentitySource? identitySource;
 
         private bool unloaded = false;
         private ImmutableList<TaskHandle> pendingTasks = ImmutableList<TaskHandle>.Empty;
 
         public FactManager(IStore store, NetworkManager networkManager, ImmutableList<Specification> purgeConditions, ILoggerFactory loggerFactory, int queueProcessingDelay)
-            : this(store, networkManager, purgeConditions, loggerFactory, queueProcessingDelay, null, null, null)
+            : this(store, networkManager, purgeConditions, loggerFactory, queueProcessingDelay, null, AuthorizingUser.LoggedIn(null), null)
         {
         }
 
-        internal FactManager(IStore store, NetworkManager networkManager, ImmutableList<Specification> purgeConditions, ILoggerFactory loggerFactory, int queueProcessingDelay, AuthorizationEngine? authorizationEngine, User? authorizedUser, IIdentitySource? identitySource)
+        internal FactManager(IStore store, NetworkManager networkManager, ImmutableList<Specification> purgeConditions, ILoggerFactory loggerFactory, int queueProcessingDelay, AuthorizationEngine? authorizationEngine, AuthorizingUser authorizingUser, IIdentitySource? identitySource)
         {
             this.authorizationEngine = authorizationEngine;
-            this.authorizedUser = authorizedUser;
+            this.authorizingUser = authorizingUser;
             this.identitySource = identitySource;
             this.store = store;
             this.networkManager = networkManager;
@@ -58,7 +58,7 @@ namespace Jinaga.Managers
 
         /// <summary>
         /// Processes the queue again when the authenticated user changes, so that
-        /// the facts held for a returning author upload without the application
+        /// the facts held for a returning user upload without the application
         /// saving anything new.
         /// </summary>
         private void CurrentUserChanged(User? user)
@@ -113,7 +113,7 @@ namespace Jinaga.Managers
         {
             VerifyNotUnloaded();
             await Authorize(graph, cancellationToken).ConfigureAwait(false);
-            // The author is read from the same object that supplies the upload
+            // The saver is read from the same object that supplies the upload
             // token, so the fact cannot be recorded against one user and sent
             // under another.
             var added = await store.Save(graph, true, identitySource?.CurrentUser?.publicKey, cancellationToken).ConfigureAwait(false);
@@ -145,11 +145,12 @@ namespace Jinaga.Managers
         }
 
         /// <summary>
-        /// Refuses the graph if the configured rules do not permit this user to author it.
+        /// Refuses the graph if the configured rules do not permit the user to author it.
         ///
-        /// No engine means no checking, which is how every existing caller keeps working: a
-        /// client that talks to a replicator has its facts checked there, and only a client
-        /// configured with rules checks them locally.
+        /// Runs before the store saves anything, so a refused graph leaves no fact, no queue
+        /// entry and no saver behind. No rules means no checking, which is how a client
+        /// configured without them keeps working. Which user is checked, and whether there is
+        /// one to check as, is <see cref="AuthorizingUser"/>'s decision.
         /// </summary>
         private async Task Authorize(FactGraph graph, CancellationToken cancellationToken)
         {
@@ -157,13 +158,17 @@ namespace Jinaga.Managers
             {
                 return;
             }
+            if (!authorizingUser.TryGetUser(singleUseKeyPair != null, out var user))
+            {
+                return;
+            }
 
             // Serialized through the same path as any other fact, so the reference matches what
             // a rule's specification produces when it projects a user. Computing it another way
             // would risk two hashes for one user, which reads as an authorization failure.
-            var userReference = authorizedUser == null
+            var userReference = user == null
                 ? null
-                : Serialize(authorizedUser).Last;
+                : Serialize(user).Last;
 
             await authorizationEngine
                 .Authorize(graph, userReference, cancellationToken)
@@ -199,8 +204,7 @@ namespace Jinaga.Managers
                 .ToImmutableList();
             var graph = await store.Load(references, cancellationToken).ConfigureAwait(false);
             var datesLearned = await LoadDatesLearned(specification.Projection, references, cancellationToken).ConfigureAwait(false);
-            var localAuthors = await LoadLocalAuthors(specification.Projection, references, cancellationToken).ConfigureAwait(false);
-            return DeserializeProductsFromGraph(graph, specification.Projection, products, type, "", watchContext, datesLearned, localAuthors);
+            return DeserializeProductsFromGraph(graph, specification.Projection, products, type, "", watchContext, datesLearned);
         }
 
         public async Task<ImmutableList<Product>> Query(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
@@ -227,8 +231,7 @@ namespace Jinaga.Managers
             var references = Projector.GetFactReferences(projection, products, type);
             var graph = await store.Load(references, cancellationToken).ConfigureAwait(false);
             var datesLearned = await LoadDatesLearned(projection, references, cancellationToken).ConfigureAwait(false);
-            var localAuthors = await LoadLocalAuthors(projection, references, cancellationToken).ConfigureAwait(false);
-            return DeserializeProductsFromGraph(graph, projection, products, type, path, watchContext, datesLearned, localAuthors);
+            return DeserializeProductsFromGraph(graph, projection, products, type, path, watchContext, datesLearned);
         }
 
         /// <summary>
@@ -245,22 +248,6 @@ namespace Jinaga.Managers
                 return null;
             }
             return await store.LoadDatesLearned(references, cancellationToken).ConfigureAwait(false);
-        }
-
-        /// <summary>
-        /// Asks the store which of the projected facts this replica authored, but only when
-        /// the projection reads its signers. Every other specification pays nothing for it.
-        /// </summary>
-        private async Task<ImmutableDictionary<FactReference, string>?> LoadLocalAuthors(
-            Projection projection,
-            ImmutableList<FactReference> references,
-            CancellationToken cancellationToken)
-        {
-            if (!Projector.ProjectsSigners(projection))
-            {
-                return null;
-            }
-            return await store.LoadLocalAuthors(references, cancellationToken).ConfigureAwait(false);
         }
 
         public FactGraph Serialize(object prototype)
@@ -292,12 +279,11 @@ namespace Jinaga.Managers
             Type type,
             string path,
             IWatchContext? watchContext,
-            ImmutableDictionary<FactReference, DateTime>? datesLearned = null,
-            ImmutableDictionary<FactReference, string>? localAuthors = null)
+            ImmutableDictionary<FactReference, DateTime>? datesLearned = null)
         {
             lock (this)
             {
-                var emitter = new Emitter(graph, deserializerCache, graphByFact, watchContext, datesLearned, localAuthors);
+                var emitter = new Emitter(graph, deserializerCache, graphByFact, watchContext, datesLearned);
                 ImmutableList<ProjectedResult> results = Deserializer.Deserialize(emitter, projection, type, products, path);
                 deserializerCache = emitter.DeserializerCache;
                 return results;

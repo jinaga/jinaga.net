@@ -1,6 +1,10 @@
 namespace Jinaga.Store.SQLite.Database
 {
-    internal class LocalAuthorFromDb
+    /// <summary>
+    /// One row of the fact_saver relation: a fact, and the public key of a user
+    /// this replica saw save it.
+    /// </summary>
+    internal class SaverFromDb
     {
         public string hash { get; set; } = "";
         public string name { get; set; } = "";

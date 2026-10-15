@@ -5,8 +5,8 @@ namespace Jinaga.Store.SQLite.Test.Fakes;
 
 /// <summary>
 /// An authentication provider that also reports who is logged in. A client
-/// configured with one of these records the current user as the author of the
-/// facts it queues, and sends a queued fact only while its author is current.
+/// configured with one of these records the current user as a saver of the
+/// facts it queues, and sends a queued fact only while one of its savers is current.
 /// </summary>
 internal class FakeIdentitySource : IHttpAuthenticationProvider, IIdentitySource
 {

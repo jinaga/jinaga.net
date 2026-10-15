@@ -8,8 +8,8 @@ namespace Jinaga.Test.Fakes
 {
     /// <summary>
     /// An authentication provider that also reports who is logged in. A client
-    /// configured with one of these records the current user as the author of the
-    /// facts it queues, and sends a queued fact only while its author is current.
+    /// configured with one of these records the current user as a saver of the
+    /// facts it queues, and sends a queued fact only while one of its savers is current.
     /// </summary>
     internal class FakeIdentitySource : IHttpAuthenticationProvider, IIdentitySource
     {
@@ -26,19 +26,27 @@ namespace Jinaga.Test.Fakes
             OnCurrentUserChanged?.Invoke(user);
         }
 
+        /// <summary>
+        /// What <see cref="Reauthenticate"/> does. By default it reports that nobody is
+        /// authenticated; a test can refresh the token for the same user, or log another
+        /// user in, instead.
+        /// </summary>
+        public Func<Task<JinagaAuthenticationState>> OnReauthenticate { get; set; } =
+            () => Task.FromResult(JinagaAuthenticationState.NotAuthenticated);
+
         public void SetRequestHeaders(HttpRequestHeaders headers)
         {
         }
 
         public Task<JinagaAuthenticationState> Reauthenticate()
         {
-            return Task.FromResult(JinagaAuthenticationState.NotAuthenticated);
+            return OnReauthenticate();
         }
     }
 
     /// <summary>
     /// An authentication provider that does not report who is logged in, which is
-    /// every provider written before the queue could route by author.
+    /// every provider written before the queue could route by who saved each fact.
     /// </summary>
     internal class FakeAuthenticationProviderWithoutIdentity : IHttpAuthenticationProvider
     {

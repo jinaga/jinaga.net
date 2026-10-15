@@ -225,21 +225,9 @@ namespace Jinaga.Managers
         }
 
         /// <summary>
-        /// The users this replica knows asserted the projected fact: the public keys of the
-        /// signatures the loaded graph holds, together with the fact's local author if it has
-        /// one.
-        ///
-        /// A client signs nothing. The replicator signs on upload with the uploading user's
-        /// key, and neither feed path returns a signature for a fact this replica already
-        /// holds, so the facts a user created on this device would otherwise show no signer at
-        /// all. The authorship record is what this replica knows about those, and it is read
-        /// here rather than copied into the signatures.
-        ///
-        /// The result is keyed by public key and each key appears once, so the same user
-        /// reached through a signature and through local authorship is one signer. When the
-        /// replicator's signature for the author's key later arrives, the set is unchanged.
-        /// A verified signer is not distinguished from a locally witnessed author, because
-        /// provenance never feeds matching and never authorizes.
+        /// The users whose public keys have signed the projected fact, as the loaded graph
+        /// holds them. A public key that signed more than once yields one user, because the
+        /// projection names the signer rather than the signature.
         /// </summary>
         private static object SignersOf(Emitter emitter, SignerProjection signerProjection, Type type, Product product)
         {
@@ -248,13 +236,8 @@ namespace Jinaga.Managers
                 throw new ArgumentException($"The signers of a fact are expected to be an IEnumerable<User>, not {type.Name}.");
             }
             var reference = product.GetFactReference(signerProjection.Tag);
-            var signingKeys = emitter.Graph.GetSignatures(reference)
-                .Select(signature => signature.PublicKey);
-            var localAuthor = emitter.GetLocalAuthor(reference);
-            var assertingKeys = localAuthor == null
-                ? signingKeys
-                : signingKeys.Append(localAuthor);
-            return assertingKeys
+            return emitter.Graph.GetSignatures(reference)
+                .Select(signature => signature.PublicKey)
                 .Distinct()
                 .Select(publicKey => new User(publicKey))
                 .ToImmutableList();

@@ -1,16 +1,10 @@
-#nullable enable
-
 using Jinaga.Maui.Authentication;
+using Jinaga.Maui.Test.Fakes;
 using Jinaga.Projections;
-using Jinaga.Test.Fakes;
-using Jinaga.Test.Model;
 using Microsoft.Extensions.Logging.Abstractions;
-using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Linq;
-using Xunit.Abstractions;
 
-namespace Jinaga.Test.Maui;
+namespace Jinaga.Maui.Test;
 
 /// <summary>
 /// The MAUI authentication service needs the Jinaga client, and the client needs
@@ -18,8 +12,6 @@ namespace Jinaga.Test.Maui;
 /// constructed. The client reads the identity source out of its provider once,
 /// when it is constructed, which is before the proxy has anything to wrap. The
 /// proxy therefore has to report the interface itself and forward through it.
-///
-/// Jinaga.Maui has no test project of its own, so these run here.
 /// </summary>
 public class AuthenticationProviderProxyTest
 {
@@ -27,13 +19,6 @@ public class AuthenticationProviderProxyTest
 
     private static readonly User UserA = new User("---FAKE PUBLIC KEY A---");
     private static readonly User UserB = new User("---FAKE PUBLIC KEY B---");
-
-    private readonly ITestOutputHelper output;
-
-    public AuthenticationProviderProxyTest(ITestOutputHelper output)
-    {
-        this.output = output;
-    }
 
     [Fact]
     public void CurrentUser_BeforeAProviderIsSet_IsNobody()
@@ -84,14 +69,14 @@ public class AuthenticationProviderProxyTest
 
     /// <summary>
     /// The whole point of the forwarding: a client constructed with the proxy,
-    /// before the proxy wraps anything, still routes the queue by author.
+    /// before the proxy wraps anything, still routes the queue by who saved each fact.
     /// </summary>
     [Fact]
     public async Task Push_ThroughAProxyWiredAfterTheClientWasBuilt_HoldsTheOtherUsersFact()
     {
         var proxy = new AuthenticationProviderProxy();
         var store = new PersistentMemoryStore();
-        var network = new FakeNetwork(output);
+        var network = new UploadRecordingNetwork();
         var options = new JinagaClientOptions
         {
             HttpAuthenticationProvider = proxy,
