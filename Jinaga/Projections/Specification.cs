@@ -115,31 +115,19 @@ namespace Jinaga.Projections
 
         private static Product ExecuteProjection(FactReferenceTuple tuple, Product product, Projection projection, FactGraph graph)
         {
+            // CreateProduct has already put every label of the tuple into the product, and
+            // that is all a simple, field, hash or signer projection reads back. Only a
+            // collection adds anything. Whether a projection can run on the graph at all is
+            // decided by CanRunOnGraph, not here.
             if (projection is CompoundProjection compoundProjection)
             {
                 foreach (var name in compoundProjection.Names)
                 {
-                    var childProjection = compoundProjection.GetProjection(name);
-                    if (childProjection is SimpleProjection simpleProjection)
-                    {
-                        var element = new SimpleElement(tuple.Get(simpleProjection.Tag));
-                        product = product.With(name, element);
-                    }
-                    else if (childProjection is CollectionProjection collectionProjection)
+                    if (compoundProjection.GetProjection(name) is CollectionProjection collectionProjection)
                     {
                         var tuples = ExecuteMatches(tuple, collectionProjection.Matches, graph);
                         var products = tuples.Select(tuple => CreateProduct(tuple, collectionProjection.Projection, graph)).ToImmutableList();
-                        var element = new CollectionElement(products);
-                        product = product.With(name, element);
-                    }
-                    else if (childProjection is FieldProjection fieldProjection)
-                    {
-                        var element = new SimpleElement(tuple.Get(fieldProjection.Tag));
-                        product = product.With(name, element);
-                    }
-                    else
-                    {
-                        throw new Exception($"Unsupported projection type {childProjection.GetType().Name}.");
+                        product = product.With(name, new CollectionElement(products));
                     }
                 }
             }

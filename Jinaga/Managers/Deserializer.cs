@@ -31,6 +31,10 @@ namespace Jinaga.Managers
                 return DeserializeFieldProjection(emitter, fieldProjection, type, products, path);
             else if (projection is HashProjection hashProjection)
                 return DeserializeHashProjection(emitter, hashProjection, type, products, path);
+            else if (projection is SignerProjection signerProjection)
+                return DeserializeSignerProjection(emitter, signerProjection, type, products, path);
+            else if (projection is DateLearnedProjection dateLearnedProjection)
+                return DeserializeDateLearnedProjection(emitter, dateLearnedProjection, type, products, path);
             else
                 throw new ArgumentException($"Unknown projection type {projection.GetType().Name}");
         }
@@ -186,6 +190,57 @@ namespace Jinaga.Managers
                 productProjections = productProjections.Add(projectedResult);
             }
             return productProjections;
+        }
+
+        private static ImmutableList<ProjectedResult> DeserializeSignerProjection(Emitter emitter, SignerProjection signerProjection, Type type, ImmutableList<Product> products, string path)
+        {
+            var productProjections = ImmutableList<ProjectedResult>.Empty;
+            foreach (var product in products)
+            {
+                var projectedResult = new ProjectedResult(
+                    product,
+                    SignersOf(emitter, signerProjection, type, product),
+                    path,
+                    ImmutableList<ProjectedResultChildCollection>.Empty
+                );
+                productProjections = productProjections.Add(projectedResult);
+            }
+            return productProjections;
+        }
+
+        private static ImmutableList<ProjectedResult> DeserializeDateLearnedProjection(Emitter emitter, DateLearnedProjection dateLearnedProjection, Type type, ImmutableList<Product> products, string path)
+        {
+            var productProjections = ImmutableList<ProjectedResult>.Empty;
+            foreach (var product in products)
+            {
+                var projectedResult = new ProjectedResult(
+                    product,
+                    emitter.GetDateLearned(product.GetFactReference(dateLearnedProjection.Tag)),
+                    path,
+                    ImmutableList<ProjectedResultChildCollection>.Empty
+                );
+                productProjections = productProjections.Add(projectedResult);
+            }
+            return productProjections;
+        }
+
+        /// <summary>
+        /// The users whose public keys have signed the projected fact, as the loaded graph
+        /// holds them. A public key that signed more than once yields one user, because the
+        /// projection names the signer rather than the signature.
+        /// </summary>
+        private static object SignersOf(Emitter emitter, SignerProjection signerProjection, Type type, Product product)
+        {
+            if (!type.IsAssignableFrom(typeof(ImmutableList<User>)))
+            {
+                throw new ArgumentException($"The signers of a fact are expected to be an IEnumerable<User>, not {type.Name}.");
+            }
+            var reference = product.GetFactReference(signerProjection.Tag);
+            return emitter.Graph.GetSignatures(reference)
+                .Select(signature => signature.PublicKey)
+                .Distinct()
+                .Select(publicKey => new User(publicKey))
+                .ToImmutableList();
         }
 
         private static IEnumerable<ProjectedResult> DeserializeChildParameters(
@@ -353,6 +408,20 @@ namespace Jinaga.Managers
                 {
                     throw new ArgumentException($"A hash is expected to be a string.");
                 }
+            }
+            else if (projection is SignerProjection signerProjection)
+            {
+                var obj = SignersOf(emitter, signerProjection, parameterType, product);
+                return (obj, null);
+            }
+            else if (projection is DateLearnedProjection dateLearnedProjection)
+            {
+                if (parameterType != typeof(DateTime))
+                {
+                    throw new ArgumentException($"A date learned is expected to be a DateTime, not {parameterType.Name}.");
+                }
+                var obj = emitter.GetDateLearned(product.GetFactReference(dateLearnedProjection.Tag));
+                return (obj, null);
             }
             else
             {

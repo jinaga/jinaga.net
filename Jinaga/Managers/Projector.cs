@@ -44,6 +44,14 @@ namespace Jinaga.Managers
             {
                 return new[] { product.GetFactReference(hash.Tag) };
             }
+            else if (projection is SignerProjection signer)
+            {
+                return new[] { product.GetFactReference(signer.Tag) };
+            }
+            else if (projection is DateLearnedProjection dateLearned)
+            {
+                return new[] { product.GetFactReference(dateLearned.Tag) };
+            }
             else
             {
                 throw new NotImplementedException();
@@ -82,9 +90,40 @@ namespace Jinaga.Managers
                     .Select(product => product.GetFactReference(hash.Tag))
                     .ToImmutableList();
             }
+            else if (projection is SignerProjection signer)
+            {
+                return products
+                    .Select(product => product.GetFactReference(signer.Tag))
+                    .ToImmutableList();
+            }
+            else if (projection is DateLearnedProjection dateLearned)
+            {
+                return products
+                    .Select(product => product.GetFactReference(dateLearned.Tag))
+                    .ToImmutableList();
+            }
             else
             {
                 throw new NotImplementedException();
+            }
+        }
+
+        /// <summary>
+        /// Whether the projection reads the date on which this replica learned a fact, so
+        /// that the store has to be asked for it. Every other specification pays nothing.
+        /// </summary>
+        public static bool ProjectsDateLearned(Projection projection)
+        {
+            switch (projection)
+            {
+                case DateLearnedProjection _:
+                    return true;
+                case CompoundProjection compound:
+                    return compound.Names.Any(name => ProjectsDateLearned(compound.GetProjection(name)));
+                case CollectionProjection collection:
+                    return ProjectsDateLearned(collection.Projection);
+                default:
+                    return false;
             }
         }
     }

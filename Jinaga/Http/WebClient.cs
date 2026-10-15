@@ -24,7 +24,16 @@ namespace Jinaga.Http
             return httpConnection.Get<LoginResponse>("login");
         }
         
-        public async Task Save(FactGraph graph)
+        public Task Save(FactGraph graph)
+        {
+            return Save(graph, () => { });
+        }
+
+        /// <summary>
+        /// Posts the graph to the save endpoint, calling <paramref name="beforeEachAttempt"/>
+        /// before every attempt to send it.
+        /// </summary>
+        public async Task Save(FactGraph graph, Action beforeEachAttempt)
         {
             // Cache the accepted content types for the save endpoint.
             if (saveContentTypes == null)
@@ -34,7 +43,7 @@ namespace Jinaga.Http
 
             if (saveContentTypes.Contains("application/x-jinaga-graph-v1"))
             {
-                await httpConnection.PostGraph("save", graph);
+                await httpConnection.PostGraph("save", graph, beforeEachAttempt);
             }
             else
             {
@@ -44,7 +53,7 @@ namespace Jinaga.Http
                         CreateFactRecord(graph.GetFact(reference))
                     ).ToList()
                 };
-                await httpConnection.PostJson("save", saveRequest);
+                await httpConnection.PostJson("save", saveRequest, beforeEachAttempt);
             }
         }
 

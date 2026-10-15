@@ -5,6 +5,8 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -13,26 +15,40 @@ namespace Jinaga.Http
     public class HttpNetwork : INetwork
     {
         private readonly WebClient webClient;
+        private readonly IIdentitySource? identitySource;
 
         public event INetwork.AuthenticationStateChanged? OnAuthenticationStateChanged;
 
         public HttpNetwork(Uri baseUrl, IHttpAuthenticationProvider? authenticationProvider, ILoggerFactory loggerFactory, RetryConfiguration retryConfiguration)
+            : this(null, baseUrl, authenticationProvider, loggerFactory, retryConfiguration)
         {
-            webClient = new WebClient(new HttpConnection(baseUrl, loggerFactory,
-                headers =>
-                {
-                    if (authenticationProvider != null)
-                        authenticationProvider.SetRequestHeaders(headers);
-                },
-                () => authenticationProvider != null
-                    ? authenticationProvider.Reauthenticate()
-                    : Task.FromResult(JinagaAuthenticationState.NotAuthenticated),
-                authenticationState =>
-                {
-                    OnAuthenticationStateChanged?.Invoke(authenticationState);
-                },
-                retryConfiguration
-            ));
+        }
+
+        /// <summary>
+        /// Sends requests through the given message handler, or the network when it is null.
+        /// The handler is the seam that lets a test script the replicator's responses.
+        /// </summary>
+        internal HttpNetwork(HttpMessageHandler? messageHandler, Uri baseUrl, IHttpAuthenticationProvider? authenticationProvider, ILoggerFactory loggerFactory, RetryConfiguration retryConfiguration)
+        {
+            // The user an upload checks for is read from the object that sets
+            // its token, so the two cannot name different users.
+            identitySource = authenticationProvider as IIdentitySource;
+
+            Action<HttpRequestHeaders> setRequestHeaders = headers =>
+            {
+                if (authenticationProvider != null)
+                    authenticationProvider.SetRequestHeaders(headers);
+            };
+            Func<Task<JinagaAuthenticationState>> reauthenticate = () => authenticationProvider != null
+                ? authenticationProvider.Reauthenticate()
+                : Task.FromResult(JinagaAuthenticationState.NotAuthenticated);
+            Action<JinagaAuthenticationState> setAuthenticationState = authenticationState =>
+            {
+                OnAuthenticationStateChanged?.Invoke(authenticationState);
+            };
+            webClient = new WebClient(messageHandler == null
+                ? new HttpConnection(baseUrl, loggerFactory, setRequestHeaders, reauthenticate, setAuthenticationState, retryConfiguration)
+                : new HttpConnection(messageHandler, baseUrl, loggerFactory, setRequestHeaders, reauthenticate, setAuthenticationState, retryConfiguration));
         }
 
         public async Task<(FactGraph graph, UserProfile profile)> Login(CancellationToken cancellationToken)
@@ -50,11 +66,20 @@ namespace Jinaga.Http
             return webClient.Save(graph);
         }
 
+        /// <summary>
+        /// Uploads the facts, checking before every attempt to send them, including a retry
+        /// and the attempt after re-authenticating, that <paramref name="uploader"/> is still
+        /// the user logged in. A refreshed token for the same user goes through. A different
+        /// user, or nobody, stops the upload before anything more is sent.
+        /// </summary>
+        public Task Save(FactGraph graph, string? uploader, CancellationToken cancellationToken)
+        {
+            return webClient.Save(graph, () => UploaderChangedException.ThrowIfChanged(identitySource, uploader));
+        }
+
         public async Task<ImmutableList<string>> Feeds(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
         {
-            string declarationString = specification.GenerateDeclarationString(givenTuple);
-            string specificationString = GenerateSpecificationString(specification);
-            string request = $"{declarationString}\n{specificationString}";
+            string request = CreateFeedsRequest(givenTuple, specification);
             var response = await webClient.Feeds(request).ConfigureAwait(false);
             var feeds = response.Feeds.ToImmutableList();
             return feeds;
@@ -122,6 +147,19 @@ namespace Jinaga.Http
                 Type = reference.Type,
                 Hash = reference.Hash
             };
+        }
+
+        /// <summary>
+        /// The body of the feeds request: the givens, then the specification with every
+        /// projection that is not a collection stripped out. The replicator matches facts and
+        /// does not project, so a projection that only shapes the local result never reaches
+        /// the wire.
+        /// </summary>
+        internal static string CreateFeedsRequest(FactReferenceTuple givenTuple, Specification specification)
+        {
+            string declarationString = specification.GenerateDeclarationString(givenTuple);
+            string specificationString = GenerateSpecificationString(specification);
+            return $"{declarationString}\n{specificationString}";
         }
 
         private static string GenerateSpecificationString(Specification specification)

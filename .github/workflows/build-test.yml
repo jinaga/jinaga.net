@@ -42,9 +42,11 @@ jobs:
         dotnet build Jinaga.Store.SQLite --no-restore
         dotnet build Jinaga.Store.SQLite.Test --no-restore
         dotnet build Jinaga.Maui --no-restore
+        dotnet build Jinaga.Maui.Test --no-restore
 
     - name: Test
       run: |
         dotnet test Jinaga.Test --no-build --verbosity normal
         dotnet test Jinaga.Store.SQLite.Test --no-build --verbosity normal
         dotnet test Jinaga.Notebooks.Test --no-build --verbosity normal
+        dotnet test Jinaga.Maui.Test --no-build --verbosity normal

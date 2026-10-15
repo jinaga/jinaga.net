@@ -3,8 +3,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
-using System.Text.Encodings.Web;
-using System.Text.Json;
 
 namespace Jinaga.Facts
 {
@@ -131,27 +129,28 @@ namespace Jinaga.Facts
         {
             var serializedFields = fields
                 .OrderBy(field => field.Name, StringComparer.Ordinal)
-                .Select(field => $"\"{field.Name}\":{SerializeFieldValue(field.Value)}")
+                .Select(field => $"{CanonicalJson.SerializeString(field.Name)}:{SerializeFieldValue(field.Value)}")
                 .ToArray();
             var result = String.Join(",", serializedFields);
             return result;
         }
-
-        private static JsonSerializerOptions RelaxedStringOptions = new JsonSerializerOptions
-        {
-            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-        };
 
         private static string SerializeFieldValue(FieldValue value)
         {
             switch (value)
             {
                 case FieldValueString str:
-                    return JsonSerializer.Serialize(str.StringValue, RelaxedStringOptions);
+                    // A nullable string property reaches here as a FieldValueString
+                    // holding null, because the serializer cache cannot see the
+                    // annotation. It canonicalizes as null, which is what it has
+                    // always done and what JSON.stringify writes for it.
+                    return str.StringValue == null
+                        ? "null"
+                        : CanonicalJson.SerializeString(str.StringValue);
                 case FieldValueNumber number:
-                    return JsonSerializer.Serialize(number.DoubleValue);
+                    return CanonicalJson.SerializeNumber(number.DoubleValue);
                 case FieldValueBoolean boolean:
-                    return JsonSerializer.Serialize(boolean.BoolValue);
+                    return boolean.BoolValue ? "true" : "false";
                 case FieldValueNull _:
                     return "null";
                 default:
@@ -164,7 +163,7 @@ namespace Jinaga.Facts
             var serializedPredecessors = predecessors
                 .Where(predecessor => predecessor != null)
                 .OrderBy(predecessor => predecessor.Role, StringComparer.Ordinal)
-                .Select(predecessor => $"\"{predecessor.Role}\":{SerializePredecessor(predecessor)}")
+                .Select(predecessor => $"{CanonicalJson.SerializeString(predecessor.Role)}:{SerializePredecessor(predecessor)}")
                 .ToArray();
             var result = String.Join(",", serializedPredecessors);
             return result;
@@ -191,8 +190,8 @@ namespace Jinaga.Facts
 
         private static string SerializeFactReference(FactReference reference)
         {
-            string serializedType = JsonSerializer.Serialize(reference.Type);
-            return $"{{\"hash\":\"{reference.Hash}\",\"type\":{serializedType}}}";
+            string serializedType = CanonicalJson.SerializeString(reference.Type);
+            return $"{{\"hash\":{CanonicalJson.SerializeString(reference.Hash)},\"type\":{serializedType}}}";
         }
     }
 }

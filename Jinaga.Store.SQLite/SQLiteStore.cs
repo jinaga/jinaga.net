@@ -58,6 +58,21 @@ namespace Jinaga.Store.SQLite
 
         Task<ImmutableList<Fact>> IStore.Save(FactGraph graph, bool queue, CancellationToken cancellationToken)
         {
+            return Save(graph, queue, null, cancellationToken);
+        }
+
+        Task<ImmutableList<Fact>> IStore.Save(FactGraph graph, bool queue, string savedBy, CancellationToken cancellationToken)
+        {
+            return Save(graph, queue, savedBy, cancellationToken);
+        }
+
+        /// <summary>
+        /// Saves the facts in the graph. When the facts are queued, records that
+        /// <paramref name="savedBy"/> saved the graph's last fact and every fact
+        /// this save adds. A null <paramref name="savedBy"/> records nothing.
+        /// </summary>
+        private Task<ImmutableList<Fact>> Save(FactGraph graph, bool queue, string savedBy, CancellationToken cancellationToken)
+        {
             if (graph.FactReferences.IsEmpty)
             {
                 return Task.FromResult(ImmutableList<Fact>.Empty);
@@ -74,6 +89,18 @@ namespace Jinaga.Store.SQLite
                             {
                                 string sql;
                                 bool factInserted = false;
+
+                                // Refuse a fact whose predecessors are in
+                                // neither the graph nor the store. The check
+                                // shares the transaction with the write, so no
+                                // other connection can remove a predecessor
+                                // between them.
+                                var missingPredecessors = FindMissingPredecessors(conn, envelope.Fact);
+                                if (!missingPredecessors.IsEmpty)
+                                {
+                                    throw new InvalidOperationException(
+                                        $"Cannot save the fact {envelope.Fact.Reference} because it has predecessors that are in neither the graph nor the store: {string.Join(", ", missingPredecessors)}.");
+                                }
 
                                 // Select or insert into FactType table.  Gets a FactTypeId
                                 sql = @"
@@ -179,29 +206,25 @@ namespace Jinaga.Store.SQLite
                                     }
                                 }
 
+                                // The user saved the fact they asked for, whether or
+                                // not the store already had it, and every fact this
+                                // save added. The record outlives the queue row: the
+                                // queue reads it, and so can provenance.
+                                if (queue && savedBy != null &&
+                                    (factInserted || factReference.Equals(graph.Last)))
+                                {
+                                    var saverPublicKeyId = GetOrInsertPublicKeyId(conn, savedBy);
+                                    sql = @"
+                                        INSERT OR IGNORE INTO fact_saver (fact_id, public_key_id)
+                                        VALUES (@0, @1)
+                                    ";
+                                    conn.ExecuteNonQuery(sql, factId, saverPublicKeyId);
+                                }
+
                                 foreach (var signature in envelope.Signatures)
                                 {
                                     // Select or insert into the public_key table.  Gets a public_key_id.
-                                    sql = @"
-                                        SELECT public_key_id 
-                                        FROM public_key 
-                                        WHERE public_key = @0
-                                    ";
-                                    var publicKeyId = conn.ExecuteScalar(sql, signature.PublicKey);
-                                    if (publicKeyId == "")
-                                    {
-                                        sql = @"
-                                            INSERT OR IGNORE INTO public_key (public_key) 
-                                            VALUES (@0)
-                                        ";
-                                        conn.ExecuteNonQuery(sql, signature.PublicKey);
-                                        sql = @"
-                                            SELECT public_key_id 
-                                            FROM public_key 
-                                            WHERE public_key = @0
-                                        ";
-                                        publicKeyId = conn.ExecuteScalar(sql, signature.PublicKey);
-                                    }
+                                    var publicKeyId = GetOrInsertPublicKeyId(conn, signature.PublicKey);
 
                                     // Insert into the signature table if it doesn't already exist.
                                     sql = @"
@@ -227,6 +250,66 @@ namespace Jinaga.Store.SQLite
                 return Task.FromResult(newFacts);
             }
 
+        }
+
+        /// <summary>
+        /// Returns the predecessors of a fact that are not yet stored, which
+        /// is empty when every predecessor resolves. Save stores a graph in
+        /// topological order, each fact in its own transaction, so by the
+        /// time it reaches a successor every predecessor that the graph
+        /// carries is already stored. One that is still absent is therefore
+        /// in neither the graph nor the store.
+        /// A predecessor that does not resolve has no fact ID, and the empty
+        /// string that the lookup returns would go into
+        /// edge.predecessor_fact_id and ancestor.ancestor_fact_id. SQLite's
+        /// type affinity stores it as text even though both columns are
+        /// declared INTEGER NOT NULL, so the fact would be stored with an
+        /// edge to nothing and an ancestor closure that lacks the
+        /// predecessor's ancestors, which every later query and purge reads
+        /// as true.
+        /// A fact that is already stored writes no edges, so its predecessors
+        /// are not checked.
+        /// </summary>
+        private ImmutableList<FactReference> FindMissingPredecessors(Conn conn, Fact fact)
+        {
+            if (getFactId(conn, fact.Reference) != "")
+            {
+                return ImmutableList<FactReference>.Empty;
+            }
+
+            return fact.GetAllPredecessorReferences()
+                .Where(predecessorReference => getFactId(conn, predecessorReference) == "")
+                .ToImmutableList();
+        }
+
+        /// <summary>
+        /// The public_key_id for the given key, inserting the key if the database
+        /// does not have it yet. Every reference to a key resolves through this
+        /// table, so a key has one spelling in the database.
+        /// </summary>
+        private string GetOrInsertPublicKeyId(Conn conn, string publicKey)
+        {
+            string sql = @"
+                SELECT public_key_id
+                FROM public_key
+                WHERE public_key = @0
+            ";
+            var publicKeyId = conn.ExecuteScalar(sql, publicKey);
+            if (publicKeyId == "")
+            {
+                sql = @"
+                    INSERT OR IGNORE INTO public_key (public_key)
+                    VALUES (@0)
+                ";
+                conn.ExecuteNonQuery(sql, publicKey);
+                sql = @"
+                    SELECT public_key_id
+                    FROM public_key
+                    WHERE public_key = @0
+                ";
+                publicKeyId = conn.ExecuteScalar(sql, publicKey);
+            }
+            return publicKeyId;
         }
 
         private string getFactId(Conn conn, FactReference factReference)
@@ -361,6 +444,82 @@ namespace Jinaga.Store.SQLite
             }
         }
 
+
+        Task<ImmutableDictionary<FactReference, DateTime>> IStore.LoadDatesLearned(ImmutableList<FactReference> references, CancellationToken cancellationToken)
+        {
+            if (references.IsEmpty)
+            {
+                return Task.FromResult(ImmutableDictionary<FactReference, DateTime>.Empty);
+            }
+
+            // SQLite enforces a maximum number of bound parameters per statement, and each
+            // reference binds two of them, so batch the query the way ListKnown does.
+            const int maxReferencesPerBatch = 400;
+
+            var builder = ImmutableDictionary.CreateBuilder<FactReference, DateTime>();
+            foreach (var batch in references
+                .Distinct()
+                .Select((f, i) => new { f, i })
+                .GroupBy(x => x.i / maxReferencesPerBatch)
+                .Select(g => g.Select(x => x.f).ToImmutableList()))
+            {
+                var datesFromDb = connFactory.WithConn(
+                    (conn, id) =>
+                    {
+                        var referenceValues = batch.Select((f, i) => $"(@{2 * i}, @{2 * i + 1})").ToArray();
+
+                        var parameters = new List<object>();
+                        foreach (var reference in batch)
+                        {
+                            parameters.Add(reference.Hash);
+                            parameters.Add(reference.Type);
+                        }
+
+                        string sql = $@"
+                                SELECT
+                                    f.hash,
+                                    t.name,
+                                    f.date_learned
+                                FROM fact f
+                                JOIN fact_type t
+                                    ON f.fact_type_id = t.fact_type_id
+                                WHERE (f.hash,t.name)
+                                    IN (VALUES {String.Join(",", referenceValues)} )
+                            ";
+
+                        return conn.ExecuteQuery<DateLearnedFromDb>(sql, parameters.ToArray());
+                    },
+                    true   //exponential backoff
+                );
+
+                foreach (var row in datesFromDb)
+                {
+                    if (TryParseDateLearned(row.date_learned, out var dateLearned))
+                    {
+                        builder[new FactReference(row.name, row.hash)] = dateLearned;
+                    }
+                }
+            }
+
+            return Task.FromResult(builder.ToImmutable());
+        }
+
+        /// <summary>
+        /// Reads a date_learned column. The column defaults to CURRENT_TIMESTAMP, which SQLite
+        /// writes in UTC with one-second resolution, so the result is always UTC.
+        /// </summary>
+        private static bool TryParseDateLearned(string value, out DateTime dateLearned)
+        {
+            const DateTimeStyles utc = DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal;
+            if (DateTime.TryParseExact(value, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture, utc, out var parsed) ||
+                DateTime.TryParse(value, CultureInfo.InvariantCulture, utc, out parsed))
+            {
+                dateLearned = parsed;
+                return true;
+            }
+            dateLearned = default;
+            return false;
+        }
 
         public Task<ImmutableList<FactReference>> ListKnown(ImmutableList<FactReference> factReferences)
         {
@@ -726,6 +885,70 @@ namespace Jinaga.Store.SQLite
             return Task.FromResult(new QueuedFacts(mergedGraph, queuedFacts.ToImmutable()));
         }
 
+        Task<ImmutableDictionary<FactReference, ImmutableHashSet<string>>> IStore.LoadSavers(ImmutableList<FactReference> references, CancellationToken cancellationToken)
+        {
+            if (references.IsEmpty)
+            {
+                return Task.FromResult(ImmutableDictionary<FactReference, ImmutableHashSet<string>>.Empty);
+            }
+
+            // Each reference binds two parameters, so batch the query the way
+            // LoadDatesLearned does.
+            const int maxReferencesPerBatch = 400;
+
+            var builder = ImmutableDictionary.CreateBuilder<FactReference, ImmutableHashSet<string>>();
+            foreach (var batch in references
+                .Distinct()
+                .Select((f, i) => new { f, i })
+                .GroupBy(x => x.i / maxReferencesPerBatch)
+                .Select(g => g.Select(x => x.f).ToImmutableList()))
+            {
+                var saversFromDb = connFactory.WithConn(
+                    (conn, id) =>
+                    {
+                        var referenceValues = batch.Select((f, i) => $"(@{2 * i}, @{2 * i + 1})").ToArray();
+
+                        var parameters = new List<object>();
+                        foreach (var reference in batch)
+                        {
+                            parameters.Add(reference.Hash);
+                            parameters.Add(reference.Type);
+                        }
+
+                        string sql = $@"
+                                SELECT
+                                    f.hash,
+                                    t.name,
+                                    pk.public_key
+                                FROM fact f
+                                JOIN fact_type t
+                                    ON f.fact_type_id = t.fact_type_id
+                                JOIN fact_saver s
+                                    ON s.fact_id = f.fact_id
+                                JOIN public_key pk
+                                    ON pk.public_key_id = s.public_key_id
+                                WHERE (f.hash,t.name)
+                                    IN (VALUES {String.Join(",", referenceValues)} )
+                            ";
+
+                        return conn.ExecuteQuery<SaverFromDb>(sql, parameters.ToArray());
+                    },
+                    true   //exponential backoff
+                );
+
+                foreach (var row in saversFromDb)
+                {
+                    var reference = new FactReference(row.name, row.hash);
+                    var savers = builder.TryGetValue(reference, out var existing)
+                        ? existing
+                        : ImmutableHashSet<string>.Empty;
+                    builder[reference] = savers.Add(row.public_key);
+                }
+            }
+
+            return Task.FromResult(builder.ToImmutable());
+        }
+
         private FactGraph DeserializeFactGraph(string json)
         {
             var envelopes = new List<FactEnvelope>();
@@ -806,6 +1029,51 @@ namespace Jinaga.Store.SQLite
                 }
             }
             return predecessors;
+        }
+
+        Task IStore.AcknowledgeQueue(ImmutableList<QueuedFact> facts)
+        {
+            if (facts.IsEmpty)
+            {
+                return Task.CompletedTask;
+            }
+
+            // Delete the rows for the facts that were sent. A sender that holds
+            // some facts back no longer sends a prefix of the queue, so it names
+            // the facts it sent rather than a position in it.
+            connFactory.WithTxn(
+                (conn, id) =>
+                {
+                    foreach (var fact in facts)
+                    {
+                        var factId = getFactId(conn, fact.Reference);
+                        if (factId != "")
+                        {
+                            conn.ExecuteNonQuery(
+                                @"DELETE FROM outbound_queue WHERE fact_id = @0",
+                                factId);
+                        }
+                    }
+
+                    // A row whose fact has been purged cannot be named by its
+                    // reference, because nothing maps the reference back to a
+                    // fact ID. Left in place it would be read and sent on every
+                    // attempt and never acknowledged, so the queue would stop
+                    // draining. The bookmark used to delete it as a side effect
+                    // of acknowledging a later fact.
+                    conn.ExecuteNonQuery(@"
+                        DELETE FROM outbound_queue
+                        WHERE NOT EXISTS (
+                            SELECT 1 FROM fact f WHERE f.fact_id = outbound_queue.fact_id
+                        )
+                    ");
+
+                    return 0;
+                },
+                true
+            );
+
+            return Task.CompletedTask;
         }
 
         public Task SetQueueBookmark(string bookmark)
@@ -1100,12 +1368,12 @@ SELECT fact_id FROM targets;";
             return sql;
         }
 
-        // A fact's edges, ancestors and signatures are derived from the fact. The
-        // schema declares no foreign keys and nothing enables PRAGMA foreign_keys,
-        // so a purge has to delete those rows itself. Otherwise they outlive the
-        // fact, and because fact_id is a PRIMARY KEY without AUTOINCREMENT, SQLite
-        // hands the id of the deleted fact to the next fact saved, which then
-        // inherits the rows left behind.
+        // A fact's edges, ancestors, signatures and savers are all
+        // derived from the fact. The schema declares no foreign keys and nothing
+        // enables PRAGMA foreign_keys, so a purge has to delete those rows
+        // itself. Otherwise they outlive the fact, and because fact_id is a
+        // PRIMARY KEY without AUTOINCREMENT, SQLite hands the id of the deleted
+        // fact to the next fact saved, which then inherits the rows left behind.
         //
         // The queries that find the targets read the very tables these deletes
         // empty, so the targets are collected into a temporary table first and the
@@ -1125,6 +1393,8 @@ SELECT fact_id FROM targets;";
                 WHERE fact_id IN (SELECT fact_id FROM purge_targets)
                     OR ancestor_fact_id IN (SELECT fact_id FROM purge_targets)",
             @"DELETE FROM signature
+                WHERE fact_id IN (SELECT fact_id FROM purge_targets)",
+            @"DELETE FROM fact_saver
                 WHERE fact_id IN (SELECT fact_id FROM purge_targets)",
             @"DELETE FROM fact
                 WHERE fact_id IN (SELECT fact_id FROM purge_targets)"

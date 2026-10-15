@@ -29,7 +29,29 @@ internal class FakeNetwork : INetwork
 #pragma warning restore CS0067
 
     public FactGraph UploadedGraph { get; private set; } = FactGraph.Empty;
+
+    /// <summary>
+    /// Reads the user who is logged in. A test that sets this gets an entry in
+    /// <see cref="UploadedUnderUsers"/> for every upload, so it can show which
+    /// identity a fact was sent under rather than only that it was sent.
+    /// </summary>
+    public Func<User> CurrentUser { get; set; }
+
+    private readonly List<User> uploadedUnderUsers = new();
+
+    /// <summary>
+    /// The user who was logged in at each upload, in order. An entry is null
+    /// where nobody was.
+    /// </summary>
+    public IReadOnlyList<User> UploadedUnderUsers => uploadedUnderUsers;
     public ImmutableList<Fact> UploadedFacts => UploadedGraph.FactReferences.Select(UploadedGraph.GetFact).ToImmutableList();
+
+    /// <summary>
+    /// The specifications the client asked for feeds with, in order, exactly as it handed
+    /// them over. A test that cares what reaches the wire takes one of these rather than
+    /// rebuilding a specification of its own.
+    /// </summary>
+    public List<(FactReferenceTuple givenTuple, Specification specification)> RequestedFeeds { get; } = new();
 
     public FakeNetwork(ITestOutputHelper output)
     {
@@ -94,6 +116,7 @@ internal class FakeNetwork : INetwork
 
     public Task<ImmutableList<string>> Feeds(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
     {
+        RequestedFeeds.Add((givenTuple, specification));
         return Task.FromResult(feeds.Select(feed => feed.Name).ToImmutableList());
     }
 
@@ -173,6 +196,7 @@ internal class FakeNetwork : INetwork
 
     public Task Save(FactGraph graph, CancellationToken cancellationToken)
     {
+        uploadedUnderUsers.Add(CurrentUser?.Invoke());
         UploadedGraph = UploadedGraph.AddGraph(graph);
         return Task.CompletedTask;
     }

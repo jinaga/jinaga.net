@@ -27,6 +27,7 @@ namespace Jinaga.Store.SQLite.Database
                     {
                         Migrations.Migration202412.CreateDb(conn);
                         Migrations.Migration202610.DeleteOrphanedRows(conn);
+                        Migrations.Migration202611.CreateFactSaverTable(conn);
                         return 0;
                     },
                     false
@@ -63,16 +64,24 @@ namespace Jinaga.Store.SQLite.Database
         {
             Func<Conn, int, T> dbOp = (conn, id2) =>
             {
+                conn.ExecuteNonQuery("BEGIN TRANSACTION");
                 try
                 {
-                    conn.ExecuteNonQuery("BEGIN TRANSACTION");
                     var result = callback(conn, id2);
                     conn.ExecuteNonQuery("END TRANSACTION");
                     return result;
                 }
                 catch
                 {
-                    conn.ExecuteNonQuery("ROLLBACK TRANSACTION");
+                    // A failed rollback must not replace the original error,
+                    // because the backoff decides whether to retry from it.
+                    try
+                    {
+                        conn.ExecuteNonQuery("ROLLBACK TRANSACTION");
+                    }
+                    catch
+                    {
+                    }
                     //myLog += $"{MyStopWatch.Elapsed()}: {id:D2} -- {e.ToString()}\n\r";
                     throw;
                 }
@@ -118,7 +127,7 @@ namespace Jinaga.Store.SQLite.Database
                 {
                     return callback();
                 }
-                catch
+                catch (SQLiteException e) when (IsTransient(e))
                 {
                     if (attempt >= pause.Length)
                     {
@@ -132,6 +141,19 @@ namespace Jinaga.Store.SQLite.Database
                 }
             }
             throw new Exception("Code should never reach here, but this line is required to avoid compiler error 'Not all code paths return a value'");
+        }
+
+
+        // Only contention for the database file can clear by waiting. That is
+        // SQLITE_BUSY and SQLITE_LOCKED, and SQLITE_PROTOCOL (LockErr), which
+        // WAL mode returns when a race for its locks outlasts SQLite's own
+        // retries. Every other error, such as a schema error or a constraint
+        // violation, would fail the same way on every attempt.
+        private static bool IsTransient(SQLiteException e)
+        {
+            return e.Result == SQLite.Result.Busy
+                || e.Result == SQLite.Result.Locked
+                || e.Result == SQLite.Result.LockErr;
         }
     }
 }
