@@ -1,5 +1,6 @@
 #nullable enable
 
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
@@ -12,6 +13,7 @@ using Jinaga.Http;
 using Jinaga.Products;
 using Jinaga.Repository;
 using Jinaga.Serialization;
+using Jinaga.Services;
 using Jinaga.Storage;
 using Jinaga.Test.Fakes;
 using Jinaga.Test.Model;
@@ -187,7 +189,24 @@ public class DateLearnedTest
             select content
         );
 
-        declaring.Should().Throw<SpecificationException>();
+        declaring.Should().Throw<SpecificationException>()
+            .WithMessage("*cannot affect matching*");
+    }
+
+    [Fact]
+    public void DateLearned_CannotBeComparedInAWhereClause()
+    {
+        var cutoff = DateTime.UtcNow;
+
+        Action declaring = () => Given<Site>.Match((site, facts) =>
+            from content in facts.OfType<Content>()
+            where content.site == site
+            where facts.DateLearned(content) > cutoff
+            select content
+        );
+
+        declaring.Should().Throw<SpecificationException>()
+            .WithMessage("*cannot affect matching*");
     }
 
     [Fact]
@@ -202,7 +221,44 @@ public class DateLearnedTest
             select content
         );
 
-        declaring.Should().Throw<SpecificationException>();
+        declaring.Should().Throw<SpecificationException>()
+            .WithMessage("*cannot affect matching*");
+    }
+
+    [Fact]
+    public async Task DateLearned_IsProjectedForAFactSavedWhileWatching()
+    {
+        var store = new MemoryStore();
+        var j = GivenJinagaClient(store);
+        var site = await GivenSite(j);
+        var observed = new List<ContentWithDateLearned>();
+        var observer = j.Watch(contentWithDateLearned, site,
+            projection => observed.Add(projection));
+        await observer.Loaded;
+
+        var before = DateTime.UtcNow;
+        await j.Fact(new Content(site, "/first"));
+        var after = DateTime.UtcNow;
+        observer.Stop();
+
+        var watched = observed.Should().ContainSingle().Subject;
+        watched.learned.Should().BeOnOrAfter(before).And.BeOnOrBefore(after);
+        watched.learned.Should().Be(await WhenQueryDateLearned(j, site));
+    }
+
+    [Fact]
+    public async Task DateLearned_FromAStoreThatReportsNoDates_FailsOnlyTheSpecificationThatProjectsIt()
+    {
+        var j = GivenJinagaClient(new StoreWithoutDatesLearned(new MemoryStore()));
+        var site = await GivenSite(j);
+        await j.Fact(new Content(site, "/first"));
+
+        var withoutDates = await j.Query(contentWithoutDateLearned, site);
+        withoutDates.Should().ContainSingle();
+
+        Func<Task> queryingDates = () => j.Query(contentWithDateLearned, site);
+        await queryingDates.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*did not report*");
     }
 
     [Fact]
@@ -233,7 +289,7 @@ public class DateLearnedTest
             }
         );
 
-    private static JinagaClient GivenJinagaClient(MemoryStore store, Jinaga.Services.INetwork? network = null)
+    private static JinagaClient GivenJinagaClient(IStore store, Jinaga.Services.INetwork? network = null)
     {
         return new JinagaClient(
             store,
@@ -307,5 +363,52 @@ public class DateLearnedTest
     {
         public Comment comment { get; set; } = null!;
         public DateTime learned { get; set; }
+    }
+
+    /// <summary>
+    /// A store written before <see cref="IStore.LoadDatesLearned"/> existed: it forwards every
+    /// member it knows about and leaves that one to the interface's default.
+    /// </summary>
+    private class StoreWithoutDatesLearned : IStore
+    {
+        private readonly IStore inner;
+
+        public StoreWithoutDatesLearned(IStore inner)
+        {
+            this.inner = inner;
+        }
+
+        public bool IsPersistent => inner.IsPersistent;
+
+        public Task<ImmutableList<Fact>> Save(FactGraph graph, bool queue, CancellationToken cancellationToken) =>
+            inner.Save(graph, queue, cancellationToken);
+
+        public Task<ImmutableList<Product>> Read(FactReferenceTuple givenTuple, Jinaga.Projections.Specification specification, CancellationToken cancellationToken) =>
+            inner.Read(givenTuple, specification, cancellationToken);
+
+        public Task<FactGraph> Load(ImmutableList<FactReference> references, CancellationToken cancellationToken) =>
+            inner.Load(references, cancellationToken);
+
+        public Task<string> LoadBookmark(string feed) => inner.LoadBookmark(feed);
+
+        public Task<ImmutableList<FactReference>> ListKnown(ImmutableList<FactReference> factReferences) =>
+            inner.ListKnown(factReferences);
+
+        public Task SaveBookmark(string feed, string bookmark) => inner.SaveBookmark(feed, bookmark);
+
+        public Task<DateTime?> GetMruDate(string specificationHash) => inner.GetMruDate(specificationHash);
+
+        public Task SetMruDate(string specificationHash, DateTime mruDate) => inner.SetMruDate(specificationHash, mruDate);
+
+        public Task<QueuedFacts> GetQueue() => inner.GetQueue();
+
+        public Task SetQueueBookmark(string bookmark) => inner.SetQueueBookmark(bookmark);
+
+        public Task<IEnumerable<Fact>> GetAllFacts() => inner.GetAllFacts();
+
+        public Task Purge(ImmutableList<Jinaga.Projections.Specification> purgeConditions) => inner.Purge(purgeConditions);
+
+        public Task PurgeDescendants(FactReference purgeRoot, ImmutableList<FactReference> triggers) =>
+            inner.PurgeDescendants(purgeRoot, triggers);
     }
 }
