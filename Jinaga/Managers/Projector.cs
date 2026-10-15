@@ -171,5 +171,25 @@ namespace Jinaga.Managers
                     return false;
             }
         }
+
+        /// <summary>
+        /// Whether the projection reads the users who asserted a fact, so that the store has
+        /// to be asked who saved the facts on this replica. Every other specification pays
+        /// nothing for it.
+        /// </summary>
+        public static bool ProjectsSigners(Projection projection)
+        {
+            switch (projection)
+            {
+                case SignerProjection _:
+                    return true;
+                case CompoundProjection compound:
+                    return compound.Names.Any(name => ProjectsSigners(compound.GetProjection(name)));
+                case CollectionProjection collection:
+                    return ProjectsSigners(collection.Projection);
+                default:
+                    return false;
+            }
+        }
     }
 }

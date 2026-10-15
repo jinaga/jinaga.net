@@ -20,10 +20,11 @@ namespace Jinaga.Projections
         public Type FactRuntimeType { get; }
 
         /// <summary>
-        /// Signatures live in the store, not in the graph a query starts from. That graph is
+        /// Signers come from the store, not from the graph a query starts from. That graph is
         /// the client's serialization of the given, which carries a signature only when this
-        /// client signed the fact itself, so a specification that projects signers cannot be
-        /// satisfied from a graph alone.
+        /// client signed the fact itself, and never carries the fact's savers, a replica-local
+        /// relation the graph deliberately leaves out. So a specification that projects signers
+        /// cannot be satisfied from a graph alone.
         /// </summary>
         public override bool CanRunOnGraph => false;
 

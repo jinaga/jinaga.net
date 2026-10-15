@@ -32,6 +32,14 @@ namespace Jinaga
 
         /// <summary>
         /// The user who is currently authenticated, or null if nobody is.
+        ///
+        /// The user's public key is recorded and compared exactly as given; the client does
+        /// not normalize its spelling. It must match, character for character, the key the
+        /// replicator signs with, including line endings. A source that spells the same key
+        /// differently, for instance with CRLF where the replicator uses LF, is treated as a
+        /// different user: <see cref="Repository.FactRepository.SignersOf{TFact}(TFact)"/>
+        /// then reports two signers for one person, and the queue holds that user's facts
+        /// as someone else's.
         /// </summary>
         User? CurrentUser { get; }
     }
