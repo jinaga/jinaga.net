@@ -153,16 +153,20 @@ namespace Jinaga.Test.Specifications
             await j.Query(contentWithSigners, site);
             await j.Query(contentWithoutSigners, site);
 
-            // The specifications the client actually handed to the network, rendered by the
-            // request builder that talks to a replicator.
+            // Both specifications reduce to the same givens, matches and collections, so
+            // the client declares their feeds once between them rather than once each.
             var requested = network.RequestedFeeds;
-            requested.Should().HaveCount(2);
-            var withSigners = HttpNetwork.CreateFeedsRequest(
+            requested.Should().HaveCount(1);
+
+            // What the client did hand over, rendered by the request builder that talks to
+            // a replicator, is the request a signer-free specification produces. Neither
+            // side is quoted.
+            var declared = HttpNetwork.CreateFeedsRequest(
                 requested[0].givenTuple, requested[0].specification);
             var withoutSigners = HttpNetwork.CreateFeedsRequest(
-                requested[1].givenTuple, requested[1].specification);
+                requested[0].givenTuple, contentWithoutSigners);
 
-            withSigners.Should().Be(withoutSigners);
+            declared.Should().Be(withoutSigners);
         }
 
         [Fact]

@@ -166,10 +166,56 @@ namespace Jinaga.Projections
                 .ToImmutableList();
         }
 
+        /// <summary>
+        /// The same givens and matches, with every projection that is not a collection
+        /// stripped out. What a feed registration means is "these givens, these matches,
+        /// these collections", so two specifications that differ only in how they shape
+        /// the local result reduce to the same specification and declare the same feeds.
+        /// </summary>
+        /// <remarks>
+        /// Reducing a specification that is already reduced returns an equivalent one, so
+        /// a caller that cannot tell whether its input has been reduced may reduce it
+        /// again.
+        /// </remarks>
         internal Specification Reduce()
         {
-            // TODO: Remove all projections except for specification projections.
-            return this;
+            return new Specification(
+                Givens,
+                Matches,
+                ProjectionWithOnlyCollections(Projection));
+        }
+
+        private static Projection ProjectionWithOnlyCollections(Projection projection)
+        {
+            return MaybeProjectionWithOnlyCollections(projection) ??
+                new CompoundProjection(ImmutableDictionary<string, Projection>.Empty, typeof(object));
+        }
+
+        private static Projection? MaybeProjectionWithOnlyCollections(Projection projection)
+        {
+            if (projection is CollectionProjection collectionProjection)
+            {
+                return new CollectionProjection(
+                    collectionProjection.Matches,
+                    ProjectionWithOnlyCollections(collectionProjection.Projection),
+                    projection.Type
+                );
+            }
+            else if (projection is CompoundProjection compoundProjection)
+            {
+                var namedProjections = compoundProjection.Names
+                    .Select(name => (name, projection: MaybeProjectionWithOnlyCollections(compoundProjection.GetProjection(name))))
+                    .Where(p => p.projection != null)
+                    .ToImmutableDictionary(
+                        p => p.name,
+                        p => p.projection!
+                    );
+                return new CompoundProjection(namedProjections, projection.Type);
+            }
+            else
+            {
+                return null;
+            }
         }
     }
 }
