@@ -229,7 +229,7 @@ namespace Jinaga.Managers
             string path,
             CancellationToken cancellationToken)
         {
-            var references = Projector.GetFactReferences(projection, products, type);
+            var references = Projector.GetFactReferences(projection, products);
             var graph = await store.Load(references, cancellationToken).ConfigureAwait(false);
             var datesLearned = await LoadDatesLearned(projection, references, cancellationToken).ConfigureAwait(false);
             var signingSavers = await LoadSigningSavers(projection, references, cancellationToken).ConfigureAwait(false);
