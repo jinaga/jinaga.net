@@ -10,19 +10,16 @@ public class RealTimePurgeTest
     private readonly SQLiteStore store;
     private readonly JinagaClient j;
 
-    private static string SQLitePath { get; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "JinagaSQLiteTest",
-        "RealTimePurgeTest.db");
-
     public RealTimePurgeTest()
     {
-        if (File.Exists(SQLitePath))
-            File.Delete(SQLitePath);
+        string sqlitePath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "JinagaSQLiteTest",
+            $"RealTimePurgeTest-{Guid.NewGuid():N}.db");
 
         PurgeConditions purgeConditions = PurgeConditions.Empty
             .Purge<Order>().WhenExists<OrderCancelled>(oc => oc.order);
-        store = new SQLiteStore(SQLitePath, NullLoggerFactory.Instance);
+        store = new SQLiteStore(sqlitePath, NullLoggerFactory.Instance);
         var options = new JinagaClientOptions();
         j = new JinagaClient(store, new LocalNetwork(), purgeConditions.Validate(), NullLoggerFactory.Instance, options);
     }

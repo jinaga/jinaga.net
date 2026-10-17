@@ -225,9 +225,20 @@ namespace Jinaga.Managers
         }
 
         /// <summary>
-        /// The users whose public keys have signed the projected fact, as the loaded graph
-        /// holds them. A public key that signed more than once yields one user, because the
-        /// projection names the signer rather than the signature.
+        /// The users this replica knows asserted the projected fact: the public keys of the
+        /// signatures the loaded graph holds, together with the fact's savers on this replica
+        /// whom the authorization rules would sign it with.
+        ///
+        /// A client signs nothing. The replicator signs on upload with the uploading user's
+        /// key, and neither feed path returns a signature for a fact this replica already
+        /// holds, so the facts a user created on this device would otherwise show no signer at
+        /// all. The saver relation is what this replica knows about those, and it is read here
+        /// rather than copied into the signatures. Which savers count was decided by
+        /// <see cref="FactManager"/> before deserializing, because it needs the rules and the
+        /// store, and this is the one place the two sources are combined.
+        ///
+        /// The result is keyed by public key and each key appears once, so the same user
+        /// reached through a signature and through the saver relation is one signer.
         /// </summary>
         private static object SignersOf(Emitter emitter, SignerProjection signerProjection, Type type, Product product)
         {
@@ -238,6 +249,7 @@ namespace Jinaga.Managers
             var reference = product.GetFactReference(signerProjection.Tag);
             return emitter.Graph.GetSignatures(reference)
                 .Select(signature => signature.PublicKey)
+                .Concat(emitter.GetSigningSavers(reference))
                 .Distinct()
                 .Select(publicKey => new User(publicKey))
                 .ToImmutableList();
