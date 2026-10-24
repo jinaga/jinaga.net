@@ -1,0 +1,223 @@
+{"text":
+ "(p1: Root) {\n    u1: Task [\n        u1->root: Root = p1\n        !E {\n            e1: Done [\n                e1->task: Task = u1\n            ]\n        }\n        !E {\n            e2: Done [\n                e2->other: Task = u1\n            ]\n        }\n    ]\n} => u1\n",
+ "specification":
+ {"projection": {"type": "fact", "label": "u1"},
+  "matches":
+  [{"unknown": {"type": "Task", "name": "u1"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [],
+      "rolesLeft": [{"predecessorType": "Root", "name": "root"}],
+      "labelRight": "p1"},
+     {"type": "existential",
+      "matches":
+      [{"unknown": {"type": "Done", "name": "e1"},
+        "conditions":
+        [{"type": "path",
+          "rolesRight": [],
+          "rolesLeft": [{"predecessorType": "Task", "name": "task"}],
+          "labelRight": "u1"}]}],
+      "exists": false},
+     {"type": "existential",
+      "matches":
+      [{"unknown": {"type": "Done", "name": "e2"},
+        "conditions":
+        [{"type": "path",
+          "rolesRight": [],
+          "rolesLeft": [{"predecessorType": "Task", "name": "other"}],
+          "labelRight": "u1"}]}],
+      "exists": false}]}],
+  "given": [{"label": {"type": "Root", "name": "p1"}, "conditions": []}]},
+ "source": "jinaga/jinaga.js#338",
+ "rowLabels": ["u1"],
+ "name": "sibling-not-exists",
+ "graph":
+ [{"type": "Root", "predecessors": [], "id": 0},
+  {"type": "Task", "predecessors": [{"role": "root", "id": 0}], "id": 1}],
+ "givens": {"p1": 0},
+ "fact":
+ {"type": "Done",
+  "predecessors": [{"role": "task", "id": 1}, {"role": "other", "id": 1}],
+  "id": 2},
+ "expected":
+ {"reordered":
+  [{"text":
+    "(p1: Root, __f: Task) {\n    u1: Task [\n        u1 = __f\n        u1->root: Root = p1\n        !E {\n            e1: Done [\n                e1->task: Task = u1\n            ]\n        }\n        !E {\n            e2: Done [\n                e2->other: Task = u1\n            ]\n        }\n    ]\n} => u1\n",
+    "specification":
+    {"projection": {"type": "fact", "label": "u1"},
+     "matches":
+     [{"unknown": {"type": "Task", "name": "u1"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [],
+         "labelRight": "__f"},
+        {"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Root", "name": "root"}],
+         "labelRight": "p1"},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Done", "name": "e1"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Task", "name": "task"}],
+             "labelRight": "u1"}]}],
+         "exists": false},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Done", "name": "e2"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Task", "name": "other"}],
+             "labelRight": "u1"}]}],
+         "exists": false}]}],
+     "given":
+     [{"label": {"type": "Root", "name": "p1"}, "conditions": []},
+      {"label": {"type": "Task", "name": "__f"}, "conditions": []}]}},
+   {"text":
+    "(p1: Root, __f: Done) {\n    e1: Done [\n        e1 = __f\n    ]\n    u1: Task [\n        u1 = e1->task: Task\n        u1->root: Root = p1\n    ]\n} => u1\n",
+    "specification":
+    {"projection": {"type": "fact", "label": "u1"},
+     "matches":
+     [{"unknown": {"type": "Done", "name": "e1"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [],
+         "labelRight": "__f"}]},
+      {"unknown": {"type": "Task", "name": "u1"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [{"predecessorType": "Task", "name": "task"}],
+         "rolesLeft": [],
+         "labelRight": "e1"},
+        {"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Root", "name": "root"}],
+         "labelRight": "p1"}]}],
+     "given":
+     [{"label": {"type": "Root", "name": "p1"}, "conditions": []},
+      {"label": {"type": "Done", "name": "__f"}, "conditions": []}]}},
+   {"text":
+    "(p1: Root, __f: Done) {\n    e2: Done [\n        e2 = __f\n    ]\n    u1: Task [\n        u1 = e2->other: Task\n        u1->root: Root = p1\n    ]\n} => u1\n",
+    "specification":
+    {"projection": {"type": "fact", "label": "u1"},
+     "matches":
+     [{"unknown": {"type": "Done", "name": "e2"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [],
+         "labelRight": "__f"}]},
+      {"unknown": {"type": "Task", "name": "u1"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [{"predecessorType": "Task", "name": "other"}],
+         "rolesLeft": [],
+         "labelRight": "e2"},
+        {"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Root", "name": "root"}],
+         "labelRight": "p1"}]}],
+     "given":
+     [{"label": {"type": "Root", "name": "p1"}, "conditions": []},
+      {"label": {"type": "Done", "name": "__f"}, "conditions": []}]}}],
+  "lost": [[1]],
+  "inverses":
+  [{"text":
+    "(p1: Root, __f: Task) {\n    u1: Task [\n        u1 = __f\n        u1->root: Root = p1\n        !E {\n            e1: Done [\n                e1->task: Task = u1\n            ]\n        }\n        !E {\n            e2: Done [\n                e2->other: Task = u1\n            ]\n        }\n    ]\n} => u1\n",
+    "specification":
+    {"projection": {"type": "fact", "label": "u1"},
+     "matches":
+     [{"unknown": {"type": "Task", "name": "u1"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [],
+         "labelRight": "__f"},
+        {"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Root", "name": "root"}],
+         "labelRight": "p1"},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Done", "name": "e1"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Task", "name": "task"}],
+             "labelRight": "u1"}]}],
+         "exists": false},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Done", "name": "e2"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Task", "name": "other"}],
+             "labelRight": "u1"}]}],
+         "exists": false}]}],
+     "given":
+     [{"label": {"type": "Root", "name": "p1"}, "conditions": []},
+      {"label": {"type": "Task", "name": "__f"}, "conditions": []}]}},
+   {"text":
+    "(p1: Root, __f: Done) {\n    u1: Task [\n        u1->root: Root = p1\n        E {\n            e1: Done [\n                e1 = __f\n                e1->task: Task = u1\n            ]\n        }\n    ]\n} => u1\n",
+    "specification":
+    {"projection": {"type": "fact", "label": "u1"},
+     "matches":
+     [{"unknown": {"type": "Task", "name": "u1"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Root", "name": "root"}],
+         "labelRight": "p1"},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Done", "name": "e1"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [],
+             "labelRight": "__f"},
+            {"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Task", "name": "task"}],
+             "labelRight": "u1"}]}],
+         "exists": true}]}],
+     "given":
+     [{"label": {"type": "Root", "name": "p1"}, "conditions": []},
+      {"label": {"type": "Done", "name": "__f"}, "conditions": []}]}},
+   {"text":
+    "(p1: Root, __f: Done) {\n    u1: Task [\n        u1->root: Root = p1\n        E {\n            e2: Done [\n                e2 = __f\n                e2->other: Task = u1\n            ]\n        }\n    ]\n} => u1\n",
+    "specification":
+    {"projection": {"type": "fact", "label": "u1"},
+     "matches":
+     [{"unknown": {"type": "Task", "name": "u1"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Root", "name": "root"}],
+         "labelRight": "p1"},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Done", "name": "e2"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [],
+             "labelRight": "__f"},
+            {"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Task", "name": "other"}],
+             "labelRight": "u1"}]}],
+         "exists": true}]}],
+     "given":
+     [{"label": {"type": "Root", "name": "p1"}, "conditions": []},
+      {"label": {"type": "Done", "name": "__f"}, "conditions": []}]}}],
+  "gained": [],
+  "candidates": [[1]]},
+ "description":
+ "Two sibling notExists conditions that one fact falsifies together. Each inverse of jinaga.js keeps the other condition, so neither reports the removal."}

@@ -1,0 +1,90 @@
+{"text":
+ "(p1: A) {\n    u1: B [\n        u1->y: A = p1->x: A\n    ]\n} => p1\n",
+ "specification":
+ {"projection": {"type": "fact", "label": "p1"},
+  "matches":
+  [{"unknown": {"type": "B", "name": "u1"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [{"predecessorType": "A", "name": "x"}],
+      "rolesLeft": [{"predecessorType": "A", "name": "y"}],
+      "labelRight": "p1"}]}],
+  "given": [{"label": {"type": "A", "name": "p1"}, "conditions": []}]},
+ "source": "lake exe vectors, seed 9",
+ "rowLabels": ["p1"],
+ "name": "random-batch-3",
+ "graph":
+ [{"type": "A",
+   "predecessors": [{"role": "x", "id": 4}, {"role": "y", "id": 2}],
+   "id": 0},
+  {"type": "B",
+   "predecessors": [{"role": "x", "id": 0}, {"role": "y", "id": 2}],
+   "id": 1},
+  {"type": "A",
+   "predecessors":
+   [{"role": "x", "id": 6}, {"role": "y", "id": 4}, {"role": "y", "id": 0}],
+   "id": 2},
+  {"type": "B",
+   "predecessors":
+   [{"role": "x", "id": 4}, {"role": "x", "id": 6}, {"role": "y", "id": 0}],
+   "id": 3},
+  {"type": "A",
+   "predecessors":
+   [{"role": "x", "id": 6}, {"role": "y", "id": 6}, {"role": "y", "id": 0}],
+   "id": 4},
+  {"type": "B", "predecessors": [], "id": 5},
+  {"type": "A", "predecessors": [{"role": "y", "id": 0}], "id": 6},
+  {"type": "B", "predecessors": [{"role": "x", "id": 2}], "id": 7}],
+ "givens": {"p1": 0},
+ "expected":
+ {"reordered":
+  [{"text":
+    "(p1: A, __f: B) {\n    u1: B [\n        u1 = __f\n        u1->y: A = p1->x: A\n    ]\n} => p1\n",
+    "specification":
+    {"projection": {"type": "fact", "label": "p1"},
+     "matches":
+     [{"unknown": {"type": "B", "name": "u1"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [],
+         "labelRight": "__f"},
+        {"type": "path",
+         "rolesRight": [{"predecessorType": "A", "name": "x"}],
+         "rolesLeft": [{"predecessorType": "A", "name": "y"}],
+         "labelRight": "p1"}]}],
+     "given":
+     [{"label": {"type": "A", "name": "p1"}, "conditions": []},
+      {"label": {"type": "B", "name": "__f"}, "conditions": []}]}}],
+  "lost": [],
+  "inverses":
+  [{"text":
+    "(p1: A, __f: B) {\n    u1: B [\n        u1 = __f\n        u1->y: A = p1->x: A\n    ]\n} => p1\n",
+    "specification":
+    {"projection": {"type": "fact", "label": "p1"},
+     "matches":
+     [{"unknown": {"type": "B", "name": "u1"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [],
+         "labelRight": "__f"},
+        {"type": "path",
+         "rolesRight": [{"predecessorType": "A", "name": "x"}],
+         "rolesLeft": [{"predecessorType": "A", "name": "y"}],
+         "labelRight": "p1"}]}],
+     "given":
+     [{"label": {"type": "A", "name": "p1"}, "conditions": []},
+      {"label": {"type": "B", "name": "__f"}, "conditions": []}]}}],
+  "gained": [[0]],
+  "candidates": [[0]]},
+ "description":
+ "A random well-formed specification, graph and fresh batch, some of whose facts name others, that change the result.",
+ "batch":
+ [{"type": "A", "predecessors": [{"role": "x", "id": 0}], "id": 8},
+  {"type": "B",
+   "predecessors": [{"role": "x", "id": 8}, {"role": "y", "id": 4}],
+   "id": 9},
+  {"type": "A",
+   "predecessors": [{"role": "x", "id": 2}, {"role": "y", "id": 8}],
+   "id": 10}]}
