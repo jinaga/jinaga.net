@@ -30,7 +30,38 @@ internal static class PurgeFunctions
 
     internal static IEnumerable<string> TestSpecificationForCompliance(ImmutableList<Specification> purgeConditions, Specification specification)
     {
-        return specification.Matches.SelectMany(match => TestMatchForCompliance(purgeConditions, match));
+        return TestMatchesForCompliance(purgeConditions, specification.Matches)
+            .Concat(TestProjectionForCompliance(purgeConditions, specification.Projection));
+    }
+
+    private static IEnumerable<string> TestMatchesForCompliance(ImmutableList<Specification> purgeConditions, ImmutableList<Match> matches)
+    {
+        // Every list of matches answers to the same rule, however deeply it is nested.
+        // An existential condition and a collection projection each carry unknowns of
+        // their own, which can be a purge root or walk through one.
+        return matches.SelectMany(match =>
+            TestMatchForCompliance(purgeConditions, match)
+                .Concat(match.ExistentialConditions.SelectMany(condition =>
+                    TestMatchesForCompliance(purgeConditions, condition.Matches)))
+        );
+    }
+
+    private static IEnumerable<string> TestProjectionForCompliance(ImmutableList<Specification> purgeConditions, Projection projection)
+    {
+        if (projection is CollectionProjection collectionProjection)
+        {
+            return TestMatchesForCompliance(purgeConditions, collectionProjection.Matches)
+                .Concat(TestProjectionForCompliance(purgeConditions, collectionProjection.Projection));
+        }
+        else if (projection is CompoundProjection compoundProjection)
+        {
+            return compoundProjection.Names.SelectMany(name =>
+                TestProjectionForCompliance(purgeConditions, compoundProjection.GetProjection(name)));
+        }
+        else
+        {
+            return new string[0];
+        }
     }
 
     private static IEnumerable<string> TestMatchForCompliance(ImmutableList<Specification> purgeConditions, Match match)
