@@ -116,9 +116,7 @@ namespace Jinaga.Managers
             // The saver is read from the same object that supplies the upload
             // token, so the fact cannot be recorded against one user and sent
             // under another.
-            var added = await store.Save(graph, true, identitySource?.CurrentUser?.publicKey, cancellationToken).ConfigureAwait(false);
-            await observableSource.Notify(graph, added, cancellationToken).ConfigureAwait(false);
-            await purgeManager.TriggerPurge(added, cancellationToken).ConfigureAwait(false);
+            var added = await SaveAndNotify(graph, true, identitySource?.CurrentUser?.publicKey, cancellationToken).ConfigureAwait(false);
 
             // Don't wait on the network manager if we have persistent storage.
             if (store.IsPersistent)
@@ -138,7 +136,27 @@ namespace Jinaga.Managers
         {
             VerifyNotUnloaded();
             await Authorize(graph, cancellationToken).ConfigureAwait(false);
-            var added = await store.Save(graph, false, cancellationToken).ConfigureAwait(false);
+            return await SaveAndNotify(graph, false, null, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Saves a graph and notifies the observers of exactly the facts the store reports
+        /// as added.
+        /// </summary>
+        /// <remarks>
+        /// Every path that saves a graph for the observers passes through here, so the rule
+        /// is written once. An inverse reads as though its fact were just inserted, which it
+        /// can only do for a fact that was: a fact the store already held is not notified
+        /// again, and a predecessor the save added is notified although whoever handed over
+        /// the graph did not name it.
+        /// </remarks>
+        /// <param name="graph">The facts to save, with their predecessors</param>
+        /// <param name="queue">Whether the facts are to be queued for upload</param>
+        /// <param name="savedBy">The public key of the user who saved them, or null</param>
+        /// <returns>The facts the store added</returns>
+        public async Task<ImmutableList<Fact>> SaveAndNotify(FactGraph graph, bool queue, string? savedBy, CancellationToken cancellationToken)
+        {
+            var added = await store.Save(graph, queue, savedBy, cancellationToken).ConfigureAwait(false);
             await observableSource.Notify(graph, added, cancellationToken).ConfigureAwait(false);
             await purgeManager.TriggerPurge(added, cancellationToken).ConfigureAwait(false);
             return added;
@@ -376,12 +394,6 @@ namespace Jinaga.Managers
         public void RemoveSpecificationListener(SpecificationListener listener)
         {
             observableSource.RemoveSpecificationListener(listener);
-        }
-
-        public async Task NotifyObservers(FactGraph graph, ImmutableList<Fact> facts, CancellationToken cancellationToken)
-        {
-            await observableSource.Notify(graph, facts, cancellationToken).ConfigureAwait(false);
-            await purgeManager.TriggerPurge(facts, cancellationToken).ConfigureAwait(false);
         }
 
         public Task<DateTime?> GetMruDate(string specificationHash)
