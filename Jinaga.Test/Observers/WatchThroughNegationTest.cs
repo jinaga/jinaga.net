@@ -74,6 +74,20 @@ public class WatchThroughNegationTest
             select message
         );
 
+    /// <summary>
+    /// The open tickets a reporter raised in a tenant. Its one unknown is correlated with two
+    /// known facts, each by walking forward from the ticket, so deciding a candidate has a
+    /// path condition to check that neither the pin nor the anchor accounts for.
+    /// </summary>
+    private static readonly Specification<Tenant, Account, Ticket> OpenTicketsFromReporter =
+        Given<Tenant, Account>.Match((tenant, reporter, facts) =>
+            from ticket in facts.OfType<Ticket>()
+            where ticket.tenant == tenant
+            where ticket.reporter == reporter
+            where !facts.Any<TicketClosed>(closed => closed.ticket == ticket)
+            select ticket
+        );
+
     [Fact]
     public async Task Watch_RetiringTheOnlyCurrentMirror_RemovesTheAccount()
     {
@@ -213,6 +227,66 @@ public class WatchThroughNegationTest
         (await j.Query(UnreadMessages, user, channel)).Should().BeEmpty();
 
         watch.Stop();
+    }
+
+    [Fact]
+    public async Task Watch_AMatchCorrelatedWithTwoKnownFacts_HoldsOnlyItsOwnRowsAndRemovesThem()
+    {
+        var j = JinagaTest.Create();
+        var tenant = await j.Fact(new Tenant("contoso"));
+        var alice = await j.Fact(new Account(tenant, "alice"));
+        var bob = await j.Fact(new Account(tenant, "bob"));
+        var fromAlice = await j.Fact(new Ticket(tenant, alice, "mirror is stale"));
+        await j.Fact(new Ticket(tenant, bob, "cannot sign in"));
+
+        var summaries = new List<string>();
+        var removals = 0;
+        var watch = j.Watch(OpenTicketsFromReporter, tenant, alice, (Ticket ticket) =>
+        {
+            lock (summaries)
+            {
+                summaries.Add(ticket.summary);
+            }
+            return () =>
+            {
+                lock (summaries)
+                {
+                    summaries.Remove(ticket.summary);
+                }
+                Interlocked.Increment(ref removals);
+            };
+        });
+
+        try
+        {
+            await watch.Loaded;
+            lock (summaries)
+            {
+                summaries.Should().Equal("mirror is stale");
+            }
+
+            // Bob's ticket is a candidate of this watch's own inverses -- one fact of the
+            // right type in the right tenant -- and only the reporter tells the two apart.
+            await j.Fact(new TicketClosed(await j.Fact(new Ticket(tenant, bob, "printer jam"))));
+            lock (summaries)
+            {
+                summaries.Should().Equal("mirror is stale");
+            }
+            removals.Should().Be(0);
+
+            await j.Fact(new TicketClosed(fromAlice));
+
+            lock (summaries)
+            {
+                summaries.Should().BeEmpty();
+            }
+            removals.Should().Be(1);
+            (await j.Query(OpenTicketsFromReporter, tenant, alice)).Should().BeEmpty();
+        }
+        finally
+        {
+            watch.Stop();
+        }
     }
 
     [Fact]

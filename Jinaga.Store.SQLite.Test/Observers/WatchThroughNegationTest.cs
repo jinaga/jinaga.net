@@ -45,6 +45,20 @@ public class WatchThroughNegationTest
             select office
         );
 
+    /// <summary>
+    /// The open offices of a company in one city. Its one unknown is correlated with two
+    /// known facts, each by walking forward from the office, so deciding a candidate has a
+    /// path condition to check that neither the pin nor the anchor accounts for.
+    /// </summary>
+    private static readonly Specification<Company, City, Office> OpenOfficesInCity =
+        Given<Company, City>.Match((company, city, facts) =>
+            from office in facts.OfType<Office>()
+            where office.company == company
+            where office.city == city
+            where !facts.Any<OfficeClosure>(closure => closure.office == office)
+            select office
+        );
+
     [Fact]
     public async Task Watch_TerminatingTheOnlyCurrentManager_RemovesTheOffice()
     {
@@ -130,6 +144,67 @@ public class WatchThroughNegationTest
                 offices.Should().ContainSingle();
             }
             (await j.Query(OfficesWithACurrentManager, company)).Should().ContainSingle();
+        }
+        finally
+        {
+            watch.Stop();
+        }
+    }
+
+    [Fact]
+    public async Task Watch_AMatchCorrelatedWithTwoKnownFacts_HoldsOnlyItsOwnRowsAndRemovesThem()
+    {
+        var j = GivenJinagaClient();
+        var company = await j.Fact(new Company("contoso"));
+        var dallas = await j.Fact(new City("Dallas"));
+        var austin = await j.Fact(new City("Austin"));
+        var dallasOffice = await j.Fact(new Office(company, dallas));
+        await j.Fact(new Office(company, austin));
+
+        var offices = new List<Office>();
+        var removals = 0;
+        var watch = j.Watch(OpenOfficesInCity, company, dallas, (Office added) =>
+        {
+            lock (offices)
+            {
+                offices.Add(added);
+            }
+            return () =>
+            {
+                lock (offices)
+                {
+                    offices.Remove(added);
+                }
+                Interlocked.Increment(ref removals);
+            };
+        });
+
+        try
+        {
+            await watch.Loaded;
+            lock (offices)
+            {
+                offices.Should().ContainSingle().Which.city.Should().Be(dallas);
+            }
+
+            // The Austin office is a candidate of this watch's own inverses -- one fact of the
+            // right type in the right company -- and only the city tells the two apart.
+            await j.Fact(new OfficeClosure(
+                await j.Fact(new Office(company, austin)), DateTime.UtcNow));
+            lock (offices)
+            {
+                offices.Should().ContainSingle();
+            }
+            removals.Should().Be(0);
+
+            await j.Fact(new OfficeClosure(dallasOffice, DateTime.UtcNow));
+
+            lock (offices)
+            {
+                offices.Should().BeEmpty();
+            }
+            removals.Should().Be(1);
+            (await j.Query(OpenOfficesInCity, company, dallas)).Should().BeEmpty();
         }
         finally
         {

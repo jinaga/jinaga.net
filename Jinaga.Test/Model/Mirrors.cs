@@ -46,3 +46,13 @@ public record MirrorRestored(MirrorRetired retired) { }
 /// </summary>
 [FactType("Mirror.Activated")]
 public record Activated(Account account) { }
+
+/// <summary>
+/// Reported by an account within a tenant, so a specification can correlate one fact with
+/// two others by walking forward to each of them.
+/// </summary>
+[FactType("Mirror.Ticket")]
+public record Ticket(Tenant tenant, Account reporter, string summary) { }
+
+[FactType("Mirror.Ticket.Closed")]
+public record TicketClosed(Ticket ticket) { }

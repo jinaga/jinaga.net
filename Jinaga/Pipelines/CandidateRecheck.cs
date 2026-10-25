@@ -1,7 +1,6 @@
 using Jinaga.Facts;
 using Jinaga.Projections;
 using System.Collections.Immutable;
-using System.Linq;
 
 namespace Jinaga.Pipelines
 {
@@ -15,10 +14,9 @@ namespace Jinaga.Pipelines
     /// condition still applied. The read answers with that one row or with nothing, and
     /// the observer takes the answer as the row's membership.
     ///
-    /// Pinning is what keeps the cost of absorbing a save proportional to the candidates
-    /// the save produces rather than to the rows the watch holds. A read of the whole
-    /// specification answers the same question about one candidate and makes every save
-    /// cost as much as the full result.
+    /// Pinning is what keeps a save from costing what the whole result costs. A read of
+    /// the specification itself would answer the same question about one candidate and
+    /// return every row the watch holds to do it.
     /// </summary>
     internal static class CandidateRecheck
     {
@@ -44,7 +42,7 @@ namespace Jinaga.Pipelines
                     new Label(pinName, match.Unknown.Type),
                     ImmutableList<ExistentialCondition>.Empty));
                 pinnedGivens = pinnedGivens.Add(pinName, candidate.Get(match.Unknown.Name));
-                matches = matches.Add(PinMatch(match, index, pinName));
+                matches = matches.Add(PinMatch(match, pinName));
             }
             return (new Specification(givens, matches, specification.Projection), pinnedGivens);
         }
@@ -52,65 +50,22 @@ namespace Jinaga.Pipelines
         private static string PinName(int index) => $"__p{index}";
 
         /// <summary>
-        /// The match with its unknown pinned to one fact. The pin leads, so the store binds
-        /// the unknown without enumerating anything, and the conditions that follow filter
-        /// that one binding.
-        ///
-        /// A path condition with roles on its left walks forward from a fact the row already
-        /// names, so checking it against a pinned unknown would enumerate that fact's
-        /// successors -- for a one-level specification, the whole result set. Both of its
-        /// sides are known facts here, so it becomes the question whether they reach a common
-        /// predecessor, which each side answers by walking its own predecessors. A condition
-        /// with no roles on its left already walks predecessors alone and carries over as it
-        /// is.
-        ///
-        /// One condition stays in place whatever its direction, because the pin is an
-        /// equality rather than a step between facts: a match left with the pin alone
-        /// contributes no edge, and the SQLite store builds its query from the edges and has
-        /// no clause to anchor without one. A condition that walks predecessors is preferred
-        /// for the part it keeps.
+        /// The match with its unknown pinned to one fact. The pin leads, so a store that
+        /// walks the match binds the unknown without enumerating anything, and the
+        /// conditions that follow filter that one binding.
         /// </summary>
-        private static Match PinMatch(Match match, int index, string pinName)
+        /// <remarks>
+        /// Every condition carries over as it is. The pin is an equality rather than a step
+        /// between facts, so it contributes no edge of its own: a match left with the pin
+        /// alone would give the SQLite store's generator no clause to anchor its query on,
+        /// and the conditions it keeps are what the generator joins.
+        /// </remarks>
+        private static Match PinMatch(Match match, string pinName)
         {
-            var anchor = match.PathConditions.FirstOrDefault(condition => condition.RolesLeft.IsEmpty)
-                ?? match.PathConditions.FirstOrDefault();
-            var pathConditions = ImmutableList.Create(
-                new PathCondition(ImmutableList<Role>.Empty, pinName, ImmutableList<Role>.Empty));
-            var existentialConditions = ImmutableList<ExistentialCondition>.Empty;
-            int join = 0;
-            foreach (var pathCondition in match.PathConditions)
-            {
-                if (pathCondition.RolesLeft.IsEmpty || pathCondition == anchor)
-                {
-                    pathConditions = pathConditions.Add(pathCondition);
-                }
-                else
-                {
-                    existentialConditions = existentialConditions.Add(CommonPredecessor(
-                        match.Unknown, pathCondition, $"__j{index}_{join}"));
-                    join++;
-                }
-            }
-            return new Match(
-                match.Unknown,
-                pathConditions,
-                existentialConditions.AddRange(match.ExistentialConditions));
-        }
-
-        /// <summary>
-        /// That <c>u-&gt;L = r-&gt;R</c> holds of two known facts, written as the fact both
-        /// sides reach. The condition's own label is new to the specification, so it
-        /// shadows nothing.
-        /// </summary>
-        private static ExistentialCondition CommonPredecessor(Label unknown, PathCondition pathCondition, string joinName)
-        {
-            var joinType = pathCondition.RolesLeft[pathCondition.RolesLeft.Count - 1].TargetType;
-            return new ExistentialCondition(true, ImmutableList.Create(new Match(
-                new Label(joinName, joinType),
-                ImmutableList.Create(
-                    new PathCondition(ImmutableList<Role>.Empty, unknown.Name, pathCondition.RolesLeft),
-                    new PathCondition(ImmutableList<Role>.Empty, pathCondition.LabelRight, pathCondition.RolesRight)),
-                ImmutableList<ExistentialCondition>.Empty)));
+            var pathConditions = ImmutableList
+                .Create(new PathCondition(ImmutableList<Role>.Empty, pinName, ImmutableList<Role>.Empty))
+                .AddRange(match.PathConditions);
+            return new Match(match.Unknown, pathConditions, match.ExistentialConditions);
         }
     }
 }
