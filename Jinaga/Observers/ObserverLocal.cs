@@ -257,13 +257,14 @@ namespace Jinaga.Observers
                             await OnCandidates(flattened, products, cancellationToken).ConfigureAwait(false)));
                 }
             }
-            foreach (var selfInverse in SelfInverses())
+            foreach (var given in specification.Givens)
             {
+                var name = given.Label.Name;
                 listeners = listeners.Add(factManager.AddInverseListener(
-                    selfInverse,
+                    SelfInverse(given),
                     givenTuple,
                     async (ImmutableList<Product> products, CancellationToken cancellationToken) =>
-                        await OnGivenSaved(products, cancellationToken).ConfigureAwait(false)));
+                        await OnGivenSaved(name, products, cancellationToken).ConfigureAwait(false)));
             }
             this.listeners = listeners;
         }
@@ -361,60 +362,61 @@ namespace Jinaga.Observers
         }
 
         /// <summary>
-        /// An inverse per given, which reports a row only when the fact it is pinned on is
-        /// that given.
+        /// The specification itself, with the pin label appended as a given its matches never
+        /// read. Reading it reports this observer's own rows, and the pinned fact rides along
+        /// in each one so that <see cref="OnGivenSaved"/> can see which fact was saved.
         /// </summary>
         /// <remarks>
         /// A row reachable only by walking a given -- its predecessors, or facts joined
         /// through one of them -- already exists when the given is saved, so no candidate
         /// inverse ever runs for it: a candidate inverse is pinned on an unknown, and the
-        /// givens are not unknowns. This replaces <c>Inverter.CreateSelfInverse</c>, which
-        /// could only be registered for a specification of exactly one given carrying no
-        /// conditions, because the listener it registered with was keyed by its single
-        /// given's type. One listener per given is subject to neither limit.
+        /// givens are not unknowns. This is what <c>Inverter.CreateSelfInverse</c> answered,
+        /// and it could be registered only for a specification of exactly one given carrying
+        /// no conditions, because the listener it used was keyed by that single given's type.
+        /// One listener per given is subject to neither limit.
         ///
-        /// Each of these is a trigger rather than a source of rows: it reports nothing at
-        /// all for a fact of the given's type that is not the given, and
-        /// <see cref="OnGivenSaved"/> reads the specification itself.
+        /// The pin is left unread rather than compared to the given inside the specification.
+        /// An equality between two bound labels is a path condition with no roles on either
+        /// side, which adds no edge: the SQLite store builds a query with no joins from it and
+        /// cannot render one, and the comparison belongs in the observer anyway.
         /// </remarks>
-        private ImmutableList<Specification> SelfInverses()
+        private Specification SelfInverse(SpecificationGiven given)
         {
-            var givens = specification.Givens
-                .Select(given => new SpecificationGiven(given.Label, ImmutableList<ExistentialCondition>.Empty))
-                .ToImmutableList();
-            return specification.Givens
-                .Select((given, index) => new Specification(
-                    givens.Add(new SpecificationGiven(
-                        new Label(InverseCandidates.PinLabel, given.Label.Type),
-                        ImmutableList<ExistentialCondition>.Empty)),
-                    ImmutableList.Create(new Match(
-                        new Label($"__s{index}", given.Label.Type),
-                        ImmutableList.Create(
-                            new PathCondition(
-                                ImmutableList<Role>.Empty, InverseCandidates.PinLabel, ImmutableList<Role>.Empty),
-                            new PathCondition(
-                                ImmutableList<Role>.Empty, given.Label.Name, ImmutableList<Role>.Empty)),
-                        ImmutableList<ExistentialCondition>.Empty)),
-                    new SimpleProjection($"__s{index}", typeof(object))))
-                .ToImmutableList();
+            return new Specification(
+                specification.Givens.Add(new SpecificationGiven(
+                    new Label(InverseCandidates.PinLabel, given.Label.Type),
+                    ImmutableList<ExistentialCondition>.Empty)),
+                specification.Matches,
+                specification.Projection);
         }
 
         /// <summary>
-        /// Re-reads the whole specification, because one of this observer's givens was
-        /// saved. Every row of that read and every row the observer holds is a candidate,
-        /// and the one read decides them all, so this is the one case that legitimately
-        /// reads the whole specification.
+        /// Takes the rows of the whole specification, because one of this observer's givens
+        /// was saved. Every row of that read and every row the observer holds is a candidate,
+        /// and the one read decides them all, so this is the one case that legitimately reads
+        /// the whole specification.
         /// </summary>
-        private async Task OnGivenSaved(ImmutableList<Product> products, CancellationToken cancellationToken)
+        /// <remarks>
+        /// The listener fires for every saved fact of the given's type, and the read binds
+        /// this observer's own givens either way, so the rows are this observer's whatever
+        /// was saved. What the pin says is whether the fact saved was this given at all.
+        /// </remarks>
+        private async Task OnGivenSaved(string givenName, ImmutableList<Product> products, CancellationToken cancellationToken)
         {
-            if (products.IsEmpty)
+            if (products.IsEmpty ||
+                !products[0].GetFactReference(InverseCandidates.PinLabel)
+                    .Equals(givenTuple.Get(givenName)))
             {
-                // A fact of a given's type that is not one of this observer's givens.
+                // A fact of this given's type that is not this given. Where the read found no
+                // row at all there is nothing to add, and the save of a given cannot remove
+                // one: a row of a specification is reached by walking its givens, so a given
+                // that was not there held no rows.
                 return;
             }
 
-            var results = await factManager.Read(
-                givenTuple, specification, specification.Projection.Type, this, cancellationToken).ConfigureAwait(false);
+            var projection = specification.Projection;
+            var results = await factManager.ComputeProjections(
+                projection, products, projection.Type, this, "", cancellationToken).ConfigureAwait(false);
             var present = RowsOf(results);
             ImmutableList<FactReferenceTuple> absent;
             lock (this)
@@ -428,7 +430,7 @@ namespace Jinaga.Observers
                 await SynchronizeNotifyRemovedRow(row).ConfigureAwait(false);
             }
             await SynchronizeNotifyAdded(
-                results, GivenSubset(), ResultSubsetAt(""), specification.Projection).ConfigureAwait(false);
+                results, GivenSubset(), ResultSubsetAt(""), projection).ConfigureAwait(false);
         }
 
         /// <summary>

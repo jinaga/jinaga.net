@@ -1,6 +1,7 @@
 using Jinaga.Facts;
 using Jinaga.Projections;
 using System.Collections.Immutable;
+using System.Linq;
 
 namespace Jinaga.Pipelines
 {
@@ -55,23 +56,31 @@ namespace Jinaga.Pipelines
         /// the unknown without enumerating anything, and the conditions that follow filter
         /// that one binding.
         ///
-        /// A path condition with roles on its left walks forward from a fact the row
-        /// already names, so checking it against a pinned unknown would enumerate that
-        /// fact's successors -- for a one-level specification, the whole result set. Both
-        /// of its sides are known facts here, so it becomes the question whether they reach
-        /// a common predecessor, which each side answers by walking its own predecessors. A
-        /// condition with no roles on its left already walks predecessors alone and carries
-        /// over as it is.
+        /// A path condition with roles on its left walks forward from a fact the row already
+        /// names, so checking it against a pinned unknown would enumerate that fact's
+        /// successors -- for a one-level specification, the whole result set. Both of its
+        /// sides are known facts here, so it becomes the question whether they reach a common
+        /// predecessor, which each side answers by walking its own predecessors. A condition
+        /// with no roles on its left already walks predecessors alone and carries over as it
+        /// is.
+        ///
+        /// One condition stays in place whatever its direction, because the pin is an
+        /// equality rather than a step between facts: a match left with the pin alone
+        /// contributes no edge, and the SQLite store builds its query from the edges and has
+        /// no clause to anchor without one. A condition that walks predecessors is preferred
+        /// for the part it keeps.
         /// </summary>
         private static Match PinMatch(Match match, int index, string pinName)
         {
+            var anchor = match.PathConditions.FirstOrDefault(condition => condition.RolesLeft.IsEmpty)
+                ?? match.PathConditions.FirstOrDefault();
             var pathConditions = ImmutableList.Create(
                 new PathCondition(ImmutableList<Role>.Empty, pinName, ImmutableList<Role>.Empty));
             var existentialConditions = ImmutableList<ExistentialCondition>.Empty;
             int join = 0;
             foreach (var pathCondition in match.PathConditions)
             {
-                if (pathCondition.RolesLeft.IsEmpty)
+                if (pathCondition.RolesLeft.IsEmpty || pathCondition == anchor)
                 {
                     pathConditions = pathConditions.Add(pathCondition);
                 }

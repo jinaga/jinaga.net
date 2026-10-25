@@ -35,3 +35,14 @@ public record Override(Block block) { }
 
 [FactType("Mirror.Reason")]
 public record Reason(Override reversal) { }
+
+/// <summary>Undoes a retirement, so a mirror can leave a collection and come back.</summary>
+[FactType("Mirror.Restored")]
+public record MirrorRestored(MirrorRetired retired) { }
+
+/// <summary>
+/// Makes an account a row of its own accord, so a parent can be added by a listener after
+/// the initial read while its children already exist.
+/// </summary>
+[FactType("Mirror.Activated")]
+public record Activated(Account account) { }
