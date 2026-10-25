@@ -1,4 +1,4 @@
-using Jinaga.Facts;
+﻿using Jinaga.Facts;
 using Jinaga.Identity;
 using Jinaga.Managers;
 using Jinaga.Pipelines;
@@ -42,6 +42,15 @@ namespace Jinaga.Observers
         /// observer is about to deliver from a result set computed before it.
         /// </summary>
         private bool initialReadInFlight;
+
+        /// <summary>
+        /// The rows whose delivery is in progress: from before a row's added handler runs
+        /// until the collections of its projection have been delivered. A child decided
+        /// within that interval is pending delivery out of a projection computed before it,
+        /// which is what <see cref="RowRemovedBeforeDelivery"/> withdraws.
+        /// </summary>
+        private ImmutableList<FactReferenceTuple> deliveringRows =
+            ImmutableList<FactReferenceTuple>.Empty;
 
         internal ObserverLocal(Specification specification, FactReferenceTuple givenTuple, FactManager factManager, Func<object, Task<Func<Task>>> onAdded, ILoggerFactory loggerFactory)
         {
@@ -159,7 +168,7 @@ namespace Jinaga.Observers
             cancelInitialize.Cancel();
             foreach (var listener in listeners)
             {
-                factManager.RemoveSpecificationListener(listener);
+                factManager.RemoveInverseListener(listener);
             }
             cancelInitialize.Dispose();
             factManager.Unsubscribe(feeds);
@@ -224,38 +233,223 @@ namespace Jinaga.Observers
             }
         }
 
+        /// <summary>
+        /// Registers a listener for every way a saved fact can change what this observer
+        /// holds: the candidate inverses of the specification at each path of the
+        /// projection, and one per given for the observer's own givens.
+        /// </summary>
+        /// <remarks>
+        /// An inverse of <see cref="InverseCandidates"/> carries no operation. Every row it
+        /// reports is a candidate, and <see cref="OnCandidates"/> decides each against the
+        /// store rather than trusting an add or a remove.
+        /// </remarks>
         private void AddSpecificationListeners()
         {
-            var inverses = specification.ComputeInverses();
-            ImmutableList<SpecificationListener> listeners = inverses.Select(inverse => factManager.AddSpecificationListener(
-                inverse.InverseSpecification,
-                async (ImmutableList<Product> results, CancellationToken cancellationToken) => await OnResult(inverse, results, cancellationToken).ConfigureAwait(false)
-            )).ToImmutableList();
+            var listeners = ImmutableList<SpecificationListener>.Empty;
+            foreach (var flattened in FlattenedSpecifications())
+            {
+                foreach (var inverse in InverseCandidates.CandidateInverses(flattened.Specification))
+                {
+                    listeners = listeners.Add(factManager.AddInverseListener(
+                        inverse,
+                        givenTuple,
+                        async (ImmutableList<Product> products, CancellationToken cancellationToken) =>
+                            await OnCandidates(flattened, products, cancellationToken).ConfigureAwait(false)));
+                }
+            }
+            foreach (var selfInverse in SelfInverses())
+            {
+                listeners = listeners.Add(factManager.AddInverseListener(
+                    selfInverse,
+                    givenTuple,
+                    async (ImmutableList<Product> products, CancellationToken cancellationToken) =>
+                        await OnGivenSaved(products, cancellationToken).ConfigureAwait(false)));
+            }
             this.listeners = listeners;
         }
 
-        private async Task OnResult(Inverse inverse, ImmutableList<Product> products, CancellationToken cancellationToken)
+        /// <summary>
+        /// The specification at each path of the projection: the top level, and each
+        /// collection flattened into a specification of its own -- the matches of every
+        /// level above it followed by its own, with its own projection. The candidate
+        /// inverses of each report the rows of that path.
+        /// </summary>
+        private ImmutableList<FlatSpecification> FlattenedSpecifications()
         {
-            // Filter out results that do not match the given.
-            var givenSubset = inverse.GivenSubset;
-            var matchingProducts = products
-                .Where(product => givenSubset.Of(product).Equals(givenTuple))
-                .ToImmutableList();
-            if (matchingProducts.IsEmpty)
+            var resultSubset = ResultSubsetAt("");
+            return ImmutableList
+                .Create(new FlatSpecification(
+                    "", specification, specification.Projection, GivenSubset(), resultSubset))
+                .AddRange(CollectionSpecifications(
+                    "", specification.Matches, specification.Projection, resultSubset));
+        }
+
+        private ImmutableList<FlatSpecification> CollectionSpecifications(
+            string path, ImmutableList<Match> matches, Projection projection, Subset resultSubset)
+        {
+            var flattened = ImmutableList<FlatSpecification>.Empty;
+            foreach (var (name, collectionProjection) in Inverter.CollectionsOf(projection, ""))
             {
+                var childPath = string.IsNullOrEmpty(path) ? name : $"{path}.{name}";
+                var childMatches = matches.AddRange(collectionProjection.Matches);
+                var childSubset = Inverter.AddUnknowns(resultSubset, collectionProjection.Matches);
+                flattened = flattened
+                    .Add(new FlatSpecification(
+                        childPath,
+                        new Specification(specification.Givens, childMatches, collectionProjection.Projection),
+                        collectionProjection.Projection,
+                        resultSubset,
+                        childSubset))
+                    .AddRange(CollectionSpecifications(
+                        childPath, childMatches, collectionProjection.Projection, childSubset));
+            }
+            return flattened;
+        }
+
+        /// <summary>
+        /// Decides each candidate the inverse reported, and notifies only a row whose
+        /// membership changed.
+        /// </summary>
+        /// <remarks>
+        /// Candidates of one saved batch may be decided in any order, so each is decided on
+        /// its own. One inverse can report a row more than once, and several inverses can
+        /// report the same row, so a row already decided in this batch is not read again.
+        /// </remarks>
+        private async Task OnCandidates(FlatSpecification flattened, ImmutableList<Product> products, CancellationToken cancellationToken)
+        {
+            var decided = ImmutableHashSet<FactReferenceTuple>.Empty;
+            foreach (var product in products)
+            {
+                // A row is identified at this path by that path's result subset. An inverse
+                // binds more labels than those -- the fact it is pinned on, and the labels it
+                // lifted out of an existential condition -- and none of those identify a row.
+                var candidate = flattened.ResultSubset.Of(product);
+                if (decided.Contains(candidate))
+                {
+                    continue;
+                }
+                decided = decided.Add(candidate);
+
+                await DecideCandidate(flattened, candidate, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Reads the specification for one candidate row and notifies the transition, if
+        /// there is one. A row the read holds is added, unless it is held already; a row the
+        /// read does not hold is removed, unless it was never delivered. Both of those
+        /// exceptions are the row-state machine's, so a row that did not change is left
+        /// exactly as it is.
+        /// </summary>
+        private async Task DecideCandidate(FlatSpecification flattened, FactReferenceTuple candidate, CancellationToken cancellationToken)
+        {
+            var (pinned, pinnedGivens) = CandidateRecheck.Pin(
+                flattened.Specification, givenTuple, candidate);
+            var rows = await factManager.QueryLocal(pinnedGivens, pinned, cancellationToken).ConfigureAwait(false);
+            if (rows.IsEmpty)
+            {
+                await SynchronizeNotifyRemovedRow(candidate).ConfigureAwait(false);
+            }
+            else
+            {
+                var projection = flattened.Projection;
+                var results = await factManager.ComputeProjections(
+                    projection, rows, projection.Type, this, flattened.Path, cancellationToken).ConfigureAwait(false);
+                await SynchronizeNotifyAdded(
+                    results, flattened.ParentSubset, flattened.ResultSubset, projection).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// An inverse per given, which reports a row only when the fact it is pinned on is
+        /// that given.
+        /// </summary>
+        /// <remarks>
+        /// A row reachable only by walking a given -- its predecessors, or facts joined
+        /// through one of them -- already exists when the given is saved, so no candidate
+        /// inverse ever runs for it: a candidate inverse is pinned on an unknown, and the
+        /// givens are not unknowns. This replaces <c>Inverter.CreateSelfInverse</c>, which
+        /// could only be registered for a specification of exactly one given carrying no
+        /// conditions, because the listener it registered with was keyed by its single
+        /// given's type. One listener per given is subject to neither limit.
+        ///
+        /// Each of these is a trigger rather than a source of rows: it reports nothing at
+        /// all for a fact of the given's type that is not the given, and
+        /// <see cref="OnGivenSaved"/> reads the specification itself.
+        /// </remarks>
+        private ImmutableList<Specification> SelfInverses()
+        {
+            var givens = specification.Givens
+                .Select(given => new SpecificationGiven(given.Label, ImmutableList<ExistentialCondition>.Empty))
+                .ToImmutableList();
+            return specification.Givens
+                .Select((given, index) => new Specification(
+                    givens.Add(new SpecificationGiven(
+                        new Label(InverseCandidates.PinLabel, given.Label.Type),
+                        ImmutableList<ExistentialCondition>.Empty)),
+                    ImmutableList.Create(new Match(
+                        new Label($"__s{index}", given.Label.Type),
+                        ImmutableList.Create(
+                            new PathCondition(
+                                ImmutableList<Role>.Empty, InverseCandidates.PinLabel, ImmutableList<Role>.Empty),
+                            new PathCondition(
+                                ImmutableList<Role>.Empty, given.Label.Name, ImmutableList<Role>.Empty)),
+                        ImmutableList<ExistentialCondition>.Empty)),
+                    new SimpleProjection($"__s{index}", typeof(object))))
+                .ToImmutableList();
+        }
+
+        /// <summary>
+        /// Re-reads the whole specification, because one of this observer's givens was
+        /// saved. Every row of that read and every row the observer holds is a candidate,
+        /// and the one read decides them all, so this is the one case that legitimately
+        /// reads the whole specification.
+        /// </summary>
+        private async Task OnGivenSaved(ImmutableList<Product> products, CancellationToken cancellationToken)
+        {
+            if (products.IsEmpty)
+            {
+                // A fact of a given's type that is not one of this observer's givens.
                 return;
             }
 
-            if (inverse.Operation == InverseOperation.Add || inverse.Operation == InverseOperation.MaybeAdd)
+            var results = await factManager.Read(
+                givenTuple, specification, specification.Projection.Type, this, cancellationToken).ConfigureAwait(false);
+            var present = RowsOf(results);
+            ImmutableList<FactReferenceTuple> absent;
+            lock (this)
             {
-                Projection projection = inverse.InverseSpecification.Projection;
-                var results = await factManager.ComputeProjections(projection, matchingProducts, projection.Type, this, inverse.Path, cancellationToken).ConfigureAwait(false);
-                await SynchronizeNotifyAdded(results, inverse.ParentSubset, inverse.ResultSubset, projection).ConfigureAwait(false);
+                absent = rowStates.Keys
+                    .Where(row => !present.Contains(row))
+                    .ToImmutableList();
             }
-            else if (inverse.Operation == InverseOperation.Remove || inverse.Operation == InverseOperation.MaybeRemove)
+            foreach (var row in absent)
             {
-                await SynchronizeNotifyRemoved(inverse, matchingProducts).ConfigureAwait(false);
+                await SynchronizeNotifyRemovedRow(row).ConfigureAwait(false);
             }
+            await SynchronizeNotifyAdded(
+                results, GivenSubset(), ResultSubsetAt(""), specification.Projection).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// The tuple that identifies each row of a read, at every depth of its projection.
+        /// </summary>
+        private ImmutableHashSet<FactReferenceTuple> RowsOf(ImmutableList<ProjectedResult> results)
+        {
+            var rows = ImmutableHashSet<FactReferenceTuple>.Empty;
+            void Collect(ImmutableList<ProjectedResult> list)
+            {
+                foreach (var result in list)
+                {
+                    rows = rows.Add(ResultSubsetAt(result.Path).Of(result.Product));
+                    foreach (var collection in result.Collections)
+                    {
+                        Collect(collection.Results);
+                    }
+                }
+            }
+            Collect(results);
+            return rows;
         }
 
         private async Task SynchronizeNotifyAdded(ImmutableList<ProjectedResult> results, Subset parentSubset, Subset resultSubset, Projection projection)
@@ -263,9 +457,9 @@ namespace Jinaga.Observers
             await SynchronizeOperaton(() => NotifyAdded(results, parentSubset, resultSubset, projection)).ConfigureAwait(false);
         }
 
-        private async Task SynchronizeNotifyRemoved(Inverse inverse, ImmutableList<Product> matchingProducts)
+        private async Task SynchronizeNotifyRemovedRow(FactReferenceTuple resultTuple)
         {
-            await SynchronizeOperaton(() => NotifyRemoved(matchingProducts, inverse.ResultSubset)).ConfigureAwait(false);
+            await SynchronizeOperaton(() => NotifyRemovedRow(resultTuple)).ConfigureAwait(false);
         }
 
         private async Task SynchronizeOperaton(Func<Task> operation)
@@ -297,73 +491,143 @@ namespace Jinaga.Observers
         {
             foreach (var result in results)
             {
-                var parentTuple = parentSubset.Of(result.Product);
                 // A row is identified at this path by the labels of the path's result
                 // subset. An inverse may bind more labels than that, such as the witness
                 // of an existential condition, and those do not identify the row.
                 var resultTuple = resultSubset.Of(result.Product);
-                var matchingAddedHandlers = addedHandlers
-                    .Where(hander => hander.Anchor.Equals(parentTuple) && hander.Path == result.Path);
-                foreach (var addedHandler in matchingAddedHandlers)
+
+                // Hold the row's delivery open across its handler and its collections, so
+                // that a removal decided for one of its children in that interval can
+                // withdraw the delivery the recursion below would otherwise make.
+                BeginDelivering(resultTuple);
+                try
                 {
-                    var resultAdded = addedHandler.Added;
-                    // Don't call result added if the row already has a state: either
-                    // its handler is running or it has already been delivered.
-                    if (!ClaimRow(resultTuple))
-                    {
-                        continue;
-                    }
-
-                    Func<Task> removal;
-                    try
-                    {
-                        removal = await resultAdded(result.Projection).ConfigureAwait(false);
-                    }
-                    catch (Exception ex)
-                    {
-                        // The handler never produced a removal function, so the row
-                        // was never delivered. Drop it, which leaves a later
-                        // notification for the same row free to call the handler
-                        // again.
-                        lock (this)
-                        {
-                            rowStates = rowStates.Remove(resultTuple);
-                        }
-
-                        // The observer is the boundary between Jinaga and caller
-                        // code, so a handler that throws is confined to its own row.
-                        // Rethrowing would end this loop, end the notification of
-                        // every later listener including other observers', and fail
-                        // a save that has already committed, none of which the code
-                        // that saved the fact did anything to deserve. Log it and
-                        // carry on with the next row.
-                        logger.LogError(ex, "Added handler threw for {Specification}", specification.ToDescriptiveString());
-                        continue;
-                    }
-
-                    await SettleRow(resultTuple, removal).ConfigureAwait(false);
+                    await NotifyAddedRow(result, resultTuple, parentSubset, resultSubset, projection).ConfigureAwait(false);
                 }
-
-                // Recursively notify added for specification results.
-                if (result.Collections.Any())
+                finally
                 {
-                    foreach (var (name, collectionProjection) in Inverter.CollectionsOf(projection, ""))
-                    {
-                        var collection = result.Collections
-                            .FirstOrDefault(c => c.Name == name);
-                        if (collection == null)
-                        {
-                            continue;
-                        }
-
-                        // The child path's result subset is this path's plus the labels
-                        // that the collection's own matches bind, exactly as the inverter
-                        // derives the subset of a nested path.
-                        var collectionSubset = Inverter.AddUnknowns(resultSubset, collectionProjection.Matches);
-                        await NotifyAdded(collection.Results, resultSubset, collectionSubset, collectionProjection.Projection).ConfigureAwait(false);
-                    }
+                    EndDelivering(resultTuple);
                 }
             }
+        }
+
+        private async Task NotifyAddedRow(ProjectedResult result, FactReferenceTuple resultTuple, Subset parentSubset, Subset resultSubset, Projection projection)
+        {
+            var parentTuple = parentSubset.Of(result.Product);
+            var matchingAddedHandlers = addedHandlers
+                .Where(hander => hander.Anchor.Equals(parentTuple) && hander.Path == result.Path);
+            foreach (var addedHandler in matchingAddedHandlers)
+            {
+                var resultAdded = addedHandler.Added;
+                // Don't call result added if the row already has a state: either
+                // its handler is running or it has already been delivered.
+                if (!ClaimRow(resultTuple))
+                {
+                    continue;
+                }
+
+                Func<Task> removal;
+                try
+                {
+                    removal = await resultAdded(result.Projection).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    // The handler never produced a removal function, so the row
+                    // was never delivered. Drop it, which leaves a later
+                    // notification for the same row free to call the handler
+                    // again.
+                    lock (this)
+                    {
+                        rowStates = rowStates.Remove(resultTuple);
+                    }
+
+                    // The observer is the boundary between Jinaga and caller
+                    // code, so a handler that throws is confined to its own row.
+                    // Rethrowing would end this loop, end the notification of
+                    // every later listener including other observers', and fail
+                    // a save that has already committed, none of which the code
+                    // that saved the fact did anything to deserve. Log it and
+                    // carry on with the next row.
+                    logger.LogError(ex, "Added handler threw for {Specification}", specification.ToDescriptiveString());
+                    continue;
+                }
+
+                await SettleRow(resultTuple, removal).ConfigureAwait(false);
+            }
+
+            // Recursively notify added for specification results.
+            if (result.Collections.Any())
+            {
+                foreach (var (name, collectionProjection) in Inverter.CollectionsOf(projection, ""))
+                {
+                    var collection = result.Collections
+                        .FirstOrDefault(c => c.Name == name);
+                    if (collection == null)
+                    {
+                        continue;
+                    }
+
+                    // The child path's result subset is this path's plus the labels
+                    // that the collection's own matches bind, exactly as the inverter
+                    // derives the subset of a nested path.
+                    var collectionSubset = Inverter.AddUnknowns(resultSubset, collectionProjection.Matches);
+                    await NotifyAdded(collection.Results, resultSubset, collectionSubset, collectionProjection.Projection).ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Opens the interval in which the rows nested within this one are pending
+        /// delivery: from before its added handler runs until the collections of its
+        /// projection have been delivered.
+        ///
+        /// A child's own handler exists only once this row's handler has registered it, so
+        /// a removal decided for a child in that interval finds no row state. The recursion
+        /// would then deliver that child out of the projection computed when this row was
+        /// decided, and the watch would keep a row the store no longer holds.
+        /// <see cref="NotifyRemovedRow"/> records it as
+        /// <see cref="RowRemovedBeforeDelivery"/> instead, which withdraws that one
+        /// delivery, at every depth and whenever the row was added.
+        /// </summary>
+        private void BeginDelivering(FactReferenceTuple resultTuple)
+        {
+            lock (this)
+            {
+                deliveringRows = deliveringRows.Add(resultTuple);
+            }
+        }
+
+        /// <summary>
+        /// Closes that interval, and drops the withdrawals that found nothing to withdraw.
+        /// A nested row still carrying <see cref="RowRemovedBeforeDelivery"/> was never in
+        /// this row's projection, so it has no delivery left to cancel, and from here on
+        /// that state would cancel its next legitimate add instead.
+        /// </summary>
+        private void EndDelivering(FactReferenceTuple resultTuple)
+        {
+            lock (this)
+            {
+                deliveringRows = deliveringRows.Remove(resultTuple);
+                var undelivered = rowStates
+                    .Where(pair =>
+                        pair.Value is RowRemovedBeforeDelivery &&
+                        !pair.Key.Equals(resultTuple) &&
+                        AnchorIsWithinRow(pair.Key, resultTuple))
+                    .Select(pair => pair.Key)
+                    .ToImmutableList();
+                rowStates = rowStates.RemoveRange(undelivered);
+            }
+        }
+
+        /// <summary>
+        /// Whether a row whose delivery is in progress will deliver this row, out of the
+        /// projection computed when that row was decided. Call while holding the lock.
+        /// </summary>
+        private bool HasDeliveringAncestor(FactReferenceTuple resultTuple)
+        {
+            return deliveringRows.Any(row =>
+                !row.Equals(resultTuple) && AnchorIsWithinRow(resultTuple, row));
         }
 
         /// <summary>
@@ -465,63 +729,89 @@ namespace Jinaga.Observers
             return true;
         }
 
-        private async Task NotifyRemoved(ImmutableList<Product> products, Subset resultSubset)
+        private async Task NotifyRemovedRow(FactReferenceTuple resultTuple)
         {
-            foreach (var product in products)
+            // Retire the row before awaiting its removal function. That function
+            // is the caller's, so it may yield, and anything the observer does
+            // while it is in flight must already see the row as gone. Claiming it
+            // under the lock is also what stops two concurrent removals of one row
+            // from both invoking it.
+            Func<Task>? removal = null;
+            lock (this)
             {
-                var resultTuple = resultSubset.Of(product);
-                // Retire the row before awaiting its removal function. That function
-                // is the caller's, so it may yield, and anything the observer does
-                // while it is in flight must already see the row as gone. Claiming it
-                // under the lock is also what stops two concurrent removals of one row
-                // from both invoking it.
-                Func<Task>? removal = null;
-                lock (this)
+                if (rowStates.TryGetValue(resultTuple, out var state))
                 {
-                    if (rowStates.TryGetValue(resultTuple, out var state))
+                    if (state is RowDelivered delivered)
                     {
-                        if (state is RowDelivered delivered)
-                        {
-                            // The row is delivered, so its removal function is known.
-                            // Dropping the row here also means a later product that
-                            // satisfies the specification again is not a duplicate.
-                            removal = delivered.Removal;
-                            RetireRow(resultTuple);
-                        }
-                        else if (state is RowInFlight)
-                        {
-                            // The added handler has not returned a removal function
-                            // yet. Record the request against the in-flight row so
-                            // that SettleRow honors it. A second removal in the same
-                            // interval finds the request already recorded, so the
-                            // function is still called exactly once.
-                            rowStates = rowStates.SetItem(
-                                resultTuple, new RowInFlight(removalRequested: true));
-                        }
-                        // A row already cancelled before delivery stays cancelled.
-                        // A second removal in that interval has no handler to wait
-                        // for and no function to call.
+                        // The row is delivered, so its removal function is known.
+                        // Dropping the row here also means a later product that
+                        // satisfies the specification again is not a duplicate.
+                        removal = delivered.Removal;
+                        RetireRow(resultTuple);
                     }
-                    else if (initialReadInFlight)
+                    else if (state is RowInFlight)
                     {
-                        // The initial read is still in flight, so this row may yet
-                        // be delivered out of a result set that was computed before
-                        // this removal. Remember the removal against the row, and
-                        // ClaimRow cancels that one delivery when it arrives.
-                        rowStates = rowStates.Add(
-                            resultTuple, new RowRemovedBeforeDelivery());
+                        // The added handler has not returned a removal function
+                        // yet. Record the request against the in-flight row so
+                        // that SettleRow honors it. A second removal in the same
+                        // interval finds the request already recorded, so the
+                        // function is still called exactly once.
+                        rowStates = rowStates.SetItem(
+                            resultTuple, new RowInFlight(removalRequested: true));
                     }
-                    // Outside that interval a row with no state was never notified,
-                    // so there is nothing to remove and nothing to remember.
-                    // Recording a removal here would cancel the row's next
-                    // legitimate add, which a second removal of an already retired
-                    // row would otherwise do.
+                    // A row already cancelled before delivery stays cancelled.
+                    // A second removal in that interval has no handler to wait
+                    // for and no function to call.
                 }
-                if (removal != null)
+                else if (initialReadInFlight || HasDeliveringAncestor(resultTuple))
                 {
-                    await removal().ConfigureAwait(false);
+                    // The row may yet be delivered out of a result set computed
+                    // before this removal: the initial read is still in flight,
+                    // or a row this one is nested within is being delivered and
+                    // its collections have not been reached. Remember the removal
+                    // against the row, and ClaimRow cancels that one delivery
+                    // when it arrives.
+                    rowStates = rowStates.Add(
+                        resultTuple, new RowRemovedBeforeDelivery());
                 }
+                // Outside that interval a row with no state was never notified,
+                // so there is nothing to remove and nothing to remember.
+                // Recording a removal here would cancel the row's next
+                // legitimate add, which a second removal of an already retired
+                // row would otherwise do.
             }
+            if (removal != null)
+            {
+                await removal().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// The specification at one path of the projection, flattened: the matches of every
+        /// level above this path followed by this path's own, with this path's projection.
+        /// </summary>
+        private class FlatSpecification
+        {
+            internal FlatSpecification(string path, Specification specification, Projection projection, Subset parentSubset, Subset resultSubset)
+            {
+                Path = path;
+                Specification = specification;
+                Projection = projection;
+                ParentSubset = parentSubset;
+                ResultSubset = resultSubset;
+            }
+
+            /// <summary>The path of this projection, empty at the top level.</summary>
+            internal string Path { get; }
+
+            internal Specification Specification { get; }
+            internal Projection Projection { get; }
+
+            /// <summary>The labels that identify the row a handler at this path is anchored to.</summary>
+            internal Subset ParentSubset { get; }
+
+            /// <summary>The labels that identify a row at this path.</summary>
+            internal Subset ResultSubset { get; }
         }
 
         /// <summary>
