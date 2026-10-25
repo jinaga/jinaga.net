@@ -288,11 +288,11 @@ namespace Jinaga
             var authorizationEngine = options.AuthorizationRules == null
                 ? null
                 : new AuthorizationEngine(options.AuthorizationRules, store);
-            networkManager = new NetworkManager(network, store, loggerFactory, async (graph, added, cancellationToken) =>
+            networkManager = new NetworkManager(network, store, loggerFactory, async (graph, cancellationToken) =>
             {
                 if (factManager != null)
                 {
-                    await factManager.NotifyObservers(graph, added, cancellationToken).ConfigureAwait(false);
+                    await factManager.SaveAndNotify(graph, false, null, cancellationToken).ConfigureAwait(false);
                 }
             }, options.MaxBatchSize, identitySource, authorizationEngine);
             factManager = new FactManager(store, networkManager, purgeConditions, loggerFactory, options.QueueProcessingDelay, authorizationEngine, authorizingUser, identitySource);

@@ -16,7 +16,7 @@ namespace Jinaga.Managers
         private INetwork network;
         private IStore store;
         private readonly ILogger logger;
-        private Func<FactGraph, ImmutableList<Fact>, CancellationToken, Task> notifyObservers;
+        private Func<FactGraph, CancellationToken, Task> saveAndNotify;
         private readonly Func<CancellationToken, Task>? registerFeedAgain;
 
         private int refCount = 0;
@@ -31,7 +31,7 @@ namespace Jinaga.Managers
         private readonly TimeSpan reconnectInitialDelay;
         private readonly TimeSpan reconnectMaxDelay;
 
-        public Subscriber(string feed, INetwork network, IStore store, ILogger logger, Func<FactGraph, ImmutableList<Fact>, CancellationToken, Task> notifyObservers,
+        public Subscriber(string feed, INetwork network, IStore store, ILogger logger, Func<FactGraph, CancellationToken, Task> saveAndNotify,
             Func<CancellationToken, Task>? registerFeedAgain = null,
             TimeSpan? reconnectInitialDelay = null, TimeSpan? reconnectMaxDelay = null)
         {
@@ -39,7 +39,7 @@ namespace Jinaga.Managers
             this.network = network;
             this.store = store;
             this.logger = logger;
-            this.notifyObservers = notifyObservers;
+            this.saveAndNotify = saveAndNotify;
             this.registerFeedAgain = registerFeedAgain;
             this.reconnectInitialDelay = reconnectInitialDelay ?? TimeSpan.FromSeconds(1);
             this.reconnectMaxDelay = reconnectMaxDelay ?? TimeSpan.FromSeconds(30);
@@ -109,11 +109,13 @@ namespace Jinaga.Managers
                 if (unknownFactReferences.Any())
                 {
                     var factGraph = await network.Load(factReferences, cancellationToken);
-                    var facts = factReferences.Select(reference => factGraph.GetFact(reference)).ToImmutableList();
-                    await store.Save(factGraph, false, cancellationToken).ConfigureAwait(false);
+                    // The feed names the facts it has reached, which includes facts this
+                    // store already holds, and the graph it answers with carries their
+                    // predecessors, which the feed did not name. Neither set is the set of
+                    // facts the save adds, so the save decides what is notified.
+                    await saveAndNotify(factGraph, cancellationToken).ConfigureAwait(false);
                     await store.SaveBookmark(feed, newBookmark).ConfigureAwait(false);
                     bookmark = newBookmark;
-                    await notifyObservers(factGraph, facts, cancellationToken).ConfigureAwait(false);
                 }
                 else
                 {

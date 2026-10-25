@@ -10,8 +10,7 @@ namespace Jinaga.Managers
     class LoadBatch
     {
         private readonly INetwork network;
-        private readonly IStore store;
-        private readonly Func<FactGraph, ImmutableList<Fact>, CancellationToken, Task> notifyObservers;
+        private readonly Func<FactGraph, CancellationToken, Task> saveAndNotify;
 
         public Task Completed { get; }
 
@@ -19,11 +18,10 @@ namespace Jinaga.Managers
             ImmutableHashSet<FactReference>.Empty;
         private readonly TaskCompletionSource<bool> start;
 
-        public LoadBatch(INetwork network, IStore store, Func<FactGraph, ImmutableList<Fact>, CancellationToken, Task> notifyObservers, Action<LoadBatch> batchStarted)
+        public LoadBatch(INetwork network, Func<FactGraph, CancellationToken, Task> saveAndNotify, Action<LoadBatch> batchStarted)
         {
             this.network = network;
-            this.store = store;
-            this.notifyObservers = notifyObservers;
+            this.saveAndNotify = saveAndNotify;
 
             start = new TaskCompletionSource<bool>();
             Completed = Task.Run(async () =>
@@ -66,11 +64,8 @@ namespace Jinaga.Managers
             }
             var graph = await network.Load(factReferences.ToImmutableList(), cancellationToken).ConfigureAwait(false);
 
-            // Save the facts.
-            var added = await store.Save(graph, false, cancellationToken).ConfigureAwait(false);
-
-            // Notify observers.
-            await notifyObservers(graph, added, cancellationToken).ConfigureAwait(false);
+            // Save the facts and notify the observers of the ones the save added.
+            await saveAndNotify(graph, cancellationToken).ConfigureAwait(false);
         }
     }
 }

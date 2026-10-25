@@ -928,7 +928,7 @@ public class StoreTest
 
         var sqliteStore = GivenSQLiteStore();
         var loggerFactory = NullLoggerFactory.Instance;
-        var networkManager = new NetworkManager(GivenLocalNetwork(), sqliteStore, loggerFactory, (FactGraph g, ImmutableList<Fact> l, CancellationToken c) => Task.CompletedTask, new JinagaClientOptions().MaxBatchSize);
+        var networkManager = new NetworkManager(GivenLocalNetwork(), sqliteStore, loggerFactory, (FactGraph g, CancellationToken c) => Task.CompletedTask, new JinagaClientOptions().MaxBatchSize);
         var factManager = new FactManager(sqliteStore, networkManager, [], loggerFactory, 0);
 
         // Store one airline without contention, so that the contended save
@@ -1126,7 +1126,7 @@ public class StoreTest
     {
         var store = new MemoryStore();
         var loggerFactory = NullLoggerFactory.Instance;
-        var networkManager = new NetworkManager(new LocalNetwork(), store, loggerFactory, (FactGraph g, ImmutableList<Fact> l, CancellationToken c) => Task.CompletedTask, new JinagaClientOptions().MaxBatchSize);
+        var networkManager = new NetworkManager(new LocalNetwork(), store, loggerFactory, (FactGraph g, CancellationToken c) => Task.CompletedTask, new JinagaClientOptions().MaxBatchSize);
         var factManager = new FactManager(store, networkManager, [], loggerFactory, 0);
         return factManager.Serialize(fact);
     }

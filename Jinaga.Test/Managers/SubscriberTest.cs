@@ -137,10 +137,10 @@ public class SubscriberTest
         var reference = collector.Serialize(new TestFact("after-registering-again"));
         network.ResponseGraph = collector.Graph;
 
-        var observed = new TaskCompletionSource<ImmutableList<Fact>>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var subscriber = GivenSubscriber(network, store, (graph, facts, cancellationToken) =>
+        var observed = new TaskCompletionSource<FactGraph>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var subscriber = GivenSubscriber(network, store, (graph, cancellationToken) =>
         {
-            observed.TrySetResult(facts);
+            observed.TrySetResult(graph);
             return Task.CompletedTask;
         });
 
@@ -155,9 +155,9 @@ public class SubscriberTest
             network.LoseRegistration();
             network.RaiseErrorOnLatestConnection(new FeedNotFoundException("feed-1"));
 
-            var facts = await observed.Task.WaitAsync(Patience);
+            var graph = await observed.Task.WaitAsync(Patience);
 
-            Assert.Equal(new[] { reference }, facts.Select(fact => fact.Reference));
+            Assert.Equal(new[] { reference }, graph.FactReferences);
             Assert.Equal("bookmark-2", await store.LoadBookmark("feed-1"));
         }
         finally
@@ -197,14 +197,14 @@ public class SubscriberTest
     private static Subscriber GivenSubscriber(
         ScriptedStreamNetwork network,
         MemoryStore store,
-        Func<FactGraph, ImmutableList<Fact>, CancellationToken, Task> notifyObservers = null)
+        Func<FactGraph, CancellationToken, Task> saveAndNotify = null)
     {
         return new Subscriber(
             "feed-1",
             network,
             store,
             NullLogger.Instance,
-            notifyObservers ?? ((graph, facts, cancellationToken) => Task.CompletedTask),
+            saveAndNotify ?? ((graph, cancellationToken) => Task.CompletedTask),
             // The owner of the feed registers it again by declaring it to the network, exactly
             // as NetworkManager does.
             cancellationToken => network.Feeds(FactReferenceTuple.Empty, officesInCompany, cancellationToken),

@@ -19,7 +19,7 @@ namespace Jinaga.Managers
         private readonly INetwork network;
         private readonly IStore store;
         private readonly ILogger logger;
-        private readonly Func<FactGraph, ImmutableList<Fact>, CancellationToken, Task> notifyObservers;
+        private readonly Func<FactGraph, CancellationToken, Task> saveAndNotify;
         private readonly int maxBatchSize;
         private readonly IIdentitySource? identitySource;
         private readonly AuthorizationEngine? authorizationEngine;
@@ -36,8 +36,8 @@ namespace Jinaga.Managers
 
         public event JinagaStatusChanged? OnStatusChanged;
 
-        public NetworkManager(INetwork network, IStore store, ILoggerFactory loggerFactory, Func<FactGraph, ImmutableList<Fact>, CancellationToken, Task> notifyObservers, int maxBatchSize)
-            : this(network, store, loggerFactory, notifyObservers, maxBatchSize, null, null)
+        public NetworkManager(INetwork network, IStore store, ILoggerFactory loggerFactory, Func<FactGraph, CancellationToken, Task> saveAndNotify, int maxBatchSize)
+            : this(network, store, loggerFactory, saveAndNotify, maxBatchSize, null, null)
         {
         }
 
@@ -47,7 +47,7 @@ namespace Jinaga.Managers
         /// them. Used only to decide which queued facts another user may upload; it refuses
         /// nothing.
         /// </param>
-        internal NetworkManager(INetwork network, IStore store, ILoggerFactory loggerFactory, Func<FactGraph, ImmutableList<Fact>, CancellationToken, Task> notifyObservers, int maxBatchSize, IIdentitySource? identitySource, AuthorizationEngine? authorizationEngine)
+        internal NetworkManager(INetwork network, IStore store, ILoggerFactory loggerFactory, Func<FactGraph, CancellationToken, Task> saveAndNotify, int maxBatchSize, IIdentitySource? identitySource, AuthorizationEngine? authorizationEngine)
         {
             if (maxBatchSize <= 0)
                 throw new ArgumentOutOfRangeException(nameof(maxBatchSize), maxBatchSize, "The maximum batch size must be greater than zero.");
@@ -55,7 +55,7 @@ namespace Jinaga.Managers
             this.network = network;
             this.store = store;
             this.logger = loggerFactory.CreateLogger<NetworkManager>();
-            this.notifyObservers = notifyObservers;
+            this.saveAndNotify = saveAndNotify;
             this.maxBatchSize = maxBatchSize;
             this.identitySource = identitySource;
             this.authorizationEngine = authorizationEngine;
@@ -439,7 +439,7 @@ namespace Jinaga.Managers
                 {
                     if (!this.subscribers.TryGetValue(feed, out var subscriber))
                     {
-                        subscriber = new Subscriber(feed, this.network, this.store, this.logger, this.notifyObservers,
+                        subscriber = new Subscriber(feed, this.network, this.store, this.logger, this.saveAndNotify,
                             cancellationToken => RegisterFeedsAgain(givenTuple, reducedSpecification, cancellationToken));
                         this.subscribers = this.subscribers.Add(feed, subscriber);
                     }
@@ -582,7 +582,7 @@ namespace Jinaga.Managers
                 if (batch == null)
                 {
                     // Begin a new batch.
-                    batch = new LoadBatch(network, store, notifyObservers, BatchStarted);
+                    batch = new LoadBatch(network, saveAndNotify, BatchStarted);
                     currentBatch = batch;
                 }
 
