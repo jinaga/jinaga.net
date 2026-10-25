@@ -79,186 +79,194 @@ namespace Jinaga.Store.SQLite
             }
             else
             {
-                ImmutableList<Fact> newFacts = ImmutableList<Fact>.Empty;
-                foreach (var factReference in graph.FactReferences)
-                {
-                    var envelope = graph.GetEnvelope(factReference);
-
-                    bool inserted = connFactory.WithTxn(
-                        (conn, id) =>
-                            {
-                                string sql;
-                                bool factInserted = false;
-
-                                // Refuse a fact whose predecessors are in
-                                // neither the graph nor the store. The check
-                                // shares the transaction with the write, so no
-                                // other connection can remove a predecessor
-                                // between them.
-                                var missingPredecessors = FindMissingPredecessors(conn, envelope.Fact);
-                                if (!missingPredecessors.IsEmpty)
-                                {
-                                    throw new InvalidOperationException(
-                                        $"Cannot save the fact {envelope.Fact.Reference} because it has predecessors that are in neither the graph nor the store: {string.Join(", ", missingPredecessors)}.");
-                                }
-
-                                // Select or insert into FactType table.  Gets a FactTypeId
-                                sql = @"
-                                    SELECT fact_type_id 
-                                    FROM fact_type 
-                                    WHERE name = @0
-                                ";
-                                var factTypeId = conn.ExecuteScalar(sql, envelope.Fact.Reference.Type);
-                                if (factTypeId == "")
-                                {
-                                    sql = @"
-                                        INSERT OR IGNORE INTO fact_type (name) 
-                                        VALUES (@0)
-                                    ";
-                                    conn.ExecuteNonQuery(sql, envelope.Fact.Reference.Type);
-                                    sql = @"
-                                        SELECT fact_type_id 
-                                        FROM fact_type 
-                                        WHERE name = @0
-                                    ";
-                                    factTypeId = conn.ExecuteScalar(sql, envelope.Fact.Reference.Type);
-                                }
-
-                                // Select or insert into Fact table.  Gets a FactId
-                                sql = @"
-                                    SELECT fact_id FROM fact 
-                                    WHERE hash = @0 AND fact_type_id = @1
-                                ";
-                                var factId = conn.ExecuteScalar(sql, envelope.Fact.Reference.Hash, factTypeId);
-                                if (factId == "")
-                                {
-                                    factInserted = true;
-                                    string data = Fact.Canonicalize(envelope.Fact.Fields, envelope.Fact.Predecessors);
-                                    sql = @"
-                                        INSERT OR IGNORE INTO fact (fact_type_id, hash, data) 
-                                        VALUES (@0, @1, @2)
-                                    ";
-                                    conn.ExecuteNonQuery(sql, factTypeId, envelope.Fact.Reference.Hash, data);
-                                    sql = @"
-                                        SELECT fact_id 
-                                        FROM fact 
-                                        WHERE hash = @0 AND fact_type_id = @1
-                                    ";
-                                    factId = conn.ExecuteScalar(sql, envelope.Fact.Reference.Hash, factTypeId);
-
-                                    // Insert into the outbound_queue table
-                                    if (queue)
-                                    {
-                                        var graphToQueue = graph.GetSubgraph(factReference);
-                                        string graphData = graphToQueue.ToJson();
-                                        sql = @"
-                                            INSERT INTO outbound_queue (fact_id, graph_data) 
-                                            VALUES (@0, @1)
-                                        ";
-                                        conn.ExecuteNonQuery(sql, factId, graphData);
-                                    }
-
-                                    // For each predecessor of the inserted fact ...
-                                    foreach (var predecessor in envelope.Fact.Predecessors)
-                                    {
-                                        // Select or insert into Role table.  Gets a RoleId
-                                        sql = @"
-                                            SELECT role_id 
-                                            FROM role 
-                                            WHERE defining_fact_type_id = @0 AND name = @1
-                                        ";
-                                        var roleId = conn.ExecuteScalar(sql, factTypeId, predecessor.Role);
-                                        if (roleId == "")
-                                        {
-                                            sql = @"
-                                                INSERT OR IGNORE INTO role (defining_fact_type_id, name) 
-                                                VALUES (@0, @1)
-                                            ";
-                                            conn.ExecuteNonQuery(sql, factTypeId, predecessor.Role);
-                                            sql = @"
-                                                SELECT role_id 
-                                                FROM role 
-                                                WHERE defining_fact_type_id = @0 AND name = @1
-                                            ";
-                                            roleId = conn.ExecuteScalar(sql, factTypeId, predecessor.Role);
-                                        }
-
-                                        // Insert into Edge and Ancestor tables
-                                        string predecessorFactId;
-                                        switch (predecessor)
-                                        {
-                                            case PredecessorSingle s:
-                                                predecessorFactId = getFactId(conn, s.Reference);
-                                                InsertEdge(conn, roleId, factId, predecessorFactId);
-                                                InsertAncestors(conn, factId, predecessorFactId);
-                                                break;
-                                            case PredecessorMultiple m:
-                                                foreach (var predecessorMultipleReference in m.References)
-                                                {
-                                                    predecessorFactId = getFactId(conn, predecessorMultipleReference);
-                                                    InsertEdge(conn, roleId, factId, predecessorFactId);
-                                                    InsertAncestors(conn, factId, predecessorFactId);
-                                                }
-                                                break;
-                                            default:
-                                                break;
-                                        }
-                                    }
-                                }
-
-                                // The user saved the fact they asked for, whether or
-                                // not the store already had it, and every fact this
-                                // save added. The record outlives the queue row: the
-                                // queue reads it, and so can provenance.
-                                if (queue && savedBy != null &&
-                                    (factInserted || factReference.Equals(graph.Last)))
-                                {
-                                    var saverPublicKeyId = GetOrInsertPublicKeyId(conn, savedBy);
-                                    sql = @"
-                                        INSERT OR IGNORE INTO fact_saver (fact_id, public_key_id)
-                                        VALUES (@0, @1)
-                                    ";
-                                    conn.ExecuteNonQuery(sql, factId, saverPublicKeyId);
-                                }
-
-                                foreach (var signature in envelope.Signatures)
-                                {
-                                    // Select or insert into the public_key table.  Gets a public_key_id.
-                                    var publicKeyId = GetOrInsertPublicKeyId(conn, signature.PublicKey);
-
-                                    // Insert into the signature table if it doesn't already exist.
-                                    sql = @"
-                                        INSERT OR IGNORE INTO signature (fact_id, public_key_id, signature) 
-                                        VALUES (@0, @1, @2)
-                                    ";
-                                    conn.ExecuteNonQuery(sql, factId, publicKeyId, signature.Signature);
-                                }
-                                return factInserted;
-                            },
-                        true
-                    );
-
-                    // Append only once the transaction has committed. A rolled
-                    // back attempt is retried, so a list mutated inside the
-                    // callback would carry the fact once per attempt.
-                    if (inserted)
+                // One transaction for the whole graph, so a read on another
+                // connection sees either none of these facts or all of them.
+                // The list of added facts is built inside the transaction and
+                // returned from it, because a rolled back attempt is retried
+                // and a list appended to outside would carry a fact once per
+                // attempt.
+                var newFacts = connFactory.WithTxn(
+                    (conn, id) =>
                     {
-                        newFacts = newFacts.Add(envelope.Fact);
-                    }
-                }
+                        var inserted = ImmutableList<Fact>.Empty;
+                        foreach (var factReference in graph.FactReferences)
+                        {
+                            var envelope = graph.GetEnvelope(factReference);
+                            if (SaveFact(conn, graph, factReference, envelope, queue, savedBy))
+                            {
+                                inserted = inserted.Add(envelope.Fact);
+                            }
+                        }
+                        return inserted;
+                    },
+                    true
+                );
                 logger.LogInformation("SQLite saved {count} facts", newFacts.Count);
                 return Task.FromResult(newFacts);
             }
+        }
 
+        /// <summary>
+        /// Stores one fact of the graph on the transaction's connection, and
+        /// reports whether this call is the one that inserted it. The caller
+        /// owns the transaction, so every fact of the graph commits together.
+        /// </summary>
+        private bool SaveFact(Conn conn, FactGraph graph, FactReference factReference, FactEnvelope envelope, bool queue, string savedBy)
+        {
+            string sql;
+            bool factInserted = false;
+
+            // Refuse a fact whose predecessors are in neither the graph nor
+            // the store. The check shares the transaction with the write, so
+            // no other connection can remove a predecessor between them.
+            var missingPredecessors = FindMissingPredecessors(conn, envelope.Fact);
+            if (!missingPredecessors.IsEmpty)
+            {
+                throw new InvalidOperationException(
+                    $"Cannot save the fact {envelope.Fact.Reference} because it has predecessors that are in neither the graph nor the store: {string.Join(", ", missingPredecessors)}.");
+            }
+
+            // Select or insert into FactType table.  Gets a FactTypeId
+            sql = @"
+                SELECT fact_type_id 
+                FROM fact_type 
+                WHERE name = @0
+            ";
+            var factTypeId = conn.ExecuteScalar(sql, envelope.Fact.Reference.Type);
+            if (factTypeId == "")
+            {
+                sql = @"
+                    INSERT OR IGNORE INTO fact_type (name) 
+                    VALUES (@0)
+                ";
+                conn.ExecuteNonQuery(sql, envelope.Fact.Reference.Type);
+                sql = @"
+                    SELECT fact_type_id 
+                    FROM fact_type 
+                    WHERE name = @0
+                ";
+                factTypeId = conn.ExecuteScalar(sql, envelope.Fact.Reference.Type);
+            }
+
+            // Select or insert into Fact table.  Gets a FactId
+            sql = @"
+                SELECT fact_id FROM fact 
+                WHERE hash = @0 AND fact_type_id = @1
+            ";
+            var factId = conn.ExecuteScalar(sql, envelope.Fact.Reference.Hash, factTypeId);
+            if (factId == "")
+            {
+                factInserted = true;
+                string data = Fact.Canonicalize(envelope.Fact.Fields, envelope.Fact.Predecessors);
+                sql = @"
+                    INSERT OR IGNORE INTO fact (fact_type_id, hash, data) 
+                    VALUES (@0, @1, @2)
+                ";
+                conn.ExecuteNonQuery(sql, factTypeId, envelope.Fact.Reference.Hash, data);
+                sql = @"
+                    SELECT fact_id 
+                    FROM fact 
+                    WHERE hash = @0 AND fact_type_id = @1
+                ";
+                factId = conn.ExecuteScalar(sql, envelope.Fact.Reference.Hash, factTypeId);
+
+                // Insert into the outbound_queue table
+                if (queue)
+                {
+                    var graphToQueue = graph.GetSubgraph(factReference);
+                    string graphData = graphToQueue.ToJson();
+                    sql = @"
+                        INSERT INTO outbound_queue (fact_id, graph_data) 
+                        VALUES (@0, @1)
+                    ";
+                    conn.ExecuteNonQuery(sql, factId, graphData);
+                }
+
+                // For each predecessor of the inserted fact ...
+                foreach (var predecessor in envelope.Fact.Predecessors)
+                {
+                    // Select or insert into Role table.  Gets a RoleId
+                    sql = @"
+                        SELECT role_id 
+                        FROM role 
+                        WHERE defining_fact_type_id = @0 AND name = @1
+                    ";
+                    var roleId = conn.ExecuteScalar(sql, factTypeId, predecessor.Role);
+                    if (roleId == "")
+                    {
+                        sql = @"
+                            INSERT OR IGNORE INTO role (defining_fact_type_id, name) 
+                            VALUES (@0, @1)
+                        ";
+                        conn.ExecuteNonQuery(sql, factTypeId, predecessor.Role);
+                        sql = @"
+                            SELECT role_id 
+                            FROM role 
+                            WHERE defining_fact_type_id = @0 AND name = @1
+                        ";
+                        roleId = conn.ExecuteScalar(sql, factTypeId, predecessor.Role);
+                    }
+
+                    // Insert into Edge and Ancestor tables
+                    string predecessorFactId;
+                    switch (predecessor)
+                    {
+                        case PredecessorSingle s:
+                            predecessorFactId = getFactId(conn, s.Reference);
+                            InsertEdge(conn, roleId, factId, predecessorFactId);
+                            InsertAncestors(conn, factId, predecessorFactId);
+                            break;
+                        case PredecessorMultiple m:
+                            foreach (var predecessorMultipleReference in m.References)
+                            {
+                                predecessorFactId = getFactId(conn, predecessorMultipleReference);
+                                InsertEdge(conn, roleId, factId, predecessorFactId);
+                                InsertAncestors(conn, factId, predecessorFactId);
+                            }
+                            break;
+                        default:
+                            break;
+                    }
+                }
+            }
+
+            // The user saved the fact they asked for, whether or not the
+            // store already had it, and every fact this save added. The
+            // record outlives the queue row: the queue reads it, and so can
+            // provenance.
+            if (queue && savedBy != null &&
+                (factInserted || factReference.Equals(graph.Last)))
+            {
+                var saverPublicKeyId = GetOrInsertPublicKeyId(conn, savedBy);
+                sql = @"
+                    INSERT OR IGNORE INTO fact_saver (fact_id, public_key_id)
+                    VALUES (@0, @1)
+                ";
+                conn.ExecuteNonQuery(sql, factId, saverPublicKeyId);
+            }
+
+            foreach (var signature in envelope.Signatures)
+            {
+                // Select or insert into the public_key table.  Gets a public_key_id.
+                var publicKeyId = GetOrInsertPublicKeyId(conn, signature.PublicKey);
+
+                // Insert into the signature table if it doesn't already exist.
+                sql = @"
+                    INSERT OR IGNORE INTO signature (fact_id, public_key_id, signature) 
+                    VALUES (@0, @1, @2)
+                ";
+                conn.ExecuteNonQuery(sql, factId, publicKeyId, signature.Signature);
+            }
+            return factInserted;
         }
 
         /// <summary>
         /// Returns the predecessors of a fact that are not yet stored, which
         /// is empty when every predecessor resolves. Save stores a graph in
-        /// topological order, each fact in its own transaction, so by the
-        /// time it reaches a successor every predecessor that the graph
-        /// carries is already stored. One that is still absent is therefore
-        /// in neither the graph nor the store.
+        /// topological order within one transaction, so by the time it
+        /// reaches a successor every predecessor that the graph carries is
+        /// already stored. One that is still absent is therefore in neither
+        /// the graph nor the store.
         /// A predecessor that does not resolve has no fact ID, and the empty
         /// string that the lookup returns would go into
         /// edge.predecessor_fact_id and ancestor.ancestor_fact_id. SQLite's
@@ -582,37 +590,48 @@ namespace Jinaga.Store.SQLite
 
         Task<ImmutableList<Product>> IStore.Read(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
         {
-            var factTypes = LoadFactTypesFromSpecification(specification);
-            var factTypeMap = factTypes.Select(factType => KeyValuePair.Create(factType.name, factType.fact_type_id)).ToImmutableDictionary();
-            
-            var roles = LoadRolesFromSpecification(specification, factTypes);
-            var roleMap = roles
-                .GroupBy(
-                    role => role.defining_fact_type_id, 
-                    role => KeyValuePair.Create(role.name, role.role_id)
-                )
-                .Select(
-                    pair => KeyValuePair.Create(pair.Key, pair.ToImmutableDictionary())
-                )
-                .ToImmutableDictionary();                                    
-
-            var descriptionBuilder = new ResultDescriptionBuilder(factTypeMap, roleMap);
-            
-            var description = descriptionBuilder.Build(givenTuple, specification);
-
-            if (!description.QueryDescription.IsSatisfiable())
-            {
-                return Task.FromResult(ImmutableList<Product>.Empty);
-            }
-            var sqlQueryTree = SqlGenerator.CreateSqlQueryTree(description);
-
-            ResultSetTree resultSets = connFactory.WithConn(
+            // One deferred transaction for the whole read. SQLite takes the
+            // read snapshot at the first statement and holds it until the
+            // transaction ends, so the fact type and role lookups, the root
+            // query and every child query all see the same committed state.
+            // A specification the current schema cannot satisfy returns a
+            // null query tree rather than running one.
+            (SqlQueryTree sqlQueryTree, ResultSetTree resultSets) = connFactory.WithTxn<(SqlQueryTree, ResultSetTree)>(
                     (conn, id) =>
                     {
-                        return ExecuteQueryTree(sqlQueryTree, conn);
+                        var factTypes = LoadFactTypes(conn);
+                        var factTypeMap = factTypes.Select(factType => KeyValuePair.Create(factType.name, factType.fact_type_id)).ToImmutableDictionary();
+
+                        var roles = LoadRoles(conn);
+                        var roleMap = roles
+                            .GroupBy(
+                                role => role.defining_fact_type_id,
+                                role => KeyValuePair.Create(role.name, role.role_id)
+                            )
+                            .Select(
+                                pair => KeyValuePair.Create(pair.Key, pair.ToImmutableDictionary())
+                            )
+                            .ToImmutableDictionary();
+
+                        var descriptionBuilder = new ResultDescriptionBuilder(factTypeMap, roleMap);
+
+                        var description = descriptionBuilder.Build(givenTuple, specification);
+
+                        if (!description.QueryDescription.IsSatisfiable())
+                        {
+                            return (null, null);
+                        }
+
+                        var queryTree = SqlGenerator.CreateSqlQueryTree(description);
+                        return (queryTree, ExecuteQueryTree(queryTree, conn));
                     },
                     true   //exponential backoff
             );
+
+            if (sqlQueryTree == null)
+            {
+                return Task.FromResult(ImmutableList<Product>.Empty);
+            }
 
             var givenProduct = Product.Empty;
             foreach (var given in specification.Givens)
@@ -675,38 +694,50 @@ namespace Jinaga.Store.SQLite
 
         private IEnumerable<FactTypeFromDb> LoadFactTypesFromSpecification(Specification specification)
         {
-            //TODO: Now we load all factTypes from the DB.  Optimize by caching, and by adding only the factTypes used in the specification
-            var factTypeResult = connFactory.WithConn(
-                    (conn, id) =>
-                    {
-                        string sql;
-                        sql = $@"
-                            SELECT fact_type_id , name 
-                            FROM fact_type
-                        ";
-                        return conn.ExecuteQuery<FactTypeFromDb>(sql);
-                    },
+            return connFactory.WithConn(
+                    (conn, id) => LoadFactTypes(conn),
                     true   //exponential backoff
                 );
-            return factTypeResult;
+        }
+
+        /// <summary>
+        /// Reads the fact types on the caller's connection, so a caller that
+        /// holds a transaction reads them in the same snapshot as the query
+        /// that uses them.
+        /// </summary>
+        private static IEnumerable<FactTypeFromDb> LoadFactTypes(Conn conn)
+        {
+            //TODO: Now we load all factTypes from the DB.  Optimize by caching, and by adding only the factTypes used in the specification
+            string sql;
+            sql = $@"
+                SELECT fact_type_id , name 
+                FROM fact_type
+            ";
+            return conn.ExecuteQuery<FactTypeFromDb>(sql);
         }
 
         private IEnumerable<RoleFromDb> LoadRolesFromSpecification(Specification specification, object factTypes)
         {
-            //TODO: Now we load all roles from the DB.  Optimize by caching, and by adding only the roles used in the specification
-            var rolesResult = connFactory.WithConn(
-                    (conn, id) =>
-                    {
-                        string sql;
-                        sql = $@"
-                            SELECT role_id, defining_fact_type_id, name
-                            FROM role                                             
-                        ";
-                        return conn.ExecuteQuery<RoleFromDb>(sql);
-                    },
+            return connFactory.WithConn(
+                    (conn, id) => LoadRoles(conn),
                     true   //exponential backoff
                 );
-            return rolesResult;
+        }
+
+        /// <summary>
+        /// Reads the roles on the caller's connection, so a caller that holds
+        /// a transaction reads them in the same snapshot as the query that
+        /// uses them.
+        /// </summary>
+        private static IEnumerable<RoleFromDb> LoadRoles(Conn conn)
+        {
+            //TODO: Now we load all roles from the DB.  Optimize by caching, and by adding only the roles used in the specification
+            string sql;
+            sql = $@"
+                SELECT role_id, defining_fact_type_id, name
+                FROM role                                             
+            ";
+            return conn.ExecuteQuery<RoleFromDb>(sql);
         }
 
         private IEnumerable<FactTypeFromDb> LoadFactTypesFromReferences(ImmutableList<FactReference> references)
