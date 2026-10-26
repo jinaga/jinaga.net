@@ -29,6 +29,12 @@ public class CandidateRecheckCostTest
     private const int ManyRows = 1000;
 
     /// <summary>
+    /// Saves of the given's type that are not the given. Enough of them that a read per save
+    /// is a cost nobody could mistake for noise.
+    /// </summary>
+    private const int UnrelatedGivens = 200;
+
+    /// <summary>
     /// The accounts of a tenant that have a mirror nobody has retired. A one-level
     /// specification, so the rows the watch holds are exactly the successors of the given
     /// that a forward walk would enumerate.
@@ -70,6 +76,33 @@ public class CandidateRecheckCostTest
         many.Rows.Count.Should().Be(ManyRows + 1);
 
         few.Observer.Stop();
+        many.Observer.Stop();
+    }
+
+    [Fact]
+    public async Task Save_AFactOfTheGivensTypeThatIsNotTheGiven_ReadsNothing()
+    {
+        var store = new CountingReadStore(new MemoryStore());
+        var factManager = CreateFactManager(store);
+
+        var pending = await GivenATenantHolding(factManager, "many", ManyRows);
+        var many = await StartWatch(factManager, pending.Tenant, ManyRows);
+
+        // A row reached only by walking a given exists already when that given is saved, so
+        // the observer reads the whole specification when its own given arrives. Which fact
+        // arrived is a question about references, and answering it with a read charges every
+        // fact of the given's type for the one that matters.
+        var readsBefore = store.Reads;
+        var rowsBefore = store.RowsRead;
+        for (int index = 0; index < UnrelatedGivens; index++)
+        {
+            await Save(factManager, new Tenant($"unrelated-{index}"));
+        }
+
+        (store.Reads - readsBefore).Should().Be(0);
+        (store.RowsRead - rowsBefore).Should().Be(0);
+        many.Rows.Count.Should().Be(ManyRows);
+
         many.Observer.Stop();
     }
 
@@ -165,6 +198,7 @@ public class CandidateRecheckCostTest
     {
         private readonly IStore inner;
         private int rowsRead;
+        private int reads;
 
         public CountingReadStore(IStore inner)
         {
@@ -173,8 +207,15 @@ public class CandidateRecheckCostTest
 
         public int RowsRead => rowsRead;
 
+        /// <summary>
+        /// The reads themselves, which a read that answers with nothing still costs. Rows
+        /// alone cannot tell a read that was never issued from one that came back empty.
+        /// </summary>
+        public int Reads => reads;
+
         public async Task<ImmutableList<Product>> Read(FactReferenceTuple givenTuple, Projections.Specification specification, CancellationToken cancellationToken)
         {
+            Interlocked.Increment(ref reads);
             var products = await inner.Read(givenTuple, specification, cancellationToken);
             Interlocked.Add(ref rowsRead, products.Count);
             return products;

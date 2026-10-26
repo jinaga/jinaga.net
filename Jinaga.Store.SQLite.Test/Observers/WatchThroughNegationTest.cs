@@ -212,6 +212,271 @@ public class WatchThroughNegationTest
         }
     }
 
+    /// <summary>
+    /// The chores of a tenant that no completion names, in either of a completion's two
+    /// roles. The two conditions are siblings, so one fact can falsify both.
+    /// </summary>
+    private static readonly Specification<Tenant, Chore> ChoresNotDone =
+        Given<Tenant>.Match((tenant, facts) =>
+            from chore in facts.OfType<Chore>()
+            where chore.tenant == tenant
+            where !facts.Any<ChoreDone>(done => done.chore == chore)
+            where !facts.Any<ChoreDone>(done => done.witness == chore)
+            select chore
+        );
+
+    /// <summary>
+    /// The chores of a tenant that no block holds up, where a block is held up in turn by an
+    /// override, and an override counts only once a reason exists for it. Three levels of
+    /// condition, so the innermost one becoming true adds the row.
+    /// </summary>
+    private static readonly Specification<Tenant, Chore> ChoresNotBlocked =
+        Given<Tenant>.Match((tenant, facts) =>
+            from chore in facts.OfType<Chore>()
+            where chore.tenant == tenant
+            where !facts.Any<Block>(block =>
+                block.chore == chore &&
+                !facts.Any<Override>(reversal =>
+                    reversal.block == block &&
+                    facts.Any<Reason>(reason => reason.reversal == reversal)))
+            select chore
+        );
+
+    /// <summary>
+    /// The messages of a channel that a user has not read. Its first given is joined only
+    /// from inside the negated condition, so deciding a candidate pins an unknown whose
+    /// conditions reach a given the outer query never joins.
+    /// </summary>
+    private static readonly Specification<User, Channel, Message> UnreadMessages =
+        Given<User, Channel>.Match((user, channel, facts) =>
+            from message in facts.OfType<Message>()
+            where message.channel == channel
+            where !facts.Any<Read>(read => read.message == message && read.user == user)
+            select message
+        );
+
+    /// <summary>
+    /// The accounts of a tenant, each with the mirrors nobody has retired. The collection is
+    /// a specification of its own, decided by a read with the parent and the child both
+    /// pinned.
+    /// </summary>
+    private static readonly Specification<Tenant, AccountWithMirrors> AccountsWithTheirCurrentMirrors =
+        Given<Tenant>.Match((tenant, facts) =>
+            from account in facts.OfType<Account>()
+            where account.tenant == tenant
+            select new AccountWithMirrors(
+                account,
+                facts.Observable(
+                    from mirror in facts.OfType<Mirror>()
+                    where mirror.account == account &&
+                        !facts.Any<MirrorRetired>(retired => retired.mirror == mirror)
+                    select mirror)
+            )
+        );
+
+    private record AccountWithMirrors(Account Account, IObservableCollection<Mirror> Mirrors);
+
+    [Fact]
+    public async Task Watch_OneCompletionFalsifyingTwoSiblingConditions_RemovesTheChoreOnce()
+    {
+        var j = GivenJinagaClient();
+        var tenant = await j.Fact(new Tenant("contoso"));
+        var chore = await j.Fact(new Chore(tenant, "sweep"));
+
+        var observed = new ObservedChores();
+        var watch = observed.Watch(j, ChoresNotDone, tenant);
+
+        try
+        {
+            await watch.Loaded;
+            observed.AddedCalls.Should().Be(1);
+
+            await j.Fact(new ChoreDone(chore, chore));
+
+            observed.Chores.Should().BeEmpty();
+            observed.AddedCalls.Should().Be(1);
+            observed.RemovalCalls.Should().Be(1);
+            (await j.Query(ChoresNotDone, tenant)).Should().BeEmpty();
+        }
+        finally
+        {
+            watch.Stop();
+        }
+    }
+
+    [Fact]
+    public async Task Watch_TheInnermostConditionBecomingTrue_AddsTheChore()
+    {
+        var j = GivenJinagaClient();
+        var tenant = await j.Fact(new Tenant("contoso"));
+        await j.Fact(new Chore(tenant, "sweep"));
+        var block = await j.Fact(new Block(new Chore(tenant, "sweep")));
+        var reversal = await j.Fact(new Override(block));
+
+        var observed = new ObservedChores();
+        var watch = observed.Watch(j, ChoresNotBlocked, tenant);
+
+        try
+        {
+            await watch.Loaded;
+            // The override has no reason yet, so it does not count and the block still holds.
+            observed.Chores.Should().BeEmpty();
+
+            await j.Fact(new Reason(reversal));
+
+            observed.Chores.Should().ContainSingle()
+                .Which.description.Should().Be("sweep");
+            observed.AddedCalls.Should().Be(1);
+            (await j.Query(ChoresNotBlocked, tenant)).Should().ContainSingle();
+        }
+        finally
+        {
+            watch.Stop();
+        }
+    }
+
+    [Fact]
+    public async Task Watch_WithAGivenJoinedOnlyInsideTheCondition_LoadsAndRemovesWhatIsRead()
+    {
+        var j = GivenJinagaClient();
+        var user = await j.Fact(new User("---FAKE READER---"));
+        var channel = await j.Fact(new Channel("general"));
+        var message = await j.Fact(new Message(channel, "Where is everybody?"));
+
+        var messages = new List<Message>();
+        var removals = 0;
+        var watch = j.Watch(UnreadMessages, user, channel, projection =>
+        {
+            lock (messages)
+            {
+                messages.Add(projection);
+            }
+            return () =>
+            {
+                lock (messages)
+                {
+                    messages.Remove(projection);
+                }
+                Interlocked.Increment(ref removals);
+            };
+        });
+
+        try
+        {
+            await watch.Loaded;
+            lock (messages)
+            {
+                messages.Should().ContainSingle();
+            }
+
+            await j.Fact(new Read(message, user));
+
+            lock (messages)
+            {
+                messages.Should().BeEmpty();
+            }
+            removals.Should().Be(1);
+            (await j.Query(UnreadMessages, user, channel)).Should().BeEmpty();
+        }
+        finally
+        {
+            watch.Stop();
+        }
+    }
+
+    [Fact]
+    public async Task Watch_RetiringAMirrorOfAChildCollection_RemovesTheChild()
+    {
+        var j = GivenJinagaClient();
+        var tenant = await j.Fact(new Tenant("contoso"));
+        var account = await j.Fact(new Account(tenant, "alice"));
+        var mirror = await j.Fact(new Mirror(account, "east"));
+
+        var hosts = new List<string>();
+        var removals = 0;
+        var watch = j.Watch(AccountsWithTheirCurrentMirrors, tenant, projection =>
+        {
+            projection.Mirrors.OnAdded(child =>
+            {
+                lock (hosts)
+                {
+                    hosts.Add(child.host);
+                }
+                return () =>
+                {
+                    lock (hosts)
+                    {
+                        hosts.Remove(child.host);
+                    }
+                    Interlocked.Increment(ref removals);
+                };
+            });
+        });
+
+        try
+        {
+            await watch.Loaded;
+            lock (hosts)
+            {
+                hosts.Should().ContainSingle().Which.Should().Be("east");
+            }
+
+            await j.Fact(new MirrorRetired(mirror));
+
+            lock (hosts)
+            {
+                hosts.Should().BeEmpty();
+            }
+            removals.Should().Be(1);
+        }
+        finally
+        {
+            watch.Stop();
+        }
+    }
+
+    /// <summary>The chores one watch holds, for a specification the test chooses.</summary>
+    private class ObservedChores
+    {
+        private readonly List<Chore> chores = new List<Chore>();
+        private int addedCalls;
+        private int removalCalls;
+
+        public int AddedCalls => addedCalls;
+        public int RemovalCalls => removalCalls;
+
+        public IEnumerable<Chore> Chores
+        {
+            get
+            {
+                lock (chores)
+                {
+                    return chores.ToArray();
+                }
+            }
+        }
+
+        public IObserver Watch(JinagaClient j, Specification<Tenant, Chore> specification, Tenant tenant)
+        {
+            return j.Watch(specification, tenant, chore =>
+            {
+                Interlocked.Increment(ref addedCalls);
+                lock (chores)
+                {
+                    chores.Add(chore);
+                }
+                return () =>
+                {
+                    Interlocked.Increment(ref removalCalls);
+                    lock (chores)
+                    {
+                        chores.Remove(chore);
+                    }
+                };
+            });
+        }
+    }
+
     private JinagaClient GivenJinagaClient()
     {
         var options = new JinagaClientOptions();

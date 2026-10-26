@@ -469,10 +469,13 @@ public class QueryGeneratorTests
         );
         SqlQueryTree sqlQueryTree = specification.ToSql();
 
+        // The user is joined inside the EXISTS and nowhere else, so its type and hash are
+        // constrained there and it is not selected. Naming it in the outer select and the
+        // outer where clause, as this expectation once did, produces SQL that SQLite
+        // refuses with "no such column: f5.hash".
         sqlQueryTree.SqlQuery.Sql.Should().Be(
             "SELECT " +
                 "f1.hash as hash1, f1.fact_id as id1, f1.data as data1, " +  // company
-                "f5.hash as hash5, f5.fact_id as id5, f5.data as data5, " +  // user
                 "f3.hash as hash3, f3.fact_id as id3, f3.data as data3 " +   // project
             "FROM fact f1 " +  // company
             "JOIN edge e1 " +  // department->company
@@ -485,7 +488,7 @@ public class QueryGeneratorTests
                 "AND e2.role_id = ?4 " +
             "JOIN fact f3 " +  // project
                 "ON f3.fact_id = e2.successor_fact_id " +
-            "WHERE f1.fact_type_id = ?1 AND f1.hash = ?2 AND f5.fact_type_id = ?6 AND f5.hash = ?7 " +
+            "WHERE f1.fact_type_id = ?1 AND f1.hash = ?2 " +
             "AND EXISTS (" +
                 "SELECT 1 " +
                 "FROM edge e3 " +  // assignment->project
@@ -497,7 +500,8 @@ public class QueryGeneratorTests
                 "JOIN fact f5 " +  // user
                     "ON f5.fact_id = e4.predecessor_fact_id " +
                 "WHERE e3.predecessor_fact_id = f3.fact_id " +
-                "AND e3.role_id = ?5" +
+                "AND e3.role_id = ?5 " +
+                "AND f5.fact_type_id = ?6 AND f5.hash = ?7" +
             ") " +
             "ORDER BY f3.fact_id ASC"
         );

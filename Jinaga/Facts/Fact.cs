@@ -17,6 +17,23 @@ namespace Jinaga.Facts
             return new Fact(reference, fields, predecessors);
         }
 
+        /// <summary>
+        /// A fact that carries the reference it is given rather than one computed from its
+        /// contents.
+        /// </summary>
+        /// <remarks>
+        /// Content addressing is how a fact gets its reference, and nothing a caller saves
+        /// escapes it. A conformance vector does: its graph names a predecessor that
+        /// addressing cannot reach, because the fact arrives later or the graph holds a
+        /// cycle, and the vector states the references itself. A test that places such a
+        /// graph needs facts carrying those references, which is the only reason this
+        /// exists.
+        /// </remarks>
+        internal static Fact CreateByReference(FactReference reference, ImmutableList<Field> fields, ImmutableList<Predecessor> predecessors)
+        {
+            return new Fact(reference, fields, predecessors);
+        }
+
         private Fact(FactReference reference, ImmutableList<Field> fields, ImmutableList<Predecessor> predecessors)
         {
             Reference = reference;

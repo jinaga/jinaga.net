@@ -29,6 +29,8 @@ namespace Jinaga.Observers
 
         private ImmutableList<SpecificationListener> listeners =
             ImmutableList<SpecificationListener>.Empty;
+        private ImmutableList<FactListener> givenListeners =
+            ImmutableList<FactListener>.Empty;
         private ImmutableList<AddedHandler> addedHandlers =
             ImmutableList<AddedHandler>.Empty;
         private ImmutableDictionary<FactReferenceTuple, RowState> rowStates =
@@ -170,6 +172,10 @@ namespace Jinaga.Observers
             {
                 factManager.RemoveInverseListener(listener);
             }
+            foreach (var givenListener in givenListeners)
+            {
+                factManager.RemoveFactListener(givenListener);
+            }
             cancelInitialize.Dispose();
             factManager.Unsubscribe(feeds);
             feeds = ImmutableList<string>.Empty;
@@ -191,7 +197,10 @@ namespace Jinaga.Observers
                 var givenSubset = GivenSubset();
                 var resultSubset = ResultSubsetAt("");
 
-                await SynchronizeNotifyAdded(results, givenSubset, resultSubset, specification.Projection).ConfigureAwait(false);
+                // The initial read's result set was computed before any removal that
+                // reaches one of its rows while the read is in flight, so such a removal
+                // withdraws the delivery below.
+                await SynchronizeNotifyAdded(results, givenSubset, resultSubset, specification.Projection, withdrawable: true).ConfigureAwait(false);
             }
             finally
             {
@@ -257,16 +266,23 @@ namespace Jinaga.Observers
                             await OnCandidates(flattened, products, cancellationToken).ConfigureAwait(false)));
                 }
             }
-            foreach (var given in specification.Givens)
+            // One listener per given, keyed by the given's own reference rather than by its
+            // type. The question a saved fact of a given's type raises is whether it is
+            // this given, and that is answered by reference before anything is read: a
+            // listener keyed by the type would read the whole specification for every such
+            // fact and discard all but the rows of the one that matched.
+            var givenListeners = ImmutableList<FactListener>.Empty;
+            foreach (var reference in specification.Givens
+                .Select(given => givenTuple.Get(given.Label.Name))
+                .Distinct())
             {
-                var name = given.Label.Name;
-                listeners = listeners.Add(factManager.AddInverseListener(
-                    SelfInverse(given),
-                    givenTuple,
-                    async (ImmutableList<Product> products, CancellationToken cancellationToken) =>
-                        await OnGivenSaved(name, products, cancellationToken).ConfigureAwait(false)));
+                givenListeners = givenListeners.Add(factManager.AddFactListener(
+                    reference,
+                    async (CancellationToken cancellationToken) =>
+                        await OnGivenSaved(cancellationToken).ConfigureAwait(false)));
             }
             this.listeners = listeners;
+            this.givenListeners = givenListeners;
         }
 
         /// <summary>
@@ -356,38 +372,12 @@ namespace Jinaga.Observers
                 var projection = flattened.Projection;
                 var results = await factManager.ComputeProjections(
                     projection, rows, projection.Type, this, flattened.Path, cancellationToken).ConfigureAwait(false);
+                // The re-check has just decided this row present, which outranks a
+                // withdrawal recorded before it: this is a new add, not the delivery a
+                // removal cancels.
                 await SynchronizeNotifyAdded(
-                    results, flattened.ParentSubset, flattened.ResultSubset, projection).ConfigureAwait(false);
+                    results, flattened.ParentSubset, flattened.ResultSubset, projection, withdrawable: false).ConfigureAwait(false);
             }
-        }
-
-        /// <summary>
-        /// The specification itself, with the pin label appended as a given its matches never
-        /// read. Reading it reports this observer's own rows, and the pinned fact rides along
-        /// in each one so that <see cref="OnGivenSaved"/> can see which fact was saved.
-        /// </summary>
-        /// <remarks>
-        /// A row reachable only by walking a given -- its predecessors, or facts joined
-        /// through one of them -- already exists when the given is saved, so no candidate
-        /// inverse ever runs for it: a candidate inverse is pinned on an unknown, and the
-        /// givens are not unknowns. This is what <c>Inverter.CreateSelfInverse</c> answered,
-        /// and it could be registered only for a specification of exactly one given carrying
-        /// no conditions, because the listener it used was keyed by that single given's type.
-        /// One listener per given is subject to neither limit.
-        ///
-        /// The pin is left unread rather than compared to the given inside the specification.
-        /// An equality between two bound labels is a path condition with no roles on either
-        /// side, which adds no edge: the SQLite store builds a query with no joins from it and
-        /// cannot render one, and the comparison belongs in the observer anyway.
-        /// </remarks>
-        private Specification SelfInverse(SpecificationGiven given)
-        {
-            return new Specification(
-                specification.Givens.Add(new SpecificationGiven(
-                    new Label(InverseCandidates.PinLabel, given.Label.Type),
-                    ImmutableList<ExistentialCondition>.Empty)),
-                specification.Matches,
-                specification.Projection);
         }
 
         /// <summary>
@@ -397,26 +387,20 @@ namespace Jinaga.Observers
         /// the whole specification.
         /// </summary>
         /// <remarks>
-        /// The listener fires for every saved fact of the given's type, and the read binds
-        /// this observer's own givens either way, so the rows are this observer's whatever
-        /// was saved. What the pin says is whether the fact saved was this given at all.
+        /// A row reachable only by walking a given -- its predecessors, or facts joined
+        /// through one of them -- already exists when the given is saved, so no candidate
+        /// inverse ever runs for it: a candidate inverse is pinned on an unknown, and the
+        /// givens are not unknowns. This is what <c>Inverter.CreateSelfInverse</c> answered,
+        /// and it could be registered only for a specification of exactly one given carrying
+        /// no conditions, because the listener it used was keyed by that single given's type.
+        /// One listener per given reference is subject to neither limit, and it reads only
+        /// when the fact saved is a given of this observer's own.
         /// </remarks>
-        private async Task OnGivenSaved(string givenName, ImmutableList<Product> products, CancellationToken cancellationToken)
+        private async Task OnGivenSaved(CancellationToken cancellationToken)
         {
-            if (products.IsEmpty ||
-                !products[0].GetFactReference(InverseCandidates.PinLabel)
-                    .Equals(givenTuple.Get(givenName)))
-            {
-                // A fact of this given's type that is not this given. Where the read found no
-                // row at all there is nothing to add, and the save of a given cannot remove
-                // one: a row of a specification is reached by walking its givens, so a given
-                // that was not there held no rows.
-                return;
-            }
-
             var projection = specification.Projection;
-            var results = await factManager.ComputeProjections(
-                projection, products, projection.Type, this, "", cancellationToken).ConfigureAwait(false);
+            var results = await factManager.Read(
+                givenTuple, specification, projection.Type, this, cancellationToken).ConfigureAwait(false);
             var present = RowsOf(results);
             ImmutableList<FactReferenceTuple> absent;
             lock (this)
@@ -430,7 +414,7 @@ namespace Jinaga.Observers
                 await SynchronizeNotifyRemovedRow(row).ConfigureAwait(false);
             }
             await SynchronizeNotifyAdded(
-                results, GivenSubset(), ResultSubsetAt(""), projection).ConfigureAwait(false);
+                results, GivenSubset(), ResultSubsetAt(""), projection, withdrawable: false).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -454,9 +438,18 @@ namespace Jinaga.Observers
             return rows;
         }
 
-        private async Task SynchronizeNotifyAdded(ImmutableList<ProjectedResult> results, Subset parentSubset, Subset resultSubset, Projection projection)
+        /// <param name="withdrawable">
+        /// Whether these results were computed before a removal could have reached their
+        /// rows, which is what <see cref="RowRemovedBeforeDelivery"/> withdraws. True for
+        /// the initial read's result set and for the collections of a row whose delivery is
+        /// in progress. False for a candidate the re-check has just decided present, and
+        /// for a read taken because a given was saved: either is newer than any removal
+        /// recorded before it, so it is a new add rather than the delivery a removal
+        /// cancels.
+        /// </param>
+        private async Task SynchronizeNotifyAdded(ImmutableList<ProjectedResult> results, Subset parentSubset, Subset resultSubset, Projection projection, bool withdrawable)
         {
-            await SynchronizeOperaton(() => NotifyAdded(results, parentSubset, resultSubset, projection)).ConfigureAwait(false);
+            await SynchronizeOperaton(() => NotifyAdded(results, parentSubset, resultSubset, projection, withdrawable)).ConfigureAwait(false);
         }
 
         private async Task SynchronizeNotifyRemovedRow(FactReferenceTuple resultTuple)
@@ -489,7 +482,7 @@ namespace Jinaga.Observers
             }
         }
 
-        private async Task NotifyAdded(ImmutableList<ProjectedResult> results, Subset parentSubset, Subset resultSubset, Projection projection)
+        private async Task NotifyAdded(ImmutableList<ProjectedResult> results, Subset parentSubset, Subset resultSubset, Projection projection, bool withdrawable)
         {
             foreach (var result in results)
             {
@@ -504,7 +497,7 @@ namespace Jinaga.Observers
                 BeginDelivering(resultTuple);
                 try
                 {
-                    await NotifyAddedRow(result, resultTuple, parentSubset, resultSubset, projection).ConfigureAwait(false);
+                    await NotifyAddedRow(result, resultTuple, parentSubset, resultSubset, projection, withdrawable).ConfigureAwait(false);
                 }
                 finally
                 {
@@ -513,7 +506,7 @@ namespace Jinaga.Observers
             }
         }
 
-        private async Task NotifyAddedRow(ProjectedResult result, FactReferenceTuple resultTuple, Subset parentSubset, Subset resultSubset, Projection projection)
+        private async Task NotifyAddedRow(ProjectedResult result, FactReferenceTuple resultTuple, Subset parentSubset, Subset resultSubset, Projection projection, bool withdrawable)
         {
             var parentTuple = parentSubset.Of(result.Product);
             var matchingAddedHandlers = addedHandlers
@@ -523,7 +516,7 @@ namespace Jinaga.Observers
                 var resultAdded = addedHandler.Added;
                 // Don't call result added if the row already has a state: either
                 // its handler is running or it has already been delivered.
-                if (!ClaimRow(resultTuple))
+                if (!ClaimRow(resultTuple, withdrawable))
                 {
                     continue;
                 }
@@ -574,7 +567,10 @@ namespace Jinaga.Observers
                     // that the collection's own matches bind, exactly as the inverter
                     // derives the subset of a nested path.
                     var collectionSubset = Inverter.AddUnknowns(resultSubset, collectionProjection.Matches);
-                    await NotifyAdded(collection.Results, resultSubset, collectionSubset, collectionProjection.Projection).ConfigureAwait(false);
+                    // This row's delivery is in progress, so the rows of its collections
+                    // come out of the projection computed when it was decided. A removal
+                    // that reached one of them since then withdraws that delivery.
+                    await NotifyAdded(collection.Results, resultSubset, collectionSubset, collectionProjection.Projection, withdrawable: true).ConfigureAwait(false);
                 }
             }
         }
@@ -639,12 +635,19 @@ namespace Jinaga.Observers
         /// is not called.
         ///
         /// A row whose removal arrived before it was ever delivered is the one
-        /// state that is consumed here rather than left alone: this delivery is
-        /// the one the removal cancels, so the handler is not called and the state
-        /// goes with it. What follows for that row is a new add, not the delivery
-        /// that was cancelled.
+        /// state that is consumed here rather than left alone. Whether it cancels
+        /// this delivery depends on which delivery this is.
         /// </summary>
-        private bool ClaimRow(FactReferenceTuple resultTuple)
+        /// <param name="withdrawable">
+        /// Whether this delivery comes out of a result computed before the removal was
+        /// recorded. A withdrawal cancels only such a delivery, and is consumed either
+        /// way: a delivery the re-check has just decided is newer than the removal, so the
+        /// row is added and the withdrawal falls away with it. Consuming a withdrawal
+        /// without delivering anything is what loses a row the store holds -- the watch
+        /// never shows it while a query returns it -- and a row decided absent and never
+        /// held is routine rather than rare.
+        /// </param>
+        private bool ClaimRow(FactReferenceTuple resultTuple, bool withdrawable)
         {
             lock (this)
             {
@@ -652,6 +655,12 @@ namespace Jinaga.Observers
                 {
                     if (state is RowRemovedBeforeDelivery)
                     {
+                        if (!withdrawable)
+                        {
+                            rowStates = rowStates.SetItem(
+                                resultTuple, new RowInFlight(removalRequested: false));
+                            return true;
+                        }
                         rowStates = rowStates.Remove(resultTuple);
                     }
                     return false;

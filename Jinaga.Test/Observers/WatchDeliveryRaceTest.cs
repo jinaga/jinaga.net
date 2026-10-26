@@ -211,8 +211,21 @@ public class WatchDeliveryRaceTest
         watch.Stop();
     }
 
+    /// <summary>
+    /// Repeated, because the interval it guards opens and closes on the timing of a handler
+    /// the test holds. One passing run says little; the same run twenty times over says the
+    /// delivery does not depend on which side of the handler the restoration lands on.
+    /// </summary>
     [Fact]
     public async Task Watch_ChildRestoredWhileItsParentsHandlerIsHeld_DeliversTheChildOnce()
+    {
+        for (int run = 0; run < 20; run++)
+        {
+            await ChildRestoredWhileItsParentsHandlerIsHeld(run);
+        }
+    }
+
+    private static async Task ChildRestoredWhileItsParentsHandlerIsHeld(int run)
     {
         var j = JinagaTest.Create();
         var tenant = await j.Fact(new Tenant("contoso"));
@@ -232,11 +245,89 @@ public class WatchDeliveryRaceTest
         observed.OpenGate();
         await activation;
 
-        observed.Hosts.Should().Equal("east");
-        observed.AddedCalls.Should().Be(1);
+        observed.Hosts.Should().Equal(new[] { "east" }, $"run {run} should hold the restored mirror");
+        observed.AddedCalls.Should().Be(1, $"run {run} should deliver it once");
         (await j.Query(CurrentMirrorsOfAccount, account)).Should().ContainSingle();
 
         watch.Stop();
+    }
+
+    /// <summary>
+    /// A row the re-check decides absent and then decides present again, both while the
+    /// initial read is held open by another row's handler.
+    ///
+    /// The first decision records a withdrawal against a delivery the initial read will
+    /// never make, because the row was not in its result set. The second decision is newer
+    /// than that withdrawal, so it is a new add. A withdrawal consumed by whichever add
+    /// comes next, fresh or stale, loses the row outright: the watch never shows it while a
+    /// query returns it. Rows the re-check decides absent and never held are routine, so
+    /// nothing about this is a corner case.
+    /// </summary>
+    [Fact]
+    public async Task Watch_ARowDecidedAbsentThenPresentDuringTheInitialRead_HoldsTheRow()
+    {
+        var j = JinagaTest.Create();
+        var tenant = await j.Fact(new Tenant("contoso"));
+        var held = await j.Fact(new Account(tenant, "held"));
+        await j.Fact(new Mirror(held, "east"));
+        var other = await j.Fact(new Account(tenant, "other"));
+
+        var accounts = new List<Account>();
+        var heldHandlerEntered = new TaskCompletionSource<bool>();
+        var release = new TaskCompletionSource<bool>();
+
+        var watch = j.Watch(AccountsWithACurrentMirror, tenant, async (Account account) =>
+        {
+            if (account.identifier == "held")
+            {
+                heldHandlerEntered.TrySetResult(true);
+                await release.Task;
+            }
+            lock (accounts)
+            {
+                accounts.Add(account);
+            }
+            Func<Task> removal = () =>
+            {
+                lock (accounts)
+                {
+                    accounts.Remove(account);
+                }
+                return Task.CompletedTask;
+            };
+            return removal;
+        });
+
+        try
+        {
+            await heldHandlerEntered.Task;
+
+            // One batch carries a mirror for the other account and that mirror's own
+            // retirement, so the re-check decides the row absent.
+            await j.Fact(new MirrorRetired(new Mirror(other, "west")));
+            lock (accounts)
+            {
+                accounts.Should().BeEmpty();
+            }
+
+            // A second, current mirror makes the same row present again.
+            await j.Fact(new Mirror(other, "south"));
+
+            release.TrySetResult(true);
+            await watch.Loaded;
+
+            lock (accounts)
+            {
+                accounts.Select(account => account.identifier)
+                    .Should().BeEquivalentTo(new[] { "held", "other" });
+            }
+            (await j.Query(AccountsWithACurrentMirror, tenant)).Should().HaveCount(2);
+        }
+        finally
+        {
+            release.TrySetResult(true);
+            watch.Stop();
+        }
     }
 
     /// <summary>
