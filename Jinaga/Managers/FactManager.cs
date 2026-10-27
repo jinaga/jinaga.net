@@ -396,6 +396,16 @@ namespace Jinaga.Managers
             observableSource.RemoveSpecificationListener(listener);
         }
 
+        public SpecificationListener AddInverseListener(Specification inverse, FactReferenceTuple givens, Func<ImmutableList<Product>, CancellationToken, Task> onResult)
+        {
+            return observableSource.AddInverseListener(inverse, givens, onResult);
+        }
+
+        public void RemoveInverseListener(SpecificationListener listener)
+        {
+            observableSource.RemoveInverseListener(listener);
+        }
+
         public Task<DateTime?> GetMruDate(string specificationHash)
         {
             return store.GetMruDate(specificationHash);
