@@ -38,21 +38,21 @@ namespace Jinaga.Observers
         protected ImmutableList<string> feeds = ImmutableList<string>.Empty;
 
         /// <summary>
-        /// True while the initial read is in flight, meaning from before the
-        /// listeners are registered until the rows of that read have been
-        /// delivered. Only in that interval can a removal arrive for a row the
-        /// observer is about to deliver from a result set computed before it.
+        /// The number of the most recent read. Every read that decides rows -- the initial
+        /// read, a candidate's re-check, and the read taken when a given is saved -- takes the
+        /// next number before it touches the store, so a higher number is a read that began
+        /// later.
         /// </summary>
-        private bool initialReadInFlight;
+        private long lastRead;
 
         /// <summary>
-        /// The rows whose delivery is in progress: from before a row's added handler runs
-        /// until the collections of its projection have been delivered. A child decided
-        /// within that interval is pending delivery out of a projection computed before it,
-        /// which is what <see cref="RowRemovedBeforeDelivery"/> withdraws.
+        /// The reads whose rows are still being delivered: from before each read touches the
+        /// store until every row of its result, at every depth, has been delivered. A removal
+        /// decided while an older read is pending is recorded as
+        /// <see cref="RowRemovedBeforeDelivery"/>, so that the older read cannot deliver the
+        /// row again.
         /// </summary>
-        private ImmutableList<FactReferenceTuple> deliveringRows =
-            ImmutableList<FactReferenceTuple>.Empty;
+        private ImmutableList<long> pendingReads = ImmutableList<long>.Empty;
 
         internal ObserverLocal(Specification specification, FactReferenceTuple givenTuple, FactManager factManager, Func<object, Task<Func<Task>>> onAdded, ILoggerFactory loggerFactory)
         {
@@ -189,7 +189,9 @@ namespace Jinaga.Observers
             // never shows it. Coming first, the listener delivers it. A fact that
             // lands in both the result set and a notification is still delivered
             // once, because ClaimRow refuses the second of the two.
-            BeginInitialRead();
+            // The read is numbered before the listeners are registered, so every
+            // decision a listener makes from here on comes from a later read.
+            var read = BeginRead();
             try
             {
                 AddSpecificationListeners();
@@ -197,49 +199,62 @@ namespace Jinaga.Observers
                 var givenSubset = GivenSubset();
                 var resultSubset = ResultSubsetAt("");
 
-                // The initial read's result set was computed before any removal that
-                // reaches one of its rows while the read is in flight, so such a removal
-                // withdraws the delivery below.
-                await SynchronizeNotifyAdded(results, givenSubset, resultSubset, specification.Projection, withdrawable: true).ConfigureAwait(false);
+                await SynchronizeNotifyAdded(results, givenSubset, resultSubset, specification.Projection, read).ConfigureAwait(false);
             }
             finally
             {
-                EndInitialRead();
+                EndRead(read);
             }
         }
 
         /// <summary>
-        /// Opens the interval in which a removal can reach a row that the initial
-        /// read is about to deliver. <see cref="NotifyRemoved"/> records such a
-        /// removal as <see cref="RowRemovedBeforeDelivery"/>, and only within this
-        /// interval: outside it a row with no state has nothing pending, and
-        /// recording one would cancel that row's next legitimate add.
+        /// Numbers a read that is about to decide rows, and marks it pending until
+        /// <see cref="EndRead"/>. Call before the read touches the store.
         /// </summary>
-        private void BeginInitialRead()
+        private long BeginRead()
         {
             lock (this)
             {
-                initialReadInFlight = true;
+                var read = ++lastRead;
+                pendingReads = pendingReads.Add(read);
+                return read;
             }
         }
 
         /// <summary>
-        /// Closes that interval. A row still carrying
-        /// <see cref="RowRemovedBeforeDelivery"/> is one the read never delivered,
-        /// so the state has no delivery left to cancel. Drop it, because from here
-        /// on it would cancel a later add of that row instead.
+        /// Marks a read's rows delivered, and drops the withdrawals that no pending read is
+        /// old enough to need. A withdrawal cancels only a delivery from a read that began
+        /// before the removal was decided, and once no such read is pending, it would cancel
+        /// nothing but a later legitimate add.
         /// </summary>
-        private void EndInitialRead()
+        private void EndRead(long read)
         {
             lock (this)
             {
-                initialReadInFlight = false;
+                pendingReads = pendingReads.Remove(read);
+                // A withdrawal is kept while a read older than it is pending, so only the
+                // end of the oldest pending read can release any.
+                if (IsOlderReadPending(read))
+                {
+                    return;
+                }
                 var undelivered = rowStates
-                    .Where(pair => pair.Value is RowRemovedBeforeDelivery)
+                    .Where(pair =>
+                        pair.Value is RowRemovedBeforeDelivery withdrawn &&
+                        !IsOlderReadPending(withdrawn.Read))
                     .Select(pair => pair.Key)
                     .ToImmutableList();
                 rowStates = rowStates.RemoveRange(undelivered);
             }
+        }
+
+        /// <summary>
+        /// Whether a read that began before this one is still delivering rows. Call while
+        /// holding the lock.
+        /// </summary>
+        private bool IsOlderReadPending(long read)
+        {
+            return pendingReads.Any(pending => pending < read);
         }
 
         /// <summary>
@@ -360,23 +375,28 @@ namespace Jinaga.Observers
         /// </summary>
         private async Task DecideCandidate(FlatSpecification flattened, FactReferenceTuple candidate, CancellationToken cancellationToken)
         {
-            var (pinned, pinnedGivens) = CandidateRecheck.Pin(
-                flattened.Specification, givenTuple, candidate);
-            var rows = await factManager.QueryLocal(pinnedGivens, pinned, cancellationToken).ConfigureAwait(false);
-            if (rows.IsEmpty)
+            var read = BeginRead();
+            try
             {
-                await SynchronizeNotifyRemovedRow(candidate).ConfigureAwait(false);
+                var (pinned, pinnedGivens) = CandidateRecheck.Pin(
+                    flattened.Specification, givenTuple, candidate);
+                var rows = await factManager.QueryLocal(pinnedGivens, pinned, cancellationToken).ConfigureAwait(false);
+                if (rows.IsEmpty)
+                {
+                    await SynchronizeNotifyRemovedRow(candidate, read).ConfigureAwait(false);
+                }
+                else
+                {
+                    var projection = flattened.Projection;
+                    var results = await factManager.ComputeProjections(
+                        projection, rows, projection.Type, this, flattened.Path, cancellationToken).ConfigureAwait(false);
+                    await SynchronizeNotifyAdded(
+                        results, flattened.ParentSubset, flattened.ResultSubset, projection, read).ConfigureAwait(false);
+                }
             }
-            else
+            finally
             {
-                var projection = flattened.Projection;
-                var results = await factManager.ComputeProjections(
-                    projection, rows, projection.Type, this, flattened.Path, cancellationToken).ConfigureAwait(false);
-                // The re-check has just decided this row present, which outranks a
-                // withdrawal recorded before it: this is a new add, not the delivery a
-                // removal cancels.
-                await SynchronizeNotifyAdded(
-                    results, flattened.ParentSubset, flattened.ResultSubset, projection, withdrawable: false).ConfigureAwait(false);
+                EndRead(read);
             }
         }
 
@@ -398,23 +418,31 @@ namespace Jinaga.Observers
         /// </remarks>
         private async Task OnGivenSaved(CancellationToken cancellationToken)
         {
-            var projection = specification.Projection;
-            var results = await factManager.Read(
-                givenTuple, specification, projection.Type, this, cancellationToken).ConfigureAwait(false);
-            var present = RowsOf(results);
-            ImmutableList<FactReferenceTuple> absent;
-            lock (this)
+            var read = BeginRead();
+            try
             {
-                absent = rowStates.Keys
-                    .Where(row => !present.Contains(row))
-                    .ToImmutableList();
+                var projection = specification.Projection;
+                var results = await factManager.Read(
+                    givenTuple, specification, projection.Type, this, cancellationToken).ConfigureAwait(false);
+                var present = RowsOf(results);
+                ImmutableList<FactReferenceTuple> absent;
+                lock (this)
+                {
+                    absent = rowStates.Keys
+                        .Where(row => !present.Contains(row))
+                        .ToImmutableList();
+                }
+                foreach (var row in absent)
+                {
+                    await SynchronizeNotifyRemovedRow(row, read).ConfigureAwait(false);
+                }
+                await SynchronizeNotifyAdded(
+                    results, GivenSubset(), ResultSubsetAt(""), projection, read).ConfigureAwait(false);
             }
-            foreach (var row in absent)
+            finally
             {
-                await SynchronizeNotifyRemovedRow(row).ConfigureAwait(false);
+                EndRead(read);
             }
-            await SynchronizeNotifyAdded(
-                results, GivenSubset(), ResultSubsetAt(""), projection, withdrawable: false).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -438,23 +466,19 @@ namespace Jinaga.Observers
             return rows;
         }
 
-        /// <param name="withdrawable">
-        /// Whether these results were computed before a removal could have reached their
-        /// rows, which is what <see cref="RowRemovedBeforeDelivery"/> withdraws. True for
-        /// the initial read's result set and for the collections of a row whose delivery is
-        /// in progress. False for a candidate the re-check has just decided present, and
-        /// for a read taken because a given was saved: either is newer than any removal
-        /// recorded before it, so it is a new add rather than the delivery a removal
-        /// cancels.
+        /// <param name="read">
+        /// The read these results came from, at every depth of their projection. A removal
+        /// decided by a later read withdraws their delivery; one decided by an earlier read
+        /// does not.
         /// </param>
-        private async Task SynchronizeNotifyAdded(ImmutableList<ProjectedResult> results, Subset parentSubset, Subset resultSubset, Projection projection, bool withdrawable)
+        private async Task SynchronizeNotifyAdded(ImmutableList<ProjectedResult> results, Subset parentSubset, Subset resultSubset, Projection projection, long read)
         {
-            await SynchronizeOperaton(() => NotifyAdded(results, parentSubset, resultSubset, projection, withdrawable)).ConfigureAwait(false);
+            await SynchronizeOperaton(() => NotifyAdded(results, parentSubset, resultSubset, projection, read)).ConfigureAwait(false);
         }
 
-        private async Task SynchronizeNotifyRemovedRow(FactReferenceTuple resultTuple)
+        private async Task SynchronizeNotifyRemovedRow(FactReferenceTuple resultTuple, long read)
         {
-            await SynchronizeOperaton(() => NotifyRemovedRow(resultTuple)).ConfigureAwait(false);
+            await SynchronizeOperaton(() => NotifyRemovedRow(resultTuple, read)).ConfigureAwait(false);
         }
 
         private async Task SynchronizeOperaton(Func<Task> operation)
@@ -482,7 +506,7 @@ namespace Jinaga.Observers
             }
         }
 
-        private async Task NotifyAdded(ImmutableList<ProjectedResult> results, Subset parentSubset, Subset resultSubset, Projection projection, bool withdrawable)
+        private async Task NotifyAdded(ImmutableList<ProjectedResult> results, Subset parentSubset, Subset resultSubset, Projection projection, long read)
         {
             foreach (var result in results)
             {
@@ -490,23 +514,11 @@ namespace Jinaga.Observers
                 // subset. An inverse may bind more labels than that, such as the witness
                 // of an existential condition, and those do not identify the row.
                 var resultTuple = resultSubset.Of(result.Product);
-
-                // Hold the row's delivery open across its handler and its collections, so
-                // that a removal decided for one of its children in that interval can
-                // withdraw the delivery the recursion below would otherwise make.
-                BeginDelivering(resultTuple);
-                try
-                {
-                    await NotifyAddedRow(result, resultTuple, parentSubset, resultSubset, projection, withdrawable).ConfigureAwait(false);
-                }
-                finally
-                {
-                    EndDelivering(resultTuple);
-                }
+                await NotifyAddedRow(result, resultTuple, parentSubset, resultSubset, projection, read).ConfigureAwait(false);
             }
         }
 
-        private async Task NotifyAddedRow(ProjectedResult result, FactReferenceTuple resultTuple, Subset parentSubset, Subset resultSubset, Projection projection, bool withdrawable)
+        private async Task NotifyAddedRow(ProjectedResult result, FactReferenceTuple resultTuple, Subset parentSubset, Subset resultSubset, Projection projection, long read)
         {
             var parentTuple = parentSubset.Of(result.Product);
             var matchingAddedHandlers = addedHandlers
@@ -516,7 +528,7 @@ namespace Jinaga.Observers
                 var resultAdded = addedHandler.Added;
                 // Don't call result added if the row already has a state: either
                 // its handler is running or it has already been delivered.
-                if (!ClaimRow(resultTuple, withdrawable))
+                if (!ClaimRow(resultTuple, read))
                 {
                     continue;
                 }
@@ -548,7 +560,7 @@ namespace Jinaga.Observers
                     continue;
                 }
 
-                await SettleRow(resultTuple, removal).ConfigureAwait(false);
+                await SettleRow(resultTuple, removal, read).ConfigureAwait(false);
             }
 
             // Recursively notify added for specification results.
@@ -567,65 +579,12 @@ namespace Jinaga.Observers
                     // that the collection's own matches bind, exactly as the inverter
                     // derives the subset of a nested path.
                     var collectionSubset = Inverter.AddUnknowns(resultSubset, collectionProjection.Matches);
-                    // This row's delivery is in progress, so the rows of its collections
-                    // come out of the projection computed when it was decided. A removal
-                    // that reached one of them since then withdraws that delivery.
-                    await NotifyAdded(collection.Results, resultSubset, collectionSubset, collectionProjection.Projection, withdrawable: true).ConfigureAwait(false);
+                    // The rows of the collections come out of the same read as this row, so
+                    // a removal decided for one of them since that read began withdraws
+                    // its delivery, however long this row's handler took.
+                    await NotifyAdded(collection.Results, resultSubset, collectionSubset, collectionProjection.Projection, read).ConfigureAwait(false);
                 }
             }
-        }
-
-        /// <summary>
-        /// Opens the interval in which the rows nested within this one are pending
-        /// delivery: from before its added handler runs until the collections of its
-        /// projection have been delivered.
-        ///
-        /// A child's own handler exists only once this row's handler has registered it, so
-        /// a removal decided for a child in that interval finds no row state. The recursion
-        /// would then deliver that child out of the projection computed when this row was
-        /// decided, and the watch would keep a row the store no longer holds.
-        /// <see cref="NotifyRemovedRow"/> records it as
-        /// <see cref="RowRemovedBeforeDelivery"/> instead, which withdraws that one
-        /// delivery, at every depth and whenever the row was added.
-        /// </summary>
-        private void BeginDelivering(FactReferenceTuple resultTuple)
-        {
-            lock (this)
-            {
-                deliveringRows = deliveringRows.Add(resultTuple);
-            }
-        }
-
-        /// <summary>
-        /// Closes that interval, and drops the withdrawals that found nothing to withdraw.
-        /// A nested row still carrying <see cref="RowRemovedBeforeDelivery"/> was never in
-        /// this row's projection, so it has no delivery left to cancel, and from here on
-        /// that state would cancel its next legitimate add instead.
-        /// </summary>
-        private void EndDelivering(FactReferenceTuple resultTuple)
-        {
-            lock (this)
-            {
-                deliveringRows = deliveringRows.Remove(resultTuple);
-                var undelivered = rowStates
-                    .Where(pair =>
-                        pair.Value is RowRemovedBeforeDelivery &&
-                        !pair.Key.Equals(resultTuple) &&
-                        AnchorIsWithinRow(pair.Key, resultTuple))
-                    .Select(pair => pair.Key)
-                    .ToImmutableList();
-                rowStates = rowStates.RemoveRange(undelivered);
-            }
-        }
-
-        /// <summary>
-        /// Whether a row whose delivery is in progress will deliver this row, out of the
-        /// projection computed when that row was decided. Call while holding the lock.
-        /// </summary>
-        private bool HasDeliveringAncestor(FactReferenceTuple resultTuple)
-        {
-            return deliveringRows.Any(row =>
-                !row.Equals(resultTuple) && AnchorIsWithinRow(resultTuple, row));
         }
 
         /// <summary>
@@ -634,40 +593,43 @@ namespace Jinaga.Observers
         /// belongs to another notification, so this returns false and the handler
         /// is not called.
         ///
-        /// A row whose removal arrived before it was ever delivered is the one
-        /// state that is consumed here rather than left alone. Whether it cancels
-        /// this delivery depends on which delivery this is.
+        /// Whichever read decided a row last is the one that counts. A removal
+        /// decided by a later read than this one cancels this delivery: the row was
+        /// gone by the time this read's result is being delivered. A removal decided
+        /// by an earlier read does not, because this read found the row present
+        /// since, and dropping that add is what loses a row the store holds -- the
+        /// watch never shows it while a query returns it. For the same reason, this
+        /// read overrides an earlier read's removal still waiting on a running
+        /// handler, and a held row remembers this read so that an earlier read's
+        /// removal arriving late leaves it alone.
         /// </summary>
-        /// <param name="withdrawable">
-        /// Whether this delivery comes out of a result computed before the removal was
-        /// recorded. A withdrawal cancels only such a delivery, and is consumed either
-        /// way: a delivery the re-check has just decided is newer than the removal, so the
-        /// row is added and the withdrawal falls away with it. Consuming a withdrawal
-        /// without delivering anything is what loses a row the store holds -- the watch
-        /// never shows it while a query returns it -- and a row decided absent and never
-        /// held is routine rather than rare.
-        /// </param>
-        private bool ClaimRow(FactReferenceTuple resultTuple, bool withdrawable)
+        private bool ClaimRow(FactReferenceTuple resultTuple, long read)
         {
             lock (this)
             {
-                if (rowStates.TryGetValue(resultTuple, out var state))
+                if (!rowStates.TryGetValue(resultTuple, out var state))
                 {
-                    if (state is RowRemovedBeforeDelivery)
-                    {
-                        if (!withdrawable)
-                        {
-                            rowStates = rowStates.SetItem(
-                                resultTuple, new RowInFlight(removalRequested: false));
-                            return true;
-                        }
-                        rowStates = rowStates.Remove(resultTuple);
-                    }
-                    return false;
+                    rowStates = rowStates.Add(resultTuple, new RowInFlight(read, removalRead: null));
+                    return true;
                 }
 
-                rowStates = rowStates.Add(resultTuple, new RowInFlight(removalRequested: false));
-                return true;
+                switch (state)
+                {
+                    case RowRemovedBeforeDelivery withdrawn when withdrawn.Read < read:
+                        rowStates = rowStates.SetItem(resultTuple, new RowInFlight(read, removalRead: null));
+                        return true;
+                    case RowInFlight inFlight when inFlight.RemovalRead < read:
+                        rowStates = rowStates.SetItem(resultTuple, new RowInFlight(read, removalRead: null));
+                        return false;
+                    case RowInFlight inFlight when inFlight.Read < read:
+                        rowStates = rowStates.SetItem(resultTuple, new RowInFlight(read, inFlight.RemovalRead));
+                        return false;
+                    case RowDelivered delivered when delivered.Read < read:
+                        rowStates = rowStates.SetItem(resultTuple, new RowDelivered(read, delivered.Removal));
+                        return false;
+                    default:
+                        return false;
+                }
             }
         }
 
@@ -679,22 +641,27 @@ namespace Jinaga.Observers
         /// in-flight row and honored here instead: the function is called once and
         /// the row does not enter the observed state.
         /// </summary>
-        private async Task SettleRow(FactReferenceTuple resultTuple, Func<Task> removal)
+        private async Task SettleRow(FactReferenceTuple resultTuple, Func<Task> removal, long read)
         {
-            bool removalRequested;
+            bool removalRequested = false;
             lock (this)
             {
-                removalRequested =
-                    rowStates.TryGetValue(resultTuple, out var state) &&
-                    state is RowInFlight inFlight &&
-                    inFlight.RemovalRequested;
-                if (removalRequested)
+                if (rowStates.TryGetValue(resultTuple, out var state) &&
+                    state is RowInFlight inFlight)
                 {
-                    RetireRow(resultTuple);
+                    if (inFlight.RemovalRead is long removalRead)
+                    {
+                        removalRequested = true;
+                        RetireRow(resultTuple, removalRead);
+                    }
+                    else
+                    {
+                        rowStates = rowStates.SetItem(resultTuple, new RowDelivered(inFlight.Read, removal));
+                    }
                 }
                 else
                 {
-                    rowStates = rowStates.SetItem(resultTuple, new RowDelivered(removal));
+                    rowStates = rowStates.SetItem(resultTuple, new RowDelivered(read, removal));
                 }
             }
             if (removalRequested)
@@ -712,10 +679,16 @@ namespace Jinaga.Observers
         /// has no reason to expect its collections to keep receiving facts, so drop
         /// the handlers the row registered, and those of every row nested beneath
         /// it, whose anchors extend this row's tuple.
+        ///
+        /// A read older than the removal may still be delivering this row, out of a
+        /// result computed while it was present. The row keeps a withdrawal in that
+        /// case, so that delivery does not bring it back.
         /// </summary>
-        private void RetireRow(FactReferenceTuple resultTuple)
+        private void RetireRow(FactReferenceTuple resultTuple, long read)
         {
-            rowStates = rowStates.Remove(resultTuple);
+            rowStates = IsOlderReadPending(read)
+                ? rowStates.SetItem(resultTuple, new RowRemovedBeforeDelivery(read))
+                : rowStates.Remove(resultTuple);
             addedHandlers = addedHandlers
                 .Where(handler => !AnchorIsWithinRow(handler.Anchor, resultTuple))
                 .ToImmutableList();
@@ -740,7 +713,7 @@ namespace Jinaga.Observers
             return true;
         }
 
-        private async Task NotifyRemovedRow(FactReferenceTuple resultTuple)
+        private async Task NotifyRemovedRow(FactReferenceTuple resultTuple, long read)
         {
             // Retire the row before awaiting its removal function. That function
             // is the caller's, so it may yield, and anything the observer does
@@ -752,15 +725,15 @@ namespace Jinaga.Observers
             {
                 if (rowStates.TryGetValue(resultTuple, out var state))
                 {
-                    if (state is RowDelivered delivered)
+                    if (state is RowDelivered delivered && delivered.Read <= read)
                     {
                         // The row is delivered, so its removal function is known.
                         // Dropping the row here also means a later product that
                         // satisfies the specification again is not a duplicate.
                         removal = delivered.Removal;
-                        RetireRow(resultTuple);
+                        RetireRow(resultTuple, read);
                     }
-                    else if (state is RowInFlight)
+                    else if (state is RowInFlight inFlight && inFlight.Read <= read)
                     {
                         // The added handler has not returned a removal function
                         // yet. Record the request against the in-flight row so
@@ -768,28 +741,33 @@ namespace Jinaga.Observers
                         // interval finds the request already recorded, so the
                         // function is still called exactly once.
                         rowStates = rowStates.SetItem(
-                            resultTuple, new RowInFlight(removalRequested: true));
+                            resultTuple, new RowInFlight(inFlight.Read, removalRead: read));
                     }
-                    // A row already cancelled before delivery stays cancelled.
-                    // A second removal in that interval has no handler to wait
-                    // for and no function to call.
+                    else if (state is RowRemovedBeforeDelivery withdrawn && withdrawn.Read < read)
+                    {
+                        // A row already withdrawn stays withdrawn, and the later
+                        // removal withdraws it from every read older than itself.
+                        rowStates = rowStates.SetItem(
+                            resultTuple, new RowRemovedBeforeDelivery(read));
+                    }
                 }
-                else if (initialReadInFlight || HasDeliveringAncestor(resultTuple))
+                else if (IsOlderReadPending(read))
                 {
-                    // The row may yet be delivered out of a result set computed
-                    // before this removal: the initial read is still in flight,
-                    // or a row this one is nested within is being delivered and
-                    // its collections have not been reached. Remember the removal
-                    // against the row, and ClaimRow cancels that one delivery
-                    // when it arrives.
+                    // The row may yet be delivered by a read that began before
+                    // this removal: the initial read, or the read that decided a
+                    // row this one is nested within, whose collections have not
+                    // been reached. Remember the removal against the row, and
+                    // ClaimRow cancels that delivery when it arrives.
                     rowStates = rowStates.Add(
-                        resultTuple, new RowRemovedBeforeDelivery());
+                        resultTuple, new RowRemovedBeforeDelivery(read));
                 }
-                // Outside that interval a row with no state was never notified,
-                // so there is nothing to remove and nothing to remember.
-                // Recording a removal here would cancel the row's next
-                // legitimate add, which a second removal of an already retired
-                // row would otherwise do.
+                // A held row that a later read found present is left alone: this
+                // removal is older than that decision.
+                //
+                // With no older read pending, a row with no state was never
+                // notified and nothing is about to notify it, so there is
+                // nothing to remove and nothing to remember. Recording a
+                // removal here would cancel the row's next legitimate add.
             }
             if (removal != null)
             {
@@ -833,10 +811,11 @@ namespace Jinaga.Observers
         /// call when the row is removed. A row the observer has not notified has
         /// no state, which is the absence of an entry rather than a further case.
         ///
-        /// The third state belongs to a row the observer has not notified and is
-        /// about to: a removal reached it while the initial read was in flight.
-        /// That state means something only in that interval, so it is recorded
-        /// only while the read is in flight and dropped when the read ends.
+        /// The third state belongs to a row that is not held but that a pending read
+        /// may still deliver: a removal reached it while a read older than the
+        /// removal was in flight. That state means something only while such a read
+        /// is pending, so it is recorded only then and dropped when the last of them
+        /// ends.
         /// </summary>
         private abstract class RowState
         {
@@ -850,12 +829,20 @@ namespace Jinaga.Observers
         /// </summary>
         private sealed class RowInFlight : RowState
         {
-            internal RowInFlight(bool removalRequested)
+            internal RowInFlight(long read, long? removalRead)
             {
-                RemovalRequested = removalRequested;
+                Read = read;
+                RemovalRead = removalRead;
             }
 
-            internal bool RemovalRequested { get; }
+            /// <summary>The latest read that decided the row present.</summary>
+            internal long Read { get; }
+
+            /// <summary>
+            /// The read that decided a removal while the handler was running, or null
+            /// when no removal is waiting for it.
+            /// </summary>
+            internal long? RemovalRead { get; }
         }
 
         /// <summary>
@@ -864,24 +851,34 @@ namespace Jinaga.Observers
         /// </summary>
         private sealed class RowDelivered : RowState
         {
-            internal RowDelivered(Func<Task> removal)
+            internal RowDelivered(long read, Func<Task> removal)
             {
+                Read = read;
                 Removal = removal;
             }
+
+            /// <summary>The latest read that decided the row present.</summary>
+            internal long Read { get; }
 
             internal Func<Task> Removal { get; }
         }
 
         /// <summary>
-        /// A removal arrived for this row while the initial read was in flight and
-        /// before the row had been delivered, so there was no added handler to
-        /// wait for and no removal function to call. The read may still deliver
-        /// the row out of a result set computed before the removal, and ClaimRow
-        /// cancels that one delivery rather than calling the handler for a row
-        /// that is already gone.
+        /// The row was removed while a read that began before the removal was still
+        /// delivering rows: either it was never delivered, or it was delivered and
+        /// then retired. That older read may still deliver the row out of a result
+        /// computed while it was present, and ClaimRow cancels such a delivery
+        /// rather than calling the handler for a row that is already gone.
         /// </summary>
         private sealed class RowRemovedBeforeDelivery : RowState
         {
+            internal RowRemovedBeforeDelivery(long read)
+            {
+                Read = read;
+            }
+
+            /// <summary>The read that decided the removal.</summary>
+            internal long Read { get; }
         }
     }
 }

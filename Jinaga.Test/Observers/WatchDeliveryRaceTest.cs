@@ -59,7 +59,30 @@ public class WatchDeliveryRaceTest
             select mirror
         );
 
+    /// <summary>
+    /// The accounts of a tenant that have a current mirror, each with its current mirrors.
+    /// A second mirror re-decides the account while it is already held, so the account can be
+    /// delivered by a listener while an older result that holds it is still pending.
+    /// </summary>
+    private static readonly Specification<Tenant, AccountWithMirrors> AccountsWithTheirCurrentMirrors =
+        Given<Tenant>.Match((tenant, facts) =>
+            from account in facts.OfType<Account>()
+            where account.tenant == tenant
+            where facts.Any<Mirror>(mirror =>
+                mirror.account == account &&
+                !facts.Any<MirrorRetired>(retired => retired.mirror == mirror))
+            select new AccountWithMirrors(
+                account,
+                facts.Observable(
+                    from mirror in facts.OfType<Mirror>()
+                    where mirror.account == account
+                    where !facts.Any<MirrorRetired>(retired => retired.mirror == mirror)
+                    select mirror))
+        );
+
     private record ActivatedAccount(Account Account, IObservableCollection<Mirror> Mirrors);
+
+    private record AccountWithMirrors(Account Account, IObservableCollection<Mirror> Mirrors);
 
     [Fact]
     public async Task Watch_AHandlerThatNeverReturnsDuringTheInitialRead_StillDeliversAndRemovesAnotherRow()
@@ -327,6 +350,289 @@ public class WatchDeliveryRaceTest
         {
             release.TrySetResult(true);
             watch.Stop();
+        }
+    }
+
+    /// <summary>
+    /// A row in the initial read's result set, delivered by a listener and then removed, all
+    /// while the initial read is held open by another row's handler.
+    ///
+    /// The removal reaches a row that is held, so it calls the removal function and retires
+    /// the row. The initial read still owes that row a delivery out of a result computed
+    /// before the removal, and that delivery must not bring it back.
+    /// </summary>
+    [Fact]
+    public async Task Watch_ARowDeliveredThenRemovedDuringTheInitialRead_StaysRemoved()
+    {
+        var j = JinagaTest.Create();
+        var tenant = await j.Fact(new Tenant("contoso"));
+        var held = await j.Fact(new Account(tenant, "held"));
+        await j.Fact(new Mirror(held, "east"));
+        var other = await j.Fact(new Account(tenant, "other"));
+        var first = await j.Fact(new Mirror(other, "west"));
+
+        var accounts = new List<Account>();
+        var heldHandlerEntered = new TaskCompletionSource<bool>();
+        var release = new TaskCompletionSource<bool>();
+
+        var watch = j.Watch(AccountsWithACurrentMirror, tenant, async (Account account) =>
+        {
+            if (account.identifier == "held")
+            {
+                heldHandlerEntered.TrySetResult(true);
+                await release.Task;
+            }
+            lock (accounts)
+            {
+                accounts.Add(account);
+            }
+            Func<Task> removal = () =>
+            {
+                lock (accounts)
+                {
+                    accounts.Remove(account);
+                }
+                return Task.CompletedTask;
+            };
+            return removal;
+        });
+
+        try
+        {
+            await heldHandlerEntered.Task;
+            lock (accounts)
+            {
+                // The initial read reached the held row first, so it still owes the other.
+                accounts.Should().BeEmpty();
+            }
+
+            // A second mirror re-decides the other account, which delivers it now.
+            var second = await j.Fact(new Mirror(other, "south"));
+            lock (accounts)
+            {
+                accounts.Select(account => account.identifier).Should().Equal("other");
+            }
+
+            // Retiring both mirrors removes it.
+            await j.Fact(new MirrorRetired(first));
+            await j.Fact(new MirrorRetired(second));
+            lock (accounts)
+            {
+                accounts.Should().BeEmpty();
+            }
+
+            release.TrySetResult(true);
+            await watch.Loaded;
+
+            lock (accounts)
+            {
+                accounts.Select(account => account.identifier).Should().Equal("held");
+            }
+            (await j.Query(AccountsWithACurrentMirror, tenant)).Should().ContainSingle();
+        }
+        finally
+        {
+            release.TrySetResult(true);
+            watch.Stop();
+        }
+    }
+
+    /// <summary>
+    /// The same interval one level down. A parent in the initial read's result set is
+    /// delivered by a listener along with its children, and one child is then removed. When
+    /// the initial read reaches the parent it finds it held, and the children of its older
+    /// projection must not bring back the one that was removed.
+    /// </summary>
+    [Fact]
+    public async Task Watch_AChildDeliveredThenRemovedDuringTheInitialRead_StaysRemoved()
+    {
+        var j = JinagaTest.Create();
+        var tenant = await j.Fact(new Tenant("contoso"));
+        var held = await j.Fact(new Account(tenant, "held"));
+        await j.Fact(new Mirror(held, "north"));
+        var alice = await j.Fact(new Account(tenant, "alice"));
+        var east = await j.Fact(new Mirror(alice, "east"));
+
+        var observed = new GatedAccounts();
+        observed.Gate("held");
+        var watch = j.Watch(AccountsWithTheirCurrentMirrors, tenant, (AccountWithMirrors row) =>
+            observed.Added(row.Account, row.Mirrors));
+
+        try
+        {
+            await observed.Entered("held");
+            observed.Hosts.Should().BeEmpty();
+
+            // A second mirror re-decides alice, which delivers her and both mirrors now.
+            await j.Fact(new Mirror(alice, "west"));
+            observed.Hosts.Should().BeEquivalentTo(new[] { "east", "west" });
+
+            // Retiring one mirror removes that child. Alice stays, through the other.
+            await j.Fact(new MirrorRetired(east));
+            observed.Hosts.Should().BeEquivalentTo(new[] { "west" });
+
+            observed.Release("held");
+            await watch.Loaded;
+
+            observed.Hosts.Should().BeEquivalentTo(new[] { "north", "west" });
+            observed.ChildAddedCalls.Should().Be(observed.ChildRemovalCalls + 2);
+        }
+        finally
+        {
+            observed.ReleaseAll();
+            watch.Stop();
+        }
+    }
+
+    /// <summary>
+    /// A child removed while its parent's handler is held, with the initial read ending in
+    /// that interval. The parent was added by a listener, so its delivery is not the initial
+    /// read's, and the end of the initial read must not drop the withdrawal that delivery
+    /// still needs.
+    /// </summary>
+    [Fact]
+    public async Task Watch_TheInitialReadEndingWhileAParentIsHeld_StillWithdrawsItsRemovedChild()
+    {
+        var j = JinagaTest.Create();
+        var tenant = await j.Fact(new Tenant("contoso"));
+        var held = await j.Fact(new Account(tenant, "held"));
+        await j.Fact(new Activated(held));
+        var alice = await j.Fact(new Account(tenant, "alice"));
+        var east = await j.Fact(new Mirror(alice, "east"));
+
+        var observed = new GatedAccounts();
+        observed.Gate("held");
+        observed.Gate("alice");
+        var watch = j.Watch(ActivatedAccountsWithTheirCurrentMirrors, tenant, (ActivatedAccount row) =>
+            observed.Added(row.Account, row.Mirrors));
+
+        try
+        {
+            await observed.Entered("held");
+
+            // Activating alice adds her through a listener. Her handler registers the child
+            // collection's handler and then blocks, so east is pending delivery out of the
+            // projection computed just now.
+            var activation = j.Fact(new Activated(alice));
+            await observed.Entered("alice");
+
+            await j.Fact(new MirrorRetired(east));
+
+            // The initial read ends while alice's delivery is still in progress.
+            observed.Release("held");
+            await watch.Loaded;
+
+            observed.Release("alice");
+            await activation;
+
+            observed.Hosts.Should().BeEmpty();
+            observed.ChildAddedCalls.Should().Be(0);
+            (await j.Query(CurrentMirrorsOfAccount, alice)).Should().BeEmpty();
+        }
+        finally
+        {
+            observed.ReleaseAll();
+            watch.Stop();
+        }
+    }
+
+    /// <summary>
+    /// A watch of accounts and their mirrors whose handler holds, for each account the test
+    /// gates, until the test releases that account. Each parent registers its child handler
+    /// before it holds.
+    /// </summary>
+    private class GatedAccounts
+    {
+        private readonly Dictionary<string, TaskCompletionSource<bool>> entered = new();
+        private readonly Dictionary<string, TaskCompletionSource<bool>> gates = new();
+        private readonly List<string> hosts = new List<string>();
+        private int childAddedCalls;
+        private int childRemovalCalls;
+
+        public int ChildAddedCalls => Volatile.Read(ref childAddedCalls);
+        public int ChildRemovalCalls => Volatile.Read(ref childRemovalCalls);
+
+        public IEnumerable<string> Hosts
+        {
+            get
+            {
+                lock (hosts)
+                {
+                    return hosts.ToArray();
+                }
+            }
+        }
+
+        public void Gate(string identifier)
+        {
+            lock (gates)
+            {
+                entered[identifier] = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                gates[identifier] = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            }
+        }
+
+        public Task Entered(string identifier)
+        {
+            lock (gates)
+            {
+                return entered[identifier].Task;
+            }
+        }
+
+        public void Release(string identifier)
+        {
+            lock (gates)
+            {
+                gates[identifier].TrySetResult(true);
+            }
+        }
+
+        public void ReleaseAll()
+        {
+            lock (gates)
+            {
+                foreach (var gate in gates.Values)
+                {
+                    gate.TrySetResult(true);
+                }
+            }
+        }
+
+        public async Task<Func<Task>> Added(Account account, IObservableCollection<Mirror> mirrors)
+        {
+            mirrors.OnAdded(mirror =>
+            {
+                Interlocked.Increment(ref childAddedCalls);
+                lock (hosts)
+                {
+                    hosts.Add(mirror.host);
+                }
+                return () =>
+                {
+                    Interlocked.Increment(ref childRemovalCalls);
+                    lock (hosts)
+                    {
+                        hosts.Remove(mirror.host);
+                    }
+                };
+            });
+
+            TaskCompletionSource<bool>? gate = null;
+            lock (gates)
+            {
+                if (gates.TryGetValue(account.identifier, out var found))
+                {
+                    entered[account.identifier].TrySetResult(true);
+                    gate = found;
+                }
+            }
+            if (gate != null)
+            {
+                await gate.Task;
+            }
+            Func<Task> removal = () => Task.CompletedTask;
+            return removal;
         }
     }
 
