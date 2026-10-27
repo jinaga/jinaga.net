@@ -406,6 +406,16 @@ namespace Jinaga.Managers
             observableSource.RemoveInverseListener(listener);
         }
 
+        public FactListener AddFactListener(FactReference reference, Func<CancellationToken, Task> onSaved)
+        {
+            return observableSource.AddFactListener(reference, onSaved);
+        }
+
+        public void RemoveFactListener(FactListener listener)
+        {
+            observableSource.RemoveFactListener(listener);
+        }
+
         public Task<DateTime?> GetMruDate(string specificationHash)
         {
             return store.GetMruDate(specificationHash);

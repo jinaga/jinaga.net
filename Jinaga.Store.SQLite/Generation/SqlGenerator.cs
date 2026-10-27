@@ -31,10 +31,17 @@ namespace Jinaga.Store.SQLite.Generation
                 .Concat(queryDescription.Outputs
                     .Select(output => new SpecificationLabel(output.Label, output.FactIndex, output.Type)))
                 .ToImmutableList();
-            var columns = allLabels.Select(label =>
-                $"f{label.Index}.hash as hash{label.Index}, " +
-                $"f{label.Index}.fact_id as id{label.Index}, " +
-                $"f{label.Index}.data as data{label.Index}")
+            // One column per fact, not per label. Two labels name one fact when a
+            // specification pins an unknown to a given: the unknown is a label of its own and
+            // resolves to the given's fact, so emitting its columns twice would write the
+            // same alias twice.
+            var columns = allLabels
+                .GroupBy(label => label.Index)
+                .Select(group => group.Key)
+                .Select(index =>
+                    $"f{index}.hash as hash{index}, " +
+                    $"f{index}.fact_id as id{index}, " +
+                    $"f{index}.data as data{index}")
                 .Join(", ");
             var firstEdge = queryDescription.Edges.First();
             var predecessorInput = queryDescription.Inputs.Find(input => input.FactIndex == firstEdge.PredecessorFactIndex);

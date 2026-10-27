@@ -157,11 +157,31 @@ namespace Jinaga.Store.SQLite.Builder
                     return context.WithQueryDescription(QueryDescription.Empty);
                 }
                 int factTypeId = EnsureGetFactTypeId(factReference.Type);
-                context = context.WithInputParameter(
-                    givens[givenIndex].Label,
-                    factTypeId,
-                    factReference.Hash
-                );
+                // A path condition with no roles on either side names one fact by two
+                // labels. Where the unknown is already bound, the given on the right is
+                // that same fact, so the condition constrains the fact the query has
+                // already joined. Allocating a fact of its own instead would leave one
+                // that no edge joins, and the query would select and filter a column that
+                // no table in it supplies.
+                if (pathCondition.RolesLeft.IsEmpty &&
+                    pathCondition.RolesRight.IsEmpty &&
+                    context.KnownFacts.TryGetValue(unknown.Name, out var boundFact))
+                {
+                    context = context.WithInputParameterOnFact(
+                        givens[givenIndex].Label,
+                        factTypeId,
+                        factReference.Hash,
+                        boundFact.FactIndex
+                    );
+                }
+                else
+                {
+                    context = context.WithInputParameter(
+                        givens[givenIndex].Label,
+                        factTypeId,
+                        factReference.Hash
+                    );
+                }
                 foreach (var existentialCondition in givens[givenIndex].ExistentialConditions)
                 {
                     var contextWithExistentialCondition = context.WithExistentialCondition(existentialCondition.Exists);

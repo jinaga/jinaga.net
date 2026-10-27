@@ -1,4 +1,4 @@
-using Jinaga.Facts;
+﻿using Jinaga.Facts;
 using Jinaga.Products;
 using Jinaga.Projections;
 using Jinaga.Services;
@@ -680,7 +680,10 @@ namespace Jinaga.Store.SQLite
                                                         fact.Data = dataRow[$"data{next.Index}"];
                                                         fact.Type = next.Type;
                                                         fact.Name = next.Name;
-                                                        return acc.Add(next.Index, fact);
+                                                        // Keyed by fact rather than by label,
+                                                        // because two labels can name one
+                                                        // fact. Both read the same row.
+                                                        return acc.SetItem(next.Index, fact);
                                                     });
 
                 return resultSetRow;

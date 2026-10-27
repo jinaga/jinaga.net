@@ -17,6 +17,11 @@ namespace Jinaga.Store.SQLite.Description
             ExistentialConditions = existentialConditions;
         }
 
+        public ExistentialConditionDescription WithInputs(ImmutableList<InputDescription> inputs)
+        {
+            return new ExistentialConditionDescription(Exists, inputs, Edges, ExistentialConditions);
+        }
+
         public ExistentialConditionDescription WithEdges(ImmutableList<EdgeDescription> edges)
         {
             return new ExistentialConditionDescription(Exists, Inputs, edges, ExistentialConditions);

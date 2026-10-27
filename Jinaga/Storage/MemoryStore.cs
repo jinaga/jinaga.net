@@ -336,23 +336,88 @@ namespace Jinaga.Storage
         }
 
         /// <summary>
-        /// Records the edges of a graph whose facts are identified by the references given,
-        /// rather than by their content. Only the conformance vectors of jinaga-spec use this.
+        /// Places a graph whose facts are identified by the references given, rather than by
+        /// their content. Only the conformance vectors of jinaga-spec use this.
         ///
         /// An inverse vector's graph may name a predecessor that content addressing cannot
         /// reach: a fact saved later, or a cycle. No hash can express either, so such a graph
         /// cannot be built as a <see cref="FactGraph"/> and <see cref="Save"/> cannot take it.
-        /// A read walks the edges, so recording them is enough to read a specification over
-        /// the graph. Nothing else a store does is available for these facts.
+        /// The facts, their edges and their ancestors are recorded, so a specification can be
+        /// read over the graph and a fact saved afterward finds its predecessors here.
         /// </summary>
+        /// <remarks>
+        /// Ancestry is taken over what is placed and stops at a reference the placed set does
+        /// not carry, because neither a forward reference nor a cycle has an ancestry that
+        /// terminates. A fact placed here carries no fields, so a projection that reads one is
+        /// not available for these facts.
+        /// </remarks>
         internal void PlaceGraphByReference(IEnumerable<(FactReference Reference, ImmutableList<Predecessor> Predecessors)> facts)
         {
             lock (this)
             {
-                edges = edges.AddRange(facts
+                var placed = facts.ToImmutableList();
+                edges = edges.AddRange(placed
                     .SelectMany(fact => fact.Predecessors
                         .SelectMany(predecessor => CreateEdges(fact.Reference, predecessor))));
+                factsByReference = factsByReference.SetItems(placed
+                    .Select(fact => new KeyValuePair<FactReference, Fact>(
+                        fact.Reference,
+                        Fact.CreateByReference(
+                            fact.Reference,
+                            ImmutableList<Field>.Empty,
+                            fact.Predecessors))));
+                foreach (var pair in AncestriesOf(placed))
+                {
+                    ancestors = ancestors.SetItem(pair.Key, pair.Value);
+                }
             }
+        }
+
+        /// <summary>
+        /// The ancestry of each placed fact, as the transitive closure of its predecessors
+        /// over the placed set. Taken to a fixed point rather than by recursion, because a
+        /// placed graph may hold a cycle.
+        /// </summary>
+        private static ImmutableDictionary<FactReference, ImmutableList<FactReference>> AncestriesOf(
+            ImmutableList<(FactReference Reference, ImmutableList<Predecessor> Predecessors)> placed)
+        {
+            var predecessorsByReference = placed.ToImmutableDictionary(
+                fact => fact.Reference,
+                fact => fact.Predecessors
+                    .SelectMany(predecessor => predecessor switch
+                    {
+                        PredecessorSingle single => new[] { single.Reference },
+                        PredecessorMultiple multiple => multiple.References.ToArray(),
+                        _ => new FactReference[0]
+                    })
+                    .Distinct()
+                    .ToImmutableList());
+            var closure = predecessorsByReference.Keys.ToDictionary(
+                reference => reference,
+                reference => new HashSet<FactReference> { reference });
+            bool grew = true;
+            while (grew)
+            {
+                grew = false;
+                foreach (var reference in predecessorsByReference.Keys)
+                {
+                    var reached = closure[reference];
+                    foreach (var predecessor in predecessorsByReference[reference])
+                    {
+                        grew |= reached.Add(predecessor);
+                        if (closure.TryGetValue(predecessor, out var beyond))
+                        {
+                            foreach (var ancestor in beyond.ToImmutableList())
+                            {
+                                grew |= reached.Add(ancestor);
+                            }
+                        }
+                    }
+                }
+            }
+            return closure.ToImmutableDictionary(
+                pair => pair.Key,
+                pair => pair.Value.ToImmutableList());
         }
 
         private IEnumerable<Edge> CreateEdges(FactReference successor, Predecessor predecessor)

@@ -70,9 +70,69 @@ namespace Jinaga.Store.SQLite.Builder
             var facts = QueryDescription.Facts.Add(factDescription);
             var input = new InputDescription(label.Name, label.Type, factIndex, factTypeParameter, factHashParameter);
             var parameters = QueryDescription.Parameters.Add(factTypeId).Add(hash);
-            var inputs = QueryDescription.Inputs.Add(input);
-            var queryDescription = QueryDescription.WithInputs(inputs).WithParameters(parameters).WithFacts(facts);
+            var queryDescription = WithInput(
+                QueryDescription.WithParameters(parameters).WithFacts(facts), input);
             return new ResultDescriptionBuilderContext(queryDescription, KnownFacts.Add(label.Name, factDescription), Path);
+        }
+
+        /// <summary>
+        /// Declares an input where the query reaches the fact it names: at the top level, or
+        /// within the existential condition this context is building.
+        /// </summary>
+        /// <remarks>
+        /// A given first referenced inside an existential condition is joined inside that
+        /// condition's subquery and nowhere else. Declaring its input at the top level puts
+        /// its type and hash in the outer where clause, which names a fact the outer query
+        /// never joins, and the whole query fails with <c>no such column</c>. The
+        /// specification that reaches this is one whose given is joined only from inside a
+        /// negated condition, which a caller can write.
+        /// </remarks>
+        private QueryDescription WithInput(QueryDescription queryDescription, InputDescription input)
+        {
+            if (Path.Count == 0)
+            {
+                return queryDescription.WithInputs(queryDescription.Inputs.Add(input));
+            }
+            return queryDescription.WithExistentialConditions(
+                ExistentialsWithInput(queryDescription.ExistentialConditions, input, Path));
+        }
+
+        private ImmutableList<ExistentialConditionDescription> ExistentialsWithInput(ImmutableList<ExistentialConditionDescription> existentialConditions, InputDescription input, ImmutableList<int> path)
+        {
+            int index = path[0];
+            var existentialCondition = existentialConditions[index];
+            var existentialConditionWithInput = path.Count == 1
+                ? existentialCondition.WithInputs(existentialCondition.Inputs.Add(input))
+                : existentialCondition.WithExistentialConditions(
+                    ExistentialsWithInput(existentialCondition.ExistentialConditions, input, path.RemoveAt(0)));
+            return existentialConditions
+                .RemoveAt(index)
+                .Insert(index, existentialConditionWithInput);
+        }
+
+        /// <summary>
+        /// Binds a given to a fact the query already has, rather than to one of its own.
+        /// </summary>
+        /// <remarks>
+        /// A path condition with no roles on either side is an equality between the facts
+        /// two labels bind, not a step from one to the other, so it contributes no edge.
+        /// When the unknown is already bound, the given on the right names that same fact:
+        /// it adds that fact's type and hash as a constraint and no fact of its own. A fact
+        /// of its own would be one that no edge joins, and the query would select and filter
+        /// a column that no table in it supplies.
+        /// </remarks>
+        public ResultDescriptionBuilderContext WithInputParameterOnFact(Label label, int factTypeId, string hash, int factIndex)
+        {
+            int factTypeParameter = QueryDescription.Parameters.Count + 1;
+            int factHashParameter = QueryDescription.Parameters.Count + 2;
+            var input = new InputDescription(label.Name, label.Type, factIndex, factTypeParameter, factHashParameter);
+            var parameters = QueryDescription.Parameters.Add(factTypeId).Add(hash);
+            var queryDescription = WithInput(
+                QueryDescription.WithParameters(parameters), input);
+            return new ResultDescriptionBuilderContext(
+                queryDescription,
+                KnownFacts.Add(label.Name, new FactDescription(label.Type, factIndex)),
+                Path);
         }
 
         public (ResultDescriptionBuilderContext context, int factIndex) WithFact(string type)

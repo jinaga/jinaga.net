@@ -94,6 +94,9 @@ namespace Jinaga.Observers
         private ImmutableDictionary<string, ImmutableDictionary<InverseKey, InverseWithListeners>> inverseListenersByTypeAndKey =
             ImmutableDictionary<string, ImmutableDictionary<InverseKey, InverseWithListeners>>.Empty;
 
+        private ImmutableDictionary<FactReference, ImmutableList<FactListener>> factListenersByReference =
+            ImmutableDictionary<FactReference, ImmutableList<FactListener>>.Empty;
+
         public ObservableSource(IStore store)
         {
             this.store = store;
@@ -250,6 +253,52 @@ namespace Jinaga.Observers
             }
         }
 
+        /// <summary>
+        /// Listens for the save of one fact, named by reference.
+        /// </summary>
+        /// <remarks>
+        /// This is the cheapest listener there is: it reads nothing, and it fires only for
+        /// the fact it names. An observer whose own given is saved has to read its whole
+        /// specification, and a listener keyed by the given's type would pay for that read
+        /// on every fact of that type and then discard all but the one row it wanted. The
+        /// comparison that decides whether to read belongs here, where it is a reference
+        /// equality against a dictionary key.
+        /// </remarks>
+        /// <param name="reference">The fact to wait for</param>
+        /// <param name="onSaved">Called when that fact is saved</param>
+        public FactListener AddFactListener(FactReference reference, Func<CancellationToken, Task> onSaved)
+        {
+            var factListener = new FactListener(onSaved);
+            lock (this)
+            {
+                if (!factListenersByReference.TryGetValue(reference, out var listeners))
+                {
+                    listeners = ImmutableList<FactListener>.Empty;
+                }
+                factListenersByReference = factListenersByReference.SetItem(
+                    reference, listeners.Add(factListener));
+            }
+            return factListener;
+        }
+
+        public void RemoveFactListener(FactListener listener)
+        {
+            lock (this)
+            {
+                foreach (var reference in factListenersByReference.Keys)
+                {
+                    var listeners = factListenersByReference[reference];
+                    if (listeners.Contains(listener))
+                    {
+                        listeners = listeners.Remove(listener);
+                        factListenersByReference = listeners.IsEmpty
+                            ? factListenersByReference.Remove(reference)
+                            : factListenersByReference.SetItem(reference, listeners);
+                    }
+                }
+            }
+        }
+
         public async Task Notify(FactGraph graph, ImmutableList<Fact> facts, CancellationToken cancellationToken)
         {
             foreach (var fact in facts)
@@ -262,6 +311,18 @@ namespace Jinaga.Observers
         {
             await NotifySpecificationListeners(graph, fact, cancellationToken).ConfigureAwait(false);
             await NotifyInverseListeners(fact, cancellationToken).ConfigureAwait(false);
+            await NotifyFactListeners(fact, cancellationToken).ConfigureAwait(false);
+        }
+
+        private async Task NotifyFactListeners(Fact fact, CancellationToken cancellationToken)
+        {
+            if (factListenersByReference.TryGetValue(fact.Reference, out var listeners))
+            {
+                foreach (var listener in listeners)
+                {
+                    await listener.OnSaved(cancellationToken).ConfigureAwait(false);
+                }
+            }
         }
 
         private async Task NotifySpecificationListeners(FactGraph graph, Fact fact, CancellationToken cancellationToken)
