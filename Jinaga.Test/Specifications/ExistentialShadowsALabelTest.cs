@@ -90,9 +90,9 @@ public class ExistentialShadowsALabelTest
     [Fact]
     public void GraphEvaluator_IsNotAskedToReadTheShape()
     {
-        // The graph evaluator walks predecessors only and does not apply existential
-        // conditions at all, so it answers this specification wrongly rather than
-        // throwing. CanRunOnGraph is the gate that keeps the shape away from it, and
+        // The graph evaluator walks predecessors only, and its input cannot hold a
+        // successor step or an existential condition at all. CanRunOnGraph is the gate
+        // that sends this shape to the store, and
         // WellFormedSpecification.SplitBeforeFirstSuccessor keeps it out of the head an
         // authorization rule runs on the graph. This pins the gate shut: opening it
         // means teaching the evaluator both successor steps and existential scope.

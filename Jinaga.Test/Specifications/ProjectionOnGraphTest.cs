@@ -132,9 +132,8 @@ public class ProjectionOnGraphTest
             where s.creator == u
             select u
         );
-        // Every kind of child a compound can hold, under names that are not the labels
-        // they read. Signers keep this off the graph path in the client, so it is run
-        // against the graph directly here.
+        // Every kind of child a compound can hold that the graph carries, under names
+        // that are not the labels they read.
         var specification = Given<Content>.Match((c, facts) =>
             from s in facts.OfType<Site>()
             where c.site == s
@@ -143,10 +142,10 @@ public class ProjectionOnGraphTest
                 p = s,
                 identifier = s.identifier,
                 hash = j.Hash(s),
-                signers = facts.SignersOf(s),
                 creators = facts.Observable(s, creatorsOfSite)
             }
         );
+        specification.CanRunOnGraph.Should().BeTrue();
 
         var graph = j.Graph(content);
         var givenTuple = FactReferenceTuple.Empty

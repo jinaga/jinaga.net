@@ -15,8 +15,6 @@ namespace Jinaga.Projections
         public bool Exists { get; }
         public ImmutableList<Match> Matches { get; }
 
-        public bool CanRunOnGraph => Matches.All(m => m.CanRunOnGraph);
-
         public string ToDescriptiveString(string unknown, int depth)
         {
             var indent = new string(' ', depth * 4);

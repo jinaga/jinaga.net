@@ -14,7 +14,7 @@ namespace Jinaga
         private readonly Specification specification;
         private readonly string givenName;
         private readonly string label;
-        private readonly Specification head;
+        private readonly GraphSpecification head;
         private readonly Specification? tail;
 
         /// <summary>
@@ -32,11 +32,6 @@ namespace Jinaga
                     "The specification of an authorization rule must be given a single fact.");
             }
             var given = specification.Givens[0];
-            if (given.ExistentialConditions.Any())
-            {
-                throw new InvalidOperationException(
-                    "The given of an authorization rule cannot have existential conditions.");
-            }
             if (!(specification.Projection is SimpleProjection simpleProjection))
             {
                 throw new InvalidOperationException(
@@ -46,6 +41,20 @@ namespace Jinaga
             // The head is deterministic, and runs on the graph being authorized.
             // The tail seeks successors, and runs on the store.
             var (head, tail) = wellFormed.SplitBeforeFirstSuccessor();
+
+            // The split chooses its pivot by the same conversion, so the only part of the
+            // head it cannot settle is a condition the caller put on the given. Converting
+            // here is what refuses such a rule where it is written, rather than enforcing
+            // less than it states on every save.
+            var graphHead = GraphSpecification.From(head, out var reason);
+            if (graphHead == null)
+            {
+                throw new InvalidOperationException(
+                    $"The specification of an authorization rule for {given.Label.Type} cannot be evaluated " +
+                    $"against the graph being authorized, because {reason}. " +
+                    $"Everything the rule reads before its first successor join comes from that graph, " +
+                    $"so the condition would not be applied.");
+            }
 
             // A rule runs while its fact is being authorized, before that fact is saved, so a
             // tail given that fact would read nothing and refuse every write. The split moves
@@ -66,7 +75,7 @@ namespace Jinaga
             this.specification = specification;
             this.givenName = name;
             this.label = simpleProjection.Tag;
-            this.head = head;
+            this.head = graphHead;
             this.tail = tail;
         }
 

@@ -8,8 +8,6 @@ namespace Jinaga.Projections
         public string Tag { get; }
         public Type FactRuntimeType { get; }
 
-        public override bool CanRunOnGraph => true;
-
         public HashProjection(string tag, Type factRuntimeType) :
             base(typeof(string))
         {

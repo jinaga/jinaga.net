@@ -14,8 +14,6 @@ namespace Jinaga.Projections
         public string Tag { get; }
         public Type FactRuntimeType { get; }
 
-        public override bool CanRunOnGraph => false;
-
         public DateLearnedProjection(string tag, Type factRuntimeType) :
             base(typeof(DateTime))
         {

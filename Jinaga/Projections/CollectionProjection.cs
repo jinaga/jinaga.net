@@ -25,8 +25,6 @@ namespace Jinaga.Projections
                 Type);
         }
 
-        public override bool CanRunOnGraph => Matches.All(m => m.CanRunOnGraph) && Projection.CanRunOnGraph;
-
         public override string ToDescriptiveString(int depth = 0)
         {
             var indent = Strings.Indent(depth);
