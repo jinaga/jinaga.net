@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Jinaga.Facts;
+using Jinaga.Pipelines;
 using Jinaga.Projections;
 using Jinaga.Storage;
 
@@ -15,11 +16,9 @@ namespace Jinaga.Test.Conformance;
 /// builds for a specification, and the reordering of each, read from the subscription's givens
 /// and each fresh fact, find exactly the rows the spec calls the candidates.
 ///
-/// Porting that algorithm is its own change. These vectors gate it: they state what a port
-/// must produce before one exists, and they check that this library reads the specifications
-/// such a port will build the way the reference semantics reads them. The port's own check,
-/// that what it builds equals <c>expected.inverses</c> and <c>expected.reordered</c>, belongs
-/// with the port.
+/// These vectors gate the port two ways. They state what the rows of each list come to,
+/// independently of what builds it, and they state the lists themselves, which
+/// <see cref="InverseCandidates"/> must build exactly.
 /// </summary>
 public class InverseVectorTest
 {
@@ -48,6 +47,72 @@ public class InverseVectorTest
         var rows = await ReadEach(vector, "reordered");
 
         rows.Should().BeEquivalentTo(Candidates(vector));
+    }
+
+    [Theory]
+    [MemberData(nameof(Vectors))]
+    public void ThePortBuildsTheInverses(string name)
+    {
+        var vector = ConformanceVector.Load("inverse", name);
+
+        var inverses = InverseCandidates.BuildInverses(Load(vector, vector.Json.GetProperty("specification")));
+
+        Describe(inverses).Should().Equal(Expected(vector, "inverses"));
+    }
+
+    [Theory]
+    [MemberData(nameof(Vectors))]
+    public void ThePortReordersTheInverses(string name)
+    {
+        var vector = ConformanceVector.Load("inverse", name);
+
+        var reordered = InverseCandidates
+            .BuildInverses(Load(vector, vector.Json.GetProperty("specification")))
+            .Select(InverseCandidates.ReorderInverse);
+
+        Describe(reordered).Should().Equal(Expected(vector, "reordered"));
+    }
+
+    /// <summary>
+    /// The specifications of <paramref name="which"/>, as <c>ToDescriptiveString</c> prints
+    /// them. Each is loaded through the same loader as the input, so both sides of the
+    /// comparison partition each match's conditions into path and existential conditions the
+    /// same way.
+    /// </summary>
+    private static ImmutableList<string> Expected(ConformanceVector vector, string which) =>
+        vector.Expected.GetProperty(which).EnumerateArray()
+            .Select(inverse => Load(vector, inverse.GetProperty("specification")).ToDescriptiveString())
+            .ToImmutableList();
+
+    private static ImmutableList<string> Describe(IEnumerable<Specification> specifications) =>
+        specifications.Select(specification => specification.ToDescriptiveString()).ToImmutableList();
+
+    /// <summary>
+    /// Loads a specification with the projection its own JSON carries, because
+    /// <see cref="InverseCandidates.ReorderInverse"/> reads it: whether every label the
+    /// projection names is in scope is one of the conditions it checks, and a substitute
+    /// projection would answer that question about itself. Where the projection names one
+    /// component twice, which <see cref="CompoundProjection"/> cannot hold, it reads the
+    /// vector's first row label instead. Every vector that needs that projects that one label
+    /// in each of its components, so the labels the projection names are the same either way.
+    /// </summary>
+    private static Specification Load(ConformanceVector vector, JsonElement json) =>
+        NamesAComponentTwice(json.GetProperty("projection"))
+            ? ConformanceVector.ToSpecification(
+                json,
+                new SimpleProjection(RowLabels(vector)[0], typeof(object)))
+            : ConformanceVector.ToSpecification(json);
+
+    private static bool NamesAComponentTwice(JsonElement projection)
+    {
+        if (projection.GetProperty("type").GetString() != "composite")
+        {
+            return false;
+        }
+        var names = projection.GetProperty("components").EnumerateArray()
+            .Select(component => component.GetProperty("name").GetString()!)
+            .ToImmutableList();
+        return names.Distinct().Count() != names.Count;
     }
 
     /// <summary>
