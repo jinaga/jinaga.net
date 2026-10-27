@@ -1,0 +1,148 @@
+{"text":
+ "(p1: Account) {\n    n: Name [\n        n->account: Account = p1\n        !E {\n            next: Name [\n                next->prior: Name = n\n            ]\n        }\n    ]\n} => n\n",
+ "specification":
+ {"projection": {"type": "fact", "label": "n"},
+  "matches":
+  [{"unknown": {"type": "Name", "name": "n"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [],
+      "rolesLeft": [{"predecessorType": "Account", "name": "account"}],
+      "labelRight": "p1"},
+     {"type": "existential",
+      "matches":
+      [{"unknown": {"type": "Name", "name": "next"},
+        "conditions":
+        [{"type": "path",
+          "rolesRight": [],
+          "rolesLeft": [{"predecessorType": "Name", "name": "prior"}],
+          "labelRight": "n"}]}],
+      "exists": false}]}],
+  "given": [{"label": {"type": "Account", "name": "p1"}, "conditions": []}]},
+ "source": "jinaga/jinaga-spec#11",
+ "rowLabels": ["n"],
+ "name": "batch-current-value",
+ "graph":
+ [{"type": "Account", "predecessors": [], "id": 0},
+  {"type": "Name", "predecessors": [{"role": "account", "id": 0}], "id": 1}],
+ "givens": {"p1": 0},
+ "expected":
+ {"reordered":
+  [{"text":
+    "(p1: Account, __f: Name) {\n    n: Name [\n        n = __f\n        n->account: Account = p1\n        !E {\n            next: Name [\n                next->prior: Name = n\n            ]\n        }\n    ]\n} => n\n",
+    "specification":
+    {"projection": {"type": "fact", "label": "n"},
+     "matches":
+     [{"unknown": {"type": "Name", "name": "n"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [],
+         "labelRight": "__f"},
+        {"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Account", "name": "account"}],
+         "labelRight": "p1"},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Name", "name": "next"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Name", "name": "prior"}],
+             "labelRight": "n"}]}],
+         "exists": false}]}],
+     "given":
+     [{"label": {"type": "Account", "name": "p1"}, "conditions": []},
+      {"label": {"type": "Name", "name": "__f"}, "conditions": []}]}},
+   {"text":
+    "(p1: Account, __f: Name) {\n    next: Name [\n        next = __f\n    ]\n    n: Name [\n        n = next->prior: Name\n        n->account: Account = p1\n    ]\n} => n\n",
+    "specification":
+    {"projection": {"type": "fact", "label": "n"},
+     "matches":
+     [{"unknown": {"type": "Name", "name": "next"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [],
+         "labelRight": "__f"}]},
+      {"unknown": {"type": "Name", "name": "n"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [{"predecessorType": "Name", "name": "prior"}],
+         "rolesLeft": [],
+         "labelRight": "next"},
+        {"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Account", "name": "account"}],
+         "labelRight": "p1"}]}],
+     "given":
+     [{"label": {"type": "Account", "name": "p1"}, "conditions": []},
+      {"label": {"type": "Name", "name": "__f"}, "conditions": []}]}}],
+  "lost": [[1]],
+  "inverses":
+  [{"text":
+    "(p1: Account, __f: Name) {\n    n: Name [\n        n = __f\n        n->account: Account = p1\n        !E {\n            next: Name [\n                next->prior: Name = n\n            ]\n        }\n    ]\n} => n\n",
+    "specification":
+    {"projection": {"type": "fact", "label": "n"},
+     "matches":
+     [{"unknown": {"type": "Name", "name": "n"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [],
+         "labelRight": "__f"},
+        {"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Account", "name": "account"}],
+         "labelRight": "p1"},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Name", "name": "next"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Name", "name": "prior"}],
+             "labelRight": "n"}]}],
+         "exists": false}]}],
+     "given":
+     [{"label": {"type": "Account", "name": "p1"}, "conditions": []},
+      {"label": {"type": "Name", "name": "__f"}, "conditions": []}]}},
+   {"text":
+    "(p1: Account, __f: Name) {\n    n: Name [\n        n->account: Account = p1\n        E {\n            next: Name [\n                next = __f\n                next->prior: Name = n\n            ]\n        }\n    ]\n} => n\n",
+    "specification":
+    {"projection": {"type": "fact", "label": "n"},
+     "matches":
+     [{"unknown": {"type": "Name", "name": "n"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Account", "name": "account"}],
+         "labelRight": "p1"},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Name", "name": "next"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [],
+             "labelRight": "__f"},
+            {"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Name", "name": "prior"}],
+             "labelRight": "n"}]}],
+         "exists": true}]}],
+     "given":
+     [{"label": {"type": "Account", "name": "p1"}, "conditions": []},
+      {"label": {"type": "Name", "name": "__f"}, "conditions": []}]}}],
+  "gained": [[3]],
+  "candidates": [[1], [3], [2]]},
+ "description":
+ "A mutable property's current value. Two revisions arrive in one batch, the second replacing the first: the old value is lost, the last is gained, and the one between is gained and lost within the batch.",
+ "batch":
+ [{"type": "Name",
+   "predecessors": [{"role": "account", "id": 0}, {"role": "prior", "id": 1}],
+   "id": 2},
+  {"type": "Name",
+   "predecessors": [{"role": "account", "id": 0}, {"role": "prior", "id": 2}],
+   "id": 3}]}

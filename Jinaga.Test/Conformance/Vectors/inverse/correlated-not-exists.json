@@ -1,0 +1,172 @@
+{"text":
+ "(p1: User, p2: Channel) {\n    m: Message [\n        m->channel: Channel = p2\n        !E {\n            rd: Read [\n                rd->message: Message = m\n                rd->user: User = p1\n            ]\n        }\n    ]\n} => m\n",
+ "specification":
+ {"projection": {"type": "fact", "label": "m"},
+  "matches":
+  [{"unknown": {"type": "Message", "name": "m"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [],
+      "rolesLeft": [{"predecessorType": "Channel", "name": "channel"}],
+      "labelRight": "p2"},
+     {"type": "existential",
+      "matches":
+      [{"unknown": {"type": "Read", "name": "rd"},
+        "conditions":
+        [{"type": "path",
+          "rolesRight": [],
+          "rolesLeft": [{"predecessorType": "Message", "name": "message"}],
+          "labelRight": "m"},
+         {"type": "path",
+          "rolesRight": [],
+          "rolesLeft": [{"predecessorType": "User", "name": "user"}],
+          "labelRight": "p1"}]}],
+      "exists": false}]}],
+  "given":
+  [{"label": {"type": "User", "name": "p1"}, "conditions": []},
+   {"label": {"type": "Channel", "name": "p2"}, "conditions": []}]},
+ "source": "jinaga/jinaga-spec#8",
+ "rowLabels": ["m"],
+ "name": "correlated-not-exists",
+ "graph":
+ [{"type": "User", "predecessors": [], "id": 0},
+  {"type": "Channel", "predecessors": [], "id": 1},
+  {"type": "Message", "predecessors": [{"role": "channel", "id": 1}], "id": 2}],
+ "givens": {"p2": 1, "p1": 0},
+ "fact":
+ {"type": "Read",
+  "predecessors": [{"role": "message", "id": 2}, {"role": "user", "id": 0}],
+  "id": 3},
+ "expected":
+ {"reordered":
+  [{"text":
+    "(p1: User, p2: Channel, __f: Message) {\n    m: Message [\n        m = __f\n        m->channel: Channel = p2\n        !E {\n            rd: Read [\n                rd->message: Message = m\n                rd->user: User = p1\n            ]\n        }\n    ]\n} => m\n",
+    "specification":
+    {"projection": {"type": "fact", "label": "m"},
+     "matches":
+     [{"unknown": {"type": "Message", "name": "m"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [],
+         "labelRight": "__f"},
+        {"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Channel", "name": "channel"}],
+         "labelRight": "p2"},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Read", "name": "rd"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Message", "name": "message"}],
+             "labelRight": "m"},
+            {"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "User", "name": "user"}],
+             "labelRight": "p1"}]}],
+         "exists": false}]}],
+     "given":
+     [{"label": {"type": "User", "name": "p1"}, "conditions": []},
+      {"label": {"type": "Channel", "name": "p2"}, "conditions": []},
+      {"label": {"type": "Message", "name": "__f"}, "conditions": []}]}},
+   {"text":
+    "(p1: User, p2: Channel, __f: Read) {\n    rd: Read [\n        rd = __f\n        rd->user: User = p1\n    ]\n    m: Message [\n        m = rd->message: Message\n        m->channel: Channel = p2\n    ]\n} => m\n",
+    "specification":
+    {"projection": {"type": "fact", "label": "m"},
+     "matches":
+     [{"unknown": {"type": "Read", "name": "rd"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [],
+         "labelRight": "__f"},
+        {"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "User", "name": "user"}],
+         "labelRight": "p1"}]},
+      {"unknown": {"type": "Message", "name": "m"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [{"predecessorType": "Message", "name": "message"}],
+         "rolesLeft": [],
+         "labelRight": "rd"},
+        {"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Channel", "name": "channel"}],
+         "labelRight": "p2"}]}],
+     "given":
+     [{"label": {"type": "User", "name": "p1"}, "conditions": []},
+      {"label": {"type": "Channel", "name": "p2"}, "conditions": []},
+      {"label": {"type": "Read", "name": "__f"}, "conditions": []}]}}],
+  "lost": [[2]],
+  "inverses":
+  [{"text":
+    "(p1: User, p2: Channel, __f: Message) {\n    m: Message [\n        m = __f\n        m->channel: Channel = p2\n        !E {\n            rd: Read [\n                rd->message: Message = m\n                rd->user: User = p1\n            ]\n        }\n    ]\n} => m\n",
+    "specification":
+    {"projection": {"type": "fact", "label": "m"},
+     "matches":
+     [{"unknown": {"type": "Message", "name": "m"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [],
+         "labelRight": "__f"},
+        {"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Channel", "name": "channel"}],
+         "labelRight": "p2"},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Read", "name": "rd"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Message", "name": "message"}],
+             "labelRight": "m"},
+            {"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "User", "name": "user"}],
+             "labelRight": "p1"}]}],
+         "exists": false}]}],
+     "given":
+     [{"label": {"type": "User", "name": "p1"}, "conditions": []},
+      {"label": {"type": "Channel", "name": "p2"}, "conditions": []},
+      {"label": {"type": "Message", "name": "__f"}, "conditions": []}]}},
+   {"text":
+    "(p1: User, p2: Channel, __f: Read) {\n    m: Message [\n        m->channel: Channel = p2\n        E {\n            rd: Read [\n                rd = __f\n                rd->message: Message = m\n                rd->user: User = p1\n            ]\n        }\n    ]\n} => m\n",
+    "specification":
+    {"projection": {"type": "fact", "label": "m"},
+     "matches":
+     [{"unknown": {"type": "Message", "name": "m"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Channel", "name": "channel"}],
+         "labelRight": "p2"},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Read", "name": "rd"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [],
+             "labelRight": "__f"},
+            {"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Message", "name": "message"}],
+             "labelRight": "m"},
+            {"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "User", "name": "user"}],
+             "labelRight": "p1"}]}],
+         "exists": true}]}],
+     "given":
+     [{"label": {"type": "User", "name": "p1"}, "conditions": []},
+      {"label": {"type": "Channel", "name": "p2"}, "conditions": []},
+      {"label": {"type": "Read", "name": "__f"}, "conditions": []}]}}],
+  "gained": [],
+  "candidates": [[2]]},
+ "description":
+ "A notExists correlated over two predecessors: messages in a channel that this user has not read. A Read by this user removes the message."}

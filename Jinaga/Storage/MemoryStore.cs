@@ -96,7 +96,7 @@ namespace Jinaga.Storage
                     .Select(fact => (
                         factReference: fact.Reference,
                         edges: fact.Predecessors
-                            .SelectMany(predecessor => CreateEdges(fact, predecessor))
+                            .SelectMany(predecessor => CreateEdges(fact.Reference, predecessor))
                             .ToImmutableList()
                     ))
                     .ToImmutableList();
@@ -335,18 +335,38 @@ namespace Jinaga.Storage
             }
         }
 
-        private IEnumerable<Edge> CreateEdges(Fact successor, Predecessor predecessor)
+        /// <summary>
+        /// Records the edges of a graph whose facts are identified by the references given,
+        /// rather than by their content. Only the conformance vectors of jinaga-spec use this.
+        ///
+        /// An inverse vector's graph may name a predecessor that content addressing cannot
+        /// reach: a fact saved later, or a cycle. No hash can express either, so such a graph
+        /// cannot be built as a <see cref="FactGraph"/> and <see cref="Save"/> cannot take it.
+        /// A read walks the edges, so recording them is enough to read a specification over
+        /// the graph. Nothing else a store does is available for these facts.
+        /// </summary>
+        internal void PlaceGraphByReference(IEnumerable<(FactReference Reference, ImmutableList<Predecessor> Predecessors)> facts)
+        {
+            lock (this)
+            {
+                edges = edges.AddRange(facts
+                    .SelectMany(fact => fact.Predecessors
+                        .SelectMany(predecessor => CreateEdges(fact.Reference, predecessor))));
+            }
+        }
+
+        private IEnumerable<Edge> CreateEdges(FactReference successor, Predecessor predecessor)
         {
             switch (predecessor)
             {
                 case PredecessorSingle single:
                     return new Edge[]
                     {
-                        new Edge(single.Reference, single.Role, successor.Reference)
+                        new Edge(single.Reference, single.Role, successor)
                     };
                 case PredecessorMultiple multiple:
                     return multiple.References.Select(reference => new Edge(
-                        reference, multiple.Role, successor.Reference
+                        reference, multiple.Role, successor
                     ));
                 default:
                     throw new NotImplementedException();

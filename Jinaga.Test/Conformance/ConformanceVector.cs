@@ -47,7 +47,16 @@ public class ConformanceVector
     private static string DirectoryOf(string kind) =>
         Path.Combine(AppContext.BaseDirectory, "Conformance", "Vectors", kind);
 
-    public static Specification ToSpecification(JsonElement json)
+    public static Specification ToSpecification(JsonElement json) =>
+        ToSpecification(json, ToProjection(json.GetProperty("projection")));
+
+    /// <summary>
+    /// Reads a specification, projecting <paramref name="projection"/> instead of the one the
+    /// JSON carries. An inverse vector's projection may name one component twice, which
+    /// <see cref="CompoundProjection"/> cannot hold; its rows are compared by the vector's
+    /// <c>rowLabels</c> read off the tuple, so the projection it is read with does not matter.
+    /// </summary>
+    public static Specification ToSpecification(JsonElement json, Projection projection)
     {
         var givens = json.GetProperty("given").EnumerateArray()
             .Select(given => new SpecificationGiven(
@@ -55,7 +64,7 @@ public class ConformanceVector
                 given.GetProperty("conditions").EnumerateArray().Select(ToExistential).ToImmutableList()))
             .ToImmutableList();
         var matches = json.GetProperty("matches").EnumerateArray().Select(ToMatch).ToImmutableList();
-        return new Specification(givens, matches, ToProjection(json.GetProperty("projection")));
+        return new Specification(givens, matches, projection);
     }
 
     private static Match ToMatch(JsonElement json)
