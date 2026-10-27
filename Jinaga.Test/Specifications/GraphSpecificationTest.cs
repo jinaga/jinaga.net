@@ -236,6 +236,26 @@ public class GraphSpecificationTest
     }
 
     [Fact]
+    public async Task TwoPredecessorPaths_KeepTheRowsOfTheFirstPathWhenItReachesAFactTwice()
+    {
+        var airline = await j.Fact(new Airline("skylane"));
+        var day = await j.Fact(new AirlineDay(airline, new DateTime(2026, 10, 27, 0, 0, 0, DateTimeKind.Utc)));
+        var first = await j.Fact(new Flight(day, 1));
+        var second = await j.Fact(new Flight(day, 2));
+        var passenger = await j.Fact(new Passenger(airline, await j.Fact(new User("traveller"))));
+        var itinerary = await j.Fact(new Itinerary(
+            new[] { first, second }, passenger, new DateTime(2026, 10, 27, 0, 0, 0, DateTimeKind.Utc)));
+
+        var specification = ItineraryAirlineReachedBothWays;
+        specification.CanRunOnGraph.Should().BeTrue();
+
+        // Both flights lead to the same airline, so the first path reaches it twice.
+        (await ReadFromStore(specification, itinerary)).Count.Should().Be(2);
+        await GraphShouldBuildTheSameProductsAsTheStore(specification, itinerary);
+        await QueryShouldMatchTheStore(specification, itinerary);
+    }
+
+    [Fact]
     public void AuthorizationRule_WhoseGivenCarriesAConditionIsRefusedWhenItIsDefined()
     {
         Action defining = () => new AuthorizationRuleSpecification(GivenWithACondition);
@@ -279,6 +299,42 @@ public class GraphSpecificationTest
             where ticket.reporter.tenant == t
             select t
         );
+
+    /// <summary>
+    /// <code>
+    /// (it: Skylane.Itinerary) {
+    ///     a: Skylane.Airline [
+    ///         a = it->flights: Skylane.Flight->airlineDay: Skylane.Airline.Day->airline: Skylane.Airline
+    ///         a = it->passenger: Skylane.Passenger->airline: Skylane.Airline
+    ///     ]
+    /// } => a
+    /// </code>
+    /// The itinerary's airline, reached through each of its flights and through its passenger.
+    /// The first path walks a role with many predecessors, so it can reach one airline more
+    /// than once.
+    /// </summary>
+    private static Specification<Itinerary, Airline> ItineraryAirlineReachedBothWays => new(
+        ImmutableList.Create(new SpecificationGiven(
+            new Label("it", "Skylane.Itinerary"),
+            ImmutableList<ExistentialCondition>.Empty)),
+        ImmutableList.Create(new Match(
+            new Label("a", "Skylane.Airline"),
+            ImmutableList.Create(
+                new PathCondition(
+                    ImmutableList<Role>.Empty,
+                    "it",
+                    ImmutableList.Create(
+                        new Role("flights", "Skylane.Flight"),
+                        new Role("airlineDay", "Skylane.Airline.Day"),
+                        new Role("airline", "Skylane.Airline"))),
+                new PathCondition(
+                    ImmutableList<Role>.Empty,
+                    "it",
+                    ImmutableList.Create(
+                        new Role("passenger", "Skylane.Passenger"),
+                        new Role("airline", "Skylane.Airline")))),
+            ImmutableList<ExistentialCondition>.Empty)),
+        new SimpleProjection("a", typeof(Airline)));
 
     private async Task<World> GivenAWorld()
     {

@@ -81,12 +81,16 @@ namespace Jinaga.Projections
         private static ImmutableList<FactReferenceTuple> ExecuteMatch(
             FactReferenceTuple references, GraphMatch match, FactGraph graph)
         {
-            // Every path must hold, so the unknown is the intersection of their results.
+            // Every path must hold. The first path decides the rows, duplicates included, and
+            // each further path only filters them, as the store does. An intersection would
+            // also drop the duplicates a path through a many-valued role produces.
             var result = match.AdditionalPaths.Aggregate(
                 ExecutePath(references, match.Path, graph),
-                (set, path) => set
-                    .Intersect(ExecutePath(references, path, graph))
-                    .ToImmutableList());
+                (set, path) =>
+                {
+                    var reached = ExecutePath(references, path, graph).ToImmutableHashSet();
+                    return set.Where(reached.Contains).ToImmutableList();
+                });
             return result
                 .Select(reference => references.Add(match.Unknown.Name, reference))
                 .ToImmutableList();
