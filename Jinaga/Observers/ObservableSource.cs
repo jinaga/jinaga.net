@@ -152,7 +152,7 @@ namespace Jinaga.Observers
                             }
                             else
                             {
-                                listenersByHash = listenersByHash.SetItem(hash, specificationWithListeners);
+                                listenersByHash = listenersByHash.SetItem(hash, new SpecificationWithListeners(specification, listeners));
                             }
 
                             if (listenersByHash.Count == 0)
