@@ -234,9 +234,29 @@ namespace Jinaga.Storage
         {
             return resultReferences
                 .Where(resultReference =>
-                    ExecuteMatches(resultReference, existentialCondition.Matches).Any() ^
+                    ExecuteMatches(WithoutRedeclaredLabels(resultReference, existentialCondition), existentialCondition.Matches).Any() ^
                     !existentialCondition.Exists)
                 .ToImmutableList();
+        }
+
+        /// <summary>
+        /// The tuple with the outer binding of every label the condition redeclares removed,
+        /// so that each inner declaration is a new variable within the condition's scope.
+        ///
+        /// A user-written specification never has this shape, because the parser and
+        /// <see cref="Jinaga.Projections.WellFormedSpecification"/> refuse a label already in
+        /// scope. The inverses this library computes for itself do have it, so the evaluators
+        /// have to read it. Only <c>Any()</c> of the inner tuples decides the condition, so the
+        /// outer tuple the caller keeps is unaffected.
+        ///
+        /// The whole condition is one scope, which is what
+        /// <c>ResultDescriptionBuilder.AddEdges</c> gives it in the SQLite store.
+        /// </summary>
+        private static FactReferenceTuple WithoutRedeclaredLabels(FactReferenceTuple references, ExistentialCondition existentialCondition)
+        {
+            return existentialCondition.Matches.Aggregate(
+                references,
+                (tuple, match) => tuple.Remove(match.Unknown.Name));
         }
 
         private IEnumerable<(string name, string declaringType)> EnumerateRoles(IEnumerable<Role> roles, string startingType)

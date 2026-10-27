@@ -21,6 +21,19 @@ namespace Jinaga.Facts
             return new FactReferenceTuple(referenceByName.Add(name, reference));
         }
 
+        /// <summary>
+        /// The tuple without the named binding, or this tuple if it has none.
+        ///
+        /// A match inside an existential condition may declare a label that the enclosing
+        /// specification has already bound. The inner declaration is a new variable, so the
+        /// outer binding leaves scope before the condition runs. Removing it is what lets
+        /// <see cref="Add"/> keep throwing on a label bound twice in one scope.
+        /// </summary>
+        internal FactReferenceTuple Remove(string name)
+        {
+            return new FactReferenceTuple(referenceByName.Remove(name));
+        }
+
         public IEnumerable<string> Names => referenceByName.Keys;
 
         public FactReference Get(string name)
