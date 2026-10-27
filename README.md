@@ -78,7 +78,8 @@ Because the client already set up a watch, the new employee will appear on the U
 Knowing what that answer promises, and what it does not, is what keeps a consumer from acting on information that has not settled.
 
 - **A result is exact for this replica's own graph.**
-  That graph is always a consistent state: a fact never arrives before its predecessors, so no result is ever computed over half of a change.
+  That graph is always a consistent state.
+  A fact is never stored before its predecessors, a store saves each batch of facts together, and a read sees one snapshot, so no result is computed over half of a change.
 - **Replicas are peers.**
   There is no global order and no authoritative answer.
   A result can differ from another replica's until the same facts have reached both, and then the two agree.
@@ -142,8 +143,10 @@ var contradictedAssignments = Given<Facility>.Match((facility, facts) =>
 A watch on that specification tells the facility manager which assignments to revisit.
 Without the premise, the contradiction would show up only as a row that quietly left a result.
 
-Where a decision must be unique, name the principal who makes it with an authorization rule.
-Only the facility's manager can write an assignment for that facility, so no other principal can make a competing one.
+To narrow who can make a decision, name that principal with an authorization rule.
+Only the facility's manager can write an assignment for that facility.
+That does not make the decision unique: the same manager on two devices can still write competing assignments.
+It leaves one principal, who can see each conflict in history and resolve it.
 
 ```C#
 private static AuthorizationRules Authorization(AuthorizationRules r) => r

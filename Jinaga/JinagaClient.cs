@@ -463,20 +463,9 @@ namespace Jinaga
         /// Unlike Watch, results of Query are not updated with new facts.
         /// </summary>
         /// <remarks>
-        /// <para>
-        /// A result is exact for this replica's own graph, which is always a consistent state: a fact
-        /// never arrives before its predecessors. Replicas are peers, so there is no global order and no
-        /// authoritative answer; a result can differ from another replica's until the same facts reach both,
-        /// and then the two agree.
-        /// </para>
-        /// <para>
-        /// A <c>notExists</c> over the local graph is therefore provisional: a row whose negative condition
-        /// holds here may be absent from the next result, once a witness written elsewhere arrives.
-        /// </para>
-        /// <para>
-        /// For an action that must not run on a provisional negation, record the premise in the model, as
-        /// <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see> describes.
-        /// </para>
+        /// A result is exact for this replica's own graph. Replicas are peers, so no replica's answer is authoritative.
+        /// A row that rests on a <c>notExists</c> is provisional: it may be absent from the next result once a
+        /// witness written elsewhere arrives. See <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see>.
         /// </remarks>
         /// <typeparam name="TFact">The type of the starting point</typeparam>
         /// <typeparam name="TProjection">The type of the results</typeparam>
@@ -507,20 +496,9 @@ namespace Jinaga
         /// Unlike Watch, results of Query are not updated with new facts.
         /// </summary>
         /// <remarks>
-        /// <para>
-        /// A result is exact for this replica's own graph, which is always a consistent state: a fact
-        /// never arrives before its predecessors. Replicas are peers, so there is no global order and no
-        /// authoritative answer; a result can differ from another replica's until the same facts reach both,
-        /// and then the two agree.
-        /// </para>
-        /// <para>
-        /// A <c>notExists</c> over the local graph is therefore provisional: a row whose negative condition
-        /// holds here may be absent from the next result, once a witness written elsewhere arrives.
-        /// </para>
-        /// <para>
-        /// For an action that must not run on a provisional negation, record the premise in the model, as
-        /// <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see> describes.
-        /// </para>
+        /// A result is exact for this replica's own graph. Replicas are peers, so no replica's answer is authoritative.
+        /// A row that rests on a <c>notExists</c> is provisional: it may be absent from the next result once a
+        /// witness written elsewhere arrives. See <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see>.
         /// </remarks>
         /// <typeparam name="TFact1">The type of the first starting point</typeparam>
         /// <typeparam name="TFact2">The type of the second starting point</typeparam>
@@ -561,20 +539,9 @@ namespace Jinaga
         /// Unlike Query, results of Watch are updated with new facts.
         /// </summary>
         /// <remarks>
-        /// <para>
-        /// A result is exact for this replica's own graph, which is always a consistent state: a fact
-        /// never arrives before its predecessors. Replicas are peers, so there is no global order and no
-        /// authoritative answer; a result can differ from another replica's until the same facts reach both,
-        /// and then the two agree.
-        /// </para>
-        /// <para>
-        /// A <c>notExists</c> over the local graph is therefore provisional: a row whose negative condition
-        /// holds here is removed again when a witness written elsewhere arrives.
-        /// </para>
-        /// <para>
-        /// For an action that must not run on a provisional negation, record the premise in the model, as
-        /// <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see> describes.
-        /// </para>
+        /// A result is exact for this replica's own graph. Replicas are peers, so no replica's answer is authoritative.
+        /// A row that rests on a <c>notExists</c> is provisional: its removal function is called when a witness
+        /// written elsewhere arrives. See <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see>.
         /// </remarks>
         /// <typeparam name="TFact">The type of the starting point</typeparam>
         /// <typeparam name="TProjection">The type of the results</typeparam>
@@ -603,20 +570,9 @@ namespace Jinaga
         /// Unlike Query, results of Watch are updated with new facts.
         /// </summary>
         /// <remarks>
-        /// <para>
-        /// A result is exact for this replica's own graph, which is always a consistent state: a fact
-        /// never arrives before its predecessors. Replicas are peers, so there is no global order and no
-        /// authoritative answer; a result can differ from another replica's until the same facts reach both,
-        /// and then the two agree.
-        /// </para>
-        /// <para>
-        /// A <c>notExists</c> over the local graph is therefore provisional: a row whose negative condition
-        /// holds here is removed again when a witness written elsewhere arrives.
-        /// </para>
-        /// <para>
-        /// For an action that must not run on a provisional negation, record the premise in the model, as
-        /// <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see> describes.
-        /// </para>
+        /// A result is exact for this replica's own graph. Replicas are peers, so no replica's answer is authoritative.
+        /// A row that rests on a <c>notExists</c> is provisional: its removal function is called when a witness
+        /// written elsewhere arrives. See <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see>.
         /// </remarks>
         /// <typeparam name="TFact">The type of the starting point</typeparam>
         /// <typeparam name="TProjection">The type of the results</typeparam>
@@ -649,20 +605,9 @@ namespace Jinaga
         /// Unlike Query, results of Watch are updated with new facts.
         /// </summary>
         /// <remarks>
-        /// <para>
-        /// A result is exact for this replica's own graph, which is always a consistent state: a fact
-        /// never arrives before its predecessors. Replicas are peers, so there is no global order and no
-        /// authoritative answer; a result can differ from another replica's until the same facts reach both,
-        /// and then the two agree.
-        /// </para>
-        /// <para>
-        /// A <c>notExists</c> over the local graph is therefore provisional: a row whose negative condition
-        /// holds here is removed again when a witness written elsewhere arrives.
-        /// </para>
-        /// <para>
-        /// For an action that must not run on a provisional negation, record the premise in the model, as
-        /// <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see> describes.
-        /// </para>
+        /// A result is exact for this replica's own graph. Replicas are peers, so no replica's answer is authoritative.
+        /// A row that rests on a <c>notExists</c> is provisional: its removal function is called when a witness
+        /// written elsewhere arrives. See <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see>.
         /// </remarks>
         /// <typeparam name="TFact">The type of the starting point</typeparam>
         /// <typeparam name="TProjection">The type of the results</typeparam>
@@ -690,20 +635,9 @@ namespace Jinaga
         /// Unlike Query, results of Watch are updated with new facts.
         /// </summary>
         /// <remarks>
-        /// <para>
-        /// A result is exact for this replica's own graph, which is always a consistent state: a fact
-        /// never arrives before its predecessors. Replicas are peers, so there is no global order and no
-        /// authoritative answer; a result can differ from another replica's until the same facts reach both,
-        /// and then the two agree.
-        /// </para>
-        /// <para>
-        /// A <c>notExists</c> over the local graph is therefore provisional: a row whose negative condition
-        /// holds here is removed again when a witness written elsewhere arrives.
-        /// </para>
-        /// <para>
-        /// For an action that must not run on a provisional negation, record the premise in the model, as
-        /// <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see> describes.
-        /// </para>
+        /// A result is exact for this replica's own graph. Replicas are peers, so no replica's answer is authoritative.
+        /// A row that rests on a <c>notExists</c> is provisional: its removal function is called when a witness
+        /// written elsewhere arrives. See <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see>.
         /// </remarks>
         /// <typeparam name="TFact">The type of the starting point</typeparam>
         /// <typeparam name="TProjection">The type of the results</typeparam>
@@ -736,20 +670,9 @@ namespace Jinaga
         /// Unlike Query, results of Watch are updated with new facts.
         /// </summary>
         /// <remarks>
-        /// <para>
-        /// A result is exact for this replica's own graph, which is always a consistent state: a fact
-        /// never arrives before its predecessors. Replicas are peers, so there is no global order and no
-        /// authoritative answer; a result can differ from another replica's until the same facts reach both,
-        /// and then the two agree.
-        /// </para>
-        /// <para>
-        /// A <c>notExists</c> over the local graph is therefore provisional: a row whose negative condition
-        /// holds here is removed again when a witness written elsewhere arrives.
-        /// </para>
-        /// <para>
-        /// For an action that must not run on a provisional negation, record the premise in the model, as
-        /// <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see> describes.
-        /// </para>
+        /// A result is exact for this replica's own graph. Replicas are peers, so no replica's answer is authoritative.
+        /// A row that rests on a <c>notExists</c> is provisional: its removal function is called when a witness
+        /// written elsewhere arrives. See <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see>.
         /// </remarks>
         /// <typeparam name="TFact1">The type of the first starting point</typeparam>
         /// <typeparam name="TFact2">The type of the second starting point</typeparam>
@@ -782,20 +705,9 @@ namespace Jinaga
         /// Unlike Query, results of Watch are updated with new facts.
         /// </summary>
         /// <remarks>
-        /// <para>
-        /// A result is exact for this replica's own graph, which is always a consistent state: a fact
-        /// never arrives before its predecessors. Replicas are peers, so there is no global order and no
-        /// authoritative answer; a result can differ from another replica's until the same facts reach both,
-        /// and then the two agree.
-        /// </para>
-        /// <para>
-        /// A <c>notExists</c> over the local graph is therefore provisional: a row whose negative condition
-        /// holds here is removed again when a witness written elsewhere arrives.
-        /// </para>
-        /// <para>
-        /// For an action that must not run on a provisional negation, record the premise in the model, as
-        /// <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see> describes.
-        /// </para>
+        /// A result is exact for this replica's own graph. Replicas are peers, so no replica's answer is authoritative.
+        /// A row that rests on a <c>notExists</c> is provisional: its removal function is called when a witness
+        /// written elsewhere arrives. See <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see>.
         /// </remarks>
         /// <typeparam name="TFact1">The type of the first starting point</typeparam>
         /// <typeparam name="TFact2">The type of the second starting point</typeparam>
@@ -832,20 +744,9 @@ namespace Jinaga
         /// Unlike Query, results of Watch are updated with new facts.
         /// </summary>
         /// <remarks>
-        /// <para>
-        /// A result is exact for this replica's own graph, which is always a consistent state: a fact
-        /// never arrives before its predecessors. Replicas are peers, so there is no global order and no
-        /// authoritative answer; a result can differ from another replica's until the same facts reach both,
-        /// and then the two agree.
-        /// </para>
-        /// <para>
-        /// A <c>notExists</c> over the local graph is therefore provisional: a row whose negative condition
-        /// holds here is removed again when a witness written elsewhere arrives.
-        /// </para>
-        /// <para>
-        /// For an action that must not run on a provisional negation, record the premise in the model, as
-        /// <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see> describes.
-        /// </para>
+        /// A result is exact for this replica's own graph. Replicas are peers, so no replica's answer is authoritative.
+        /// A row that rests on a <c>notExists</c> is provisional: its removal function is called when a witness
+        /// written elsewhere arrives. See <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see>.
         /// </remarks>
         /// <typeparam name="TFact1">The type of the first starting point</typeparam>
         /// <typeparam name="TFact2">The type of the second starting point</typeparam>
@@ -877,20 +778,9 @@ namespace Jinaga
         /// Unlike Query, results of Watch are updated with new facts.
         /// </summary>
         /// <remarks>
-        /// <para>
-        /// A result is exact for this replica's own graph, which is always a consistent state: a fact
-        /// never arrives before its predecessors. Replicas are peers, so there is no global order and no
-        /// authoritative answer; a result can differ from another replica's until the same facts reach both,
-        /// and then the two agree.
-        /// </para>
-        /// <para>
-        /// A <c>notExists</c> over the local graph is therefore provisional: a row whose negative condition
-        /// holds here is removed again when a witness written elsewhere arrives.
-        /// </para>
-        /// <para>
-        /// For an action that must not run on a provisional negation, record the premise in the model, as
-        /// <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see> describes.
-        /// </para>
+        /// A result is exact for this replica's own graph. Replicas are peers, so no replica's answer is authoritative.
+        /// A row that rests on a <c>notExists</c> is provisional: its removal function is called when a witness
+        /// written elsewhere arrives. See <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see>.
         /// </remarks>
         /// <typeparam name="TFact1">The type of the first starting point</typeparam>
         /// <typeparam name="TFact2">The type of the second starting point</typeparam>
@@ -935,21 +825,10 @@ namespace Jinaga
         /// Unlike Watch, results of Subscribe are updated with new facts from the remote replicator.
         /// </summary>
         /// <remarks>
-        /// <para>
-        /// A result is exact for this replica's own graph, which is always a consistent state: a fact
-        /// never arrives before its predecessors. Replicas are peers, so there is no global order and no
-        /// authoritative answer; a result can differ from another replica's until the same facts reach both,
-        /// and then the two agree.
-        /// </para>
-        /// <para>
-        /// A <c>notExists</c> over the local graph is therefore provisional: a row whose negative condition
-        /// holds here is removed again when a witness written elsewhere arrives.
-        /// The remote replicator is a peer with a graph of its own, so subscribing to it settles no negation.
-        /// </para>
-        /// <para>
-        /// For an action that must not run on a provisional negation, record the premise in the model, as
-        /// <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see> describes.
-        /// </para>
+        /// A result is exact for this replica's own graph. Replicas are peers, so no replica's answer is authoritative.
+        /// A row that rests on a <c>notExists</c> is provisional: its removal function is called when a witness
+        /// written elsewhere arrives. The remote replicator is a peer too, so subscribing to it settles no negation.
+        /// See <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see>.
         /// </remarks>
         /// <typeparam name="TFact">The type of the starting point</typeparam>
         /// <typeparam name="TProjection">The type of the results</typeparam>
@@ -978,21 +857,10 @@ namespace Jinaga
         /// Unlike Watch, results of Subscribe are updated with new facts from the remote replicator.
         /// </summary>
         /// <remarks>
-        /// <para>
-        /// A result is exact for this replica's own graph, which is always a consistent state: a fact
-        /// never arrives before its predecessors. Replicas are peers, so there is no global order and no
-        /// authoritative answer; a result can differ from another replica's until the same facts reach both,
-        /// and then the two agree.
-        /// </para>
-        /// <para>
-        /// A <c>notExists</c> over the local graph is therefore provisional: a row whose negative condition
-        /// holds here is removed again when a witness written elsewhere arrives.
-        /// The remote replicator is a peer with a graph of its own, so subscribing to it settles no negation.
-        /// </para>
-        /// <para>
-        /// For an action that must not run on a provisional negation, record the premise in the model, as
-        /// <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see> describes.
-        /// </para>
+        /// A result is exact for this replica's own graph. Replicas are peers, so no replica's answer is authoritative.
+        /// A row that rests on a <c>notExists</c> is provisional: its removal function is called when a witness
+        /// written elsewhere arrives. The remote replicator is a peer too, so subscribing to it settles no negation.
+        /// See <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see>.
         /// </remarks>
         /// <typeparam name="TFact">The type of the starting point</typeparam>
         /// <typeparam name="TProjection">The type of the results</typeparam>
@@ -1025,21 +893,10 @@ namespace Jinaga
         /// Unlike Watch, results of Subscribe are updated with new facts from the remote replicator.
         /// </summary>
         /// <remarks>
-        /// <para>
-        /// A result is exact for this replica's own graph, which is always a consistent state: a fact
-        /// never arrives before its predecessors. Replicas are peers, so there is no global order and no
-        /// authoritative answer; a result can differ from another replica's until the same facts reach both,
-        /// and then the two agree.
-        /// </para>
-        /// <para>
-        /// A <c>notExists</c> over the local graph is therefore provisional: a row whose negative condition
-        /// holds here is removed again when a witness written elsewhere arrives.
-        /// The remote replicator is a peer with a graph of its own, so subscribing to it settles no negation.
-        /// </para>
-        /// <para>
-        /// For an action that must not run on a provisional negation, record the premise in the model, as
-        /// <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see> describes.
-        /// </para>
+        /// A result is exact for this replica's own graph. Replicas are peers, so no replica's answer is authoritative.
+        /// A row that rests on a <c>notExists</c> is provisional: its removal function is called when a witness
+        /// written elsewhere arrives. The remote replicator is a peer too, so subscribing to it settles no negation.
+        /// See <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see>.
         /// </remarks>
         /// <typeparam name="TFact">The type of the starting point</typeparam>
         /// <typeparam name="TProjection">The type of the results</typeparam>
@@ -1067,21 +924,10 @@ namespace Jinaga
         /// Unlike Watch, results of Subscribe are updated with new facts from the remote replicator.
         /// </summary>
         /// <remarks>
-        /// <para>
-        /// A result is exact for this replica's own graph, which is always a consistent state: a fact
-        /// never arrives before its predecessors. Replicas are peers, so there is no global order and no
-        /// authoritative answer; a result can differ from another replica's until the same facts reach both,
-        /// and then the two agree.
-        /// </para>
-        /// <para>
-        /// A <c>notExists</c> over the local graph is therefore provisional: a row whose negative condition
-        /// holds here is removed again when a witness written elsewhere arrives.
-        /// The remote replicator is a peer with a graph of its own, so subscribing to it settles no negation.
-        /// </para>
-        /// <para>
-        /// For an action that must not run on a provisional negation, record the premise in the model, as
-        /// <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see> describes.
-        /// </para>
+        /// A result is exact for this replica's own graph. Replicas are peers, so no replica's answer is authoritative.
+        /// A row that rests on a <c>notExists</c> is provisional: its removal function is called when a witness
+        /// written elsewhere arrives. The remote replicator is a peer too, so subscribing to it settles no negation.
+        /// See <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see>.
         /// </remarks>
         /// <typeparam name="TFact">The type of the starting point</typeparam>
         /// <typeparam name="TProjection">The type of the results</typeparam>
@@ -1114,21 +960,10 @@ namespace Jinaga
         /// Unlike Watch, results of Subscribe are updated with new facts from the remote replicator.
         /// </summary>
         /// <remarks>
-        /// <para>
-        /// A result is exact for this replica's own graph, which is always a consistent state: a fact
-        /// never arrives before its predecessors. Replicas are peers, so there is no global order and no
-        /// authoritative answer; a result can differ from another replica's until the same facts reach both,
-        /// and then the two agree.
-        /// </para>
-        /// <para>
-        /// A <c>notExists</c> over the local graph is therefore provisional: a row whose negative condition
-        /// holds here is removed again when a witness written elsewhere arrives.
-        /// The remote replicator is a peer with a graph of its own, so subscribing to it settles no negation.
-        /// </para>
-        /// <para>
-        /// For an action that must not run on a provisional negation, record the premise in the model, as
-        /// <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see> describes.
-        /// </para>
+        /// A result is exact for this replica's own graph. Replicas are peers, so no replica's answer is authoritative.
+        /// A row that rests on a <c>notExists</c> is provisional: its removal function is called when a witness
+        /// written elsewhere arrives. The remote replicator is a peer too, so subscribing to it settles no negation.
+        /// See <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see>.
         /// </remarks>
         /// <typeparam name="TFact1">The type of the first starting point</typeparam>
         /// <typeparam name="TFact2">The type of the second starting point</typeparam>
@@ -1161,21 +996,10 @@ namespace Jinaga
         /// Unlike Watch, results of Subscribe are updated with new facts from the remote replicator.
         /// </summary>
         /// <remarks>
-        /// <para>
-        /// A result is exact for this replica's own graph, which is always a consistent state: a fact
-        /// never arrives before its predecessors. Replicas are peers, so there is no global order and no
-        /// authoritative answer; a result can differ from another replica's until the same facts reach both,
-        /// and then the two agree.
-        /// </para>
-        /// <para>
-        /// A <c>notExists</c> over the local graph is therefore provisional: a row whose negative condition
-        /// holds here is removed again when a witness written elsewhere arrives.
-        /// The remote replicator is a peer with a graph of its own, so subscribing to it settles no negation.
-        /// </para>
-        /// <para>
-        /// For an action that must not run on a provisional negation, record the premise in the model, as
-        /// <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see> describes.
-        /// </para>
+        /// A result is exact for this replica's own graph. Replicas are peers, so no replica's answer is authoritative.
+        /// A row that rests on a <c>notExists</c> is provisional: its removal function is called when a witness
+        /// written elsewhere arrives. The remote replicator is a peer too, so subscribing to it settles no negation.
+        /// See <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see>.
         /// </remarks>
         /// <typeparam name="TFact1">The type of the first starting point</typeparam>
         /// <typeparam name="TFact2">The type of the second starting point</typeparam>
@@ -1212,21 +1036,10 @@ namespace Jinaga
         /// Unlike Watch, results of Subscribe are updated with new facts from the remote replicator.
         /// </summary>
         /// <remarks>
-        /// <para>
-        /// A result is exact for this replica's own graph, which is always a consistent state: a fact
-        /// never arrives before its predecessors. Replicas are peers, so there is no global order and no
-        /// authoritative answer; a result can differ from another replica's until the same facts reach both,
-        /// and then the two agree.
-        /// </para>
-        /// <para>
-        /// A <c>notExists</c> over the local graph is therefore provisional: a row whose negative condition
-        /// holds here is removed again when a witness written elsewhere arrives.
-        /// The remote replicator is a peer with a graph of its own, so subscribing to it settles no negation.
-        /// </para>
-        /// <para>
-        /// For an action that must not run on a provisional negation, record the premise in the model, as
-        /// <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see> describes.
-        /// </para>
+        /// A result is exact for this replica's own graph. Replicas are peers, so no replica's answer is authoritative.
+        /// A row that rests on a <c>notExists</c> is provisional: its removal function is called when a witness
+        /// written elsewhere arrives. The remote replicator is a peer too, so subscribing to it settles no negation.
+        /// See <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see>.
         /// </remarks>
         /// <typeparam name="TFact1">The type of the first starting point</typeparam>
         /// <typeparam name="TFact2">The type of the second starting point</typeparam>
@@ -1258,21 +1071,10 @@ namespace Jinaga
         /// Unlike Watch, results of Subscribe are updated with new facts from the remote replicator.
         /// </summary>
         /// <remarks>
-        /// <para>
-        /// A result is exact for this replica's own graph, which is always a consistent state: a fact
-        /// never arrives before its predecessors. Replicas are peers, so there is no global order and no
-        /// authoritative answer; a result can differ from another replica's until the same facts reach both,
-        /// and then the two agree.
-        /// </para>
-        /// <para>
-        /// A <c>notExists</c> over the local graph is therefore provisional: a row whose negative condition
-        /// holds here is removed again when a witness written elsewhere arrives.
-        /// The remote replicator is a peer with a graph of its own, so subscribing to it settles no negation.
-        /// </para>
-        /// <para>
-        /// For an action that must not run on a provisional negation, record the premise in the model, as
-        /// <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see> describes.
-        /// </para>
+        /// A result is exact for this replica's own graph. Replicas are peers, so no replica's answer is authoritative.
+        /// A row that rests on a <c>notExists</c> is provisional: its removal function is called when a witness
+        /// written elsewhere arrives. The remote replicator is a peer too, so subscribing to it settles no negation.
+        /// See <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see>.
         /// </remarks>
         /// <typeparam name="TFact1">The type of the first starting point</typeparam>
         /// <typeparam name="TFact2">The type of the second starting point</typeparam>
