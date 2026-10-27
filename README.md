@@ -72,6 +72,89 @@ The client will open a persistent connection with the server.
 The server will notify the client the moment a new employee is hired.
 Because the client already set up a watch, the new employee will appear on the UI.
 
+## What a Result Promises
+
+`Query`, `Watch`, and `Subscribe` all answer from the graph of facts that this replica holds.
+Knowing what that answer promises, and what it does not, is what keeps a consumer from acting on information that has not settled.
+
+- **A result is exact for this replica's own graph.**
+  That graph is always a consistent state.
+  A fact is never stored before its predecessors, a store saves each batch of facts together, and a read sees one snapshot, so no result is computed over half of a change.
+- **Replicas are peers.**
+  There is no global order and no authoritative answer.
+  A result can differ from another replica's until the same facts have reached both, and then the two agree.
+  A replicator is a peer with a graph of its own, so comparing a local watch against a query of the replicator compares two replicas.
+  It does not check one of them against the truth.
+- **A negation is provisional.**
+  A `notExists` condition is evaluated over the local graph.
+  A row whose negative condition holds here may leave the result when a witness written elsewhere arrives.
+  `Watch` and `Subscribe` then call that row's removal function, and `Query`, run again, omits the row.
+
+### Record the Premise
+
+For an action that must not run on a provisional negation, record the premise in the model.
+The fact that the handler writes names the facts it acted on.
+A concurrent contradiction is then visible in history, and a specification can find it.
+
+Suppose a facility manager assigns an office to each employee who has not been terminated.
+
+```C#
+[FactType("Corporate.Facility")]
+record Facility(User manager, Company company, string name) {}
+
+[FactType("Corporate.Termination")]
+record Termination(Employee employee) {}
+
+[FactType("Corporate.OfficeAssignment")]
+record OfficeAssignment(Facility facility, Employee employee, string roomNumber) {}
+```
+
+The decision reads a negation, so it is provisional.
+
+```C#
+var employeesToAssign = Given<Company>.Match((company, facts) =>
+    from employee in facts.OfType<Employee>()
+    where employee.company == company
+    where !facts.Any<Termination>(termination => termination.employee == employee)
+    select employee
+);
+```
+
+The assignment names the employee that the decision acted on.
+That reference is the premise.
+
+```C#
+var assignment = await j.Fact(new OfficeAssignment(facility, employee, "101"));
+```
+
+A `Termination` written on another replica does not erase that assignment, and it does not need to.
+Both facts are in history, so a specification finds the pairs that contradict one another.
+
+```C#
+var contradictedAssignments = Given<Facility>.Match((facility, facts) =>
+    from assignment in facts.OfType<OfficeAssignment>()
+    where assignment.facility == facility
+    from termination in facts.OfType<Termination>()
+    where termination.employee == assignment.employee
+    select assignment
+);
+```
+
+A watch on that specification tells the facility manager which assignments to revisit.
+Without the premise, the contradiction would show up only as a row that quietly left a result.
+
+To narrow who can make a decision, name that principal with an authorization rule.
+Only the facility's manager can write an assignment for that facility.
+That does not make the decision unique: the same manager on two devices can still write competing assignments.
+It leaves one principal, who can see each conflict in history and resolve it.
+
+```C#
+private static AuthorizationRules Authorization(AuthorizationRules r) => r
+    .Any<User>()
+    .Type<OfficeAssignment>(assignment => assignment.facility.manager)
+    ;
+```
+
 ## Running a Replicator
 
 A Jinaga front end connects to a device called a Replicator.

@@ -462,6 +462,11 @@ namespace Jinaga
         /// Retrieve results of a specification.
         /// Unlike Watch, results of Query are not updated with new facts.
         /// </summary>
+        /// <remarks>
+        /// A result is exact for this replica's own graph. Replicas are peers, so no replica's answer is authoritative.
+        /// A row that rests on a <c>notExists</c> is provisional: it may be absent from the next result once a
+        /// witness written elsewhere arrives. See <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see>.
+        /// </remarks>
         /// <typeparam name="TFact">The type of the starting point</typeparam>
         /// <typeparam name="TProjection">The type of the results</typeparam>
         /// <param name="specification">Defines which facts to match and how to project them</param>
@@ -490,6 +495,11 @@ namespace Jinaga
         /// Retrieve results of a specification.
         /// Unlike Watch, results of Query are not updated with new facts.
         /// </summary>
+        /// <remarks>
+        /// A result is exact for this replica's own graph. Replicas are peers, so no replica's answer is authoritative.
+        /// A row that rests on a <c>notExists</c> is provisional: it may be absent from the next result once a
+        /// witness written elsewhere arrives. See <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see>.
+        /// </remarks>
         /// <typeparam name="TFact1">The type of the first starting point</typeparam>
         /// <typeparam name="TFact2">The type of the second starting point</typeparam>
         /// <typeparam name="TProjection">The type of the results</typeparam>
@@ -528,6 +538,11 @@ namespace Jinaga
         /// Observe the results of a specification, including changes.
         /// Unlike Query, results of Watch are updated with new facts.
         /// </summary>
+        /// <remarks>
+        /// A result is exact for this replica's own graph. Replicas are peers, so no replica's answer is authoritative.
+        /// A row that rests on a <c>notExists</c> is provisional: its removal function is called when a witness
+        /// written elsewhere arrives. See <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see>.
+        /// </remarks>
         /// <typeparam name="TFact">The type of the starting point</typeparam>
         /// <typeparam name="TProjection">The type of the results</typeparam>
         /// <param name="specification">Defines which facts to match and how to project them</param>
@@ -554,6 +569,11 @@ namespace Jinaga
         /// Observe the results of a specification, including changes.
         /// Unlike Query, results of Watch are updated with new facts.
         /// </summary>
+        /// <remarks>
+        /// A result is exact for this replica's own graph. Replicas are peers, so no replica's answer is authoritative.
+        /// A row that rests on a <c>notExists</c> is provisional: its removal function is called when a witness
+        /// written elsewhere arrives. See <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see>.
+        /// </remarks>
         /// <typeparam name="TFact">The type of the starting point</typeparam>
         /// <typeparam name="TProjection">The type of the results</typeparam>
         /// <param name="specification">Defines which facts to match and how to project them</param>
@@ -584,6 +604,11 @@ namespace Jinaga
         /// Observe the results of a specification, including changes.
         /// Unlike Query, results of Watch are updated with new facts.
         /// </summary>
+        /// <remarks>
+        /// A result is exact for this replica's own graph. Replicas are peers, so no replica's answer is authoritative.
+        /// A row that rests on a <c>notExists</c> is provisional: its removal function is called when a witness
+        /// written elsewhere arrives. See <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see>.
+        /// </remarks>
         /// <typeparam name="TFact">The type of the starting point</typeparam>
         /// <typeparam name="TProjection">The type of the results</typeparam>
         /// <param name="specification">Defines which facts to match and how to project them</param>
@@ -609,6 +634,11 @@ namespace Jinaga
         /// Observe the results of a specification, including changes.
         /// Unlike Query, results of Watch are updated with new facts.
         /// </summary>
+        /// <remarks>
+        /// A result is exact for this replica's own graph. Replicas are peers, so no replica's answer is authoritative.
+        /// A row that rests on a <c>notExists</c> is provisional: its removal function is called when a witness
+        /// written elsewhere arrives. See <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see>.
+        /// </remarks>
         /// <typeparam name="TFact">The type of the starting point</typeparam>
         /// <typeparam name="TProjection">The type of the results</typeparam>
         /// <param name="specification">Defines which facts to match and how to project them</param>
@@ -639,6 +669,11 @@ namespace Jinaga
         /// Observe the results of a specification, including changes.
         /// Unlike Query, results of Watch are updated with new facts.
         /// </summary>
+        /// <remarks>
+        /// A result is exact for this replica's own graph. Replicas are peers, so no replica's answer is authoritative.
+        /// A row that rests on a <c>notExists</c> is provisional: its removal function is called when a witness
+        /// written elsewhere arrives. See <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see>.
+        /// </remarks>
         /// <typeparam name="TFact1">The type of the first starting point</typeparam>
         /// <typeparam name="TFact2">The type of the second starting point</typeparam>
         /// <typeparam name="TProjection">The type of the results</typeparam>
@@ -669,6 +704,11 @@ namespace Jinaga
         /// Observe the results of a specification, including changes.
         /// Unlike Query, results of Watch are updated with new facts.
         /// </summary>
+        /// <remarks>
+        /// A result is exact for this replica's own graph. Replicas are peers, so no replica's answer is authoritative.
+        /// A row that rests on a <c>notExists</c> is provisional: its removal function is called when a witness
+        /// written elsewhere arrives. See <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see>.
+        /// </remarks>
         /// <typeparam name="TFact1">The type of the first starting point</typeparam>
         /// <typeparam name="TFact2">The type of the second starting point</typeparam>
         /// <typeparam name="TProjection">The type of the results</typeparam>
@@ -703,6 +743,11 @@ namespace Jinaga
         /// Observe the results of a specification, including changes.
         /// Unlike Query, results of Watch are updated with new facts.
         /// </summary>
+        /// <remarks>
+        /// A result is exact for this replica's own graph. Replicas are peers, so no replica's answer is authoritative.
+        /// A row that rests on a <c>notExists</c> is provisional: its removal function is called when a witness
+        /// written elsewhere arrives. See <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see>.
+        /// </remarks>
         /// <typeparam name="TFact1">The type of the first starting point</typeparam>
         /// <typeparam name="TFact2">The type of the second starting point</typeparam>
         /// <typeparam name="TProjection">The type of the results</typeparam>
@@ -732,6 +777,11 @@ namespace Jinaga
         /// Observe the results of a specification, including changes.
         /// Unlike Query, results of Watch are updated with new facts.
         /// </summary>
+        /// <remarks>
+        /// A result is exact for this replica's own graph. Replicas are peers, so no replica's answer is authoritative.
+        /// A row that rests on a <c>notExists</c> is provisional: its removal function is called when a witness
+        /// written elsewhere arrives. See <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see>.
+        /// </remarks>
         /// <typeparam name="TFact1">The type of the first starting point</typeparam>
         /// <typeparam name="TFact2">The type of the second starting point</typeparam>
         /// <typeparam name="TProjection">The type of the results</typeparam>
@@ -774,6 +824,12 @@ namespace Jinaga
         /// Observe the results of a specification, including changes from the remote replicator.
         /// Unlike Watch, results of Subscribe are updated with new facts from the remote replicator.
         /// </summary>
+        /// <remarks>
+        /// A result is exact for this replica's own graph. Replicas are peers, so no replica's answer is authoritative.
+        /// A row that rests on a <c>notExists</c> is provisional: its removal function is called when a witness
+        /// written elsewhere arrives. The remote replicator is a peer too, so subscribing to it settles no negation.
+        /// See <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see>.
+        /// </remarks>
         /// <typeparam name="TFact">The type of the starting point</typeparam>
         /// <typeparam name="TProjection">The type of the results</typeparam>
         /// <param name="specification">Defines which facts to match and how to project them</param>
@@ -800,6 +856,12 @@ namespace Jinaga
         /// Observe the results of a specification, including changes from the remote replicator.
         /// Unlike Watch, results of Subscribe are updated with new facts from the remote replicator.
         /// </summary>
+        /// <remarks>
+        /// A result is exact for this replica's own graph. Replicas are peers, so no replica's answer is authoritative.
+        /// A row that rests on a <c>notExists</c> is provisional: its removal function is called when a witness
+        /// written elsewhere arrives. The remote replicator is a peer too, so subscribing to it settles no negation.
+        /// See <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see>.
+        /// </remarks>
         /// <typeparam name="TFact">The type of the starting point</typeparam>
         /// <typeparam name="TProjection">The type of the results</typeparam>
         /// <param name="specification">Defines which facts to match and how to project them</param>
@@ -830,6 +892,12 @@ namespace Jinaga
         /// Observe the results of a specification, including changes from the remote replicator.
         /// Unlike Watch, results of Subscribe are updated with new facts from the remote replicator.
         /// </summary>
+        /// <remarks>
+        /// A result is exact for this replica's own graph. Replicas are peers, so no replica's answer is authoritative.
+        /// A row that rests on a <c>notExists</c> is provisional: its removal function is called when a witness
+        /// written elsewhere arrives. The remote replicator is a peer too, so subscribing to it settles no negation.
+        /// See <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see>.
+        /// </remarks>
         /// <typeparam name="TFact">The type of the starting point</typeparam>
         /// <typeparam name="TProjection">The type of the results</typeparam>
         /// <param name="specification">Defines which facts to match and how to project them</param>
@@ -855,6 +923,12 @@ namespace Jinaga
         /// Observe the results of a specification, including changes from the remote replicator.
         /// Unlike Watch, results of Subscribe are updated with new facts from the remote replicator.
         /// </summary>
+        /// <remarks>
+        /// A result is exact for this replica's own graph. Replicas are peers, so no replica's answer is authoritative.
+        /// A row that rests on a <c>notExists</c> is provisional: its removal function is called when a witness
+        /// written elsewhere arrives. The remote replicator is a peer too, so subscribing to it settles no negation.
+        /// See <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see>.
+        /// </remarks>
         /// <typeparam name="TFact">The type of the starting point</typeparam>
         /// <typeparam name="TProjection">The type of the results</typeparam>
         /// <param name="specification">Defines which facts to match and how to project them</param>
@@ -885,6 +959,12 @@ namespace Jinaga
         /// Observe the results of a specification, including changes from the remote replicator.
         /// Unlike Watch, results of Subscribe are updated with new facts from the remote replicator.
         /// </summary>
+        /// <remarks>
+        /// A result is exact for this replica's own graph. Replicas are peers, so no replica's answer is authoritative.
+        /// A row that rests on a <c>notExists</c> is provisional: its removal function is called when a witness
+        /// written elsewhere arrives. The remote replicator is a peer too, so subscribing to it settles no negation.
+        /// See <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see>.
+        /// </remarks>
         /// <typeparam name="TFact1">The type of the first starting point</typeparam>
         /// <typeparam name="TFact2">The type of the second starting point</typeparam>
         /// <typeparam name="TProjection">The type of the results</typeparam>
@@ -915,6 +995,12 @@ namespace Jinaga
         /// Observe the results of a specification, including changes from the remote replicator.
         /// Unlike Watch, results of Subscribe are updated with new facts from the remote replicator.
         /// </summary>
+        /// <remarks>
+        /// A result is exact for this replica's own graph. Replicas are peers, so no replica's answer is authoritative.
+        /// A row that rests on a <c>notExists</c> is provisional: its removal function is called when a witness
+        /// written elsewhere arrives. The remote replicator is a peer too, so subscribing to it settles no negation.
+        /// See <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see>.
+        /// </remarks>
         /// <typeparam name="TFact1">The type of the first starting point</typeparam>
         /// <typeparam name="TFact2">The type of the second starting point</typeparam>
         /// <typeparam name="TProjection">The type of the results</typeparam>
@@ -949,6 +1035,12 @@ namespace Jinaga
         /// Observe the results of a specification, including changes from the remote replicator.
         /// Unlike Watch, results of Subscribe are updated with new facts from the remote replicator.
         /// </summary>
+        /// <remarks>
+        /// A result is exact for this replica's own graph. Replicas are peers, so no replica's answer is authoritative.
+        /// A row that rests on a <c>notExists</c> is provisional: its removal function is called when a witness
+        /// written elsewhere arrives. The remote replicator is a peer too, so subscribing to it settles no negation.
+        /// See <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see>.
+        /// </remarks>
         /// <typeparam name="TFact1">The type of the first starting point</typeparam>
         /// <typeparam name="TFact2">The type of the second starting point</typeparam>
         /// <typeparam name="TProjection">The type of the results</typeparam>
@@ -978,6 +1070,12 @@ namespace Jinaga
         /// Observe the results of a specification, including changes from the remote replicator.
         /// Unlike Watch, results of Subscribe are updated with new facts from the remote replicator.
         /// </summary>
+        /// <remarks>
+        /// A result is exact for this replica's own graph. Replicas are peers, so no replica's answer is authoritative.
+        /// A row that rests on a <c>notExists</c> is provisional: its removal function is called when a witness
+        /// written elsewhere arrives. The remote replicator is a peer too, so subscribing to it settles no negation.
+        /// See <see href="https://github.com/jinaga/jinaga.net#what-a-result-promises">What a Result Promises</see>.
+        /// </remarks>
         /// <typeparam name="TFact1">The type of the first starting point</typeparam>
         /// <typeparam name="TFact2">The type of the second starting point</typeparam>
         /// <typeparam name="TProjection">The type of the results</typeparam>
