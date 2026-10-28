@@ -9,7 +9,7 @@ namespace Jinaga.Pipelines
     /// <summary>
     /// jinaga-spec's proven inverse algorithm, <c>candidates</c>, ported from
     /// <c>ports/typescript/inverse-candidates.ts</c> at jinaga-spec
-    /// <c>07d5788576975265a6179270a857e954c5678185</c>.
+    /// <c>23d8a9f2f868fc551312cb2f4cfa91865d292ba8</c>.
     ///
     /// Proven (jinaga/jinaga-spec#7, #11, #12): for a well-formed specification and a
     /// fresh batch -- no stored fact has the hash of a batch fact or names one as a
@@ -99,46 +99,98 @@ namespace Jinaga.Pipelines
         }
 
         /// <summary>
-        /// Move each given's existential conditions onto a match of their own, so that
-        /// <see cref="BuildInverses"/> stays exactly the proven definition, which takes
-        /// no conditions on a given.
+        /// Move every condition on a given onto a new first match, bound to the first given
+        /// that carries one. An existential condition does not read the match it is written
+        /// on, so one match serves every given's conditions: it has one solution when all of
+        /// them hold, and none when any of them fails. The match takes the first of
+        /// <c>given</c>, <c>given2</c>, <c>given3</c>, ... that the specification does not
+        /// name, as <c>givenConditionsLabel</c> in <c>JinagaSpec/GivenConditions.lean</c>
+        /// does.
         ///
-        /// This reduction is outside the proof. An existential condition written on a
-        /// given reads the given by name, and the given keeps its name, so moving the
-        /// condition to a synthetic unknown joined to that given leaves what it reads
-        /// unchanged.
+        /// Proven in <c>JinagaSpec/Proofs/GivenConditions.lean</c>:
+        /// <c>read_reduceGivenConditions</c>, that the reduction reads exactly what the
+        /// conditioned specification reads, for any unused label;
+        /// <c>candidates_complete_given</c>, that its candidates cover every change; and
+        /// <c>stream_correct_given</c>, that a stream which re-checks them holds exactly the
+        /// result.
+        ///
+        /// The label also avoids every label a collection projection declares or names. The
+        /// Lean model has no nested specification projections, so neither it nor the
+        /// TypeScript port can see those labels (jinaga/jinaga-spec#18); jinaga.js takes the
+        /// same wider rule (jinaga/jinaga.js#371). Avoiding them is conservative -- it can
+        /// only skip a name the vectors would have allowed, never pick one they reject -- and
+        /// it matters here because <see cref="Jinaga.Observers.ObserverLocal"/> appends a
+        /// collection's matches to its parent's, where a collision would put two declarations
+        /// of one label in one match list.
         /// </summary>
-        private static Specification ReduceGivenConditions(Specification specification)
+        public static Specification ReduceGivenConditions(Specification specification)
         {
-            if (specification.Givens.All(given => given.ExistentialConditions.IsEmpty))
+            var first = specification.Givens
+                .FirstOrDefault(given => !given.ExistentialConditions.IsEmpty);
+            if (first == null)
             {
                 return specification;
             }
 
-            var reductions = ImmutableList<Match>.Empty;
-            for (int index = 0; index < specification.Givens.Count; index++)
+            var conditions = specification.Givens
+                .SelectMany(given => given.ExistentialConditions)
+                .ToImmutableList();
+            var used = specification.Givens
+                .Select(given => given.Label.Name)
+                .Concat(LabelsInMatches(conditions
+                    .SelectMany(condition => condition.Matches)
+                    .ToImmutableList()))
+                .Concat(LabelsInMatches(specification.Matches))
+                .Concat(LabelsInProjection(specification.Projection))
+                .ToImmutableHashSet();
+            string label = "given";
+            for (int index = 2; used.Contains(label); index++)
             {
-                var given = specification.Givens[index];
-                if (given.ExistentialConditions.IsEmpty)
-                {
-                    continue;
-                }
-                reductions = reductions.Add(new Match(
-                    new Label($"__g{index}", given.Label.Type),
-                    ImmutableList.Create(new PathCondition(
-                        ImmutableList<Role>.Empty,
-                        given.Label.Name,
-                        ImmutableList<Role>.Empty)),
-                    given.ExistentialConditions));
+                label = $"given{index}";
             }
+
             return new Specification(
                 specification.Givens
                     .Select(given => new SpecificationGiven(
                         given.Label,
                         ImmutableList<ExistentialCondition>.Empty))
                     .ToImmutableList(),
-                reductions.AddRange(specification.Matches),
+                specification.Matches.Insert(0, new Match(
+                    new Label(label, first.Label.Type),
+                    ImmutableList.Create(new PathCondition(
+                        ImmutableList<Role>.Empty,
+                        first.Label.Name,
+                        ImmutableList<Role>.Empty)),
+                    conditions)),
                 specification.Projection);
+        }
+
+        /// <summary>Every label a list of matches declares or names, at any depth.</summary>
+        private static IEnumerable<string> LabelsInMatches(ImmutableList<Match> matches)
+        {
+            return matches.SelectMany(match => ImmutableList.Create(match.Unknown.Name)
+                .Concat(match.PathConditions.Select(condition => condition.LabelRight))
+                .Concat(match.ExistentialConditions.SelectMany(condition =>
+                    LabelsInMatches(condition.Matches))));
+        }
+
+        /// <summary>
+        /// Every label the projection names, together with every label declared or named, at
+        /// any depth, inside a collection projection's matches and its own projection.
+        /// </summary>
+        private static IEnumerable<string> LabelsInProjection(Projection projection)
+        {
+            switch (projection)
+            {
+                case CollectionProjection collection:
+                    return LabelsInMatches(collection.Matches)
+                        .Concat(LabelsInProjection(collection.Projection));
+                case CompoundProjection compound:
+                    return compound.Names.SelectMany(name =>
+                        LabelsInProjection(compound.GetProjection(name)));
+                default:
+                    return ProjectionLabels(projection);
+            }
         }
 
         /* ------------- Step 1: one inverse per way the new fact can touch a row ------------- */

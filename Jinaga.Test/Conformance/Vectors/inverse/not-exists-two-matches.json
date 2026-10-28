@@ -1,0 +1,245 @@
+{"text":
+ "(p1: Project) {\n    t: Task [\n        t->project: Project = p1\n        !E {\n            a: Assignment [\n                a->task: Task = t\n            ]\n            c: Completion [\n                c->assignment: Assignment = a\n            ]\n        }\n    ]\n} => t\n",
+ "specification":
+ {"projection": {"type": "fact", "label": "t"},
+  "matches":
+  [{"unknown": {"type": "Task", "name": "t"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [],
+      "rolesLeft": [{"predecessorType": "Project", "name": "project"}],
+      "labelRight": "p1"},
+     {"type": "existential",
+      "matches":
+      [{"unknown": {"type": "Assignment", "name": "a"},
+        "conditions":
+        [{"type": "path",
+          "rolesRight": [],
+          "rolesLeft": [{"predecessorType": "Task", "name": "task"}],
+          "labelRight": "t"}]},
+       {"unknown": {"type": "Completion", "name": "c"},
+        "conditions":
+        [{"type": "path",
+          "rolesRight": [],
+          "rolesLeft":
+          [{"predecessorType": "Assignment", "name": "assignment"}],
+          "labelRight": "a"}]}],
+      "exists": false}]}],
+  "given": [{"label": {"type": "Project", "name": "p1"}, "conditions": []}]},
+ "source": "coverage: an existential condition with several matches",
+ "rowLabels": ["t"],
+ "name": "not-exists-two-matches",
+ "graph":
+ [{"type": "Project", "predecessors": [], "id": 0},
+  {"type": "Task", "predecessors": [{"role": "project", "id": 0}], "id": 1},
+  {"type": "Assignment", "predecessors": [{"role": "task", "id": 1}], "id": 2}],
+ "givens": {"p1": 0},
+ "fact":
+ {"type": "Completion",
+  "predecessors": [{"role": "assignment", "id": 2}],
+  "id": 3},
+ "expected":
+ {"reordered":
+  [{"text":
+    "(p1: Project, __f: Task) {\n    t: Task [\n        t = __f\n        t->project: Project = p1\n        !E {\n            a: Assignment [\n                a->task: Task = t\n            ]\n            c: Completion [\n                c->assignment: Assignment = a\n            ]\n        }\n    ]\n} => t\n",
+    "specification":
+    {"projection": {"type": "fact", "label": "t"},
+     "matches":
+     [{"unknown": {"type": "Task", "name": "t"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [],
+         "labelRight": "__f"},
+        {"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Project", "name": "project"}],
+         "labelRight": "p1"},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Assignment", "name": "a"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Task", "name": "task"}],
+             "labelRight": "t"}]},
+          {"unknown": {"type": "Completion", "name": "c"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft":
+             [{"predecessorType": "Assignment", "name": "assignment"}],
+             "labelRight": "a"}]}],
+         "exists": false}]}],
+     "given":
+     [{"label": {"type": "Project", "name": "p1"}, "conditions": []},
+      {"label": {"type": "Task", "name": "__f"}, "conditions": []}]}},
+   {"text":
+    "(p1: Project, __f: Assignment) {\n    a: Assignment [\n        a = __f\n    ]\n    t: Task [\n        t = a->task: Task\n        t->project: Project = p1\n    ]\n    c: Completion [\n        c->assignment: Assignment = a\n    ]\n} => t\n",
+    "specification":
+    {"projection": {"type": "fact", "label": "t"},
+     "matches":
+     [{"unknown": {"type": "Assignment", "name": "a"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [],
+         "labelRight": "__f"}]},
+      {"unknown": {"type": "Task", "name": "t"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [{"predecessorType": "Task", "name": "task"}],
+         "rolesLeft": [],
+         "labelRight": "a"},
+        {"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Project", "name": "project"}],
+         "labelRight": "p1"}]},
+      {"unknown": {"type": "Completion", "name": "c"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Assignment", "name": "assignment"}],
+         "labelRight": "a"}]}],
+     "given":
+     [{"label": {"type": "Project", "name": "p1"}, "conditions": []},
+      {"label": {"type": "Assignment", "name": "__f"}, "conditions": []}]}},
+   {"text":
+    "(p1: Project, __f: Completion) {\n    c: Completion [\n        c = __f\n    ]\n    a: Assignment [\n        a = c->assignment: Assignment\n    ]\n    t: Task [\n        t = a->task: Task\n        t->project: Project = p1\n    ]\n} => t\n",
+    "specification":
+    {"projection": {"type": "fact", "label": "t"},
+     "matches":
+     [{"unknown": {"type": "Completion", "name": "c"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [],
+         "labelRight": "__f"}]},
+      {"unknown": {"type": "Assignment", "name": "a"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight":
+         [{"predecessorType": "Assignment", "name": "assignment"}],
+         "rolesLeft": [],
+         "labelRight": "c"}]},
+      {"unknown": {"type": "Task", "name": "t"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [{"predecessorType": "Task", "name": "task"}],
+         "rolesLeft": [],
+         "labelRight": "a"},
+        {"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Project", "name": "project"}],
+         "labelRight": "p1"}]}],
+     "given":
+     [{"label": {"type": "Project", "name": "p1"}, "conditions": []},
+      {"label": {"type": "Completion", "name": "__f"}, "conditions": []}]}}],
+  "lost": [[1]],
+  "inverses":
+  [{"text":
+    "(p1: Project, __f: Task) {\n    t: Task [\n        t = __f\n        t->project: Project = p1\n        !E {\n            a: Assignment [\n                a->task: Task = t\n            ]\n            c: Completion [\n                c->assignment: Assignment = a\n            ]\n        }\n    ]\n} => t\n",
+    "specification":
+    {"projection": {"type": "fact", "label": "t"},
+     "matches":
+     [{"unknown": {"type": "Task", "name": "t"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [],
+         "labelRight": "__f"},
+        {"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Project", "name": "project"}],
+         "labelRight": "p1"},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Assignment", "name": "a"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Task", "name": "task"}],
+             "labelRight": "t"}]},
+          {"unknown": {"type": "Completion", "name": "c"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft":
+             [{"predecessorType": "Assignment", "name": "assignment"}],
+             "labelRight": "a"}]}],
+         "exists": false}]}],
+     "given":
+     [{"label": {"type": "Project", "name": "p1"}, "conditions": []},
+      {"label": {"type": "Task", "name": "__f"}, "conditions": []}]}},
+   {"text":
+    "(p1: Project, __f: Assignment) {\n    t: Task [\n        t->project: Project = p1\n        E {\n            a: Assignment [\n                a = __f\n                a->task: Task = t\n            ]\n            c: Completion [\n                c->assignment: Assignment = a\n            ]\n        }\n    ]\n} => t\n",
+    "specification":
+    {"projection": {"type": "fact", "label": "t"},
+     "matches":
+     [{"unknown": {"type": "Task", "name": "t"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Project", "name": "project"}],
+         "labelRight": "p1"},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Assignment", "name": "a"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [],
+             "labelRight": "__f"},
+            {"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Task", "name": "task"}],
+             "labelRight": "t"}]},
+          {"unknown": {"type": "Completion", "name": "c"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft":
+             [{"predecessorType": "Assignment", "name": "assignment"}],
+             "labelRight": "a"}]}],
+         "exists": true}]}],
+     "given":
+     [{"label": {"type": "Project", "name": "p1"}, "conditions": []},
+      {"label": {"type": "Assignment", "name": "__f"}, "conditions": []}]}},
+   {"text":
+    "(p1: Project, __f: Completion) {\n    t: Task [\n        t->project: Project = p1\n        E {\n            a: Assignment [\n                a->task: Task = t\n            ]\n            c: Completion [\n                c = __f\n                c->assignment: Assignment = a\n            ]\n        }\n    ]\n} => t\n",
+    "specification":
+    {"projection": {"type": "fact", "label": "t"},
+     "matches":
+     [{"unknown": {"type": "Task", "name": "t"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Project", "name": "project"}],
+         "labelRight": "p1"},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Assignment", "name": "a"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Task", "name": "task"}],
+             "labelRight": "t"}]},
+          {"unknown": {"type": "Completion", "name": "c"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [],
+             "labelRight": "__f"},
+            {"type": "path",
+             "rolesRight": [],
+             "rolesLeft":
+             [{"predecessorType": "Assignment", "name": "assignment"}],
+             "labelRight": "a"}]}],
+         "exists": true}]}],
+     "given":
+     [{"label": {"type": "Project", "name": "p1"}, "conditions": []},
+      {"label": {"type": "Completion", "name": "__f"}, "conditions": []}]}}],
+  "gained": [],
+  "candidates": [[1]]},
+ "description":
+ "notExists { two matches, the second joined to the first }: tasks with no completed assignment. A Completion of an existing assignment removes the task: the path reaches the task from the second match through the first."}
