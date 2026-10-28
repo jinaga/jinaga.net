@@ -5,6 +5,9 @@ It begins with a `Given` clause that specifies the type of fact that you are loo
 Then it uses a `Match` clause to build the specification.
 From there the `SpecificationProcessor` translates either an `IQueryable` or a scalar into a Jinaga specification.
 
+A `Given` can also carry a condition of its own, written with `Where` before the `Match` or `Select`.
+See [Given.Where](#givenwhere).
+
 The following constructs are accepted in the `Match` clause:
 
 - source -> facts.OfType`<T>`()
@@ -197,6 +200,80 @@ Finally, the `Select` construct replaces the projection with the `manager` label
   ]
 } => manager
 ```
+
+## Given.Where
+
+A given can carry conditions of its own.
+`Where` takes a predicate over the givens and a `FactRepository`, and returns a builder offering the same `Match` and `Select` overloads that `Given` offers.
+
+```C#
+var specification = Given<Office>
+  .Where((office, facts) => !facts.Any<OfficeClosure>(closure =>
+    closure.office == office
+  ))
+  .Match((office, facts) =>
+    from manager in facts.OfType<Manager>()
+    where manager.office == office
+    select manager
+  );
+```
+
+It produces a specification whose given carries the condition:
+
+```
+(office: Corporate.Office [
+    !E {
+        closure: Corporate.Office.Closure [
+            closure->office: Corporate.Office = office
+        ]
+    }
+]) {
+    manager: Corporate.Manager [
+        manager->office: Corporate.Office = office
+    ]
+} => manager
+```
+
+A specification whose given does not satisfy its conditions answers nothing.
+A watch on one removes every row it had delivered when a fact arrives that falsifies a condition.
+
+The predicate accepts the same constructs a `where` inside a `Match` accepts.
+See [Predicate](#predicate).
+
+Repeated `Where` calls are combined with and, exactly as the conjuncts of a single predicate are.
+
+### Where each condition lands
+
+Each conjunct of the predicate becomes one existential condition.
+A condition depends on the label of the given it is written on and on the labels before it, never only on earlier ones, so each conjunct attaches to the last given, in declaration order, that it references at any depth.
+
+- A conjunct that references only the first given attaches to the first given, even when it is written on `Given<TFact1, TFact2>`.
+- A conjunct that references only the second given attaches to the second.
+- A conjunct whose path conditions join both givens attaches to the second.
+
+```C#
+var specification = Given<Company, City>
+  .Where((company, city, facts) =>
+    facts.Any<OfficeName>(companyName => companyName.office.company == company) &&
+    facts.Any<OfficeName>(cityName => cityName.office.city == city)
+  )
+  .Match((company, city, facts) =>
+    from manager in facts.OfType<Manager>()
+    where manager.office.company == company
+    where manager.office.city == city
+    select manager
+  );
+```
+
+The first conjunct attaches to `company` and the second to `city`.
+
+Placement does not change what the specification reads: the conditions on all of the givens have to hold.
+It decides the descriptive string, and with it the specification hash, so one C# specification has one hash.
+
+A predicate that references no given is refused, because such a condition constrains no given.
+A conjunct that compares two labels directly is refused as well: a given carries existential conditions only, so write the join inside one.
+
+A specification written without `Where` is translated exactly as before, and has the same descriptive string and the same hash.
 
 ## Source
 
