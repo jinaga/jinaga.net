@@ -1,0 +1,248 @@
+{"text":
+ "(p1: Root [\n    !E {\n        ar: Archived [\n            ar->root: Root = p1\n        ]\n    }\n]) {\n    t: Task [\n        t->root: Root = p1\n    ]\n} => t\n",
+ "specification":
+ {"projection": {"type": "fact", "label": "t"},
+  "matches":
+  [{"unknown": {"type": "Task", "name": "t"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [],
+      "rolesLeft": [{"predecessorType": "Root", "name": "root"}],
+      "labelRight": "p1"}]}],
+  "given":
+  [{"label": {"type": "Root", "name": "p1"},
+    "conditions":
+    [{"type": "existential",
+      "matches":
+      [{"unknown": {"type": "Archived", "name": "ar"},
+        "conditions":
+        [{"type": "path",
+          "rolesRight": [],
+          "rolesLeft": [{"predecessorType": "Root", "name": "root"}],
+          "labelRight": "p1"}]}],
+      "exists": false}]}]},
+ "source": "jinaga.js reduceGivenConditions",
+ "rowLabels": ["t"],
+ "name": "given-condition-lost",
+ "graph":
+ [{"type": "Root", "predecessors": [], "id": 0},
+  {"type": "Task", "predecessors": [{"role": "root", "id": 0}], "id": 1}],
+ "givens": {"p1": 0},
+ "fact":
+ {"type": "Archived", "predecessors": [{"role": "root", "id": 0}], "id": 2},
+ "expected":
+ {"reordered":
+  [{"text":
+    "(p1: Root, __f: Root) {\n    given: Root [\n        given = __f\n        given = p1\n        !E {\n            ar: Archived [\n                ar->root: Root = p1\n            ]\n        }\n    ]\n    t: Task [\n        t->root: Root = p1\n    ]\n} => t\n",
+    "specification":
+    {"projection": {"type": "fact", "label": "t"},
+     "matches":
+     [{"unknown": {"type": "Root", "name": "given"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [],
+         "labelRight": "__f"},
+        {"type": "path", "rolesRight": [], "rolesLeft": [], "labelRight": "p1"},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Archived", "name": "ar"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Root", "name": "root"}],
+             "labelRight": "p1"}]}],
+         "exists": false}]},
+      {"unknown": {"type": "Task", "name": "t"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Root", "name": "root"}],
+         "labelRight": "p1"}]}],
+     "given":
+     [{"label": {"type": "Root", "name": "p1"}, "conditions": []},
+      {"label": {"type": "Root", "name": "__f"}, "conditions": []}]}},
+   {"text":
+    "(p1: Root, __f: Task) {\n    t: Task [\n        t = __f\n        t->root: Root = p1\n        !E {\n            ar: Archived [\n                ar->root: Root = p1\n            ]\n        }\n    ]\n    given: Root [\n        given = p1\n    ]\n} => t\n",
+    "specification":
+    {"projection": {"type": "fact", "label": "t"},
+     "matches":
+     [{"unknown": {"type": "Task", "name": "t"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [],
+         "labelRight": "__f"},
+        {"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Root", "name": "root"}],
+         "labelRight": "p1"},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Archived", "name": "ar"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Root", "name": "root"}],
+             "labelRight": "p1"}]}],
+         "exists": false}]},
+      {"unknown": {"type": "Root", "name": "given"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [],
+         "labelRight": "p1"}]}],
+     "given":
+     [{"label": {"type": "Root", "name": "p1"}, "conditions": []},
+      {"label": {"type": "Task", "name": "__f"}, "conditions": []}]}},
+   {"text":
+    "(p1: Root, __f: Archived) {\n    ar: Archived [\n        ar = __f\n        ar->root: Root = p1\n    ]\n    given: Root [\n        given = p1\n    ]\n    t: Task [\n        t->root: Root = p1\n    ]\n} => t\n",
+    "specification":
+    {"projection": {"type": "fact", "label": "t"},
+     "matches":
+     [{"unknown": {"type": "Archived", "name": "ar"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [],
+         "labelRight": "__f"},
+        {"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Root", "name": "root"}],
+         "labelRight": "p1"}]},
+      {"unknown": {"type": "Root", "name": "given"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [],
+         "labelRight": "p1"}]},
+      {"unknown": {"type": "Task", "name": "t"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Root", "name": "root"}],
+         "labelRight": "p1"}]}],
+     "given":
+     [{"label": {"type": "Root", "name": "p1"}, "conditions": []},
+      {"label": {"type": "Archived", "name": "__f"}, "conditions": []}]}}],
+  "reduced":
+  {"text":
+   "(p1: Root) {\n    given: Root [\n        given = p1\n        !E {\n            ar: Archived [\n                ar->root: Root = p1\n            ]\n        }\n    ]\n    t: Task [\n        t->root: Root = p1\n    ]\n} => t\n",
+   "specification":
+   {"projection": {"type": "fact", "label": "t"},
+    "matches":
+    [{"unknown": {"type": "Root", "name": "given"},
+      "conditions":
+      [{"type": "path", "rolesRight": [], "rolesLeft": [], "labelRight": "p1"},
+       {"type": "existential",
+        "matches":
+        [{"unknown": {"type": "Archived", "name": "ar"},
+          "conditions":
+          [{"type": "path",
+            "rolesRight": [],
+            "rolesLeft": [{"predecessorType": "Root", "name": "root"}],
+            "labelRight": "p1"}]}],
+        "exists": false}]},
+     {"unknown": {"type": "Task", "name": "t"},
+      "conditions":
+      [{"type": "path",
+        "rolesRight": [],
+        "rolesLeft": [{"predecessorType": "Root", "name": "root"}],
+        "labelRight": "p1"}]}],
+    "given": [{"label": {"type": "Root", "name": "p1"}, "conditions": []}]}},
+  "lost": [[1]],
+  "inverses":
+  [{"text":
+    "(p1: Root, __f: Root) {\n    given: Root [\n        given = __f\n        given = p1\n        !E {\n            ar: Archived [\n                ar->root: Root = p1\n            ]\n        }\n    ]\n    t: Task [\n        t->root: Root = p1\n    ]\n} => t\n",
+    "specification":
+    {"projection": {"type": "fact", "label": "t"},
+     "matches":
+     [{"unknown": {"type": "Root", "name": "given"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [],
+         "labelRight": "__f"},
+        {"type": "path", "rolesRight": [], "rolesLeft": [], "labelRight": "p1"},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Archived", "name": "ar"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Root", "name": "root"}],
+             "labelRight": "p1"}]}],
+         "exists": false}]},
+      {"unknown": {"type": "Task", "name": "t"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Root", "name": "root"}],
+         "labelRight": "p1"}]}],
+     "given":
+     [{"label": {"type": "Root", "name": "p1"}, "conditions": []},
+      {"label": {"type": "Root", "name": "__f"}, "conditions": []}]}},
+   {"text":
+    "(p1: Root, __f: Task) {\n    given: Root [\n        given = p1\n        !E {\n            ar: Archived [\n                ar->root: Root = p1\n            ]\n        }\n    ]\n    t: Task [\n        t = __f\n        t->root: Root = p1\n    ]\n} => t\n",
+    "specification":
+    {"projection": {"type": "fact", "label": "t"},
+     "matches":
+     [{"unknown": {"type": "Root", "name": "given"},
+       "conditions":
+       [{"type": "path", "rolesRight": [], "rolesLeft": [], "labelRight": "p1"},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Archived", "name": "ar"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Root", "name": "root"}],
+             "labelRight": "p1"}]}],
+         "exists": false}]},
+      {"unknown": {"type": "Task", "name": "t"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [],
+         "labelRight": "__f"},
+        {"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Root", "name": "root"}],
+         "labelRight": "p1"}]}],
+     "given":
+     [{"label": {"type": "Root", "name": "p1"}, "conditions": []},
+      {"label": {"type": "Task", "name": "__f"}, "conditions": []}]}},
+   {"text":
+    "(p1: Root, __f: Archived) {\n    given: Root [\n        given = p1\n        E {\n            ar: Archived [\n                ar = __f\n                ar->root: Root = p1\n            ]\n        }\n    ]\n    t: Task [\n        t->root: Root = p1\n    ]\n} => t\n",
+    "specification":
+    {"projection": {"type": "fact", "label": "t"},
+     "matches":
+     [{"unknown": {"type": "Root", "name": "given"},
+       "conditions":
+       [{"type": "path", "rolesRight": [], "rolesLeft": [], "labelRight": "p1"},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Archived", "name": "ar"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [],
+             "labelRight": "__f"},
+            {"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Root", "name": "root"}],
+             "labelRight": "p1"}]}],
+         "exists": true}]},
+      {"unknown": {"type": "Task", "name": "t"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Root", "name": "root"}],
+         "labelRight": "p1"}]}],
+     "given":
+     [{"label": {"type": "Root", "name": "p1"}, "conditions": []},
+      {"label": {"type": "Archived", "name": "__f"}, "conditions": []}]}}],
+  "gained": [],
+  "candidates": [[1]]},
+ "description":
+ "Tasks of a root that is not archived: a condition on the given. Archiving the root fails the condition, and every task is lost."}

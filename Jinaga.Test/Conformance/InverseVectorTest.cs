@@ -19,6 +19,10 @@ namespace Jinaga.Test.Conformance;
 /// These vectors gate the port two ways. They state what the rows of each list come to,
 /// independently of what builds it, and they state the lists themselves, which
 /// <see cref="InverseCandidates"/> must build exactly.
+///
+/// A vector whose specification carries conditions on its givens also states the reduction
+/// that removes them, as <c>expected.reduced</c>, and its inverses are built from that
+/// reduction rather than from the specification itself.
 /// </summary>
 public class InverseVectorTest
 {
@@ -51,11 +55,22 @@ public class InverseVectorTest
 
     [Theory]
     [MemberData(nameof(Vectors))]
+    public void ThePortReducesTheGivenConditions(string name)
+    {
+        var vector = ConformanceVector.Load("inverse", name);
+
+        var reduced = InverseCandidates.ReduceGivenConditions(Subject(vector));
+
+        reduced.ToDescriptiveString().Should().Be(Reduced(vector).ToDescriptiveString());
+    }
+
+    [Theory]
+    [MemberData(nameof(Vectors))]
     public void ThePortBuildsTheInverses(string name)
     {
         var vector = ConformanceVector.Load("inverse", name);
 
-        var inverses = InverseCandidates.BuildInverses(Load(vector, vector.Json.GetProperty("specification")));
+        var inverses = InverseCandidates.BuildInverses(Reduced(vector));
 
         Describe(inverses).Should().Equal(Expected(vector, "inverses"));
     }
@@ -67,10 +82,21 @@ public class InverseVectorTest
         var vector = ConformanceVector.Load("inverse", name);
 
         var reordered = InverseCandidates
-            .BuildInverses(Load(vector, vector.Json.GetProperty("specification")))
+            .BuildInverses(Reduced(vector))
             .Select(InverseCandidates.ReorderInverse);
 
         Describe(reordered).Should().Equal(Expected(vector, "reordered"));
+    }
+
+    [Theory]
+    [MemberData(nameof(Vectors))]
+    public void ThePortBuildsTheCandidateInversesTheObserverReads(string name)
+    {
+        var vector = ConformanceVector.Load("inverse", name);
+
+        var candidates = InverseCandidates.CandidateInverses(Subject(vector));
+
+        Describe(candidates).Should().Equal(Expected(vector, "reordered"));
     }
 
     /// <summary>
@@ -83,6 +109,21 @@ public class InverseVectorTest
         vector.Expected.GetProperty(which).EnumerateArray()
             .Select(inverse => Load(vector, inverse.GetProperty("specification")).ToDescriptiveString())
             .ToImmutableList();
+
+    /// <summary>The vector's own specification, as a subscription states it.</summary>
+    private static Specification Subject(ConformanceVector vector) =>
+        Load(vector, vector.Json.GetProperty("specification"));
+
+    /// <summary>
+    /// The specification the proven algorithm builds its inverses from: a vector's
+    /// <c>expected.reduced</c> where it has one, and the specification itself otherwise. Only
+    /// a specification with conditions on its givens is reduced, and the reduction is what
+    /// <see cref="InverseCandidates.ReduceGivenConditions"/> must produce.
+    /// </summary>
+    private static Specification Reduced(ConformanceVector vector) =>
+        vector.Expected.TryGetProperty("reduced", out var reduced)
+            ? Load(vector, reduced.GetProperty("specification"))
+            : Subject(vector);
 
     private static ImmutableList<string> Describe(IEnumerable<Specification> specifications) =>
         specifications.Select(specification => specification.ToDescriptiveString()).ToImmutableList();
@@ -120,7 +161,9 @@ public class InverseVectorTest
     /// and collects the rows they find. An inverse is an ordinary specification whose givens
     /// are the subscription's followed by <see cref="PinLabel"/>, so it is read from the
     /// subscription's givens and that one fact, on a store holding the graph and the whole
-    /// batch. Several inverses can find one row, so the rows are a set, as the candidates are.
+    /// batch. Where the fresh fact is one of the subscription's givens, the whole
+    /// specification is read as well. Several inverses can find one row, so the rows are a
+    /// set, as the candidates are.
     /// </summary>
     private static async Task<ImmutableSortedSet<string>> ReadEach(ConformanceVector vector, string which)
     {
@@ -150,13 +193,41 @@ public class InverseVectorTest
                         ? fresh
                         : references[givens.GetProperty(given.Label.Name).GetInt32()]));
 
-                var products = await store.Read(start, specification, CancellationToken.None);
+                rows = rows.Union(await Read(store, specification, start, rowLabels));
+            }
 
-                rows = rows.Union(products.Select(product =>
-                    Row(rowLabels.Select(label => product.GetFactReference(label).Hash))));
+            // One of the subscription's givens arrives. Nothing was read before it, so every
+            // row of a read of the whole specification, from the subscription's givens on the
+            // graph that holds the arrival, is a candidate: factCandidates' first branch in
+            // JinagaSpec/Reorder.lean, which jinaga.js calls givenCandidateInverse.
+            if (givens.EnumerateObject().Any(given => given.Value.GetInt32() == IdOf(arrival)))
+            {
+                var subject = ConformanceVector.ToSpecification(
+                    vector.Json.GetProperty("specification"),
+                    new SimpleProjection(rowLabels[0], typeof(object)));
+                var start = subject.Givens.Aggregate(
+                    FactReferenceTuple.Empty,
+                    (tuple, given) => tuple.Add(
+                        given.Label.Name,
+                        references[givens.GetProperty(given.Label.Name).GetInt32()]));
+
+                rows = rows.Union(await Read(store, subject, start, rowLabels));
             }
         }
         return rows;
+    }
+
+    /// <summary>The rows a read of <paramref name="specification"/> finds, by the vector's row labels.</summary>
+    private static async Task<IEnumerable<string>> Read(
+        MemoryStore store,
+        Specification specification,
+        FactReferenceTuple start,
+        ImmutableList<string> rowLabels)
+    {
+        var products = await store.Read(start, specification, CancellationToken.None);
+        return products
+            .Select(product => Row(rowLabels.Select(label => product.GetFactReference(label).Hash)))
+            .ToImmutableList();
     }
 
     /// <summary>

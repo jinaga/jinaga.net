@@ -1,7 +1,14 @@
 using Jinaga.Facts;
+using Jinaga.Managers;
+using Jinaga.Observers;
 using Jinaga.Pipelines;
 using Jinaga.Projections;
+using Jinaga.Services;
 using Jinaga.Storage;
+using Jinaga.UnitTest;
+using Microsoft.Extensions.Logging.Abstractions;
+using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
@@ -217,6 +224,143 @@ namespace Jinaga.Test.Pipelines
                 ImmutableList.Create(root, item), revoked,
                 before: ImmutableList.Create(Key(item)),
                 after: ImmutableList<string>.Empty);
+        }
+
+        /// <summary>
+        /// A condition on the given, under a projection whose collection declares the label
+        /// <c>given</c>. The reduction takes the next name it does not find, so the match it
+        /// adds and the collection's own unknown stay apart.
+        ///
+        /// No conformance vector can state this shape: the Lean model has no nested
+        /// specification projections, so its label rule cannot see what a collection declares.
+        /// </summary>
+        [Fact]
+        public void Reduction_SkipsALabelACollectionDeclares()
+        {
+            var reduced = InverseCandidates.ReduceGivenConditions(ArchivedRootWithSubs());
+
+            reduced.Matches.First().Unknown.Name.Should().Be("given2");
+        }
+
+        /// <summary>
+        /// The same specification, watched. <c>ObserverLocal</c> appends a collection's matches
+        /// to its parent's, so a reduction that had taken <c>given</c> would put two
+        /// declarations of that label in one match list -- the shadowing shape of #294. The
+        /// graph holds a <c>Sub</c>, so the collection has a row for that shadowing to reach:
+        /// with the colliding label the save throws inside the inverse listener rather than
+        /// leaving the watch agreeing with a read.
+        /// </summary>
+        [Fact]
+        public async Task Reduction_WatchAgreesWithAReadAcrossTheCondition()
+        {
+            var root = NewFact("Root");
+            var task = NewFact("Task", ("root", root));
+            var sub = NewFact("Sub", ("task", task));
+            var archived = NewFact("Archived", ("root", root));
+            var specification = ArchivedRootWithSubs();
+            var givens = Tuple(("p1", root));
+
+            var store = new MemoryStore();
+            await store.Save(Graph(ImmutableList.Create(root, task, sub)), false, CancellationToken.None);
+            var factManager = CreateFactManager(store);
+
+            var observed = new ObservedTasks();
+            var observer = factManager.StartObserverLocal(givens, specification, observed.OnAdded);
+            await observer.Loaded;
+
+            observed.Rows.Should().BeEquivalentTo(await Rows(store, givens, specification, Labels("t")));
+            observed.Rows.Should().BeEquivalentTo(ImmutableList.Create(Key(task)));
+
+            await factManager.SaveLocal(Graph(ImmutableList.Create(root, task, sub, archived)), default);
+
+            observed.Rows.Should().BeEquivalentTo(await Rows(store, givens, specification, Labels("t")));
+            observed.Rows.Should().BeEmpty();
+
+            observer.Stop();
+        }
+
+        /// <summary>
+        /// <c>(p1: Root [!E { ar: Archived [ar-&gt;root: Root = p1] }]) { t: Task [t-&gt;root: Root
+        /// = p1] }</c>, projecting the task's hash beside a collection of its subs, whose own
+        /// unknown is called <c>given</c>. The LINQ DSL writes no condition on a given, so the
+        /// shape is built here.
+        /// </summary>
+        private static Specification ArchivedRootWithSubs() =>
+            new Specification(
+                Givens(new SpecificationGiven(
+                    new Label("p1", "Root"),
+                    Conditions(NotExists(
+                        Unknown("ar", "Archived",
+                            Paths(Successor("root", "Root", "p1")),
+                            Conditions()))))),
+                ImmutableList.Create(
+                    Unknown("t", "Task",
+                        Paths(Successor("root", "Root", "p1")),
+                        Conditions())),
+                new CompoundProjection(
+                    ImmutableDictionary<string, Projection>.Empty
+                        .Add(nameof(TaskWithSubs.task), new HashProjection("t", typeof(object)))
+                        .Add(nameof(TaskWithSubs.subs), new CollectionProjection(
+                            ImmutableList.Create(
+                                Unknown("given", "Sub",
+                                    Paths(Successor("task", "Task", "t")),
+                                    Conditions())),
+                            new HashProjection("given", typeof(object)),
+                            typeof(IObservableCollection<string>))),
+                    typeof(TaskWithSubs)));
+
+        /// <summary>A row of the watch: the task's hash, and the collection the projection reads.</summary>
+        private class TaskWithSubs
+        {
+            public string task { get; set; } = string.Empty;
+            public IObservableCollection<string> subs { get; set; } = null!;
+        }
+
+        /// <summary>The tasks one watch holds, keyed as <see cref="Rows"/> keys a read's rows.</summary>
+        private class ObservedTasks
+        {
+            private readonly List<string> rows = new List<string>();
+
+            public ImmutableList<string> Rows
+            {
+                get
+                {
+                    lock (rows)
+                    {
+                        return rows.ToImmutableList();
+                    }
+                }
+            }
+
+            public Task<Func<Task>> OnAdded(object projection)
+            {
+                var row = ((TaskWithSubs)projection).task;
+                lock (rows)
+                {
+                    rows.Add(row);
+                }
+                Func<Task> removal = () =>
+                {
+                    lock (rows)
+                    {
+                        rows.Remove(row);
+                    }
+                    return Task.CompletedTask;
+                };
+                return Task.FromResult(removal);
+            }
+        }
+
+        private static FactManager CreateFactManager(IStore store)
+        {
+            var loggerFactory = NullLoggerFactory.Instance;
+            var networkManager = new NetworkManager(
+                new SimulatedNetwork(null),
+                store,
+                loggerFactory,
+                (FactGraph graph, CancellationToken cancellationToken) => Task.CompletedTask,
+                new JinagaClientOptions().MaxBatchSize);
+            return new FactManager(store, networkManager, ImmutableList<Specification>.Empty, loggerFactory, 0);
         }
 
         /// <summary>
