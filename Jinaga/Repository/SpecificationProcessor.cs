@@ -18,7 +18,7 @@ namespace Jinaga.Repository
         private ImmutableList<Label> givenLabels = ImmutableList<Label>.Empty;
         private ImmutableHashSet<string> labelsUsed = ImmutableHashSet<string>.Empty;
 
-        public static (ImmutableList<Label> given, ImmutableList<Match> matches, Projection projection) Queryable<TProjection>(LambdaExpression specExpression)
+        public static (ImmutableList<SpecificationGiven> given, ImmutableList<Match> matches, Projection projection) Queryable<TProjection>(LambdaExpression specExpression, ImmutableList<LambdaExpression> givenConditions)
         {
             var processor = new SpecificationProcessor();
             var nonRepositoryParameters = specExpression.Parameters
@@ -26,10 +26,10 @@ namespace Jinaga.Repository
             var symbolTable = processor.Given(nonRepositoryParameters);
             var result = processor.ProcessSource(specExpression.Body, symbolTable);
             processor.ValidateMatches(result.Matches);
-            return (processor.givenLabels, result.Matches, result.Projection);
+            return (processor.ProcessGivenConditions(givenConditions), result.Matches, result.Projection);
         }
 
-        public static (ImmutableList<Label> given, ImmutableList<Match> matches, Projection projection) Scalar<TProjection>(LambdaExpression specExpression)
+        public static (ImmutableList<SpecificationGiven> given, ImmutableList<Match> matches, Projection projection) Scalar<TProjection>(LambdaExpression specExpression, ImmutableList<LambdaExpression> givenConditions)
         {
             var processor = new SpecificationProcessor();
             var nonRepositoryParameters = specExpression.Parameters
@@ -37,17 +37,17 @@ namespace Jinaga.Repository
             var symbolTable = processor.Given(nonRepositoryParameters);
             SourceContext result = processor.ProcessShorthand(specExpression.Body, symbolTable);
             processor.ValidateMatches(result.Matches);
-            return (processor.givenLabels, result.Matches, result.Projection);
+            return (processor.ProcessGivenConditions(givenConditions), result.Matches, result.Projection);
         }
 
-        public static (ImmutableList<Label> given, ImmutableList<Match> matches, Projection projection) Select<TProjection>(LambdaExpression specSelector)
+        public static (ImmutableList<SpecificationGiven> given, ImmutableList<Match> matches, Projection projection) Select<TProjection>(LambdaExpression specSelector, ImmutableList<LambdaExpression> givenConditions)
         {
             var processor = new SpecificationProcessor();
             var nonRepositoryParameters = specSelector.Parameters
                 .Where(parameter => parameter.Type != typeof(FactRepository));
             var symbolTable = processor.Given(nonRepositoryParameters);
             var result = processor.ProcessProjection(specSelector.Body, symbolTable);
-            return (processor.givenLabels, ImmutableList<Match>.Empty, result);
+            return (processor.ProcessGivenConditions(givenConditions), ImmutableList<Match>.Empty, result);
         }
 
         private SymbolTable Given(IEnumerable<ParameterExpression> parameters)
@@ -59,6 +59,117 @@ namespace Jinaga.Repository
                 SymbolTable.Empty,
                 (table, parameter) => table.Set(parameter.Name, new SimpleProjection(parameter.Name, parameter.Type)));
             return symbolTable;
+        }
+
+        /// <summary>
+        /// Translates the predicates written on <c>Given&lt;...&gt;.Where</c> into the
+        /// existential conditions that each <see cref="SpecificationGiven"/> carries.
+        ///
+        /// Runs after the body of the specification, so the labels the matches already use
+        /// keep the names the body asked for and a specification written without a
+        /// <c>Where</c> is translated exactly as it was before.
+        /// </summary>
+        private ImmutableList<SpecificationGiven> ProcessGivenConditions(ImmutableList<LambdaExpression> givenConditions)
+        {
+            var conditionsByGiven = Enumerable.Range(0, givenLabels.Count)
+                .Select(_ => ImmutableList<ExistentialCondition>.Empty)
+                .ToArray();
+            foreach (var lambda in givenConditions)
+            {
+                var symbolTable = GivenConditionSymbolTable(lambda);
+                foreach (var conjunct in Conjuncts(lambda.Body))
+                {
+                    var predicate = ProcessPredicate(conjunct, symbolTable);
+                    foreach (var condition in predicate.Conditions)
+                    {
+                        if (!(condition is ExistentialConditionContext existentialCondition))
+                        {
+                            throw new SpecificationException($"A condition on a given must be an existential condition, but {conjunct} compares two labels. Write the join inside an existential condition instead.");
+                        }
+                        int index = LastGivenReferenced(existentialCondition.Matches);
+                        if (index < 0)
+                        {
+                            throw new SpecificationException($"The condition {conjunct} does not reference any given. A condition on a given must constrain that given.");
+                        }
+                        conditionsByGiven[index] = conditionsByGiven[index].Add(
+                            new ExistentialCondition(existentialCondition.Exists, existentialCondition.Matches));
+                    }
+                }
+            }
+            return givenLabels
+                .Select((label, index) => new SpecificationGiven(label, conditionsByGiven[index]))
+                .ToImmutableList();
+        }
+
+        /// <summary>
+        /// The parameters of a <c>Where</c> predicate are the givens, in declaration order,
+        /// but the predicate names them however its own author chose. Bind each one to the
+        /// label the specification's body gave the given in that position.
+        /// </summary>
+        private SymbolTable GivenConditionSymbolTable(LambdaExpression lambda)
+        {
+            var parameters = lambda.Parameters
+                .Where(parameter => parameter.Type != typeof(FactRepository))
+                .ToImmutableList();
+            return parameters
+                .Select((parameter, index) => (parameter, index))
+                .Aggregate(
+                    SymbolTable.Empty,
+                    (table, pair) => table.Set(
+                        pair.parameter.Name,
+                        new SimpleProjection(givenLabels[pair.index].Name, pair.parameter.Type)));
+        }
+
+        /// <summary>
+        /// The conjuncts of a predicate, so that each one becomes a condition of its own and
+        /// a refusal can name the conjunct that caused it rather than the whole predicate.
+        /// </summary>
+        internal static ImmutableList<Expression> Conjuncts(Expression body)
+        {
+            if (body is BinaryExpression { NodeType: ExpressionType.AndAlso } andExpression)
+            {
+                return Conjuncts(andExpression.Left).AddRange(Conjuncts(andExpression.Right));
+            }
+            return ImmutableList.Create(body);
+        }
+
+        /// <summary>
+        /// The position of the last given, in declaration order, that these matches reference
+        /// at any depth, or -1 where they reference none. A condition depends on the label of
+        /// the given it is written on and on the labels before it, so the last given it
+        /// references is the one it belongs to.
+        /// </summary>
+        private int LastGivenReferenced(ImmutableList<Match> matches)
+        {
+            var referenced = FreeLabels(matches);
+            int last = -1;
+            for (int index = 0; index < givenLabels.Count; index++)
+            {
+                if (referenced.Contains(givenLabels[index].Name))
+                {
+                    last = index;
+                }
+            }
+            return last;
+        }
+
+        /// <summary>
+        /// The labels these matches read without declaring. A match inside a nested
+        /// existential condition may declare a label that shadows an outer one, so each level
+        /// removes its own unknowns from what the levels below it read.
+        /// </summary>
+        private static ImmutableHashSet<string> FreeLabels(ImmutableList<Match> matches)
+        {
+            var declared = matches
+                .Select(match => match.Unknown.Name)
+                .ToImmutableHashSet();
+            var referenced = matches
+                .SelectMany(match => match.PathConditions
+                    .Select(pathCondition => pathCondition.LabelRight)
+                    .Concat(match.ExistentialConditions
+                        .SelectMany(existentialCondition => FreeLabels(existentialCondition.Matches))))
+                .ToImmutableHashSet();
+            return referenced.Except(declared);
         }
 
         private Label NewLabel(string recommendedName, string factType)
