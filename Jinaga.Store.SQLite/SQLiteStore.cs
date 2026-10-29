@@ -538,53 +538,90 @@ namespace Jinaga.Store.SQLite
             }
             else
             {
-                // SQLite enforces a maximum number of bound parameters per statement
-                // (SQLITE_MAX_VARIABLE_NUMBER, commonly 999). Each reference binds 2
-                // parameters (hash, type), so batch the query to stay comfortably under
-                // that limit while keeping the query parameterized.
-                const int maxReferencesPerBatch = 400;
-
-                var knownReferences = ImmutableList<FactReference>.Empty;
-                foreach (var batch in factReferences
-                    .Select((f, i) => new { f, i })
-                    .GroupBy(x => x.i / maxReferencesPerBatch)
-                    .Select(g => g.Select(x => x.f).ToImmutableList()))
-                {
-                    var referencesFromDb = connFactory.WithConn(
-                        (conn, id) =>
-                        {
-                            var referenceValues = batch.Select((f, i) => $"(@{2*i}, @{2*i+1})").ToArray();
-
-                            var parameters = new List<object>();
-                            foreach (var f in batch)
-                            {
-                                parameters.Add(f.Hash);
-                                parameters.Add(f.Type);
-                            }
-
-                            string sql;
-                            sql = $@"
-                                    SELECT f.hash,
-                                           t.name
-                                    FROM fact f
-                                    JOIN fact_type t
-                                        ON f.fact_type_id = t.fact_type_id
-                                    WHERE (f.hash,t.name)
-                                        IN (VALUES {String.Join(",", referenceValues)} )
-                                ";
-
-                            return conn.ExecuteQuery<ReferenceFromDb>(sql, parameters.ToArray());
-                        },
-                        true   //exponential backoff
-                    );
-
-                    knownReferences = knownReferences.AddRange(referencesFromDb
-                        .Select(r => new FactReference(r.name, r.hash)));
-                }
+                var knownReferences = connFactory.WithConn(
+                    (conn, id) => SelectKnownReferences(conn, factReferences),
+                    true   //exponential backoff
+                );
 
                 logger.LogTrace("SQLite listed {knownCount} known facts of {givenCount}", knownReferences.Count, factReferences.Count);
                 return Task.FromResult(knownReferences);
             }
+        }
+
+        /// <summary>
+        /// The subset of <paramref name="factReferences"/> that this connection holds,
+        /// matched on hash and type together. Takes a connection rather than opening one,
+        /// so a caller already inside a transaction gets an answer from that transaction's
+        /// snapshot.
+        /// </summary>
+        private static ImmutableList<FactReference> SelectKnownReferences(Conn conn, ImmutableList<FactReference> factReferences)
+        {
+            // SQLite enforces a maximum number of bound parameters per statement
+            // (SQLITE_MAX_VARIABLE_NUMBER, commonly 999). Each reference binds 2
+            // parameters (hash, type), so batch the query to stay comfortably under
+            // that limit while keeping the query parameterized.
+            const int maxReferencesPerBatch = 400;
+
+            var knownReferences = ImmutableList<FactReference>.Empty;
+            foreach (var batch in factReferences
+                .Select((f, i) => new { f, i })
+                .GroupBy(x => x.i / maxReferencesPerBatch)
+                .Select(g => g.Select(x => x.f).ToImmutableList()))
+            {
+                var referenceValues = batch.Select((f, i) => $"(@{2*i}, @{2*i+1})").ToArray();
+
+                var parameters = new List<object>();
+                foreach (var f in batch)
+                {
+                    parameters.Add(f.Hash);
+                    parameters.Add(f.Type);
+                }
+
+                string sql;
+                sql = $@"
+                        SELECT f.hash,
+                               t.name
+                        FROM fact f
+                        JOIN fact_type t
+                            ON f.fact_type_id = t.fact_type_id
+                        WHERE (f.hash,t.name)
+                            IN (VALUES {String.Join(",", referenceValues)} )
+                    ";
+
+                var referencesFromDb = conn.ExecuteQuery<ReferenceFromDb>(sql, parameters.ToArray());
+
+                knownReferences = knownReferences.AddRange(referencesFromDb
+                    .Select(r => new FactReference(r.name, r.hash)));
+            }
+
+            return knownReferences;
+        }
+
+        /// <summary>
+        /// Whether this connection holds every given of the specification: the reference
+        /// <paramref name="givenTuple"/> binds to each given's label is stored, and that
+        /// reference's type is the type the label declares.
+        /// </summary>
+        private static bool AreGivensHeld(Conn conn, FactReferenceTuple givenTuple, Specification specification)
+        {
+            var references = ImmutableList<FactReference>.Empty;
+            foreach (var given in specification.Givens)
+            {
+                var reference = givenTuple.Get(given.Label.Name);
+                if (reference.Type != given.Label.Type)
+                {
+                    return false;
+                }
+                references = references.Add(reference);
+            }
+
+            if (references.IsEmpty)
+            {
+                return true;
+            }
+
+            var knownReferences = SelectKnownReferences(conn, references).ToImmutableHashSet();
+            return references.All(reference => knownReferences.Contains(reference));
         }
 
 
@@ -595,10 +632,18 @@ namespace Jinaga.Store.SQLite
             // transaction ends, so the fact type and role lookups, the root
             // query and every child query all see the same committed state.
             // A specification the current schema cannot satisfy returns a
-            // null query tree rather than running one.
+            // null query tree rather than running one, and so does one whose
+            // givens this replica does not hold.
             (SqlQueryTree sqlQueryTree, ResultSetTree resultSets) = connFactory.WithTxn<(SqlQueryTree, ResultSetTree)>(
                     (conn, id) =>
                     {
+                        // A replica reads nothing until it holds every given. The check runs
+                        // inside this transaction, so it and the query see one snapshot.
+                        if (!AreGivensHeld(conn, givenTuple, specification))
+                        {
+                            return (null, null);
+                        }
+
                         var factTypes = LoadFactTypes(conn);
                         var factTypeMap = factTypes.Select(factType => KeyValuePair.Create(factType.name, factType.fact_type_id)).ToImmutableDictionary();
 

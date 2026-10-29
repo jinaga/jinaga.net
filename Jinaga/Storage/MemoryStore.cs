@@ -1,4 +1,4 @@
-using Jinaga.Facts;
+﻿using Jinaga.Facts;
 using Jinaga.Pipelines;
 using Jinaga.Products;
 using Jinaga.Projections;
@@ -154,6 +154,19 @@ namespace Jinaga.Storage
 
         private ImmutableList<Product> ExecuteSpecification(FactReferenceTuple givenTuple, Specification specification)
         {
+            // If any given is not held, then return nothing. A given is held when the
+            // reference the tuple binds to its label is stored, and that reference's type
+            // is the type the label declares. Runs under the lock the read already holds,
+            // so the check and the matches see one set of facts.
+            foreach (var given in specification.Givens)
+            {
+                var reference = givenTuple.Get(given.Label.Name);
+                if (reference.Type != given.Label.Type || !factsByReference.ContainsKey(reference))
+                {
+                    return ImmutableList<Product>.Empty;
+                }
+            }
+
             // If any given does not match its existential conditions,
             // then return nothing.
             var factReferences = ImmutableList.Create(givenTuple);
