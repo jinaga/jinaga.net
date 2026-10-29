@@ -1,4 +1,4 @@
-using Jinaga.Facts;
+﻿using Jinaga.Facts;
 using Jinaga.Products;
 using Jinaga.Projections;
 using System;
@@ -14,6 +14,26 @@ namespace Jinaga.Services
         bool IsPersistent { get; }
 
         Task<ImmutableList<Fact>> Save(FactGraph graph, bool queue, CancellationToken cancellationToken);
+
+        /// <summary>
+        /// The products of the specification, read from this replica's own facts.
+        ///
+        /// A replica reads nothing until it holds every given. A given is held when the
+        /// reference <paramref name="givenTuple"/> binds to its label is stored, and that
+        /// reference's type is the type the given's label declares. While any given is
+        /// unheld the result is empty, whatever the matches would otherwise produce; once
+        /// they are all held the specification's rows are read as usual. This is
+        /// jinaga-spec's <c>Specification.read</c> (<c>JinagaSpec/Semantics.lean</c>),
+        /// which the stream proofs in <c>JinagaSpec/Proofs/Stream.lean</c> are restated
+        /// over, and it is what the given conditions on
+        /// <see cref="Projections.SpecificationGiven.ExistentialConditions"/> compose with:
+        /// either check failing reads nothing, so their order does not matter.
+        ///
+        /// A given named only inside an existential condition is the shape that makes this
+        /// load-bearing. Nothing in the outer matches joins it, so without the rule a store
+        /// answers for a fact the replica does not have, and loading the references of the
+        /// rows it returned faults on the given.
+        /// </summary>
         Task<ImmutableList<Product>> Read(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken);
         Task<FactGraph> Load(ImmutableList<FactReference> references, CancellationToken cancellationToken);
 

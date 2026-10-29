@@ -1,0 +1,64 @@
+{"text":
+ "(p1: Root) {\n    t: Task [\n        t->root: Root = p1\n    ]\n} => t\n",
+ "specification":
+ {"projection": {"type": "fact", "label": "t"},
+  "matches":
+  [{"unknown": {"type": "Task", "name": "t"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [],
+      "rolesLeft": [{"predecessorType": "Root", "name": "root"}],
+      "labelRight": "p1"}]}],
+  "given": [{"label": {"type": "Root", "name": "p1"}, "conditions": []}]},
+ "source": "jinaga.js givenCandidateInverse",
+ "rowLabels": ["t"],
+ "name": "given-arrives",
+ "graph": [],
+ "givens": {"p1": 0},
+ "expected":
+ {"reordered":
+  [{"text":
+    "(p1: Root, __f: Task) {\n    t: Task [\n        t = __f\n        t->root: Root = p1\n    ]\n} => t\n",
+    "specification":
+    {"projection": {"type": "fact", "label": "t"},
+     "matches":
+     [{"unknown": {"type": "Task", "name": "t"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [],
+         "labelRight": "__f"},
+        {"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Root", "name": "root"}],
+         "labelRight": "p1"}]}],
+     "given":
+     [{"label": {"type": "Root", "name": "p1"}, "conditions": []},
+      {"label": {"type": "Task", "name": "__f"}, "conditions": []}]}}],
+  "lost": [],
+  "inverses":
+  [{"text":
+    "(p1: Root, __f: Task) {\n    t: Task [\n        t = __f\n        t->root: Root = p1\n    ]\n} => t\n",
+    "specification":
+    {"projection": {"type": "fact", "label": "t"},
+     "matches":
+     [{"unknown": {"type": "Task", "name": "t"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [],
+         "labelRight": "__f"},
+        {"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Root", "name": "root"}],
+         "labelRight": "p1"}]}],
+     "given":
+     [{"label": {"type": "Root", "name": "p1"}, "conditions": []},
+      {"label": {"type": "Task", "name": "__f"}, "conditions": []}]}}],
+  "gained": [[1]],
+  "candidates": [[1]]},
+ "description":
+ "A subscription started on a given the replica does not hold yet. The given arrives with a task under it, the task listed first: nothing was read before, and the task is read now.",
+ "batch":
+ [{"type": "Task", "predecessors": [{"role": "root", "id": 0}], "id": 1},
+  {"type": "Root", "predecessors": [], "id": 0}]}

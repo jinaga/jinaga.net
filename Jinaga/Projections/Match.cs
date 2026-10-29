@@ -17,7 +17,6 @@ namespace Jinaga.Projections
         public Label Unknown { get; }
         public ImmutableList<PathCondition> PathConditions { get; }
         public ImmutableList<ExistentialCondition> ExistentialConditions { get; }
-        public bool CanRunOnGraph => PathConditions.Count == 1 && PathConditions.Single().CanRunOnGraph && ExistentialConditions.Count == 0;
 
         public string ToDescriptiveString(int depth)
         {

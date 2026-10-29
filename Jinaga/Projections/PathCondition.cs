@@ -17,8 +17,6 @@ namespace Jinaga.Projections
         public string LabelRight { get; }
         public ImmutableList<Role> RolesRight { get; }
 
-        public bool CanRunOnGraph => RolesLeft.Count == 0;
-
         public string ToDescriptiveString(string unknown, int depth)
         {
             var indent = new string(' ', depth * 4);

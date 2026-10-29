@@ -1,0 +1,258 @@
+{"text":
+ "(p1: Root [\n    E {\n        op: Opened [\n            op->root: Root = p1\n        ]\n    }\n], p2: Channel) {\n    t: Task [\n        t->channel: Channel = p2\n    ]\n} => t\n",
+ "specification":
+ {"projection": {"type": "fact", "label": "t"},
+  "matches":
+  [{"unknown": {"type": "Task", "name": "t"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [],
+      "rolesLeft": [{"predecessorType": "Channel", "name": "channel"}],
+      "labelRight": "p2"}]}],
+  "given":
+  [{"label": {"type": "Root", "name": "p1"},
+    "conditions":
+    [{"type": "existential",
+      "matches":
+      [{"unknown": {"type": "Opened", "name": "op"},
+        "conditions":
+        [{"type": "path",
+          "rolesRight": [],
+          "rolesLeft": [{"predecessorType": "Root", "name": "root"}],
+          "labelRight": "p1"}]}],
+      "exists": true}]},
+   {"label": {"type": "Channel", "name": "p2"}, "conditions": []}]},
+ "source": "jinaga.js reduceGivenConditions",
+ "rowLabels": ["t"],
+ "name": "given-condition-gained",
+ "graph":
+ [{"type": "Root", "predecessors": [], "id": 0},
+  {"type": "Channel", "predecessors": [], "id": 1},
+  {"type": "Task", "predecessors": [{"role": "channel", "id": 1}], "id": 2}],
+ "givens": {"p2": 1, "p1": 0},
+ "fact":
+ {"type": "Opened", "predecessors": [{"role": "root", "id": 0}], "id": 3},
+ "expected":
+ {"reordered":
+  [{"text":
+    "(p1: Root, p2: Channel, __f: Root) {\n    given: Root [\n        given = __f\n        given = p1\n        E {\n            op: Opened [\n                op->root: Root = p1\n            ]\n        }\n    ]\n    t: Task [\n        t->channel: Channel = p2\n    ]\n} => t\n",
+    "specification":
+    {"projection": {"type": "fact", "label": "t"},
+     "matches":
+     [{"unknown": {"type": "Root", "name": "given"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [],
+         "labelRight": "__f"},
+        {"type": "path", "rolesRight": [], "rolesLeft": [], "labelRight": "p1"},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Opened", "name": "op"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Root", "name": "root"}],
+             "labelRight": "p1"}]}],
+         "exists": true}]},
+      {"unknown": {"type": "Task", "name": "t"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Channel", "name": "channel"}],
+         "labelRight": "p2"}]}],
+     "given":
+     [{"label": {"type": "Root", "name": "p1"}, "conditions": []},
+      {"label": {"type": "Channel", "name": "p2"}, "conditions": []},
+      {"label": {"type": "Root", "name": "__f"}, "conditions": []}]}},
+   {"text":
+    "(p1: Root, p2: Channel, __f: Opened) {\n    op: Opened [\n        op = __f\n        op->root: Root = p1\n    ]\n    given: Root [\n        given = p1\n    ]\n    t: Task [\n        t->channel: Channel = p2\n    ]\n} => t\n",
+    "specification":
+    {"projection": {"type": "fact", "label": "t"},
+     "matches":
+     [{"unknown": {"type": "Opened", "name": "op"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [],
+         "labelRight": "__f"},
+        {"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Root", "name": "root"}],
+         "labelRight": "p1"}]},
+      {"unknown": {"type": "Root", "name": "given"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [],
+         "labelRight": "p1"}]},
+      {"unknown": {"type": "Task", "name": "t"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Channel", "name": "channel"}],
+         "labelRight": "p2"}]}],
+     "given":
+     [{"label": {"type": "Root", "name": "p1"}, "conditions": []},
+      {"label": {"type": "Channel", "name": "p2"}, "conditions": []},
+      {"label": {"type": "Opened", "name": "__f"}, "conditions": []}]}},
+   {"text":
+    "(p1: Root, p2: Channel, __f: Task) {\n    t: Task [\n        t = __f\n        t->channel: Channel = p2\n        E {\n            op: Opened [\n                op->root: Root = p1\n            ]\n        }\n    ]\n    given: Root [\n        given = p1\n    ]\n} => t\n",
+    "specification":
+    {"projection": {"type": "fact", "label": "t"},
+     "matches":
+     [{"unknown": {"type": "Task", "name": "t"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [],
+         "labelRight": "__f"},
+        {"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Channel", "name": "channel"}],
+         "labelRight": "p2"},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Opened", "name": "op"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Root", "name": "root"}],
+             "labelRight": "p1"}]}],
+         "exists": true}]},
+      {"unknown": {"type": "Root", "name": "given"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [],
+         "labelRight": "p1"}]}],
+     "given":
+     [{"label": {"type": "Root", "name": "p1"}, "conditions": []},
+      {"label": {"type": "Channel", "name": "p2"}, "conditions": []},
+      {"label": {"type": "Task", "name": "__f"}, "conditions": []}]}}],
+  "reduced":
+  {"text":
+   "(p1: Root, p2: Channel) {\n    given: Root [\n        given = p1\n        E {\n            op: Opened [\n                op->root: Root = p1\n            ]\n        }\n    ]\n    t: Task [\n        t->channel: Channel = p2\n    ]\n} => t\n",
+   "specification":
+   {"projection": {"type": "fact", "label": "t"},
+    "matches":
+    [{"unknown": {"type": "Root", "name": "given"},
+      "conditions":
+      [{"type": "path", "rolesRight": [], "rolesLeft": [], "labelRight": "p1"},
+       {"type": "existential",
+        "matches":
+        [{"unknown": {"type": "Opened", "name": "op"},
+          "conditions":
+          [{"type": "path",
+            "rolesRight": [],
+            "rolesLeft": [{"predecessorType": "Root", "name": "root"}],
+            "labelRight": "p1"}]}],
+        "exists": true}]},
+     {"unknown": {"type": "Task", "name": "t"},
+      "conditions":
+      [{"type": "path",
+        "rolesRight": [],
+        "rolesLeft": [{"predecessorType": "Channel", "name": "channel"}],
+        "labelRight": "p2"}]}],
+    "given":
+    [{"label": {"type": "Root", "name": "p1"}, "conditions": []},
+     {"label": {"type": "Channel", "name": "p2"}, "conditions": []}]}},
+  "lost": [],
+  "inverses":
+  [{"text":
+    "(p1: Root, p2: Channel, __f: Root) {\n    given: Root [\n        given = __f\n        given = p1\n        E {\n            op: Opened [\n                op->root: Root = p1\n            ]\n        }\n    ]\n    t: Task [\n        t->channel: Channel = p2\n    ]\n} => t\n",
+    "specification":
+    {"projection": {"type": "fact", "label": "t"},
+     "matches":
+     [{"unknown": {"type": "Root", "name": "given"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [],
+         "labelRight": "__f"},
+        {"type": "path", "rolesRight": [], "rolesLeft": [], "labelRight": "p1"},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Opened", "name": "op"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Root", "name": "root"}],
+             "labelRight": "p1"}]}],
+         "exists": true}]},
+      {"unknown": {"type": "Task", "name": "t"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Channel", "name": "channel"}],
+         "labelRight": "p2"}]}],
+     "given":
+     [{"label": {"type": "Root", "name": "p1"}, "conditions": []},
+      {"label": {"type": "Channel", "name": "p2"}, "conditions": []},
+      {"label": {"type": "Root", "name": "__f"}, "conditions": []}]}},
+   {"text":
+    "(p1: Root, p2: Channel, __f: Opened) {\n    given: Root [\n        given = p1\n        E {\n            op: Opened [\n                op = __f\n                op->root: Root = p1\n            ]\n        }\n    ]\n    t: Task [\n        t->channel: Channel = p2\n    ]\n} => t\n",
+    "specification":
+    {"projection": {"type": "fact", "label": "t"},
+     "matches":
+     [{"unknown": {"type": "Root", "name": "given"},
+       "conditions":
+       [{"type": "path", "rolesRight": [], "rolesLeft": [], "labelRight": "p1"},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Opened", "name": "op"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [],
+             "labelRight": "__f"},
+            {"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Root", "name": "root"}],
+             "labelRight": "p1"}]}],
+         "exists": true}]},
+      {"unknown": {"type": "Task", "name": "t"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Channel", "name": "channel"}],
+         "labelRight": "p2"}]}],
+     "given":
+     [{"label": {"type": "Root", "name": "p1"}, "conditions": []},
+      {"label": {"type": "Channel", "name": "p2"}, "conditions": []},
+      {"label": {"type": "Opened", "name": "__f"}, "conditions": []}]}},
+   {"text":
+    "(p1: Root, p2: Channel, __f: Task) {\n    given: Root [\n        given = p1\n        E {\n            op: Opened [\n                op->root: Root = p1\n            ]\n        }\n    ]\n    t: Task [\n        t = __f\n        t->channel: Channel = p2\n    ]\n} => t\n",
+    "specification":
+    {"projection": {"type": "fact", "label": "t"},
+     "matches":
+     [{"unknown": {"type": "Root", "name": "given"},
+       "conditions":
+       [{"type": "path", "rolesRight": [], "rolesLeft": [], "labelRight": "p1"},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Opened", "name": "op"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Root", "name": "root"}],
+             "labelRight": "p1"}]}],
+         "exists": true}]},
+      {"unknown": {"type": "Task", "name": "t"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [],
+         "labelRight": "__f"},
+        {"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Channel", "name": "channel"}],
+         "labelRight": "p2"}]}],
+     "given":
+     [{"label": {"type": "Root", "name": "p1"}, "conditions": []},
+      {"label": {"type": "Channel", "name": "p2"}, "conditions": []},
+      {"label": {"type": "Task", "name": "__f"}, "conditions": []}]}}],
+  "gained": [[2]],
+  "candidates": [[2]]},
+ "description":
+ "Tasks of the second given, a channel, once the first, a root, is opened. Opening the root satisfies the condition on the first given, and the tasks of the second are gained."}

@@ -9,8 +9,6 @@ namespace Jinaga.Projections
         public Type FactRuntimeType { get; }
         public string FieldName { get; }
 
-        public override bool CanRunOnGraph => true;
-
         public FieldProjection(string tag, Type factRuntimeType, string fieldName, Type type) :
             base(type)
         {
