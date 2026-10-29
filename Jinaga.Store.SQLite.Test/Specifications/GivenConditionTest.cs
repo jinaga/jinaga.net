@@ -313,6 +313,11 @@ public class GivenConditionTest
     /// evaluator. What this test holds is what the DSL owes: <c>Where</c> answers whatever
     /// the hand-built specification answers. The unconditional specification is read as well,
     /// so the emptiness is attributable to the condition rather than to the data.
+    ///
+    /// The open office's empty answer is asserted outright, so this test does not pass
+    /// vacuously and turns red when jinaga/jinaga.net#328 makes the store answer the given's
+    /// row. That fix flips the assertion to <c>NotBeEmpty</c>, as in
+    /// <see cref="AssertAnswersAsHandBuilt"/>.
     /// </summary>
     private async Task AssertAnswersAsHandBuiltWithNoMatches<TProjection>(
         Specification<Office, TProjection> conditional,
@@ -329,6 +334,9 @@ public class GivenConditionTest
         (await j.Query(unconditional, office)).Should().NotBeEmpty();
 
         var before = await j.Query(conditional, office);
+        // jinaga/jinaga.net#328: the SQLite store reads nothing for a specification with no
+        // matches, so the open office is missing here. MemoryStore answers its row.
+        before.Should().BeEmpty();
         before.Should().BeEquivalentTo(await j.Query(handBuilt, office));
 
         await j.Fact(new OfficeClosure(office, DateTime.UtcNow));
