@@ -132,8 +132,10 @@ namespace Jinaga.Projections
         }
 
         /// <summary>
-        /// Splits the specification before its first match that the graph cannot run: one that
-        /// seeks successors or has an existential condition. That match is the pivot.
+        /// Splits the specification before its first match that has no graph form: one that
+        /// seeks successors, has an existential condition, or has no path at all. That match
+        /// is the pivot. Asking <see cref="GraphSpecification"/> is what makes the head a
+        /// specification the graph evaluates rather than one it merely tends to survive.
         ///
         /// The head runs the matches before the pivot on the graph being authorized. It also
         /// walks, on the tail's behalf, every predecessor path the tail takes from a label in scope
@@ -154,7 +156,7 @@ namespace Jinaga.Projections
         public (Specification head, Specification? tail) SplitBeforeFirstSuccessor()
         {
             var specification = Specification;
-            var pivotIndex = specification.Matches.FindIndex(match => !IsDeterministic(match));
+            var pivotIndex = specification.Matches.FindIndex(match => !GraphSpecification.CanRun(match));
             if (pivotIndex == -1)
             {
                 return (specification, null);
@@ -190,12 +192,6 @@ namespace Jinaga.Projections
             var tail = new Specification(tailGivens, tailMatches, specification.Projection);
             return (head, tail);
         }
-
-        // The graph can run a match that walks only predecessors, along one or more paths.
-        private static bool IsDeterministic(Match match) =>
-            match.PathConditions.Count > 0 &&
-            match.ExistentialConditions.Count == 0 &&
-            match.PathConditions.All(condition => condition.RolesLeft.Count == 0);
 
         // Rewrite matches for the tail, moving each predecessor walk the head can take into
         // `hoisted`. `positive` is false beneath a negative existential condition, and stays false

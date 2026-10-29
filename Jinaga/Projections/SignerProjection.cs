@@ -26,8 +26,6 @@ namespace Jinaga.Projections
         /// relation the graph deliberately leaves out. So a specification that projects signers
         /// cannot be satisfied from a graph alone.
         /// </summary>
-        public override bool CanRunOnGraph => false;
-
         public SignerProjection(string tag, Type factRuntimeType) :
             base(typeof(IEnumerable<User>))
         {

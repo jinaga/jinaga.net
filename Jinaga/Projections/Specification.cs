@@ -24,10 +24,13 @@ namespace Jinaga.Projections
         public ImmutableList<Match> Matches { get; }
         public Projection Projection { get; }
 
-        public bool CanRunOnGraph =>
-            Givens.All(g => g.CanRunOnGraph) &&
-            Matches.All(m => m.CanRunOnGraph) &&
-            Projection.CanRunOnGraph;
+        /// <summary>
+        /// Whether a fact graph can answer this specification, which is whether it has a
+        /// graph form. That form is the only definition of the question: there is no
+        /// second predicate to disagree with it, and nothing it admits can reach the
+        /// evaluator as a shape the evaluator would skip.
+        /// </summary>
+        public bool CanRunOnGraph => GraphSpecification.From(this, out _) != null;
 
         public Specification Apply(ImmutableList<string> arguments)
         {
@@ -47,11 +50,22 @@ namespace Jinaga.Projections
             return new Specification(Givens, Matches, projection);
         }
 
+        /// <summary>
+        /// Evaluates the specification over a fact graph.
+        /// </summary>
+        /// <exception cref="ArgumentException">
+        /// The specification has no graph form. Read it from the store instead.
+        /// </exception>
         public ImmutableList<Product> Execute(FactReferenceTuple givenTuple, FactGraph graph)
         {
-            var tuples = ExecuteMatches(givenTuple, Matches, graph);
-            var products = tuples.Select(tuple => CreateProduct(tuple, Projection, graph)).ToImmutableList();
-            return products;
+            var graphSpecification = GraphSpecification.From(this, out var reason);
+            if (graphSpecification == null)
+            {
+                throw new ArgumentException(
+                    $"A fact graph cannot answer this specification, because {reason}. " +
+                    "Read it from the store instead.");
+            }
+            return graphSpecification.Execute(givenTuple, graph);
         }
 
         public ImmutableList<Inverse> ComputeInverses()
@@ -92,78 +106,6 @@ namespace Jinaga.Projections
         public override string ToString()
         {
             return ToDescriptiveString();
-        }
-
-        private static ImmutableList<FactReferenceTuple> ExecuteMatches(FactReferenceTuple start, ImmutableList<Match> matches, FactGraph graph)
-        {
-            return matches.Aggregate(
-                ImmutableList.Create(start),
-                (set, match) => set
-                    .SelectMany(references => ExecuteMatch(references, match, graph))
-                    .ToImmutableList());
-        }
-
-        private static Product CreateProduct(FactReferenceTuple tuple, Projection projection, FactGraph graph)
-        {
-            var product = tuple.Names.Aggregate(
-                Product.Empty,
-                (product, name) => product.With(name, new SimpleElement(tuple.Get(name)))
-            );
-            product = ExecuteProjection(tuple, product, projection, graph);
-            return product;
-        }
-
-        private static Product ExecuteProjection(FactReferenceTuple tuple, Product product, Projection projection, FactGraph graph)
-        {
-            // CreateProduct has already put every label of the tuple into the product, and
-            // that is all a simple, field, hash or signer projection reads back. Only a
-            // collection adds anything. Whether a projection can run on the graph at all is
-            // decided by CanRunOnGraph, not here.
-            if (projection is CompoundProjection compoundProjection)
-            {
-                foreach (var name in compoundProjection.Names)
-                {
-                    if (compoundProjection.GetProjection(name) is CollectionProjection collectionProjection)
-                    {
-                        var tuples = ExecuteMatches(tuple, collectionProjection.Matches, graph);
-                        var products = tuples.Select(tuple => CreateProduct(tuple, collectionProjection.Projection, graph)).ToImmutableList();
-                        product = product.With(name, new CollectionElement(products));
-                    }
-                }
-            }
-            return product;
-        }
-
-        private static ImmutableList<FactReferenceTuple> ExecuteMatch(FactReferenceTuple references, Match match, FactGraph graph)
-        {
-            // Every path condition must hold, so the unknown is the intersection of their results.
-            var result = match.PathConditions
-                .Skip(1)
-                .Aggregate(
-                    ExecutePathCondition(references, match.Unknown, match.PathConditions[0], graph),
-                    (set, pathCondition) => set
-                        .Intersect(ExecutePathCondition(references, match.Unknown, pathCondition, graph))
-                        .ToImmutableList());
-            var resultReferences = result.Select(reference =>
-                references.Add(match.Unknown.Name, reference)).ToImmutableList();
-            return resultReferences;
-        }
-
-        private static ImmutableList<FactReference> ExecutePathCondition(FactReferenceTuple start, Label unknown, PathCondition pathCondition, FactGraph graph)
-        {
-            var startingFactReference = start.Get(pathCondition.LabelRight);
-            var set = ImmutableList.Create(startingFactReference);
-            foreach (var role in pathCondition.RolesRight)
-            {
-                set = ExecutePredecessorStep(set, role.Name, role.TargetType, graph);
-            }
-            return set;
-        }
-
-        private static ImmutableList<FactReference> ExecutePredecessorStep(ImmutableList<FactReference> set, string role, string targetType, FactGraph graph)
-        {
-            return set.SelectMany(reference => graph.Predecessors(reference, role, targetType))
-                .ToImmutableList();
         }
 
         /// <summary>

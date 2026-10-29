@@ -388,9 +388,10 @@ namespace Jinaga
                 logger.LogInformation("Local.Query starting for {Specification}", specification.ToDescriptiveString());
 
                 var givenReferences = ImmutableList.Create(givenReference);
-                if (specification.CanRunOnGraph)
+                var graphSpecification = GraphSpecification.From(specification, out _);
+                if (graphSpecification != null)
                 {
-                    var products = specification.Execute(givenTuple, graph);
+                    var products = graphSpecification.Execute(givenTuple, graph);
                     var productAnchorProjections = factManager.DeserializeProductsFromGraph(
                         graph, specification.Projection, products, typeof(TProjection), "", null);
 
