@@ -5,13 +5,18 @@
 well-formedness check and the specification split in Lean, proves them, and
 generates these vectors from the definitions.
 
-**Pinned at** jinaga-spec `23d8a9f2f868fc551312cb2f4cfa91865d292ba8`.
+**Pinned at** jinaga-spec `65a5d18524a05e7720f3b58e5a9b59d9e1b523bf`.
 
 | Directory | Test | What a vector holds |
 |---|---|---|
 | `Vectors/well-formed/` | `WellFormedVectorTest` | A specification, and whether it is well formed. |
 | `Vectors/split/` | `SplitVectorTest` | A specification, the head and tail its split produces, and whether an authorization rule over it is refused because its tail reads the fact under authorization. |
 | `Vectors/inverse/` | `InverseVectorTest` | A specification, a graph, a subscription's givens, a fresh fact or batch, the reduction that removes any conditions on the givens, and the inverses the proven algorithm builds, the reordering of each, and the rows all of them find. |
+
+An inverse vector also carries `expected.exact`, the rows the *exact* inverses
+add and remove. Nothing here reads that field: `ExactInverseVectorTest` reads
+the fixture described below instead, which states the same changes together
+with the graph and the row labels it keys them by.
 
 `SplitVectorTest` compares the head and tail as printed by
 `ToDescriptiveString`, which prints exactly what jinaga.js's
@@ -46,6 +51,26 @@ only the conformance vectors use it.
 specification is JSON in the shape jinaga.js serializes. `ConformanceVector`
 loads it into a `Specification`, partitioning each match's conditions into path
 and existential conditions, because `Match` here keeps them apart.
+
+## `Fixtures/`
+
+`Fixtures/` is not part of the pin, and the procedure below does not touch it.
+
+| File | Test | Where it came from |
+|---|---|---|
+| `Fixtures/exact-inverse-vectors.json` | `ExactInverseVectorTest` | 39 cases generated from the Lean definitions in [jinaga/jinaga-spec#19](https://github.com/jinaga/jinaga-spec/pull/19), at the pin above, and posted as the first comment on [jinaga/jinaga.net#329](https://github.com/jinaga/jinaga.net/issues/329). |
+
+Each case names a specification, a graph, a subscription's givens, a fresh fact
+or batch, the top-level unknowns as `keyLabels`, and the rows its `expected`
+calls `gained`, `lost`, `adds` and `removes`. `adds` and `removes` are
+jinaga-spec's `changes` (`JinagaSpec/Exact.lean`) with the projection set to
+`keyLabels`, so every case falls under `projectsUnknowns`, the hypothesis the
+remove direction needs. `gained` is contained in `adds`, `lost` in `removes`,
+and `adds` and `removes` are disjoint; `ExactInverseVectorTest` asserts all
+three as a check on its own harness.
+
+It lives outside `Vectors/` because the procedure below owns that directory and
+replaces it wholesale.
 
 ## Updating the pin
 

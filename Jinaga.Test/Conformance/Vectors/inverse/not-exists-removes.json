@@ -137,6 +137,7 @@
      [{"label": {"type": "Root", "name": "p1"}, "conditions": []},
       {"label": {"type": "Done", "name": "__f"}, "conditions": []}]}}],
   "gained": [],
+  "exact": {"removes": [[1]], "adds": []},
   "candidates": [[1]]},
  "description":
  "One notExists. A Done arrives for an open task, which leaves the result."}

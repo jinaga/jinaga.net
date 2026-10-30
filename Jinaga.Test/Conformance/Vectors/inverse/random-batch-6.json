@@ -107,6 +107,7 @@
      [{"label": {"type": "A", "name": "p1"}, "conditions": []},
       {"label": {"type": "A", "name": "__f"}, "conditions": []}]}}],
   "gained": [[10, 10], [8, 8]],
+  "exact": {"removes": [], "adds": [[10, 10], [8, 8]]},
   "candidates": [[10, 10], [8, 8]]},
  "description":
  "A random well-formed specification, graph and fresh batch, some of whose facts name others, that change the result.",

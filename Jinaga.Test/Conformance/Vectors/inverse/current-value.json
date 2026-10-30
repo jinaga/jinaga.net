@@ -140,6 +140,7 @@
      [{"label": {"type": "Account", "name": "p1"}, "conditions": []},
       {"label": {"type": "Name", "name": "__f"}, "conditions": []}]}}],
   "gained": [[2]],
+  "exact": {"removes": [[1]], "adds": [[2]]},
   "candidates": [[2], [1]]},
  "description":
  "A mutable property's current value: names with no successor revision. A new revision replaces the current one: one gained, one lost."}

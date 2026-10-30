@@ -163,6 +163,7 @@
       {"label": {"type": "Channel", "name": "p2"}, "conditions": []},
       {"label": {"type": "Read", "name": "__f"}, "conditions": []}]}}],
   "gained": [[2]],
+  "exact": {"removes": [], "adds": [[2]]},
   "candidates": [[2]]},
  "description":
  "Messages in a channel that this user has not read, for a user the replica does not hold yet. A replica reads nothing until the user arrives, then reads the message, though no Read could have existed before."}

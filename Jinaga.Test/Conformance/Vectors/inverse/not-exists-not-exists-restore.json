@@ -250,6 +250,7 @@
      [{"label": {"type": "Owner", "name": "p1"}, "conditions": []},
       {"label": {"type": "Freeze", "name": "__f"}, "conditions": []}]}}],
   "gained": [[1]],
+  "exact": {"removes": [], "adds": [[1]]},
   "candidates": [[1]]},
  "description":
  "notExists { notExists }: an Unfreeze arrives for the only freeze and restores the account."}

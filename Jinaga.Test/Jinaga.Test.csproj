@@ -18,6 +18,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Conformance\Vectors\**\*.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Conformance\Fixtures\**\*.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Jinaga.Store.SQLite\Jinaga.Store.SQLite.csproj" />

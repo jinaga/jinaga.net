@@ -56,6 +56,7 @@
      [{"label": {"type": "Root", "name": "p1"}, "conditions": []},
       {"label": {"type": "Task", "name": "__f"}, "conditions": []}]}}],
   "gained": [[1]],
+  "exact": {"removes": [], "adds": [[1]]},
   "candidates": [[1]]},
  "description":
  "A subscription started on a given the replica does not hold yet. The given arrives with a task under it, the task listed first: nothing was read before, and the task is read now.",

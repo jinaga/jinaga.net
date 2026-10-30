@@ -240,6 +240,7 @@
      [{"label": {"type": "Project", "name": "p1"}, "conditions": []},
       {"label": {"type": "Completion", "name": "__f"}, "conditions": []}]}}],
   "gained": [],
+  "exact": {"removes": [[1]], "adds": []},
   "candidates": [[1]]},
  "description":
  "notExists { two matches, the second joined to the first }: tasks with no completed assignment. A Completion of an existing assignment removes the task: the path reaches the task from the second match through the first."}

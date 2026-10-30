@@ -167,6 +167,7 @@
       {"label": {"type": "Channel", "name": "p2"}, "conditions": []},
       {"label": {"type": "Read", "name": "__f"}, "conditions": []}]}}],
   "gained": [],
+  "exact": {"removes": [[2]], "adds": []},
   "candidates": [[2]]},
  "description":
  "A notExists correlated over two predecessors: messages in a channel that this user has not read. A Read by this user removes the message."}

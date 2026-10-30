@@ -211,6 +211,7 @@
      [{"label": {"type": "A", "name": "p1"}, "conditions": []},
       {"label": {"type": "A", "name": "__f"}, "conditions": []}]}}],
   "gained": [[3, 8]],
+  "exact": {"removes": [], "adds": [[3, 8]]},
   "candidates": [[3, 8]]},
  "description":
  "A random well-formed specification, graph and fresh fact that change the result."}

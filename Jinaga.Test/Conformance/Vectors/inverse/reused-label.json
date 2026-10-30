@@ -265,6 +265,7 @@
      [{"label": {"type": "Root", "name": "r"}, "conditions": []},
       {"label": {"type": "Done", "name": "__f"}, "conditions": []}]}}],
   "gained": [],
+  "exact": {"removes": [[1, 2]], "adds": []},
   "candidates": [[1, 2]]},
  "description":
  "A label reused, after an existential condition, by a later match. jinaga.js's inverse looks the label up across scopes and misses the removal."}

@@ -250,6 +250,7 @@
      [{"label": {"type": "Root", "name": "p1"}, "conditions": []},
       {"label": {"type": "Retired", "name": "__f"}, "conditions": []}]}}],
   "gained": [],
+  "exact": {"removes": [[1]], "adds": []},
   "candidates": [[1]]},
  "description":
  "exists { notExists }: accounts with a current mirror. Retiring the only current mirror removes the account."}

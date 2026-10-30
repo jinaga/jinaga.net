@@ -9,7 +9,9 @@ namespace Jinaga.Pipelines
     /// <summary>
     /// jinaga-spec's proven inverse algorithm, <c>candidates</c>, ported from
     /// <c>ports/typescript/inverse-candidates.ts</c> at jinaga-spec
-    /// <c>23d8a9f2f868fc551312cb2f4cfa91865d292ba8</c>.
+    /// <c>65a5d18524a05e7720f3b58e5a9b59d9e1b523bf</c>, together with the exact
+    /// inverses of <c>JinagaSpec/Exact.lean</c> at the same commit
+    /// (<see cref="ExactInverses"/>).
     ///
     /// Proven (jinaga/jinaga-spec#7, #11, #12): for a well-formed specification and a
     /// fresh batch -- no stored fact has the hash of a batch fact or names one as a
@@ -52,8 +54,19 @@ namespace Jinaga.Pipelines
         /// </summary>
         public static ImmutableList<Specification> BuildInverses(Specification specification)
         {
-            return TouchMatches(true, specification.Matches)
-                .Concat(TouchMatches(false, specification.Matches))
+            return InversesFor(true, specification)
+                .AddRange(InversesFor(false, specification));
+        }
+
+        /// <summary>
+        /// The inverses in one direction, <c>inversesFor</c> in
+        /// <c>JinagaSpec/Candidates.lean</c>. <see cref="BuildInverses"/> is the gained
+        /// direction followed by the lost one, and the exact inverses strengthen each
+        /// direction on its own.
+        /// </summary>
+        private static ImmutableList<Specification> InversesFor(bool gained, Specification specification)
+        {
+            return TouchMatches(gained, specification.Matches)
                 .Select(touch => new Specification(
                     specification.Givens.Add(new SpecificationGiven(
                         new Label(PinLabel, touch.Pinned.Type),
@@ -95,6 +108,130 @@ namespace Jinaga.Pipelines
         {
             return BuildInverses(ReduceGivenConditions(specification))
                 .Select(ReorderInverse)
+                .ToImmutableList();
+        }
+
+        /* ------------- The exact inverses ------------- */
+
+        /// <summary>
+        /// The inverses strengthened so that each reports a change in one direction, with
+        /// no second read. Ported from <c>addInverses</c>, <c>removeInverses</c> and
+        /// <c>changes</c> in <c>JinagaSpec/Exact.lean</c> at jinaga-spec
+        /// <c>65a5d18524a05e7720f3b58e5a9b59d9e1b523bf</c>.
+        ///
+        /// Read each with the subscription's givens and the new fact as
+        /// <see cref="PinLabel"/>, on the store that holds the whole batch. Proven in
+        /// <c>JinagaSpec/Proofs/Exact.lean</c>: every row an add inverse finds is in the
+        /// result on the new graph (<c>adds_sound</c>); no row a remove inverse finds is
+        /// (<c>removes_sound</c>); together they report every row whose membership changed
+        /// (<c>changes_complete</c>); and so a stream that applies them holds exactly the
+        /// result (<c>exact_correct</c>, <c>exact_stream_correct</c>).
+        ///
+        /// The remove direction is exact under <c>projectsUnknowns</c>: the projection
+        /// names every top-level unknown, so a row determines its solution and a test on
+        /// that solution decides the row. A caller that projects fewer labels than that
+        /// may find a row in <c>Removes</c> that another solution still supports.
+        ///
+        /// Neither direction looks at the old graph. Adding a row the reader already holds,
+        /// or removing one it never held, changes nothing, so a test that is sound on the
+        /// new graph and complete is exact.
+        /// </summary>
+        public static (ImmutableList<Specification> Adds, ImmutableList<Specification> Removes) ExactInverses(Specification specification)
+        {
+            var reduced = ReduceGivenConditions(specification);
+            return (
+                AddInverses(reduced).Select(ReorderInverse).ToImmutableList(),
+                RemoveInverses(reduced).Select(ReorderInverse).ToImmutableList());
+        }
+
+        /// <summary>
+        /// The gained-direction inverses, each with every original top-level condition
+        /// re-attached. Every solution one finds is then a solution of the specification
+        /// on the new graph.
+        /// </summary>
+        private static ImmutableList<Specification> AddInverses(Specification specification)
+        {
+            return InversesFor(true, specification)
+                .Select(inverse => new Specification(
+                    inverse.Givens,
+                    Conj(inverse.Matches, specification.Matches),
+                    inverse.Projection))
+                .ToImmutableList();
+        }
+
+        /// <summary>
+        /// The lost-direction inverses, each strengthened by one remove test. Every
+        /// solution one finds fails a top-level existential condition on the new graph, so
+        /// it is not a solution of the specification there. A specification with no
+        /// top-level existential condition has none: a row can be lost only when one of
+        /// them flips.
+        /// </summary>
+        private static ImmutableList<Specification> RemoveInverses(Specification specification)
+        {
+            var tests = RemoveTests(specification.Matches);
+            return InversesFor(false, specification)
+                .SelectMany(inverse => tests.Select(test => new Specification(
+                    inverse.Givens,
+                    Conj(inverse.Matches, test),
+                    inverse.Projection)))
+                .ToImmutableList();
+        }
+
+        /// <summary>
+        /// For each top-level match and each existential condition on it, the same
+        /// unknowns carrying no condition anywhere but that one, flipped, on its own match.
+        /// </summary>
+        private static ImmutableList<ImmutableList<Match>> RemoveTests(ImmutableList<Match> matches)
+        {
+            if (matches.IsEmpty)
+            {
+                return ImmutableList<ImmutableList<Match>>.Empty;
+            }
+            var match = matches[0];
+            var rest = matches.RemoveAt(0);
+            var bare = new Match(match.Unknown, ImmutableList<PathCondition>.Empty, ImmutableList<ExistentialCondition>.Empty);
+            var here = match.ExistentialConditions
+                .Select(condition => rest
+                    .Select(later => new Match(
+                        later.Unknown,
+                        ImmutableList<PathCondition>.Empty,
+                        ImmutableList<ExistentialCondition>.Empty))
+                    .ToImmutableList()
+                    .Insert(0, new Match(
+                        match.Unknown,
+                        ImmutableList<PathCondition>.Empty,
+                        ImmutableList.Create(Flip(condition)))));
+            var later = RemoveTests(rest).Select(test => test.Insert(0, bare));
+            return here.Concat(later).ToImmutableList();
+        }
+
+        /// <summary>The existential condition that asks the opposite.</summary>
+        private static ExistentialCondition Flip(ExistentialCondition condition)
+        {
+            return new ExistentialCondition(!condition.Exists, condition.Matches);
+        }
+
+        /// <summary>
+        /// Two match lists over the same unknowns, as one: match by match, the unknown and
+        /// the conditions of both, dropping from the right every condition structurally
+        /// equal to one the left already carries. Every inverse keeps the original's
+        /// top-level unknowns in order, so the zip is well defined.
+        ///
+        /// Lean's <c>conj</c> keeps the duplicates, because a conjunction is idempotent and
+        /// nothing it proves can see them. A store can: jinaga/jinaga.net#329 reports SQLite
+        /// answering the add inverses of two of the exact-inverse cases with no rows, where
+        /// <see cref="Jinaga.Storage.MemoryStore"/> answers one, until the duplicates come
+        /// out. <c>Match.ToDescriptiveString</c> collapses them with <c>Union</c>, so only a
+        /// comparison of the condition lists themselves can see them.
+        /// </summary>
+        private static ImmutableList<Match> Conj(ImmutableList<Match> left, ImmutableList<Match> right)
+        {
+            return left.Zip(right, (l, r) => new Match(
+                    l.Unknown,
+                    l.PathConditions.AddRange(r.PathConditions
+                        .Where(condition => !l.PathConditions.Any(other => SamePath(condition, other)))),
+                    l.ExistentialConditions.AddRange(r.ExistentialConditions
+                        .Where(condition => !l.ExistentialConditions.Any(other => SameExistential(condition, other))))))
                 .ToImmutableList();
         }
 

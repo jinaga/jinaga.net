@@ -234,7 +234,7 @@ public class InverseVectorTest
     /// A store holding the vector's graph and every fact that arrives, each identified by the
     /// reference the reference implementation gives it. A vector's graph may name a predecessor
     /// content addressing cannot reach -- a fact saved later, or a cycle -- so the facts cannot
-    /// be hashed, and 18 of the 30 vectors need that.
+    /// be hashed, and many of the vectors need that.
     /// </summary>
     private static (MemoryStore Store, ImmutableDictionary<int, FactReference> References) PlaceGraph(ConformanceVector vector)
     {

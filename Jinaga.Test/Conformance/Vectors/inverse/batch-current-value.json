@@ -136,6 +136,7 @@
      [{"label": {"type": "Account", "name": "p1"}, "conditions": []},
       {"label": {"type": "Name", "name": "__f"}, "conditions": []}]}}],
   "gained": [[3]],
+  "exact": {"removes": [[1], [2]], "adds": [[3]]},
   "candidates": [[1], [3], [2]]},
  "description":
  "A mutable property's current value. Two revisions arrive in one batch, the second replacing the first: the old value is lost, the last is gained, and the one between is gained and lost within the batch.",

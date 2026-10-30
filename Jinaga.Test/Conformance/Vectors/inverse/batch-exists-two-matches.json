@@ -235,6 +235,7 @@
      [{"label": {"type": "Project", "name": "p1"}, "conditions": []},
       {"label": {"type": "Completion", "name": "__f"}, "conditions": []}]}}],
   "gained": [[1]],
+  "exact": {"removes": [], "adds": [[1]]},
   "candidates": [[1]]},
  "description":
  "exists { two matches, the second joined to the first }: tasks with a completed assignment. The assignment and its completion arrive in one batch, the completion listed first, so each inner match is bound to a new fact.",
