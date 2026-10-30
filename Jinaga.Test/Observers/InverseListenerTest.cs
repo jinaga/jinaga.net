@@ -1,4 +1,4 @@
-using Jinaga.Facts;
+﻿using Jinaga.Facts;
 using Jinaga.Managers;
 using Jinaga.Observers;
 using Jinaga.Pipelines;
@@ -114,14 +114,19 @@ public class InverseListenerTest
         var delivered = new List<Product>();
         foreach (var inverse in InverseCandidates.CandidateInverses(UnreadMessages))
         {
-            factManager.AddInverseListener(inverse, givens, (products, cancellationToken) =>
-            {
-                lock (delivered)
+            factManager.AddInverseListener(
+                inverse,
+                givens,
+                () => 0,
+                (products, read, cancellationToken) =>
                 {
-                    delivered.AddRange(products);
-                }
-                return Task.CompletedTask;
-            });
+                    lock (delivered)
+                    {
+                        delivered.AddRange(products);
+                    }
+                    return Task.CompletedTask;
+                },
+                read => { });
         }
 
         await Save(factManager, new Read(message, alice));
@@ -148,7 +153,9 @@ public class InverseListenerTest
         factManager.AddInverseListener(
             ChannelOfTheGivenMessageInverse,
             FactReferenceTuple.Empty.Add("p2", messageReference),
-            delivered.OnResult);
+            delivered.BeginRead,
+            delivered.OnResult,
+            delivered.EndRead);
 
         // A channel with no predecessors, so the saved batch's graph holds that one
         // fact. Only a read on the store can reach the given message's channel.
@@ -174,9 +181,12 @@ public class InverseListenerTest
         var firstOnGeneral = new DeliveredProducts();
         var secondOnGeneral = new DeliveredProducts();
         var onLounge = new DeliveredProducts();
-        factManager.AddInverseListener(MessageInChannelInverse, generalGivens, firstOnGeneral.OnResult);
-        factManager.AddInverseListener(MessageInChannelInverse, generalGivens, secondOnGeneral.OnResult);
-        factManager.AddInverseListener(MessageInChannelInverse, loungeGivens, onLounge.OnResult);
+        factManager.AddInverseListener(
+            MessageInChannelInverse, generalGivens, firstOnGeneral.BeginRead, firstOnGeneral.OnResult, firstOnGeneral.EndRead);
+        factManager.AddInverseListener(
+            MessageInChannelInverse, generalGivens, secondOnGeneral.BeginRead, secondOnGeneral.OnResult, secondOnGeneral.EndRead);
+        factManager.AddInverseListener(
+            MessageInChannelInverse, loungeGivens, onLounge.BeginRead, onLounge.OnResult, onLounge.EndRead);
 
         var readsBeforeTheSave = store.Reads;
         var message = new Message(general, "Where is everybody?");
@@ -200,7 +210,8 @@ public class InverseListenerTest
         var generalReference = await Save(factManager, new Channel("general"));
         var givens = FactReferenceTuple.Empty.Add("p2", generalReference);
         var delivered = new DeliveredProducts();
-        factManager.AddInverseListener(MessageInChannelInverse, givens, delivered.OnResult);
+        factManager.AddInverseListener(
+            MessageInChannelInverse, givens, delivered.BeginRead, delivered.OnResult, delivered.EndRead);
 
         var readsBeforeTheSave = store.Reads;
         await Save(factManager, new Channel("lounge"));
@@ -219,7 +230,8 @@ public class InverseListenerTest
         var generalReference = await Save(factManager, general);
         var givens = FactReferenceTuple.Empty.Add("p2", generalReference);
         var delivered = new DeliveredProducts();
-        var listener = factManager.AddInverseListener(MessageInChannelInverse, givens, delivered.OnResult);
+        var listener = factManager.AddInverseListener(
+            MessageInChannelInverse, givens, delivered.BeginRead, delivered.OnResult, delivered.EndRead);
 
         factManager.RemoveInverseListener(listener);
 
@@ -250,12 +262,23 @@ public class InverseListenerTest
     }
 
     /// <summary>What one listener received.</summary>
+    /// <summary>
+    /// Stands in for one observer's side of an inverse listener, and records the order its
+    /// three members were called in. A read is numbered here exactly as an observer numbers
+    /// one, so a test can ask whether the number was taken before the store was read.
+    /// </summary>
     private class DeliveredProducts
     {
         private readonly List<Product> products = new List<Product>();
+        private readonly List<string> order = new List<string>();
+        private long lastRead;
         private int calls;
+        private int ended;
 
         public int Calls => calls;
+
+        /// <summary>The reads this listener was asked to end, which a read that came back with nothing still owes.</summary>
+        public int Ended => ended;
 
         public IEnumerable<Product> Products
         {
@@ -268,14 +291,48 @@ public class InverseListenerTest
             }
         }
 
-        public Task OnResult(ImmutableList<Product> results, CancellationToken cancellationToken)
+        /// <summary>What happened, in order: a number taken, a result applied, a number ended.</summary>
+        public IEnumerable<string> Order
+        {
+            get
+            {
+                lock (order)
+                {
+                    return order.ToArray();
+                }
+            }
+        }
+
+        public long BeginRead()
+        {
+            var read = Interlocked.Increment(ref lastRead);
+            Record($"begin {read}");
+            return read;
+        }
+
+        public Task OnResult(ImmutableList<Product> results, long read, CancellationToken cancellationToken)
         {
             Interlocked.Increment(ref calls);
+            Record($"result {read}");
             lock (products)
             {
                 products.AddRange(results);
             }
             return Task.CompletedTask;
+        }
+
+        public void EndRead(long read)
+        {
+            Interlocked.Increment(ref ended);
+            Record($"end {read}");
+        }
+
+        private void Record(string entry)
+        {
+            lock (order)
+            {
+                order.Add(entry);
+            }
         }
     }
 

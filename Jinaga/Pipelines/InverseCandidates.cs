@@ -21,8 +21,10 @@ namespace Jinaga.Pipelines
     /// the batch's facts as <see cref="PinLabel"/>, on the store that holds the whole
     /// batch.
     ///
-    /// An inverse carries no operation. A caller re-checks each candidate row against
-    /// the store rather than trusting an add or a remove.
+    /// A <see cref="CandidateInverses"/> inverse carries no operation: every row it
+    /// reports is a candidate, and a caller decides each against the store. An
+    /// <see cref="ExactInverses"/> inverse carries its direction, so a caller applies
+    /// what it reports and reads nothing again.
     ///
     /// These inverses are internal: <see cref="PinLabel"/> is a reserved label, so they
     /// never pass through <see cref="WellFormedSpecification"/>.

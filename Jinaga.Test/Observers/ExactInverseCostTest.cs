@@ -1,6 +1,7 @@
 using Jinaga.Facts;
 using Jinaga.Managers;
 using Jinaga.Observers;
+using Jinaga.Pipelines;
 using Jinaga.Products;
 using Jinaga.Services;
 using Jinaga.Storage;
@@ -14,16 +15,16 @@ using System.Threading;
 namespace Jinaga.Test.Observers;
 
 /// <summary>
-/// What a save costs the observer. Deciding a candidate reads the specification for that one
-/// row, so absorbing a save grows with the candidates the save produces and not with the rows
-/// the watch already holds.
+/// What a save costs the observer. The rows of an exact inverse are the changes themselves,
+/// so absorbing a save costs one read per inverse pinned on the saved fact's type and nothing
+/// per row the watch already holds.
 ///
 /// This is the property a re-check of the whole specification would lose. Both watches here
 /// run the same specification over a different number of rows, so a read that answered the
 /// question by re-reading the result would cost a hundred times more in one than in the other.
 /// The counts are rows read from the store, which is deterministic; a timing would not be.
 /// </summary>
-public class CandidateRecheckCostTest
+public class ExactInverseCostTest
 {
     private const int FewRows = 10;
     private const int ManyRows = 1000;
@@ -37,7 +38,8 @@ public class CandidateRecheckCostTest
     /// <summary>
     /// The accounts of a tenant that have a mirror nobody has retired. A one-level
     /// specification, so the rows the watch holds are exactly the successors of the given
-    /// that a forward walk would enumerate.
+    /// that a forward walk would enumerate, and the projection declares no collection, so
+    /// the observer registers the inverses of this one specification.
     /// </summary>
     private static readonly Specification<Tenant, Account> AccountsWithACurrentMirror =
         Given<Tenant>.Match((tenant, facts) =>
@@ -104,6 +106,46 @@ public class CandidateRecheckCostTest
         many.Rows.Count.Should().Be(ManyRows);
 
         many.Observer.Stop();
+    }
+
+    [Fact]
+    public async Task Save_ANonGivenFact_IssuesOnlyTheExactInversesReads()
+    {
+        var store = new CountingReadStore(new MemoryStore());
+        var factManager = CreateFactManager(store);
+
+        var pending = await GivenATenantHolding(factManager, "few", FewRows);
+        var few = await StartWatch(factManager, pending.Tenant, FewRows);
+
+        var readsBefore = store.Reads;
+        await Save(factManager, new Mirror(pending.Account, "east"));
+
+        // One read per inverse pinned on the saved fact's type, and not one more. The read
+        // that is gone is the pinned re-check the observer used to take per candidate row,
+        // and the count is derived from the inverses rather than written out, so it moves
+        // when the construction does.
+        (store.Reads - readsBefore).Should().Be(ExactInversesPinnedOn(MirrorType));
+
+        few.Observer.Stop();
+    }
+
+    private const string MirrorType = "Mirror.Mirror";
+
+    /// <summary>
+    /// The reads one save of a fact of <paramref name="type"/> owes this specification: the
+    /// exact inverses pinned on that type, counted as the store counts them. Listeners on one
+    /// inverse and one set of givens share a single read, so inverses that describe alike
+    /// count once.
+    /// </summary>
+    private static int ExactInversesPinnedOn(string type)
+    {
+        var exact = InverseCandidates.ExactInverses(AccountsWithACurrentMirror);
+        return exact.Adds
+            .AddRange(exact.Removes)
+            .Where(inverse => inverse.Givens[inverse.Givens.Count - 1].Label.Type == type)
+            .Select(inverse => inverse.ToDescriptiveString())
+            .Distinct()
+            .Count();
     }
 
     /// <summary>

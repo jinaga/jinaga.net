@@ -27,8 +27,8 @@ namespace Jinaga.Observers
         protected Task<bool>? cachedTask;
         protected Task? loadedTask;
 
-        private ImmutableList<SpecificationListener> listeners =
-            ImmutableList<SpecificationListener>.Empty;
+        private ImmutableList<InverseListener> listeners =
+            ImmutableList<InverseListener>.Empty;
         private ImmutableList<FactListener> givenListeners =
             ImmutableList<FactListener>.Empty;
         private ImmutableList<AddedHandler> addedHandlers =
@@ -39,9 +39,8 @@ namespace Jinaga.Observers
 
         /// <summary>
         /// The number of the most recent read. Every read that decides rows -- the initial
-        /// read, a candidate's re-check, and the read taken when a given is saved -- takes the
-        /// next number before it touches the store, so a higher number is a read that began
-        /// later.
+        /// read, an inverse read, and the read taken when a given is saved -- takes the next
+        /// number before it touches the store, so a higher number is a read that began later.
         /// </summary>
         private long lastRead;
 
@@ -259,26 +258,42 @@ namespace Jinaga.Observers
 
         /// <summary>
         /// Registers a listener for every way a saved fact can change what this observer
-        /// holds: the candidate inverses of the specification at each path of the
-        /// projection, and one per given for the observer's own givens.
+        /// holds: the exact inverses of the specification at each path of the projection,
+        /// and one per given for the observer's own givens.
         /// </summary>
         /// <remarks>
-        /// An inverse of <see cref="InverseCandidates"/> carries no operation. Every row it
-        /// reports is a candidate, and <see cref="OnCandidates"/> decides each against the
-        /// store rather than trusting an add or a remove.
+        /// An inverse of <see cref="InverseCandidates.ExactInverses"/> carries its direction.
+        /// Every row an add inverse reports is in the new result and every row a remove
+        /// inverse reports is absent from it (<c>adds_sound</c> and <c>removes_sound</c>), and
+        /// together they report every row that changed (<c>changes_complete</c>). So
+        /// <see cref="OnAdded"/> and <see cref="OnRemoved"/> apply the rows rather than
+        /// reading again to decide them.
         /// </remarks>
         private void AddSpecificationListeners()
         {
-            var listeners = ImmutableList<SpecificationListener>.Empty;
+            var listeners = ImmutableList<InverseListener>.Empty;
             foreach (var flattened in FlattenedSpecifications())
             {
-                foreach (var inverse in InverseCandidates.CandidateInverses(flattened.Specification))
+                var exact = InverseCandidates.ExactInverses(flattened.Specification);
+                foreach (var inverse in exact.Adds)
                 {
                     listeners = listeners.Add(factManager.AddInverseListener(
                         inverse,
                         givenTuple,
-                        async (ImmutableList<Product> products, CancellationToken cancellationToken) =>
-                            await OnCandidates(flattened, products, cancellationToken).ConfigureAwait(false)));
+                        BeginRead,
+                        async (ImmutableList<Product> products, long read, CancellationToken cancellationToken) =>
+                            await OnAdded(flattened, products, read, cancellationToken).ConfigureAwait(false),
+                        EndRead));
+                }
+                foreach (var inverse in exact.Removes)
+                {
+                    listeners = listeners.Add(factManager.AddInverseListener(
+                        inverse,
+                        givenTuple,
+                        BeginRead,
+                        async (ImmutableList<Product> products, long read, CancellationToken cancellationToken) =>
+                            await OnRemoved(flattened, products, read, cancellationToken).ConfigureAwait(false),
+                        EndRead));
                 }
             }
             // One listener per given, keyed by the given's own reference rather than by its
@@ -303,8 +318,8 @@ namespace Jinaga.Observers
         /// <summary>
         /// The specification at each path of the projection: the top level, and each
         /// collection flattened into a specification of its own -- the matches of every
-        /// level above it followed by its own, with its own projection. The candidate
-        /// inverses of each report the rows of that path.
+        /// level above it followed by its own, with its own projection. The exact inverses
+        /// of each report the rows of that path.
         /// </summary>
         private ImmutableList<FlatSpecification> FlattenedSpecifications()
         {
@@ -339,64 +354,68 @@ namespace Jinaga.Observers
         }
 
         /// <summary>
-        /// Decides each candidate the inverse reported, and notifies only a row whose
-        /// membership changed.
+        /// Delivers the rows an add inverse reported. Every one of them is in the new result,
+        /// so there is nothing to decide and nothing to read again.
         /// </summary>
         /// <remarks>
-        /// Candidates of one saved batch may be decided in any order, so each is decided on
-        /// its own. One inverse can report a row more than once, and several inverses can
-        /// report the same row, so a row already decided in this batch is not read again.
+        /// An inverse binds labels that do not identify a row -- the fact it is pinned on,
+        /// the labels it lifted out of an existential condition, and the givens -- so several
+        /// of its rows can carry one row of this path. The products are grouped by row and
+        /// one product of each group is projected, because the projector reads only the
+        /// labels the projection names.
+        ///
+        /// The row-state machine still decides what each row's delivery means: a row already
+        /// held is left alone, and one a newer read withdrew is not delivered at all.
         /// </remarks>
-        private async Task OnCandidates(FlatSpecification flattened, ImmutableList<Product> products, CancellationToken cancellationToken)
+        private async Task OnAdded(FlatSpecification flattened, ImmutableList<Product> products, long read, CancellationToken cancellationToken)
         {
-            var decided = ImmutableHashSet<FactReferenceTuple>.Empty;
+            var rows = ImmutableHashSet<FactReferenceTuple>.Empty;
+            var distinct = ImmutableList<Product>.Empty;
             foreach (var product in products)
             {
-                // A row is identified at this path by that path's result subset. An inverse
-                // binds more labels than those -- the fact it is pinned on, and the labels it
-                // lifted out of an existential condition -- and none of those identify a row.
-                var candidate = flattened.ResultSubset.Of(product);
-                if (decided.Contains(candidate))
+                var row = flattened.ResultSubset.Of(product);
+                if (rows.Contains(row))
                 {
                     continue;
                 }
-                decided = decided.Add(candidate);
-
-                await DecideCandidate(flattened, candidate, cancellationToken).ConfigureAwait(false);
+                rows = rows.Add(row);
+                distinct = distinct.Add(product);
             }
+            if (distinct.IsEmpty)
+            {
+                return;
+            }
+
+            var projection = flattened.Projection;
+            var results = await factManager.ComputeProjections(
+                projection, distinct, projection.Type, this, flattened.Path, cancellationToken).ConfigureAwait(false);
+            await SynchronizeNotifyAdded(
+                results, flattened.ParentSubset, flattened.ResultSubset, projection, read).ConfigureAwait(false);
         }
 
         /// <summary>
-        /// Reads the specification for one candidate row and notifies the transition, if
-        /// there is one. A row the read holds is added, unless it is held already; a row the
-        /// read does not hold is removed, unless it was never delivered. Both of those
-        /// exceptions are the row-state machine's, so a row that did not change is left
-        /// exactly as it is.
+        /// Withdraws the rows a remove inverse reported. Every one of them is absent from the
+        /// new result, so there is nothing to decide and nothing to read again.
         /// </summary>
-        private async Task DecideCandidate(FlatSpecification flattened, FactReferenceTuple candidate, CancellationToken cancellationToken)
+        /// <remarks>
+        /// As in <see cref="OnAdded"/>, one row of this path can arrive more than once, and
+        /// the row-state machine decides what the withdrawal means: a row that was never
+        /// delivered gets no removal call, and a removal older than the read that delivered
+        /// the row is ignored.
+        /// </remarks>
+        private async Task OnRemoved(FlatSpecification flattened, ImmutableList<Product> products, long read, CancellationToken cancellationToken)
         {
-            var read = BeginRead();
-            try
+            var removed = ImmutableHashSet<FactReferenceTuple>.Empty;
+            foreach (var product in products)
             {
-                var (pinned, pinnedGivens) = CandidateRecheck.Pin(
-                    flattened.Specification, givenTuple, candidate);
-                var rows = await factManager.QueryLocal(pinnedGivens, pinned, cancellationToken).ConfigureAwait(false);
-                if (rows.IsEmpty)
+                var row = flattened.ResultSubset.Of(product);
+                if (removed.Contains(row))
                 {
-                    await SynchronizeNotifyRemovedRow(candidate, read).ConfigureAwait(false);
+                    continue;
                 }
-                else
-                {
-                    var projection = flattened.Projection;
-                    var results = await factManager.ComputeProjections(
-                        projection, rows, projection.Type, this, flattened.Path, cancellationToken).ConfigureAwait(false);
-                    await SynchronizeNotifyAdded(
-                        results, flattened.ParentSubset, flattened.ResultSubset, projection, read).ConfigureAwait(false);
-                }
-            }
-            finally
-            {
-                EndRead(read);
+                removed = removed.Add(row);
+
+                await SynchronizeNotifyRemovedRow(row, read).ConfigureAwait(false);
             }
         }
 
@@ -408,10 +427,10 @@ namespace Jinaga.Observers
         /// </summary>
         /// <remarks>
         /// A row reachable only by walking a given -- its predecessors, or facts joined
-        /// through one of them -- already exists when the given is saved, so no candidate
-        /// inverse ever runs for it: a candidate inverse is pinned on an unknown, and the
-        /// givens are not unknowns. This is what <c>Inverter.CreateSelfInverse</c> answered,
-        /// and it could be registered only for a specification of exactly one given carrying
+        /// through one of them -- already exists when the given is saved, so no inverse ever
+        /// runs for it: an inverse is pinned on an unknown, and the givens are not unknowns.
+        /// This is what <c>Inverter.CreateSelfInverse</c> answered, and it could be
+        /// registered only for a specification of exactly one given carrying
         /// no conditions, because the listener it used was keyed by that single given's type.
         /// One listener per given reference is subject to neither limit, and it reads only
         /// when the fact saved is a given of this observer's own.

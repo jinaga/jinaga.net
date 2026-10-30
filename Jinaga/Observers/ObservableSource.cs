@@ -71,16 +71,16 @@ namespace Jinaga.Observers
         {
             public Specification Inverse { get; }
             public FactReferenceTuple Givens { get; }
-            public ImmutableList<SpecificationListener> Listeners { get; }
+            public ImmutableList<InverseListener> Listeners { get; }
 
-            public InverseWithListeners(Specification inverse, FactReferenceTuple givens, ImmutableList<SpecificationListener> listeners)
+            public InverseWithListeners(Specification inverse, FactReferenceTuple givens, ImmutableList<InverseListener> listeners)
             {
                 Inverse = inverse;
                 Givens = givens;
                 Listeners = listeners;
             }
 
-            public InverseWithListeners With(ImmutableList<SpecificationListener> listeners)
+            public InverseWithListeners With(ImmutableList<InverseListener> listeners)
             {
                 return new InverseWithListeners(Inverse, Givens, listeners);
             }
@@ -181,7 +181,12 @@ namespace Jinaga.Observers
         /// <param name="inverse">An inverse whose last given is the pin label</param>
         /// <param name="givens">A reference for each of the inverse's other givens</param>
         /// <param name="onResult">Receives the products the inverse produces</param>
-        public SpecificationListener AddInverseListener(Specification inverse, FactReferenceTuple givens, Func<ImmutableList<Product>, CancellationToken, Task> onResult)
+        public InverseListener AddInverseListener(
+            Specification inverse,
+            FactReferenceTuple givens,
+            Func<long> beginRead,
+            Func<ImmutableList<Product>, long, CancellationToken, Task> onResult,
+            Action<long> endRead)
         {
             if (inverse.Givens.Count == 0 ||
                 inverse.Givens[inverse.Givens.Count - 1].Label.Name != InverseCandidates.PinLabel)
@@ -207,7 +212,7 @@ namespace Jinaga.Observers
                 IdentityUtilities.ComputeStringHash(inverse.ToDescriptiveString()),
                 givens);
 
-            var specificationListener = new SpecificationListener(onResult);
+            var inverseListener = new InverseListener(beginRead, onResult, endRead);
             lock (this)
             {
                 if (!inverseListenersByTypeAndKey.TryGetValue(pinnedType, out var listenersByKey))
@@ -216,17 +221,17 @@ namespace Jinaga.Observers
                 }
                 if (!listenersByKey.TryGetValue(inverseKey, out var inverseWithListeners))
                 {
-                    inverseWithListeners = new InverseWithListeners(inverse, givens, ImmutableList<SpecificationListener>.Empty);
+                    inverseWithListeners = new InverseWithListeners(inverse, givens, ImmutableList<InverseListener>.Empty);
                 }
-                inverseWithListeners = inverseWithListeners.With(inverseWithListeners.Listeners.Add(specificationListener));
+                inverseWithListeners = inverseWithListeners.With(inverseWithListeners.Listeners.Add(inverseListener));
                 listenersByKey = listenersByKey.SetItem(inverseKey, inverseWithListeners);
                 inverseListenersByTypeAndKey = inverseListenersByTypeAndKey.SetItem(pinnedType, listenersByKey);
             }
 
-            return specificationListener;
+            return inverseListener;
         }
 
-        public void RemoveInverseListener(SpecificationListener listener)
+        public void RemoveInverseListener(InverseListener listener)
         {
             lock (this)
             {
@@ -370,10 +375,33 @@ namespace Jinaga.Observers
                     {
                         var givenTuple = inverseWithListeners.Givens
                             .Add(InverseCandidates.PinLabel, fact.Reference);
-                        var products = await store.Read(givenTuple, inverseWithListeners.Inverse, cancellationToken).ConfigureAwait(false);
-                        foreach (var listener in listeners)
+                        // Every listener numbers its read before the read touches the store.
+                        // The rows of an exact inverse are the changes themselves, so this is
+                        // the read that decides them, and a decision taken while it is in
+                        // flight has to be able to see that an older read is pending. A number
+                        // taken when the handler runs would leave the read unnumbered across
+                        // the store read and across every handler awaited ahead of it, and a
+                        // removal landing in that gap would record no withdrawal.
+                        var reads = listeners
+                            .Select(listener => listener.BeginRead())
+                            .ToImmutableList();
+                        try
                         {
-                            await listener.OnResult(products, cancellationToken).ConfigureAwait(false);
+                            var products = await store.Read(givenTuple, inverseWithListeners.Inverse, cancellationToken).ConfigureAwait(false);
+                            for (int index = 0; index < listeners.Count; index++)
+                            {
+                                await listeners[index].OnResult(products, reads[index], cancellationToken).ConfigureAwait(false);
+                            }
+                        }
+                        finally
+                        {
+                            // A read that threw, a handler that threw, and a result with no
+                            // rows all leave numbers pending that nothing else would ever
+                            // end, and one pending read holds every withdrawal older than it.
+                            for (int index = 0; index < listeners.Count; index++)
+                            {
+                                listeners[index].EndRead(reads[index]);
+                            }
                         }
                     }
                 }
