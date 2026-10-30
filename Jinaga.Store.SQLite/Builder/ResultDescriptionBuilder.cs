@@ -224,8 +224,21 @@ namespace Jinaga.Store.SQLite.Builder
                 }
                 var roleId = roleMap[typeId][role.Name];
 
-                // If we have already written the output, we can use the fact index.
-                if (context.KnownFacts.TryGetValue(unknown.Name, out var knownFact))
+                // The right-hand walk arrives at the unknown only on its last role, and only
+                // when the left-hand walk has no roles of its own. Where it does, and the
+                // unknown is already bound, the walk joins the fact it is bound to rather
+                // than allocating one.
+                //
+                // Any earlier role, or any left-hand role, puts a fact between the two ends
+                // of the condition, and that fact is not the unknown. Joining the unknown
+                // there asserts an equality the condition does not state: a path shorter
+                // than the one written, and then an edge from the unknown to itself. On an
+                // acyclic graph no row satisfies that, so the store answered with nothing
+                // where the condition had a match. A pinned unknown joined to a given
+                // through a shared predecessor is the shape, and a watch reads it.
+                if (i == pathCondition.RolesRight.Count - 1 &&
+                    pathCondition.RolesLeft.IsEmpty &&
+                    context.KnownFacts.TryGetValue(unknown.Name, out var knownFact))
                 {
                     context = context.WithEdge(knownFact.FactIndex, factIndex, roleId);
                     factIndex = knownFact.FactIndex;
