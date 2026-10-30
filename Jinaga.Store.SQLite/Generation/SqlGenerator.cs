@@ -43,12 +43,10 @@ namespace Jinaga.Store.SQLite.Generation
                     $"f{index}.fact_id as id{index}, " +
                     $"f{index}.data as data{index}")
                 .Join(", ");
-            var firstEdge = queryDescription.Edges.First();
-            var predecessorInput = queryDescription.Inputs.Find(input => input.FactIndex == firstEdge.PredecessorFactIndex);
-            var successorInput = queryDescription.Inputs.Find(input => input.FactIndex == firstEdge.SuccessorFactIndex);
-            var firstFactIndex = predecessorInput != null ? predecessorInput.FactIndex : successorInput.FactIndex;
+            var firstFactIndex = FirstFactIndex(queryDescription);
             var writtenFactIndexes = new HashSet<int> { firstFactIndex };
-            var joins = GenerateJoins(queryDescription.Edges, writtenFactIndexes);
+            var joins = GenerateJoins(queryDescription.Edges, writtenFactIndexes, queryDescription.Inputs);
+            joins = joins.AddRange(AnchorUnjoinedInputs(queryDescription.Inputs, writtenFactIndexes));
             var inputWhereClauses = queryDescription.Inputs
                 .Select(input => $"f{input.FactIndex}.fact_type_id = ?{input.FactTypeParameter} AND f{input.FactIndex}.hash = ?{input.FactHashParameter}")
                 .Join(" AND ");
@@ -63,8 +61,69 @@ namespace Jinaga.Store.SQLite.Generation
             return new SpecificationSqlQuery(sql, queryDescription.Parameters, allLabels);
         }
 
+        /// <summary>
+        /// The fact the query hangs its from clause on: a given at one end of the first edge,
+        /// or, where no edge names one, the first given.
+        /// </summary>
+        /// <remarks>
+        /// Every given carries a type and a hash, so a given is the one fact the query can
+        /// name outright. A specification can state a match as an equality with a given and
+        /// no step between facts, which contributes no edge at all, so the first edge is not
+        /// always there to choose from and need not name a given when it is.
+        /// <see cref="GenerateJoins"/> reaches the rest from whatever this returns.
+        /// </remarks>
+        private static int FirstFactIndex(QueryDescription queryDescription)
+        {
+            var firstEdge = queryDescription.Edges.FirstOrDefault();
+            if (firstEdge != null)
+            {
+                var predecessorInput = queryDescription.Inputs.Find(
+                    input => input.FactIndex == firstEdge.PredecessorFactIndex);
+                if (predecessorInput != null)
+                {
+                    return predecessorInput.FactIndex;
+                }
+                var successorInput = queryDescription.Inputs.Find(
+                    input => input.FactIndex == firstEdge.SuccessorFactIndex);
+                if (successorInput != null)
+                {
+                    return successorInput.FactIndex;
+                }
+            }
+            // A satisfiable query has at least one input.
+            return queryDescription.Inputs.First().FactIndex;
+        }
+
+        /// <summary>
+        /// Joins each given that no edge reached, so the query supplies every column it
+        /// selects and filters.
+        /// </summary>
+        /// <remarks>
+        /// A given's type and hash go in the where clause and its columns in the select list
+        /// whether or not an edge joins it, and a given named by an equality alone is joined
+        /// by none. The hash pins it to one fact, so joining it on its own constrains
+        /// nothing further.
+        /// </remarks>
+        private static ImmutableList<string> AnchorUnjoinedInputs(
+            ImmutableList<InputDescription> inputs, HashSet<int> writtenFactIndexes)
+        {
+            var joins = ImmutableList<string>.Empty;
+            foreach (var input in inputs)
+            {
+                if (writtenFactIndexes.Add(input.FactIndex))
+                {
+                    joins = joins.Add($" JOIN fact f{input.FactIndex} ON 1 = 1");
+                }
+            }
+            return joins;
+        }
+
         private static string GenerateExistentialWhereClause(ExistentialConditionDescription existentialCondition, HashSet<int> outerFactIndexes)
         {
+            if (existentialCondition.Edges.IsEmpty)
+            {
+                return GenerateEdgelessExistentialWhereClause(existentialCondition, outerFactIndexes);
+            }
             var firstEdge = existentialCondition.Edges.First();
             var writtenFactIndexes = new HashSet<int>(outerFactIndexes);
             var firstJoin = ImmutableList<string>.Empty;
@@ -109,8 +168,13 @@ namespace Jinaga.Store.SQLite.Generation
                 throw new ArgumentException("Neither predecessor nor successor fact has been written");
             }
 
-            var tailJoins = GenerateJoins(existentialCondition.Edges.Skip(1).ToImmutableList(), writtenFactIndexes);
-            var joins = firstJoin.AddRange(tailJoins);
+            var tailJoins = GenerateJoins(
+                existentialCondition.Edges.Skip(1).ToImmutableList(),
+                writtenFactIndexes,
+                existentialCondition.Inputs);
+            var joins = firstJoin
+                .AddRange(tailJoins)
+                .AddRange(AnchorUnjoinedInputs(existentialCondition.Inputs, writtenFactIndexes));
             var inputWhereClauses = existentialCondition.Inputs
                 .Select(input => $" AND f{input.FactIndex}.fact_type_id = ?{input.FactTypeParameter} AND f{input.FactIndex}.hash = ?{input.FactHashParameter}")
                 .Join("");
@@ -120,7 +184,22 @@ namespace Jinaga.Store.SQLite.Generation
             return $"SELECT 1 FROM edge e{firstEdge.EdgeIndex}{joins.Join("")} WHERE {whereClause.Join(" AND ")}{inputWhereClauses}{existentialWhereClauses}";
         }
 
-        private static ImmutableList<string> GenerateJoins(ImmutableList<EdgeDescription> edges, HashSet<int> writtenFactIndexes)
+        /// <summary>
+        /// Joins the edges, reaching each from a fact already written and anchoring a
+        /// component that none of them reaches on a given it names.
+        /// </summary>
+        /// <remarks>
+        /// A specification's matches need not form one connected component. An inverse whose
+        /// parts meet only at the givens is the shape that proves it: jinaga-spec derives one
+        /// for a specification whose given carries a condition, so refusing a disconnected
+        /// specification would refuse a watch the model admits. Each component reaches a
+        /// given, and a given is pinned to one fact by its hash, so anchoring a component
+        /// there joins the components on the facts they share rather than multiplying rows.
+        /// </remarks>
+        private static ImmutableList<string> GenerateJoins(
+            ImmutableList<EdgeDescription> edges,
+            HashSet<int> writtenFactIndexes,
+            ImmutableList<InputDescription> inputs)
         {
             var joins = ImmutableList<string>.Empty;
             var remainingEdges = edges;
@@ -132,10 +211,21 @@ namespace Jinaga.Store.SQLite.Generation
                     writtenFactIndexes.Contains(edge.SuccessorFactIndex)
                 );
 
-                // If no such edge exists, then the graph is not connected.
+                // No such edge means what remains is a component of its own. Anchor it on a
+                // given it names and carry on from there.
                 if (edgeIndex < 0)
                 {
-                    throw new ArgumentException("The specification is not connected");
+                    var anchorFactIndex = AnchorFactIndex(remainingEdges, inputs);
+
+                    // No given in it either, so nothing names a fact of this component and
+                    // the graph is not connected.
+                    if (anchorFactIndex == null)
+                    {
+                        throw new ArgumentException("The specification is not connected");
+                    }
+                    joins = joins.Add($" JOIN fact f{anchorFactIndex.Value} ON 1 = 1");
+                    writtenFactIndexes.Add(anchorFactIndex.Value);
+                    continue;
                 }
 
                 // Write the edge.
@@ -186,6 +276,59 @@ namespace Jinaga.Store.SQLite.Generation
                 }
             }
             return joins;
+        }
+
+        /// <summary>
+        /// The fact index of a given named by one of <paramref name="remainingEdges"/>, or
+        /// null where none of them names one.
+        /// </summary>
+        private static int? AnchorFactIndex(
+            ImmutableList<EdgeDescription> remainingEdges, ImmutableList<InputDescription> inputs)
+        {
+            var factIndexes = remainingEdges
+                .SelectMany(edge => new[] { edge.PredecessorFactIndex, edge.SuccessorFactIndex })
+                .ToImmutableHashSet();
+            return inputs.Find(input => factIndexes.Contains(input.FactIndex))?.FactIndex;
+        }
+
+        /// <summary>
+        /// A condition that contributes no edge: every match in it names a fact that some
+        /// label already binds, so there is no step between facts to walk.
+        /// </summary>
+        /// <remarks>
+        /// What such a condition still says is the type and hash of each given it names, and
+        /// whatever its own nested conditions require. A match whose only condition is an
+        /// equality with no roles on either side reaches this, and the inverses jinaga-spec
+        /// derives contain one. Asking the edges for their first threw instead, so the read
+        /// failed rather than answering.
+        ///
+        /// With nothing left to constrain, the condition holds of the fact it names, which
+        /// exists: the select carries no from clause, and the condition is true.
+        /// </remarks>
+        private static string GenerateEdgelessExistentialWhereClause(
+            ExistentialConditionDescription existentialCondition, HashSet<int> outerFactIndexes)
+        {
+            var writtenFactIndexes = new HashSet<int>(outerFactIndexes);
+            var fromClauses = ImmutableList<string>.Empty;
+            foreach (var input in existentialCondition.Inputs)
+            {
+                if (writtenFactIndexes.Add(input.FactIndex))
+                {
+                    fromClauses = fromClauses.Add($"fact f{input.FactIndex}");
+                }
+            }
+            var whereClauses = existentialCondition.Inputs
+                .Select(input =>
+                    $"f{input.FactIndex}.fact_type_id = ?{input.FactTypeParameter}" +
+                    $" AND f{input.FactIndex}.hash = ?{input.FactHashParameter}")
+                .Concat(existentialCondition.ExistentialConditions
+                    .Select(condition =>
+                        $"{(condition.Exists ? "EXISTS" : "NOT EXISTS")}" +
+                        $" ({GenerateExistentialWhereClause(condition, writtenFactIndexes)})"))
+                .ToImmutableList();
+            var fromClause = fromClauses.IsEmpty ? "" : $" FROM {fromClauses.Join(", ")}";
+            var whereClause = whereClauses.IsEmpty ? "" : $" WHERE {whereClauses.Join(" AND ")}";
+            return $"SELECT 1{fromClause}{whereClause}";
         }
     }
 }
