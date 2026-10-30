@@ -218,6 +218,7 @@
      [{"label": {"type": "Root", "name": "p1"}, "conditions": []},
       {"label": {"type": "Done", "name": "__f"}, "conditions": []}]}}],
   "gained": [],
+  "exact": {"removes": [[1]], "adds": []},
   "candidates": [[1]]},
  "description":
  "Two sibling notExists conditions that one fact falsifies together. Each inverse of jinaga.js keeps the other condition, so neither reports the removal."}

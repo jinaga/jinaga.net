@@ -245,6 +245,7 @@
      [{"label": {"type": "Root", "name": "p1"}, "conditions": []},
       {"label": {"type": "Retired", "name": "__f"}, "conditions": []}]}}],
   "gained": [[1]],
+  "exact": {"removes": [], "adds": [[1]]},
   "candidates": [[1]]},
  "description":
  "exists { notExists }: accounts with a current mirror. An account and its mirror arrive in one batch, the mirror listed first. Neither fact's inverses find the account on a graph without the other.",

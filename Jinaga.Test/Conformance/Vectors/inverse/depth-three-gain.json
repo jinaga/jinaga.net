@@ -394,6 +394,7 @@
      [{"label": {"type": "Root", "name": "p1"}, "conditions": []},
       {"label": {"type": "B", "name": "__f"}, "conditions": []}]}}],
   "gained": [[1]],
+  "exact": {"removes": [], "adds": [[1]]},
   "candidates": [[1]]},
  "description":
  "notExists { notExists { exists } }: the new fact makes the innermost exists true, which removes the middle solution, which adds the result."}

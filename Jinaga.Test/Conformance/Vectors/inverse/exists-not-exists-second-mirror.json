@@ -1,0 +1,257 @@
+{"text":
+ "(p1: Root) {\n    u1: Account [\n        u1->root: Root = p1\n        E {\n            e1: Mirror [\n                e1->account: Account = u1\n                !E {\n                    e2: Retired [\n                        e2->mirror: Mirror = e1\n                    ]\n                }\n            ]\n        }\n    ]\n} => u1\n",
+ "specification":
+ {"projection": {"type": "fact", "label": "u1"},
+  "matches":
+  [{"unknown": {"type": "Account", "name": "u1"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [],
+      "rolesLeft": [{"predecessorType": "Root", "name": "root"}],
+      "labelRight": "p1"},
+     {"type": "existential",
+      "matches":
+      [{"unknown": {"type": "Mirror", "name": "e1"},
+        "conditions":
+        [{"type": "path",
+          "rolesRight": [],
+          "rolesLeft": [{"predecessorType": "Account", "name": "account"}],
+          "labelRight": "u1"},
+         {"type": "existential",
+          "matches":
+          [{"unknown": {"type": "Retired", "name": "e2"},
+            "conditions":
+            [{"type": "path",
+              "rolesRight": [],
+              "rolesLeft": [{"predecessorType": "Mirror", "name": "mirror"}],
+              "labelRight": "e1"}]}],
+          "exists": false}]}],
+      "exists": true}]}],
+  "given": [{"label": {"type": "Root", "name": "p1"}, "conditions": []}]},
+ "source": "exact inverses",
+ "rowLabels": ["u1"],
+ "name": "exists-not-exists-second-mirror",
+ "graph":
+ [{"type": "Root", "predecessors": [], "id": 0},
+  {"type": "Account", "predecessors": [{"role": "root", "id": 0}], "id": 1},
+  {"type": "Mirror", "predecessors": [{"role": "account", "id": 1}], "id": 2},
+  {"type": "Mirror", "predecessors": [{"role": "account", "id": 1}], "id": 3}],
+ "givens": {"p1": 0},
+ "fact":
+ {"type": "Retired", "predecessors": [{"role": "mirror", "id": 2}], "id": 4},
+ "expected":
+ {"reordered":
+  [{"text":
+    "(p1: Root, __f: Account) {\n    u1: Account [\n        u1 = __f\n        u1->root: Root = p1\n        E {\n            e1: Mirror [\n                e1->account: Account = u1\n                !E {\n                    e2: Retired [\n                        e2->mirror: Mirror = e1\n                    ]\n                }\n            ]\n        }\n    ]\n} => u1\n",
+    "specification":
+    {"projection": {"type": "fact", "label": "u1"},
+     "matches":
+     [{"unknown": {"type": "Account", "name": "u1"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [],
+         "labelRight": "__f"},
+        {"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Root", "name": "root"}],
+         "labelRight": "p1"},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Mirror", "name": "e1"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Account", "name": "account"}],
+             "labelRight": "u1"},
+            {"type": "existential",
+             "matches":
+             [{"unknown": {"type": "Retired", "name": "e2"},
+               "conditions":
+               [{"type": "path",
+                 "rolesRight": [],
+                 "rolesLeft": [{"predecessorType": "Mirror", "name": "mirror"}],
+                 "labelRight": "e1"}]}],
+             "exists": false}]}],
+         "exists": true}]}],
+     "given":
+     [{"label": {"type": "Root", "name": "p1"}, "conditions": []},
+      {"label": {"type": "Account", "name": "__f"}, "conditions": []}]}},
+   {"text":
+    "(p1: Root, __f: Mirror) {\n    e1: Mirror [\n        e1 = __f\n        !E {\n            e2: Retired [\n                e2->mirror: Mirror = e1\n            ]\n        }\n    ]\n    u1: Account [\n        u1 = e1->account: Account\n        u1->root: Root = p1\n    ]\n} => u1\n",
+    "specification":
+    {"projection": {"type": "fact", "label": "u1"},
+     "matches":
+     [{"unknown": {"type": "Mirror", "name": "e1"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [],
+         "labelRight": "__f"},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Retired", "name": "e2"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Mirror", "name": "mirror"}],
+             "labelRight": "e1"}]}],
+         "exists": false}]},
+      {"unknown": {"type": "Account", "name": "u1"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [{"predecessorType": "Account", "name": "account"}],
+         "rolesLeft": [],
+         "labelRight": "e1"},
+        {"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Root", "name": "root"}],
+         "labelRight": "p1"}]}],
+     "given":
+     [{"label": {"type": "Root", "name": "p1"}, "conditions": []},
+      {"label": {"type": "Mirror", "name": "__f"}, "conditions": []}]}},
+   {"text":
+    "(p1: Root, __f: Retired) {\n    e2: Retired [\n        e2 = __f\n    ]\n    e1: Mirror [\n        e1 = e2->mirror: Mirror\n    ]\n    u1: Account [\n        u1 = e1->account: Account\n        u1->root: Root = p1\n    ]\n} => u1\n",
+    "specification":
+    {"projection": {"type": "fact", "label": "u1"},
+     "matches":
+     [{"unknown": {"type": "Retired", "name": "e2"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [],
+         "labelRight": "__f"}]},
+      {"unknown": {"type": "Mirror", "name": "e1"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [{"predecessorType": "Mirror", "name": "mirror"}],
+         "rolesLeft": [],
+         "labelRight": "e2"}]},
+      {"unknown": {"type": "Account", "name": "u1"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [{"predecessorType": "Account", "name": "account"}],
+         "rolesLeft": [],
+         "labelRight": "e1"},
+        {"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Root", "name": "root"}],
+         "labelRight": "p1"}]}],
+     "given":
+     [{"label": {"type": "Root", "name": "p1"}, "conditions": []},
+      {"label": {"type": "Retired", "name": "__f"}, "conditions": []}]}}],
+  "lost": [],
+  "inverses":
+  [{"text":
+    "(p1: Root, __f: Account) {\n    u1: Account [\n        u1 = __f\n        u1->root: Root = p1\n        E {\n            e1: Mirror [\n                e1->account: Account = u1\n                !E {\n                    e2: Retired [\n                        e2->mirror: Mirror = e1\n                    ]\n                }\n            ]\n        }\n    ]\n} => u1\n",
+    "specification":
+    {"projection": {"type": "fact", "label": "u1"},
+     "matches":
+     [{"unknown": {"type": "Account", "name": "u1"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [],
+         "labelRight": "__f"},
+        {"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Root", "name": "root"}],
+         "labelRight": "p1"},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Mirror", "name": "e1"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Account", "name": "account"}],
+             "labelRight": "u1"},
+            {"type": "existential",
+             "matches":
+             [{"unknown": {"type": "Retired", "name": "e2"},
+               "conditions":
+               [{"type": "path",
+                 "rolesRight": [],
+                 "rolesLeft": [{"predecessorType": "Mirror", "name": "mirror"}],
+                 "labelRight": "e1"}]}],
+             "exists": false}]}],
+         "exists": true}]}],
+     "given":
+     [{"label": {"type": "Root", "name": "p1"}, "conditions": []},
+      {"label": {"type": "Account", "name": "__f"}, "conditions": []}]}},
+   {"text":
+    "(p1: Root, __f: Mirror) {\n    u1: Account [\n        u1->root: Root = p1\n        E {\n            e1: Mirror [\n                e1 = __f\n                e1->account: Account = u1\n                !E {\n                    e2: Retired [\n                        e2->mirror: Mirror = e1\n                    ]\n                }\n            ]\n        }\n    ]\n} => u1\n",
+    "specification":
+    {"projection": {"type": "fact", "label": "u1"},
+     "matches":
+     [{"unknown": {"type": "Account", "name": "u1"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Root", "name": "root"}],
+         "labelRight": "p1"},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Mirror", "name": "e1"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [],
+             "labelRight": "__f"},
+            {"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Account", "name": "account"}],
+             "labelRight": "u1"},
+            {"type": "existential",
+             "matches":
+             [{"unknown": {"type": "Retired", "name": "e2"},
+               "conditions":
+               [{"type": "path",
+                 "rolesRight": [],
+                 "rolesLeft": [{"predecessorType": "Mirror", "name": "mirror"}],
+                 "labelRight": "e1"}]}],
+             "exists": false}]}],
+         "exists": true}]}],
+     "given":
+     [{"label": {"type": "Root", "name": "p1"}, "conditions": []},
+      {"label": {"type": "Mirror", "name": "__f"}, "conditions": []}]}},
+   {"text":
+    "(p1: Root, __f: Retired) {\n    u1: Account [\n        u1->root: Root = p1\n        E {\n            e1: Mirror [\n                e1->account: Account = u1\n                E {\n                    e2: Retired [\n                        e2 = __f\n                        e2->mirror: Mirror = e1\n                    ]\n                }\n            ]\n        }\n    ]\n} => u1\n",
+    "specification":
+    {"projection": {"type": "fact", "label": "u1"},
+     "matches":
+     [{"unknown": {"type": "Account", "name": "u1"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Root", "name": "root"}],
+         "labelRight": "p1"},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Mirror", "name": "e1"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Account", "name": "account"}],
+             "labelRight": "u1"},
+            {"type": "existential",
+             "matches":
+             [{"unknown": {"type": "Retired", "name": "e2"},
+               "conditions":
+               [{"type": "path",
+                 "rolesRight": [],
+                 "rolesLeft": [],
+                 "labelRight": "__f"},
+                {"type": "path",
+                 "rolesRight": [],
+                 "rolesLeft": [{"predecessorType": "Mirror", "name": "mirror"}],
+                 "labelRight": "e1"}]}],
+             "exists": true}]}],
+         "exists": true}]}],
+     "given":
+     [{"label": {"type": "Root", "name": "p1"}, "conditions": []},
+      {"label": {"type": "Retired", "name": "__f"}, "conditions": []}]}}],
+  "gained": [],
+  "exact": {"removes": [], "adds": []},
+  "candidates": [[1]]},
+ "description":
+ "exists { notExists }: accounts with a current mirror. The account has two mirrors, and one is retired. The account stays: the inverse for lost results finds it, but its remove test, no current mirror, fails, so there is no remove."}

@@ -249,6 +249,7 @@
      [{"label": {"type": "Owner", "name": "p1"}, "conditions": []},
       {"label": {"type": "Freeze", "name": "__f"}, "conditions": []}]}}],
   "gained": [],
+  "exact": {"removes": [[1]], "adds": []},
   "candidates": [[1]]},
  "description":
  "notExists { notExists }: an account with no unrestored freeze. A Freeze arrives and removes the account."}

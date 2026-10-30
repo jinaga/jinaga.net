@@ -137,6 +137,7 @@
      [{"label": {"type": "Root", "name": "p1"}, "conditions": []},
       {"label": {"type": "Done", "name": "__f"}, "conditions": []}]}}],
   "gained": [[2]],
+  "exact": {"removes": [], "adds": [[2]]},
   "candidates": [[2]]},
  "description":
  "One notExists. A new task arrives, bound to a top-level unknown, and joins the result."}

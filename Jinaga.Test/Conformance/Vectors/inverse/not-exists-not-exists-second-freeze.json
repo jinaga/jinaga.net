@@ -1,0 +1,257 @@
+{"text":
+ "(p1: Owner) {\n    a: Account [\n        a->owner: Owner = p1\n        !E {\n            fz: Freeze [\n                fz->account: Account = a\n                !E {\n                    uf: Unfreeze [\n                        uf->freeze: Freeze = fz\n                    ]\n                }\n            ]\n        }\n    ]\n} => a\n",
+ "specification":
+ {"projection": {"type": "fact", "label": "a"},
+  "matches":
+  [{"unknown": {"type": "Account", "name": "a"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [],
+      "rolesLeft": [{"predecessorType": "Owner", "name": "owner"}],
+      "labelRight": "p1"},
+     {"type": "existential",
+      "matches":
+      [{"unknown": {"type": "Freeze", "name": "fz"},
+        "conditions":
+        [{"type": "path",
+          "rolesRight": [],
+          "rolesLeft": [{"predecessorType": "Account", "name": "account"}],
+          "labelRight": "a"},
+         {"type": "existential",
+          "matches":
+          [{"unknown": {"type": "Unfreeze", "name": "uf"},
+            "conditions":
+            [{"type": "path",
+              "rolesRight": [],
+              "rolesLeft": [{"predecessorType": "Freeze", "name": "freeze"}],
+              "labelRight": "fz"}]}],
+          "exists": false}]}],
+      "exists": false}]}],
+  "given": [{"label": {"type": "Owner", "name": "p1"}, "conditions": []}]},
+ "source": "exact inverses",
+ "rowLabels": ["a"],
+ "name": "not-exists-not-exists-second-freeze",
+ "graph":
+ [{"type": "Owner", "predecessors": [], "id": 0},
+  {"type": "Account", "predecessors": [{"role": "owner", "id": 0}], "id": 1},
+  {"type": "Freeze", "predecessors": [{"role": "account", "id": 1}], "id": 2},
+  {"type": "Freeze", "predecessors": [{"role": "account", "id": 1}], "id": 3}],
+ "givens": {"p1": 0},
+ "fact":
+ {"type": "Unfreeze", "predecessors": [{"role": "freeze", "id": 2}], "id": 4},
+ "expected":
+ {"reordered":
+  [{"text":
+    "(p1: Owner, __f: Account) {\n    a: Account [\n        a = __f\n        a->owner: Owner = p1\n        !E {\n            fz: Freeze [\n                fz->account: Account = a\n                !E {\n                    uf: Unfreeze [\n                        uf->freeze: Freeze = fz\n                    ]\n                }\n            ]\n        }\n    ]\n} => a\n",
+    "specification":
+    {"projection": {"type": "fact", "label": "a"},
+     "matches":
+     [{"unknown": {"type": "Account", "name": "a"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [],
+         "labelRight": "__f"},
+        {"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Owner", "name": "owner"}],
+         "labelRight": "p1"},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Freeze", "name": "fz"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Account", "name": "account"}],
+             "labelRight": "a"},
+            {"type": "existential",
+             "matches":
+             [{"unknown": {"type": "Unfreeze", "name": "uf"},
+               "conditions":
+               [{"type": "path",
+                 "rolesRight": [],
+                 "rolesLeft": [{"predecessorType": "Freeze", "name": "freeze"}],
+                 "labelRight": "fz"}]}],
+             "exists": false}]}],
+         "exists": false}]}],
+     "given":
+     [{"label": {"type": "Owner", "name": "p1"}, "conditions": []},
+      {"label": {"type": "Account", "name": "__f"}, "conditions": []}]}},
+   {"text":
+    "(p1: Owner, __f: Unfreeze) {\n    uf: Unfreeze [\n        uf = __f\n    ]\n    fz: Freeze [\n        fz = uf->freeze: Freeze\n    ]\n    a: Account [\n        a = fz->account: Account\n        a->owner: Owner = p1\n    ]\n} => a\n",
+    "specification":
+    {"projection": {"type": "fact", "label": "a"},
+     "matches":
+     [{"unknown": {"type": "Unfreeze", "name": "uf"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [],
+         "labelRight": "__f"}]},
+      {"unknown": {"type": "Freeze", "name": "fz"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [{"predecessorType": "Freeze", "name": "freeze"}],
+         "rolesLeft": [],
+         "labelRight": "uf"}]},
+      {"unknown": {"type": "Account", "name": "a"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [{"predecessorType": "Account", "name": "account"}],
+         "rolesLeft": [],
+         "labelRight": "fz"},
+        {"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Owner", "name": "owner"}],
+         "labelRight": "p1"}]}],
+     "given":
+     [{"label": {"type": "Owner", "name": "p1"}, "conditions": []},
+      {"label": {"type": "Unfreeze", "name": "__f"}, "conditions": []}]}},
+   {"text":
+    "(p1: Owner, __f: Freeze) {\n    fz: Freeze [\n        fz = __f\n        !E {\n            uf: Unfreeze [\n                uf->freeze: Freeze = fz\n            ]\n        }\n    ]\n    a: Account [\n        a = fz->account: Account\n        a->owner: Owner = p1\n    ]\n} => a\n",
+    "specification":
+    {"projection": {"type": "fact", "label": "a"},
+     "matches":
+     [{"unknown": {"type": "Freeze", "name": "fz"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [],
+         "labelRight": "__f"},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Unfreeze", "name": "uf"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Freeze", "name": "freeze"}],
+             "labelRight": "fz"}]}],
+         "exists": false}]},
+      {"unknown": {"type": "Account", "name": "a"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [{"predecessorType": "Account", "name": "account"}],
+         "rolesLeft": [],
+         "labelRight": "fz"},
+        {"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Owner", "name": "owner"}],
+         "labelRight": "p1"}]}],
+     "given":
+     [{"label": {"type": "Owner", "name": "p1"}, "conditions": []},
+      {"label": {"type": "Freeze", "name": "__f"}, "conditions": []}]}}],
+  "lost": [],
+  "inverses":
+  [{"text":
+    "(p1: Owner, __f: Account) {\n    a: Account [\n        a = __f\n        a->owner: Owner = p1\n        !E {\n            fz: Freeze [\n                fz->account: Account = a\n                !E {\n                    uf: Unfreeze [\n                        uf->freeze: Freeze = fz\n                    ]\n                }\n            ]\n        }\n    ]\n} => a\n",
+    "specification":
+    {"projection": {"type": "fact", "label": "a"},
+     "matches":
+     [{"unknown": {"type": "Account", "name": "a"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [],
+         "labelRight": "__f"},
+        {"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Owner", "name": "owner"}],
+         "labelRight": "p1"},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Freeze", "name": "fz"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Account", "name": "account"}],
+             "labelRight": "a"},
+            {"type": "existential",
+             "matches":
+             [{"unknown": {"type": "Unfreeze", "name": "uf"},
+               "conditions":
+               [{"type": "path",
+                 "rolesRight": [],
+                 "rolesLeft": [{"predecessorType": "Freeze", "name": "freeze"}],
+                 "labelRight": "fz"}]}],
+             "exists": false}]}],
+         "exists": false}]}],
+     "given":
+     [{"label": {"type": "Owner", "name": "p1"}, "conditions": []},
+      {"label": {"type": "Account", "name": "__f"}, "conditions": []}]}},
+   {"text":
+    "(p1: Owner, __f: Unfreeze) {\n    a: Account [\n        a->owner: Owner = p1\n        E {\n            fz: Freeze [\n                fz->account: Account = a\n                E {\n                    uf: Unfreeze [\n                        uf = __f\n                        uf->freeze: Freeze = fz\n                    ]\n                }\n            ]\n        }\n    ]\n} => a\n",
+    "specification":
+    {"projection": {"type": "fact", "label": "a"},
+     "matches":
+     [{"unknown": {"type": "Account", "name": "a"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Owner", "name": "owner"}],
+         "labelRight": "p1"},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Freeze", "name": "fz"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Account", "name": "account"}],
+             "labelRight": "a"},
+            {"type": "existential",
+             "matches":
+             [{"unknown": {"type": "Unfreeze", "name": "uf"},
+               "conditions":
+               [{"type": "path",
+                 "rolesRight": [],
+                 "rolesLeft": [],
+                 "labelRight": "__f"},
+                {"type": "path",
+                 "rolesRight": [],
+                 "rolesLeft": [{"predecessorType": "Freeze", "name": "freeze"}],
+                 "labelRight": "fz"}]}],
+             "exists": true}]}],
+         "exists": true}]}],
+     "given":
+     [{"label": {"type": "Owner", "name": "p1"}, "conditions": []},
+      {"label": {"type": "Unfreeze", "name": "__f"}, "conditions": []}]}},
+   {"text":
+    "(p1: Owner, __f: Freeze) {\n    a: Account [\n        a->owner: Owner = p1\n        E {\n            fz: Freeze [\n                fz = __f\n                fz->account: Account = a\n                !E {\n                    uf: Unfreeze [\n                        uf->freeze: Freeze = fz\n                    ]\n                }\n            ]\n        }\n    ]\n} => a\n",
+    "specification":
+    {"projection": {"type": "fact", "label": "a"},
+     "matches":
+     [{"unknown": {"type": "Account", "name": "a"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Owner", "name": "owner"}],
+         "labelRight": "p1"},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Freeze", "name": "fz"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [],
+             "labelRight": "__f"},
+            {"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Account", "name": "account"}],
+             "labelRight": "a"},
+            {"type": "existential",
+             "matches":
+             [{"unknown": {"type": "Unfreeze", "name": "uf"},
+               "conditions":
+               [{"type": "path",
+                 "rolesRight": [],
+                 "rolesLeft": [{"predecessorType": "Freeze", "name": "freeze"}],
+                 "labelRight": "fz"}]}],
+             "exists": false}]}],
+         "exists": true}]}],
+     "given":
+     [{"label": {"type": "Owner", "name": "p1"}, "conditions": []},
+      {"label": {"type": "Freeze", "name": "__f"}, "conditions": []}]}}],
+  "gained": [],
+  "exact": {"removes": [], "adds": []},
+  "candidates": [[1]]},
+ "description":
+ "notExists { notExists }: an account with no unrestored freeze. The account has two freezes, and one is unfrozen. The account stays out: the inverse for gained results finds it, but the re-attached condition, no unrestored freeze, fails, so there is no add."}

@@ -69,6 +69,7 @@
      [{"label": {"type": "A", "name": "p1"}, "conditions": []},
       {"label": {"type": "A", "name": "__f"}, "conditions": []}]}}],
   "gained": [[8]],
+  "exact": {"removes": [], "adds": [[8]]},
   "candidates": [[8]]},
  "description":
  "A random well-formed specification, graph and fresh fact that change the result."}
