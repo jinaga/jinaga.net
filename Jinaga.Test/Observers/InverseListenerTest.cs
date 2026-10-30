@@ -199,6 +199,17 @@ public class InverseListenerTest
         secondOnGeneral.Products.SelectMany(product => product.GetFactReferences())
             .Should().Contain(messageReference);
         onLounge.Products.Should().BeEmpty();
+
+        // The hook's contract, for each of the two listeners that share one read: the number
+        // is taken, the handler receives that same number, and it is ended afterwards.
+        firstOnGeneral.Order.Should().Equal("begin 1", "result 1", "end 1");
+        secondOnGeneral.Order.Should().Equal("begin 1", "result 1", "end 1");
+
+        // The lounge listener's read came back with no rows of its own, and it still ends its
+        // number. A number left pending holds every withdrawal older than it, waiting on a
+        // read that nothing would ever finish.
+        onLounge.Order.Should().Equal("begin 1", "result 1", "end 1");
+        onLounge.Ended.Should().Be(1);
     }
 
     [Fact]
@@ -218,6 +229,11 @@ public class InverseListenerTest
 
         (store.Reads - readsBeforeTheSave).Should().Be(0);
         delivered.Calls.Should().Be(0);
+
+        // No read was issued, so no number was taken either. A listener whose inverse is
+        // pinned on another type is never reached, rather than reached with nothing.
+        delivered.Order.Should().BeEmpty();
+        delivered.Ended.Should().Be(0);
     }
 
     [Fact]
@@ -261,7 +277,6 @@ public class InverseListenerTest
         return graph.Last;
     }
 
-    /// <summary>What one listener received.</summary>
     /// <summary>
     /// Stands in for one observer's side of an inverse listener, and records the order its
     /// three members were called in. A read is numbered here exactly as an observer numbers
