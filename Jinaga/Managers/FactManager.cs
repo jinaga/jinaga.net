@@ -396,12 +396,27 @@ namespace Jinaga.Managers
             observableSource.RemoveSpecificationListener(listener);
         }
 
-        public SpecificationListener AddInverseListener(Specification inverse, FactReferenceTuple givens, Func<ImmutableList<Product>, CancellationToken, Task> onResult)
+        /// <summary>
+        /// Listens for the rows one exact inverse reports when a fact is saved.
+        /// </summary>
+        /// <remarks>
+        /// The read is shared by every listener on the same inverse and givens, so the
+        /// listener numbers its own: <paramref name="beginRead"/> is called for each of them
+        /// before the read touches the store, <paramref name="onResult"/> receives the number
+        /// its own listener was given, and <paramref name="endRead"/> runs whether the read
+        /// threw, a handler threw, or the result held no rows.
+        /// </remarks>
+        public InverseListener AddInverseListener(
+            Specification inverse,
+            FactReferenceTuple givens,
+            Func<long> beginRead,
+            Func<ImmutableList<Product>, long, CancellationToken, Task> onResult,
+            Action<long> endRead)
         {
-            return observableSource.AddInverseListener(inverse, givens, onResult);
+            return observableSource.AddInverseListener(inverse, givens, beginRead, onResult, endRead);
         }
 
-        public void RemoveInverseListener(SpecificationListener listener)
+        public void RemoveInverseListener(InverseListener listener)
         {
             observableSource.RemoveInverseListener(listener);
         }

@@ -1,4 +1,5 @@
 using Jinaga.Facts;
+using Jinaga.Pipelines;
 using Jinaga.Projections;
 using Jinaga.Storage;
 using Jinaga.Test.Fakes;
@@ -178,6 +179,63 @@ public class UnheldGivenReadTest
 
         (await store.Read(givenTuple, MessagesInChannel, CancellationToken.None))
             .Should().ContainSingle();
+    }
+
+    /// <summary>
+    /// An inverse read answers for the watch's own givens, so the rule covers it too. Nothing
+    /// else reads an inverse against an unheld given: a watch registers its listeners before
+    /// its first read, so a save can reach one while a given it names is still on its way.
+    /// </summary>
+    [Fact]
+    public async Task Read_AnInverseWhoseWatchGivenIsNotHeld_ReadsNothingUntilItArrives()
+    {
+        var store = new MemoryStore();
+        var j = GivenJinagaClient(store);
+        var user = new User("---FAKE READER---");   // not saved
+        var channel = await j.Fact(new Channel("general"));
+        var message = await j.Fact(new Message(channel, "Where is everybody?"));
+
+        var references = ImmutableDictionary<string, FactReference>.Empty
+            .Add(UnreadMessages.Givens[0].Label.Name, Reference(j, UnreadMessages, 0, user))
+            .Add(UnreadMessages.Givens[1].Label.Name, Reference(j, UnreadMessages, 1, channel));
+        var messageReference = new FactReference("Chat.Message", j.Hash(message));
+
+        // The inverses a saved message reaches, and that name the unheld user. An inverse that
+        // does not name it could not be answering for it, so it would prove nothing here.
+        var exact = InverseCandidates.ExactInverses(UnreadMessages);
+        var pinnedOnMessage = exact.Adds
+            .AddRange(exact.Removes)
+            .Where(inverse =>
+                inverse.Givens[inverse.Givens.Count - 1].Label.Type == "Chat.Message" &&
+                inverse.Givens.Any(given => given.Label.Name == UnreadMessages.Givens[0].Label.Name))
+            .ToImmutableList();
+        pinnedOnMessage.Should().NotBeEmpty();
+
+        var tuples = pinnedOnMessage
+            .Select(inverse => inverse.Givens
+                .Take(inverse.Givens.Count - 1)
+                .Aggregate(
+                    FactReferenceTuple.Empty,
+                    (tuple, given) => tuple.Add(given.Label.Name, references[given.Label.Name]))
+                .Add(InverseCandidates.PinLabel, messageReference))
+            .ToImmutableList();
+
+        foreach (var (inverse, givenTuple) in pinnedOnMessage.Zip(tuples, (i, t) => (i, t)))
+        {
+            (await store.Read(givenTuple, inverse, CancellationToken.None))
+                .Should().BeEmpty();
+        }
+
+        // Saving the user is the only thing that changed, so the rule is what the emptiness
+        // above rested on rather than an inverse that never had a row to report.
+        await j.Fact(user);
+
+        var answered = false;
+        foreach (var (inverse, givenTuple) in pinnedOnMessage.Zip(tuples, (i, t) => (i, t)))
+        {
+            answered |= (await store.Read(givenTuple, inverse, CancellationToken.None)).Any();
+        }
+        answered.Should().BeTrue();
     }
 
     private static FactReferenceTuple UnreadMessagesTuple(JinagaClient j, User user, Channel channel) =>
