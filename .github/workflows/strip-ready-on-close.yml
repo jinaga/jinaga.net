@@ -1,0 +1,22 @@
+name: "Strip ready on close"
+
+# Closing an issue keeps its labels, so a closed issue would carry `ready`
+# forever. The night shift already filters for open issues; this only keeps
+# the label list tidy.
+on:
+  issues:
+    types: [ closed ]
+
+permissions:
+  issues: write
+
+jobs:
+  strip:
+    if: contains(github.event.issue.labels.*.name, 'ready')
+    runs-on: ubuntu-latest
+    steps:
+    - name: Remove the ready label
+      env:
+        GH_TOKEN: ${{ github.token }}
+        GH_REPO: ${{ github.repository }}
+      run: gh issue edit ${{ github.event.issue.number }} --remove-label ready
