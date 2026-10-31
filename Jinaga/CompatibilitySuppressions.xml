@@ -37,20 +37,6 @@
     <IsBaselineSuppression>true</IsBaselineSuppression>
   </Suppression>
   <Suppression>
-    <DiagnosticId>CP0002</DiagnosticId>
-    <Target>M:Jinaga.Services.QueuedFacts.#ctor(Jinaga.Facts.FactGraph,System.String)</Target>
-    <Left>lib/netstandard2.1/Jinaga.dll</Left>
-    <Right>lib/netstandard2.1/Jinaga.dll</Right>
-    <IsBaselineSuppression>true</IsBaselineSuppression>
-  </Suppression>
-  <Suppression>
-    <DiagnosticId>CP0002</DiagnosticId>
-    <Target>M:Jinaga.Services.QueuedFacts.get_NextBookmark</Target>
-    <Left>lib/netstandard2.1/Jinaga.dll</Left>
-    <Right>lib/netstandard2.1/Jinaga.dll</Right>
-    <IsBaselineSuppression>true</IsBaselineSuppression>
-  </Suppression>
-  <Suppression>
     <DiagnosticId>CP0005</DiagnosticId>
     <Target>M:Jinaga.Repository.FactRepository.DateLearned``1(``0)</Target>
     <Left>lib/netstandard2.1/Jinaga.dll</Left>
