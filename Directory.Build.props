@@ -1,9 +1,39 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <ItemGroup>
-    <PackageReference Include="Nerdbank.GitVersioning" Condition="!Exists('packages.config')">
-      <PrivateAssets>all</PrivateAssets>
-      <Version>3.6.143</Version>
-    </PackageReference>
-  </ItemGroup>
+  <!--
+    Versions are declared per packable project as <VersionPrefix>. Nothing here
+    derives a version from git history, so a shallow clone builds. This file is
+    kept, though it carries no properties, so that MSBuild stops searching for a
+    Directory.Build.props above the repository root.
+  -->
+  <!--
+    .github/scripts/validate-package-apis.sh derives a baseline version per
+    project and hands it over through these two environment variables.
+
+    They are environment variables and not MSBuild global properties on purpose.
+    A global property flows into every project reference, and NuGet's restore
+    graph honours it there whatever the reference asks, so a referenced project
+    would look for its own package at the referencing project's baseline
+    version, which is not a version it ever published. An environment variable
+    carries no such override, which lets the condition below scope the baseline
+    to the one project being validated.
+  -->
+  <PropertyGroup Condition="'$(PACKAGE_VALIDATION_BASELINE_PROJECT)' == '$(MSBuildProjectName)'">
+    <PackageValidationBaselineVersion>$(PACKAGE_VALIDATION_BASELINE_VERSION)</PackageValidationBaselineVersion>
+  </PropertyGroup>
+
+  <!--
+    A suppression recorded against a baseline is unnecessary when no baseline is
+    being compared, and ApiCompat fails a pack over an unnecessary suppression.
+    Every pack outside the validation script runs without a baseline, nuget.yml
+    and release.yml among them, so without this a project carrying a suppression
+    file could not be packed at all.
+
+    The permission is scoped to that case. When a baseline IS being compared, an
+    unnecessary suppression is still an error, which is what catches a
+    suppression left behind after the baseline moved past the break it records.
+  -->
+  <PropertyGroup Condition="'$(PackageValidationBaselineVersion)' == ''">
+    <ApiCompatPermitUnnecessarySuppressions>true</ApiCompatPermitUnnecessarySuppressions>
+  </PropertyGroup>
 </Project>

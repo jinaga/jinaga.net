@@ -6,6 +6,8 @@
 		<Nullable>enable</Nullable>
 	    <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
 
+		<VersionPrefix>1.1.3</VersionPrefix>
+		<EnablePackageValidation>true</EnablePackageValidation>
 		<PackageId>Jinaga.Maui</PackageId>
 		<Authors>Michael L Perry</Authors>
 		<Company>Jinaga LLC</Company>

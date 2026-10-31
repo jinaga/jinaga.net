@@ -9,6 +9,7 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>dotnet-jinaga</ToolCommandName>
 
+    <VersionPrefix>1.1.6</VersionPrefix>
     <PackageId>Jinaga.Tool</PackageId>
     <Authors>Michael L Perry</Authors>
     <Company>Jinaga LLC</Company>

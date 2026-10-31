@@ -150,7 +150,9 @@ namespace Jinaga.Managers
         /// </summary>
         private async Task<QueuedFacts> SelectSendable(QueuedFacts queue, string? uploader, CancellationToken cancellationToken)
         {
-            if (queue.Facts.IsEmpty)
+            // An indivisible queue comes from a store that records no savers,
+            // and holding any of it back would split it.
+            if (queue.Facts.IsEmpty || queue.IsIndivisible)
             {
                 return queue;
             }
@@ -263,6 +265,15 @@ namespace Jinaga.Managers
         /// </summary>
         private IEnumerable<SaveBatch> SplitIntoBatches(QueuedFacts queue)
         {
+            // A queue from a store built against an earlier Jinaga has one
+            // bookmark for the whole graph, so it goes in one request, as it
+            // did before batching.
+            if (queue.IsIndivisible)
+            {
+                yield return new SaveBatch(queue.Graph, queue.Facts);
+                yield break;
+            }
+
             // A store can report a queued fact that its graph does not carry,
             // if an ancestor of that fact is missing. Such a fact could not be
             // sent before this change either, so the bookmark still moves past

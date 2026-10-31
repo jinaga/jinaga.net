@@ -28,14 +28,16 @@ jobs:
         mkdir -p ./packages
         rm -f ./packages/*
 
+    # Packages from this workflow are previews published from any branch. The
+    # suffix keeps them from taking a plain version that release.yml publishes.
     - name: Pack
       run: |
-        dotnet pack ./Jinaga/ -c Release -o ./packages /p:IncludeSymbols=true /p:SymbolPackageFormat=snupkg
-        dotnet pack ./Jinaga.UnitTest/ -c Release -o ./packages /p:IncludeSymbols=true /p:SymbolPackageFormat=snupkg
-        dotnet pack ./Jinaga.Notebooks/ -c Release -o ./packages /p:IncludeSymbols=true /p:SymbolPackageFormat=snupkg
-        dotnet pack ./Jinaga.Store.SQLite/ -c Release -o ./packages /p:IncludeSymbols=true /p:SymbolPackageFormat=snupkg
-        dotnet pack ./Jinaga.Maui/ -c Release -o ./packages /p:IncludeSymbols=true /p:SymbolPackageFormat=snupkg
-        dotnet pack ./Jinaga.Tool/ -c Release -o ./packages /p:IncludeSymbols=true /p:SymbolPackageFormat=snupkg
+        dotnet pack ./Jinaga/ -c Release -o ./packages --version-suffix ci.${{ github.run_number }} /p:IncludeSymbols=true /p:SymbolPackageFormat=snupkg
+        dotnet pack ./Jinaga.UnitTest/ -c Release -o ./packages --version-suffix ci.${{ github.run_number }} /p:IncludeSymbols=true /p:SymbolPackageFormat=snupkg
+        dotnet pack ./Jinaga.Notebooks/ -c Release -o ./packages --version-suffix ci.${{ github.run_number }} /p:IncludeSymbols=true /p:SymbolPackageFormat=snupkg
+        dotnet pack ./Jinaga.Store.SQLite/ -c Release -o ./packages --version-suffix ci.${{ github.run_number }} /p:IncludeSymbols=true /p:SymbolPackageFormat=snupkg
+        dotnet pack ./Jinaga.Maui/ -c Release -o ./packages --version-suffix ci.${{ github.run_number }} /p:IncludeSymbols=true /p:SymbolPackageFormat=snupkg
+        dotnet pack ./Jinaga.Tool/ -c Release -o ./packages --version-suffix ci.${{ github.run_number }} /p:IncludeSymbols=true /p:SymbolPackageFormat=snupkg
 
     - name: Publish NuGet to GitHub Packages registry
       run: dotnet nuget push ./packages/*.nupkg ./packages/*.snupkg --api-key ${{ secrets.GITHUB_TOKEN }} --source https://nuget.pkg.github.com/Jinaga/index.json --skip-duplicate

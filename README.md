@@ -196,11 +196,12 @@ After that, the MS SQL Server implementation will support enterprise solutions t
 
 ## Release
 
-This repository uses [Nerdbank.GitVersioning](https://github.com/dotnet/Nerdbank.GitVersioning) to manage version numbers.
+Each packable project declares its own version as a `<VersionPrefix>` in its
+`.csproj`. See [Versioning](Building.md#versioning).
 To release a new version of the Jinaga.NET library, create a new release in the format `yyyymmdd.i`.
 For example, `20240917.1`.
-All of the packages will be versioned separately.
-Their version numbers will not be updated if they have not changed.
+All of the packages are versioned separately.
+A package whose version has not changed is skipped on publish.
 The packages will be published to [NuGet](https://www.nuget.org/packages/Jinaga/).
 
 To accomplish this from the command line, use the following `gh` command.

@@ -1,0 +1,53 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!-- https://learn.microsoft.com/dotnet/fundamentals/package-validation/diagnostic-ids -->
+<Suppressions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <Suppression>
+    <DiagnosticId>CP0002</DiagnosticId>
+    <Target>M:Jinaga.Projections.ExistentialCondition.get_CanRunOnGraph</Target>
+    <Left>lib/netstandard2.1/Jinaga.dll</Left>
+    <Right>lib/netstandard2.1/Jinaga.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+  <Suppression>
+    <DiagnosticId>CP0002</DiagnosticId>
+    <Target>M:Jinaga.Projections.Match.get_CanRunOnGraph</Target>
+    <Left>lib/netstandard2.1/Jinaga.dll</Left>
+    <Right>lib/netstandard2.1/Jinaga.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+  <Suppression>
+    <DiagnosticId>CP0002</DiagnosticId>
+    <Target>M:Jinaga.Projections.PathCondition.get_CanRunOnGraph</Target>
+    <Left>lib/netstandard2.1/Jinaga.dll</Left>
+    <Right>lib/netstandard2.1/Jinaga.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+  <Suppression>
+    <DiagnosticId>CP0002</DiagnosticId>
+    <Target>M:Jinaga.Projections.Projection.get_CanRunOnGraph</Target>
+    <Left>lib/netstandard2.1/Jinaga.dll</Left>
+    <Right>lib/netstandard2.1/Jinaga.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+  <Suppression>
+    <DiagnosticId>CP0002</DiagnosticId>
+    <Target>M:Jinaga.Projections.SpecificationGiven.get_CanRunOnGraph</Target>
+    <Left>lib/netstandard2.1/Jinaga.dll</Left>
+    <Right>lib/netstandard2.1/Jinaga.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+  <Suppression>
+    <DiagnosticId>CP0005</DiagnosticId>
+    <Target>M:Jinaga.Repository.FactRepository.DateLearned``1(``0)</Target>
+    <Left>lib/netstandard2.1/Jinaga.dll</Left>
+    <Right>lib/netstandard2.1/Jinaga.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+  <Suppression>
+    <DiagnosticId>CP0005</DiagnosticId>
+    <Target>M:Jinaga.Repository.FactRepository.SignersOf``1(``0)</Target>
+    <Left>lib/netstandard2.1/Jinaga.dll</Left>
+    <Right>lib/netstandard2.1/Jinaga.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+</Suppressions>

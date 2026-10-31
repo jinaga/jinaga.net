@@ -21,6 +21,12 @@ jobs:
       with:
         fetch-depth: "0"
 
+    # Both version scripts read the release tags, which the checkout above
+    # brings with fetch-depth 0 and a shallow clone lacks. That is why they run
+    # here and not before a push.
+    - name: Check declared versions
+      run: bash .github/scripts/check-declared-versions.sh
+
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
@@ -50,3 +56,6 @@ jobs:
         dotnet test Jinaga.Store.SQLite.Test --no-build --verbosity normal
         dotnet test Jinaga.Notebooks.Test --no-build --verbosity normal
         dotnet test Jinaga.Maui.Test --no-build --verbosity normal
+
+    - name: Validate package APIs
+      run: bash .github/scripts/validate-package-apis.sh
