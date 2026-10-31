@@ -314,6 +314,98 @@ public class MultiplePathConditionTest : IDisposable
         sqlite.Should().Equal(memory);
     }
 
+    /// <summary>
+    /// A given the outer matches never name, used only inside a positive existential. The
+    /// condition's first edge starts from that given, so the subquery has no fact the outer
+    /// query has written to hang its from clause on and has to anchor itself on the given.
+    /// </summary>
+    [Fact]
+    public async Task Read_WithAGivenNamedOnlyInsideAnExistential_AgreesWithTheMemoryStore()
+    {
+        var (graph, z, p, _) = ForkGraph();
+
+        var (memory, sqlite) = await ReadBothStores(
+            graph,
+            GivenInsideExistentialSpecification(Exists: true, NamedOutside: false),
+            Tuple(("p1", z), ("p2", z)));
+
+        memory.Should().Equal(p.Reference.Hash);
+        sqlite.Should().Equal(memory);
+    }
+
+    /// <summary>
+    /// The same given used only inside the negated form of that condition. The condition
+    /// holds of every candidate, so the negation admits none. It pins the anchored subquery's
+    /// truth value inside <c>NOT EXISTS</c>, which a subquery that merely parses would not.
+    /// </summary>
+    [Fact]
+    public async Task Read_WithAGivenNamedOnlyInsideANegatedExistential_AgreesWithTheMemoryStore()
+    {
+        var (graph, z, _, _) = ForkGraph();
+
+        var (memory, sqlite) = await ReadBothStores(
+            graph,
+            GivenInsideExistentialSpecification(Exists: false, NamedOutside: false),
+            Tuple(("p1", z), ("p2", z)));
+
+        memory.Should().BeEmpty();
+        sqlite.Should().Equal(memory);
+    }
+
+    /// <summary>
+    /// The same condition where the match also names that given in a path condition of its
+    /// own, so the outer query writes it and the condition's first edge already touches a
+    /// written fact. It holds the already-working case fixed.
+    /// </summary>
+    [Fact]
+    public async Task Read_WithAGivenNamedBothOutsideAndInsideAnExistential_AgreesWithTheMemoryStore()
+    {
+        var (graph, z, p, _) = ForkGraph();
+
+        var (memory, sqlite) = await ReadBothStores(
+            graph,
+            GivenInsideExistentialSpecification(Exists: true, NamedOutside: true),
+            Tuple(("p1", z), ("p2", z)));
+
+        memory.Should().Equal(p.Reference.Hash);
+        sqlite.Should().Equal(memory);
+    }
+
+    /// <summary>
+    /// <c>t</c> holds the given <c>p2</c> in role <c>y</c>, and a condition on <c>t</c> names
+    /// a second given <c>p1</c> as the <c>x</c> predecessor of the condition's own unknown.
+    /// <paramref name="Exists"/> selects the positive or the negated form. With
+    /// <paramref name="NamedOutside"/> the match names <c>p1</c> in a path condition of its
+    /// own as well, which hands the condition a fact the outer query has already written.
+    /// </summary>
+    private static Specification GivenInsideExistentialSpecification(bool Exists, bool NamedOutside)
+    {
+        var throughP2 = new PathCondition(
+            ImmutableList.Create(Y), "p2", ImmutableList<Role>.Empty);
+        var throughP1 = new PathCondition(
+            ImmutableList.Create(Y), "p1", ImmutableList<Role>.Empty);
+        var pathConditions = NamedOutside
+            ? ImmutableList.Create(throughP2, throughP1)
+            : ImmutableList.Create(throughP2);
+
+        return new Specification(
+            ImmutableList.Create(
+                new SpecificationGiven(new Label("p1", A), ImmutableList<ExistentialCondition>.Empty),
+                new SpecificationGiven(new Label("p2", A), ImmutableList<ExistentialCondition>.Empty)),
+            ImmutableList.Create(
+                new Match(
+                    new Label("t", A),
+                    pathConditions,
+                    ImmutableList.Create(
+                        new ExistentialCondition(Exists, ImmutableList.Create(
+                            new Match(
+                                new Label("op", A),
+                                ImmutableList.Create(new PathCondition(
+                                    ImmutableList.Create(X), "p1", ImmutableList<Role>.Empty)),
+                                ImmutableList<ExistentialCondition>.Empty)))))),
+            new SimpleProjection("t", typeof(object)));
+    }
+
     private const string RootType = "Corporate.Root";
     private const string ChannelType = "Corporate.Channel";
     private const string TaskType = "Corporate.Task";

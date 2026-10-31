@@ -127,10 +127,38 @@ namespace Jinaga.Store.SQLite.Generation
             {
                 return GenerateEdgelessExistentialWhereClause(existentialCondition, outerFactIndexes);
             }
-            var firstEdge = existentialCondition.Edges.First();
             var writtenFactIndexes = new HashSet<int>(outerFactIndexes);
             var firstJoin = ImmutableList<string>.Empty;
             var whereClause = ImmutableList<string>.Empty;
+
+            // The subquery hangs its from clause on an edge, and reaches that edge from a fact
+            // the outer query has already written. Where no edge of this condition touches
+            // one, every fact it names is its own, so anchor it on a given its edges name,
+            // exactly as GenerateJoins anchors a component no edge reaches. A given that the
+            // outer matches never mention is an input of the condition rather than of the
+            // query, and its hash pins it to one fact, so joining it on its own constrains
+            // nothing further.
+            var firstEdgeIndex = AnchoredEdgeIndex(existentialCondition.Edges, writtenFactIndexes);
+            if (firstEdgeIndex < 0)
+            {
+                var anchorFactIndex = AnchorFactIndex(
+                    existentialCondition.Edges, existentialCondition.Inputs);
+
+                // No given among them either, so nothing names a fact of this component and
+                // the graph is not connected.
+                if (anchorFactIndex == null)
+                {
+                    throw new ArgumentException("The specification is not connected");
+                }
+                firstJoin = firstJoin.Add($" JOIN fact f{anchorFactIndex.Value} ON 1 = 1");
+                writtenFactIndexes.Add(anchorFactIndex.Value);
+
+                // The anchor is named by one of the edges, so one of them is now reachable.
+                firstEdgeIndex = AnchoredEdgeIndex(existentialCondition.Edges, writtenFactIndexes);
+            }
+            var firstEdge = existentialCondition.Edges[firstEdgeIndex];
+            var remainingEdges = existentialCondition.Edges.RemoveAt(firstEdgeIndex);
+
             if (writtenFactIndexes.Contains(firstEdge.PredecessorFactIndex))
             {
                 if (writtenFactIndexes.Contains(firstEdge.SuccessorFactIndex))
@@ -172,7 +200,7 @@ namespace Jinaga.Store.SQLite.Generation
             }
 
             var tailJoins = GenerateJoins(
-                existentialCondition.Edges.Skip(1).ToImmutableList(),
+                remainingEdges,
                 writtenFactIndexes,
                 existentialCondition.Inputs);
             var joins = firstJoin
@@ -212,10 +240,7 @@ namespace Jinaga.Store.SQLite.Generation
             while (remainingEdges.Count > 0)
             {
                 // Find an edge for which either a predecessor or successor fact has been written.
-                var edgeIndex = remainingEdges.FindIndex(edge =>
-                    writtenFactIndexes.Contains(edge.PredecessorFactIndex) ||
-                    writtenFactIndexes.Contains(edge.SuccessorFactIndex)
-                );
+                var edgeIndex = AnchoredEdgeIndex(remainingEdges, writtenFactIndexes);
 
                 // No such edge means what remains is a component of its own. Anchor it on a
                 // given it names and carry on from there.
@@ -283,6 +308,17 @@ namespace Jinaga.Store.SQLite.Generation
             }
             return joins;
         }
+
+        /// <summary>
+        /// The index within <paramref name="edges"/> of an edge that a written fact reaches,
+        /// or -1 where no edge touches one.
+        /// </summary>
+        private static int AnchoredEdgeIndex(
+            ImmutableList<EdgeDescription> edges, HashSet<int> writtenFactIndexes) =>
+            edges.FindIndex(edge =>
+                writtenFactIndexes.Contains(edge.PredecessorFactIndex) ||
+                writtenFactIndexes.Contains(edge.SuccessorFactIndex)
+            );
 
         /// <summary>
         /// The fact index of a given named by one of <paramref name="remainingEdges"/>, or
