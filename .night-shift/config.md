@@ -102,6 +102,22 @@ Attribution is easy to get wrong. When a fix appears to resolve an issue, check
 that the issue's shape was actually broken at the version the reporter ran,
 rather than assuming the nearest merged pull request is the cause.
 
-Each project in this monorepo has its own `version.json`, and its version is
-computed from the git height of its own path. Do not edit a `version.json` to
-change a version number; releases are cut by the maintainer.
+Each packable project declares its own version as a `<VersionPrefix>` in its
+`.csproj`, and that is the only place a version is written. Do not change one to
+cut a release; releases are cut by the maintainer.
+
+A pull request refused by `.github/scripts/check-declared-versions.sh` changed a
+project's directory while leaving its `<VersionPrefix>` at the version that
+project declared at the latest release tag. Bump the patch of the project the
+failure names, and only that project's.
+
+A pull request refused by `.github/scripts/validate-package-apis.sh` removed or
+changed a public API since the baseline the script derived. Restore the API, bump
+that project's major version, or commit a `CompatibilitySuppressions.xml` beside
+the project and say in the pull request why the break is intended. A suppression
+file is deleted in the release that ships it, once the baseline has moved past
+it.
+
+Both scripts read the release tags, which a shallow clone lacks, so
+`build-test.yml` runs them and nothing runs them before a push. The commands
+under `## Verification commands` are unaffected and need no deepened clone.

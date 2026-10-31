@@ -7,6 +7,8 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.1</TargetFramework>
 
+    <VersionPrefix>1.1.12</VersionPrefix>
+    <EnablePackageValidation>true</EnablePackageValidation>
     <PackageId>Jinaga.UnitTest</PackageId>
     <Authors>Michael L Perry</Authors>
     <Company>Jinaga LLC</Company>

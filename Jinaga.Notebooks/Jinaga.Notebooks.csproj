@@ -16,6 +16,8 @@
   <PropertyGroup>
     <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
 
+    <VersionPrefix>1.1.15</VersionPrefix>
+    <EnablePackageValidation>true</EnablePackageValidation>
     <PackageId>Jinaga.Notebooks</PackageId>
     <Authors>Michael L Perry</Authors>
     <Company>Jinaga LLC</Company>
