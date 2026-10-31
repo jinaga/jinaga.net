@@ -36,10 +36,14 @@ public class RealTimePurgeTest
         var order = await j.Fact(new Order(store, [item1, item2]));
         var shipped = await j.Fact(new OrderShipped(order, DateTime.Now));
 
-        var shipmentsInOrder = Given<Order>.Match(order =>
-            order.Successors().OfType<OrderShipped>(shipped => shipped.order)
-                .Select(s => j.Hash(s))
-        );
+        // The given is a purge root, so it carries the purge condition. Without it the
+        // compliance check refuses the specification.
+        var shipmentsInOrder = Given<Order>
+            .Where((order, facts) => !facts.Any<OrderCancelled>(cancelled => cancelled.order == order))
+            .Match(order =>
+                order.Successors().OfType<OrderShipped>(shipped => shipped.order)
+                    .Select(s => j.Hash(s))
+            );
 
         var shipments = await j.Query(shipmentsInOrder, order);
         shipments.Should().ContainSingle().Which.Should().Be(j.Hash(shipped));
@@ -58,10 +62,15 @@ public class RealTimePurgeTest
         var shipped = await j.Fact(new OrderShipped(order, DateTime.Now));
         var cancelled = await j.Fact(new OrderCancelled(order, DateTime.Now));
 
-        var shipmentsInOrder = Given<Order>.Match(order =>
-            order.Successors().OfType<OrderShipped>(shipped => shipped.order)
-                .Select(s => j.Hash(s))
-        );
+        // The given carries the purge condition, which the cancellation now fails. The
+        // result is empty because the caller's own condition excludes the order, not
+        // because a purge deleted rows the specification still showed.
+        var shipmentsInOrder = Given<Order>
+            .Where((order, facts) => !facts.Any<OrderCancelled>(cancelled => cancelled.order == order))
+            .Match(order =>
+                order.Successors().OfType<OrderShipped>(shipped => shipped.order)
+                    .Select(s => j.Hash(s))
+            );
 
         var shipments = await j.Query(shipmentsInOrder, order);
         shipments.Should().BeEmpty();
@@ -79,11 +88,15 @@ public class RealTimePurgeTest
         var order = await j.Fact(new Order(store, [item1, item2]));
         var cancelled = await j.Fact(new OrderCancelled(order, DateTime.Now));
 
+        // Once the trigger exists, a given of the purge root carrying the purge condition
+        // fails it, so no compliant specification can show what the purge kept. Read the
+        // store directly, which is where the question "did the purge keep this fact?"
+        // actually lives.
         var cancellationsInOrder = Given<Order>.Match(order =>
             order.Successors().OfType<OrderCancelled>(cancelled => cancelled.order)
                 .Select(s => j.Hash(s))
         );
-        var cancellations = await j.Query(cancellationsInOrder, order);
+        var cancellations = await j.Local.Query(cancellationsInOrder, order);
         cancellations.Should().ContainSingle().Which.Should().Be(j.Hash(cancelled));
     }
 }
