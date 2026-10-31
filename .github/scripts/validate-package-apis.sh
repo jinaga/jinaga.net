@@ -59,7 +59,15 @@ while read -r project; do
         [ -n "$baseline" ] && source_of_baseline="release tag $tag"
     fi
     if [ -z "$baseline" ]; then
-        baseline=$(nuget_latest_stable "$id")
+        # An unreachable feed is not the same answer as a package that was never
+        # published, and reporting it as one would put a false claim in the log.
+        if ! baseline=$(nuget_latest_stable "$id"); then
+            echo "FAIL $project: nuget.org could not be reached to derive a baseline for $id."
+            echo "     That is an environment finding, not an API break and not a missing package."
+            failed=1
+            echo
+            continue
+        fi
         source_of_baseline="nuget.org"
     fi
 
