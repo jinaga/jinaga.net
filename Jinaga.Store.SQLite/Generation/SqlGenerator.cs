@@ -50,6 +50,9 @@ namespace Jinaga.Store.SQLite.Generation
             var inputWhereClauses = queryDescription.Inputs
                 .Select(input => $"f{input.FactIndex}.fact_type_id = ?{input.FactTypeParameter} AND f{input.FactIndex}.hash = ?{input.FactHashParameter}")
                 .Join(" AND ");
+            var factEqualityWhereClauses = queryDescription.FactEqualities
+                .Select(factEquality => $" AND {FactEqualityClause(factEquality)}")
+                .Join("");
             var existentialWhereClauses = queryDescription.ExistentialConditions
                 .Select(existentialCondition => $" AND {(existentialCondition.Exists ? "EXISTS" : "NOT EXISTS")} ({GenerateExistentialWhereClause(existentialCondition, writtenFactIndexes)})")
                 .Join("");
@@ -57,7 +60,7 @@ namespace Jinaga.Store.SQLite.Generation
                 .Select(output => $"f{output.FactIndex}.fact_id ASC")
                 .Join(", ");
 
-            var sql = $"SELECT {columns} FROM fact f{firstFactIndex}{joins.Join("")} WHERE {inputWhereClauses}{existentialWhereClauses} ORDER BY {orderByClause}";
+            var sql = $"SELECT {columns} FROM fact f{firstFactIndex}{joins.Join("")} WHERE {inputWhereClauses}{factEqualityWhereClauses}{existentialWhereClauses} ORDER BY {orderByClause}";
             return new SpecificationSqlQuery(sql, queryDescription.Parameters, allLabels);
         }
 
@@ -178,10 +181,13 @@ namespace Jinaga.Store.SQLite.Generation
             var inputWhereClauses = existentialCondition.Inputs
                 .Select(input => $" AND f{input.FactIndex}.fact_type_id = ?{input.FactTypeParameter} AND f{input.FactIndex}.hash = ?{input.FactHashParameter}")
                 .Join("");
+            var factEqualityWhereClauses = existentialCondition.FactEqualities
+                .Select(factEquality => $" AND {FactEqualityClause(factEquality)}")
+                .Join("");
             var existentialWhereClauses = existentialCondition.ExistentialConditions
                 .Select(condition => $" AND {(condition.Exists ? "EXISTS" : "NOT EXISTS")} ({GenerateExistentialWhereClause(condition, writtenFactIndexes)})")
                 .Join("");
-            return $"SELECT 1 FROM edge e{firstEdge.EdgeIndex}{joins.Join("")} WHERE {whereClause.Join(" AND ")}{inputWhereClauses}{existentialWhereClauses}";
+            return $"SELECT 1 FROM edge e{firstEdge.EdgeIndex}{joins.Join("")} WHERE {whereClause.Join(" AND ")}{inputWhereClauses}{factEqualityWhereClauses}{existentialWhereClauses}";
         }
 
         /// <summary>
@@ -292,6 +298,17 @@ namespace Jinaga.Store.SQLite.Generation
         }
 
         /// <summary>
+        /// The constraint that two fact indexes name one fact, as a where clause.
+        /// </summary>
+        /// <remarks>
+        /// Both ends are facts the query already joins, so the clause relates two of its own
+        /// aliases and joins nothing further. Inside an existential condition one or both ends
+        /// can belong to the outer query, which correlates the subquery on that fact.
+        /// </remarks>
+        private static string FactEqualityClause(FactEqualityDescription factEquality) =>
+            $"f{factEquality.LeftFactIndex}.fact_id = f{factEquality.RightFactIndex}.fact_id";
+
+        /// <summary>
         /// A condition that contributes no edge: every match in it names a fact that some
         /// label already binds, so there is no step between facts to walk.
         /// </summary>
@@ -321,6 +338,8 @@ namespace Jinaga.Store.SQLite.Generation
                 .Select(input =>
                     $"f{input.FactIndex}.fact_type_id = ?{input.FactTypeParameter}" +
                     $" AND f{input.FactIndex}.hash = ?{input.FactHashParameter}")
+                .Concat(existentialCondition.FactEqualities
+                    .Select(FactEqualityClause))
                 .Concat(existentialCondition.ExistentialConditions
                     .Select(condition =>
                         $"{(condition.Exists ? "EXISTS" : "NOT EXISTS")}" +

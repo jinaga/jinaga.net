@@ -202,6 +202,26 @@ namespace Jinaga.Store.SQLite.Builder
 
             var roleCount = pathCondition.RolesLeft.Count + pathCondition.RolesRight.Count;
 
+            // A roleless condition whose right label was already bound before this condition
+            // reached it contributes nothing on its own: the input block above is skipped, so
+            // WithInputParameterOnFact does not bind the given to the unknown's fact; neither
+            // walk runs, so no edge relates them; and WithLabel below does nothing, because
+            // the unknown is bound too. An earlier condition on the same match binds the
+            // unknown, so the two labels end up on fact indexes of their own and the condition
+            // is lost unless it constrains them to be one fact. The other store applies it, so
+            // the read answered with rows the specification excludes.
+            //
+            // Where the two labels are already on one fact index, an earlier condition has
+            // carried this one and the constraint would say a fact is itself.
+            if (roleCount == 0 &&
+                context.KnownFacts.TryGetValue(unknown.Name, out var equalFact) &&
+                equalFact.FactIndex != context.KnownFacts[pathCondition.LabelRight].FactIndex)
+            {
+                context = context.WithFactEquality(
+                    equalFact.FactIndex,
+                    context.KnownFacts[pathCondition.LabelRight].FactIndex);
+            }
+
             // Walk up the right-hand side.
             // This generates predecessor joins from a given or prior label.
             var fact = context.KnownFacts[pathCondition.LabelRight];
