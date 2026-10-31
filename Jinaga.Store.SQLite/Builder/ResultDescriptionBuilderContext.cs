@@ -199,6 +199,48 @@ namespace Jinaga.Store.SQLite.Builder
             }
         }
 
+        /// <summary>
+        /// Constrains two fact indexes to name one fact, where the query reaches them: at the
+        /// top level, or within the existential condition this context is building.
+        /// </summary>
+        /// <remarks>
+        /// A roleless path condition contributes no edge, and binding one label to the other's
+        /// fact index carries it only while one of them is still unbound. Once both are bound
+        /// to fact indexes of their own, nothing in the query relates them, so the condition
+        /// needs a constraint that says they are one fact.
+        /// </remarks>
+        public ResultDescriptionBuilderContext WithFactEquality(int leftFactIndex, int rightFactIndex)
+        {
+            var factEquality = new FactEqualityDescription(leftFactIndex, rightFactIndex);
+            if (Path.Count == 0)
+            {
+                var queryDescription = QueryDescription.WithFactEqualities(
+                    QueryDescription.FactEqualities.Add(factEquality));
+                return new ResultDescriptionBuilderContext(queryDescription, KnownFacts, Path);
+            }
+            else
+            {
+                var queryDescription = QueryDescription.WithExistentialConditions(
+                    ExistentialsWithFactEquality(QueryDescription.ExistentialConditions, factEquality, Path));
+                return new ResultDescriptionBuilderContext(queryDescription, KnownFacts, Path);
+            }
+        }
+
+        private ImmutableList<ExistentialConditionDescription> ExistentialsWithFactEquality(ImmutableList<ExistentialConditionDescription> existentialConditions, FactEqualityDescription factEquality, ImmutableList<int> path)
+        {
+            int index = path[0];
+            var existentialCondition = existentialConditions[index];
+            var existentialConditionWithFactEquality = path.Count == 1
+                ? existentialCondition.WithFactEqualities(
+                    existentialCondition.FactEqualities.Add(factEquality))
+                : existentialCondition.WithExistentialConditions(
+                    ExistentialsWithFactEquality(
+                        existentialCondition.ExistentialConditions, factEquality, path.RemoveAt(0)));
+            return existentialConditions
+                .RemoveAt(index)
+                .Insert(index, existentialConditionWithFactEquality);
+        }
+
         public ResultDescriptionBuilderContext WithLabel(Label label, int factIndex)
         {
             // If we have not captured the known fact, add it now.

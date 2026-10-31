@@ -1,4 +1,4 @@
-using Jinaga.Facts;
+﻿using Jinaga.Facts;
 using Jinaga.Pipelines;
 using Jinaga.Products;
 using Jinaga.Projections;
@@ -374,5 +374,223 @@ public class MultiplePathConditionTest : IDisposable
 
         memory.Should().Equal($"{root.Reference.Hash},{task.Reference.Hash}");
         sqlite.Should().Equal(memory);
+    }
+
+    /// <summary>
+    /// A fact of type <c>A</c> distinguished by an identifier, so one graph can hold several
+    /// facts that differ only in which predecessors they name.
+    /// </summary>
+    private static Fact Named(string identifier, params (string role, Fact predecessor)[] predecessors) =>
+        Fact.Create(
+            A,
+            ImmutableList.Create(new Field("identifier", new FieldValueString(identifier))),
+            predecessors
+                .Select(predecessor => (Predecessor)new PredecessorSingle(
+                    predecessor.role, predecessor.predecessor.Reference))
+                .ToImmutableList());
+
+    /// <summary>
+    /// <c>p1</c> and <c>w</c> name one <c>y</c> predecessor and different <c>x</c>
+    /// predecessors, and each has a sibling that names its own <c>x</c> predecessor.
+    /// </summary>
+    /// <remarks>
+    /// A sibling satisfies a condition on <c>x</c> without being the fact a roleless equality
+    /// pins, so a read that drops the equality answers with the sibling as well. The two
+    /// branches are separate so that a condition on <c>y</c> admits both <c>p1</c> and
+    /// <c>w</c> while a condition on <c>x</c> tells them apart.
+    /// </remarks>
+    private static (FactGraph graph, Fact p1, Fact pSibling, Fact w, Fact wSibling) SiblingGraph()
+    {
+        var shared = Named("shared");
+        var pBranch = Named("pBranch");
+        var wBranch = Named("wBranch");
+        var p1 = Named("p1", ("y", shared), ("x", pBranch));
+        var w = Named("w", ("y", shared), ("x", wBranch));
+        var pSibling = Named("pSibling", ("x", pBranch));
+        var wSibling = Named("wSibling", ("x", wBranch));
+        return (
+            GraphOf(shared, pBranch, wBranch, p1, w, pSibling, wSibling),
+            p1, pSibling, w, wSibling);
+    }
+
+    /// <summary>
+    /// A roleless equality listed after a condition that has already bound the unknown. The
+    /// equality says the unknown is the given, so the sibling that satisfies the condition on
+    /// <c>x</c> is excluded.
+    /// </summary>
+    [Fact]
+    public async Task Read_WithARolelessEqualityAfterTheConditionThatBindsTheUnknown_AgreesWithTheMemoryStore()
+    {
+        var (graph, p1, _, _, _) = SiblingGraph();
+
+        var (memory, sqlite) = await ReadBothStores(
+            graph, PinnedToTheGiven(EqualityFirst: false), Tuple(("p1", p1)));
+
+        memory.Should().Equal(p1.Reference.Hash);
+        sqlite.Should().Equal(memory);
+    }
+
+    /// <summary>
+    /// Control: the same two conditions in the other order, which binds the unknown to the
+    /// given's own fact. A condition list is a conjunction, so both orders denote one thing.
+    /// </summary>
+    [Fact]
+    public async Task Read_WithARolelessEqualityBeforeTheConditionThatBindsTheUnknown_AgreesWithTheMemoryStore()
+    {
+        var (graph, p1, _, _, _) = SiblingGraph();
+
+        var (memory, sqlite) = await ReadBothStores(
+            graph, PinnedToTheGiven(EqualityFirst: true), Tuple(("p1", p1)));
+
+        memory.Should().Equal(p1.Reference.Hash);
+        sqlite.Should().Equal(memory);
+    }
+
+    /// <summary>
+    /// <c>u2</c> names the <c>x</c> predecessor the given names, and is the given.
+    /// <paramref name="EqualityFirst"/> lists the roleless equality before the condition that
+    /// would otherwise bind the unknown.
+    /// </summary>
+    private static Specification PinnedToTheGiven(bool EqualityFirst)
+    {
+        var throughX = new PathCondition(
+            ImmutableList.Create(X), "p1", ImmutableList.Create(X));
+        var equality = new PathCondition(
+            ImmutableList<Role>.Empty, "p1", ImmutableList<Role>.Empty);
+        var pathConditions = EqualityFirst
+            ? ImmutableList.Create(equality, throughX)
+            : ImmutableList.Create(throughX, equality);
+
+        return new Specification(
+            ImmutableList.Create(
+                new SpecificationGiven(new Label("p1", A), ImmutableList<ExistentialCondition>.Empty)),
+            ImmutableList.Create(
+                new Match(
+                    new Label("u2", A),
+                    pathConditions,
+                    ImmutableList<ExistentialCondition>.Empty)),
+            new SimpleProjection("u2", typeof(object)));
+    }
+
+    /// <summary>
+    /// The same roleless equality inside a positive existential, after a condition that binds
+    /// the existential's own unknown. Only <c>p1</c> has a sibling it equals, so <c>w</c>
+    /// fails the condition.
+    /// </summary>
+    [Fact]
+    public async Task Read_WithARolelessEqualityInsideAPositiveExistential_AgreesWithTheMemoryStore()
+    {
+        var (graph, p1, _, _, _) = SiblingGraph();
+
+        var (memory, sqlite) = await ReadBothStores(
+            graph, PinnedInsideAnExistential(Exists: true), Tuple(("p1", p1)));
+
+        memory.Should().Equal(p1.Reference.Hash);
+        sqlite.Should().Equal(memory);
+    }
+
+    /// <summary>
+    /// The negated form of the same existential, which pins the condition's truth value
+    /// inside <c>NOT EXISTS</c>. A clause that merely parses would not move this row from
+    /// <c>p1</c> to <c>w</c>.
+    /// </summary>
+    [Fact]
+    public async Task Read_WithARolelessEqualityInsideANegatedExistential_AgreesWithTheMemoryStore()
+    {
+        var (graph, p1, _, w, _) = SiblingGraph();
+
+        var (memory, sqlite) = await ReadBothStores(
+            graph, PinnedInsideAnExistential(Exists: false), Tuple(("p1", p1)));
+
+        memory.Should().Equal(w.Reference.Hash);
+        sqlite.Should().Equal(memory);
+    }
+
+    /// <summary>
+    /// <c>w</c> names the <c>y</c> predecessor the given names, and holds a condition on a
+    /// fact that names <c>w</c>'s own <c>x</c> predecessor and is the given.
+    /// </summary>
+    private static Specification PinnedInsideAnExistential(bool Exists)
+    {
+        return new Specification(
+            ImmutableList.Create(
+                new SpecificationGiven(new Label("p1", A), ImmutableList<ExistentialCondition>.Empty)),
+            ImmutableList.Create(
+                new Match(
+                    new Label("w", A),
+                    ImmutableList.Create(
+                        new PathCondition(ImmutableList.Create(Y), "p1", ImmutableList.Create(Y))),
+                    ImmutableList.Create(
+                        new ExistentialCondition(Exists, ImmutableList.Create(
+                            new Match(
+                                new Label("u2", A),
+                                ImmutableList.Create(
+                                    new PathCondition(
+                                        ImmutableList.Create(X), "w", ImmutableList.Create(X)),
+                                    new PathCondition(
+                                        ImmutableList<Role>.Empty, "p1", ImmutableList<Role>.Empty)),
+                                ImmutableList<ExistentialCondition>.Empty)))))),
+            new SimpleProjection("w", typeof(object)));
+    }
+
+    /// <summary>
+    /// A roleless equality inside an existential that contributes no edge at all: its unknown
+    /// is bound by a roleless equality with the outer unknown, so the condition says the outer
+    /// unknown is the given. Only <c>p1</c> is, so <c>w</c> fails it.
+    /// </summary>
+    [Fact]
+    public async Task Read_WithARolelessEqualityInsideAnEdgelessPositiveExistential_AgreesWithTheMemoryStore()
+    {
+        var (graph, p1, _, _, _) = SiblingGraph();
+
+        var (memory, sqlite) = await ReadBothStores(
+            graph, PinnedInsideAnEdgelessExistential(Exists: true), Tuple(("p1", p1)));
+
+        memory.Should().Equal(p1.Reference.Hash);
+        sqlite.Should().Equal(memory);
+    }
+
+    /// <summary>
+    /// The negated form of the same edgeless existential, which pins its truth value inside
+    /// <c>NOT EXISTS</c> rather than only asserting that the clause parses.
+    /// </summary>
+    [Fact]
+    public async Task Read_WithARolelessEqualityInsideAnEdgelessNegatedExistential_AgreesWithTheMemoryStore()
+    {
+        var (graph, p1, _, w, _) = SiblingGraph();
+
+        var (memory, sqlite) = await ReadBothStores(
+            graph, PinnedInsideAnEdgelessExistential(Exists: false), Tuple(("p1", p1)));
+
+        memory.Should().Equal(w.Reference.Hash);
+        sqlite.Should().Equal(memory);
+    }
+
+    /// <summary>
+    /// <c>w</c> names the <c>y</c> predecessor the given names, and holds a condition on a
+    /// fact that is <c>w</c> and is the given. Neither of the condition's two equalities
+    /// carries a role, so the condition contributes no edge of its own.
+    /// </summary>
+    private static Specification PinnedInsideAnEdgelessExistential(bool Exists)
+    {
+        return new Specification(
+            ImmutableList.Create(
+                new SpecificationGiven(new Label("p1", A), ImmutableList<ExistentialCondition>.Empty)),
+            ImmutableList.Create(
+                new Match(
+                    new Label("w", A),
+                    ImmutableList.Create(
+                        new PathCondition(ImmutableList.Create(Y), "p1", ImmutableList.Create(Y))),
+                    ImmutableList.Create(
+                        new ExistentialCondition(Exists, ImmutableList.Create(
+                            new Match(
+                                new Label("u2", A),
+                                ImmutableList.Create(
+                                    new PathCondition(
+                                        ImmutableList<Role>.Empty, "w", ImmutableList<Role>.Empty),
+                                    new PathCondition(
+                                        ImmutableList<Role>.Empty, "p1", ImmutableList<Role>.Empty)),
+                                ImmutableList<ExistentialCondition>.Empty)))))),
+            new SimpleProjection("w", typeof(object)));
     }
 }
