@@ -60,15 +60,57 @@ namespace Jinaga.Managers
                     {
                         var purgeRootTuple = purgeInverse.GivenSubset.Of(result);
                         var purgeRootName = purgeRootTuple.Names.Single();
-                        var triggerTuple = purgeInverse.ResultSubset.Subtract(purgeRootName).Of(result);
                         var purgeRoot = purgeRootTuple.Get(purgeRootName);
-                        var triggers = triggerTuple.Names.Select(name => triggerTuple.Get(name))
-                            .ToImmutableList();
+                        var triggers = await ReadTriggers(purgeRoot, cancellationToken).ConfigureAwait(false);
 
                         await store.PurgeDescendants(purgeRoot, triggers).ConfigureAwait(false);
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Every trigger of every purge condition whose given is the purge root's type,
+        /// read with that given bound to the root.
+        /// </summary>
+        /// <remarks>
+        /// The inverse that fired names only the trigger that just arrived. Every other
+        /// trigger of the root is a descendant of it, so a purge that spared only the one
+        /// that fired deleted the ones that had fired before, and a later condition on the
+        /// same type deleted an earlier condition's trigger. Purge sends no notification,
+        /// so a watch went on holding what the store had dropped.
+        ///
+        /// A condition's result binds the root along with the facts the matches found, and
+        /// all of them are passed. The root is spared either way, as the ancestor of its own
+        /// triggers, and naming it costs nothing.
+        /// </remarks>
+        private async Task<ImmutableList<FactReference>> ReadTriggers(FactReference purgeRoot, CancellationToken cancellationToken)
+        {
+            var triggers = ImmutableList.CreateBuilder<FactReference>();
+            var named = new HashSet<FactReference>();
+            foreach (var purgeCondition in purgeConditions)
+            {
+                var givenLabel = purgeCondition.Givens.Single().Label;
+                if (givenLabel.Type != purgeRoot.Type)
+                {
+                    continue;
+                }
+
+                var givenTuple = FactReferenceTuple.Empty
+                    .Add(givenLabel.Name, purgeRoot);
+                var results = await store.Read(givenTuple, purgeCondition, cancellationToken).ConfigureAwait(false);
+                foreach (var result in results)
+                {
+                    foreach (var reference in result.GetFactReferences())
+                    {
+                        if (named.Add(reference))
+                        {
+                            triggers.Add(reference);
+                        }
+                    }
+                }
+            }
+            return triggers.ToImmutable();
         }
     }
 }
