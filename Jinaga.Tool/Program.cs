@@ -50,7 +50,7 @@ internal class Program
         {
             var path = arguments.Next();
             var type = GetJinagaConfigType(path);
-            var rules = GetPolicy(type);
+            var rules = GetPolicy(type, path);
             await DeployRulesToEndpoint(arguments, "Policy", rules);
         }
         else
@@ -105,7 +105,7 @@ internal class Program
         {
             var path = arguments.Next();
             var type = GetJinagaConfigType(path);
-            var rules = GetPolicy(type);
+            var rules = GetPolicy(type, path);
             Console.WriteLine(rules);
         }
         else
@@ -124,14 +124,46 @@ internal class Program
     private static string GetRulesFromAssembly(string path, string methodName)
     {
         var type = GetJinagaConfigType(path);
-        var method = type.GetMethod(methodName, BindingFlags.Static | BindingFlags.Public);
+        return GetRules(type, methodName, path);
+    }
+
+    /// <summary>
+    /// Finds the rules method that describes a policy: the one that takes no
+    /// parameters. Selecting it by signature rather than by name alone is what
+    /// lets a JinagaConfig name its builder after the description it produces,
+    /// which is the natural shape because a test passes the builder to
+    /// JinagaTestOptions while the application passes the description here.
+    /// Looking up by name alone throws AmbiguousMatchException on exactly that
+    /// class.
+    /// </summary>
+    /// <returns>The parameterless overload, or null when the type declares none.</returns>
+    internal static MethodInfo? FindRulesMethod(Type type, string methodName) =>
+        type.GetMethod(methodName, BindingFlags.Static | BindingFlags.Public, null, Type.EmptyTypes, null);
+
+    /// <summary>
+    /// Whether the type declares any public static method of this name, with
+    /// or without parameters. Distinguishes a JinagaConfig that forgot the
+    /// description method from one that named it but gave it parameters, which
+    /// are different mistakes and get different messages.
+    /// </summary>
+    private static bool DeclaresRulesMethod(Type type, string methodName) =>
+        type.GetMethods(BindingFlags.Static | BindingFlags.Public).Any(m => m.Name == methodName);
+
+    /// <summary>
+    /// Invokes the parameterless rules method and returns the description it
+    /// produces. The one path print, deploy and policy all read rules through,
+    /// so they cannot disagree about which overload describes a policy.
+    /// </summary>
+    internal static string GetRules(Type type, string methodName, string path)
+    {
+        var method = FindRulesMethod(type, methodName);
         if (method == null)
         {
+            if (DeclaresRulesMethod(type, methodName))
+            {
+                throw new ArgumentException($"Expected method JinagaConfig.{methodName} in {path} to have no parameters");
+            }
             throw new ArgumentException($"Expected method JinagaConfig.{methodName} in {path}");
-        }
-        if (method.GetParameters().Length != 0)
-        {
-            throw new ArgumentException($"Expected method JinagaConfig.{methodName} in {path} to have no parameters");
         }
         if (method.ReturnType != typeof(string))
         {
@@ -186,19 +218,26 @@ internal class Program
         return type;
     }
 
-    private static string GetPolicy(Type type)
+    internal static string GetPolicy(Type type, string path)
     {
-        // Find all policy methods
-        var authorizationMethod = type.GetMethod("Authorization", BindingFlags.Static | BindingFlags.Public);
-        var distributionMethod = type.GetMethod("Distribution", BindingFlags.Static | BindingFlags.Public);
-        var purgeMethod = type.GetMethod("Purge", BindingFlags.Static | BindingFlags.Public);
-
-        var authorization = authorizationMethod != null ? (string)(authorizationMethod.Invoke(null, []) ?? string.Empty) : string.Empty;
-        var distribution = distributionMethod != null ? (string)(distributionMethod.Invoke(null, []) ?? string.Empty) : string.Empty;
-        var purge = purgeMethod != null ? (string)(purgeMethod.Invoke(null, []) ?? string.Empty) : string.Empty;
+        var authorization = GetOptionalRules(type, "Authorization", path);
+        var distribution = GetOptionalRules(type, "Distribution", path);
+        var purge = GetOptionalRules(type, "Purge", path);
 
         return $"{authorization}\n{distribution}\n{purge}".Trim();
     }
+
+    /// <summary>
+    /// Reads one of the three rules for the policy command, where a
+    /// JinagaConfig is allowed to leave a rule out. A type that does not
+    /// declare the method at all contributes nothing; one that declares it
+    /// must satisfy the same contract the rules commands demand, so a policy
+    /// never silently omits a rule the author did write.
+    /// </summary>
+    private static string GetOptionalRules(Type type, string methodName, string path) =>
+        FindRulesMethod(type, methodName) == null && !DeclaresRulesMethod(type, methodName)
+            ? string.Empty
+            : GetRules(type, methodName, path);
 
     private static void Usage()
     {

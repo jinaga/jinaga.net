@@ -27,6 +27,14 @@
     <ProjectReference Include="..\Jinaga.Tool\Jinaga.Tool.csproj" />
 
     <!--
+      The rules-method lookup is exercised directly against types declared in
+      this assembly, and those build real rules, so Jinaga comes in here too.
+      It lands in this project's own output, which no test reads as a rules
+      directory: the layouts under test are the two directories named below.
+    -->
+    <ProjectReference Include="..\Jinaga\Jinaga.csproj" />
+
+    <!--
       The rules assembly the tests run the tool against. Its output is read from
       its own build directory, not from this project's, so that the tests see
       the layout a default `dotnet build` of a class library produces.

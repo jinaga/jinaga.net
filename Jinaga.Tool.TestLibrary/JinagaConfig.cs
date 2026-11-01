@@ -10,6 +10,12 @@ public record Content(Site site, string path);
 
 /// <summary>
 /// The class the tool looks for, holding the rules it prints and deploys.
+///
+/// Each builder is public and carries the same name as the method describing
+/// it, which is the shape a Jinaga author reaches for: a test hands the
+/// builder to JinagaTestOptions while the tool reads the description. Keeping
+/// the builders private would hide them from tests, and would also keep this
+/// fixture clear of the overload the tool has to resolve.
 /// </summary>
 public static class JinagaConfig
 {
@@ -19,12 +25,12 @@ public static class JinagaConfig
 
     public static string Purge() => Described(PurgeConditions.Describe(Purge));
 
-    private static AuthorizationRules Authorization(AuthorizationRules r) => r
+    public static AuthorizationRules Authorization(AuthorizationRules r) => r
         .Any<User>()
         .Type<Site>(site => site.creator)
         .Type<Content>(content => content.site.creator);
 
-    private static DistributionRules Distribution(DistributionRules r) => r
+    public static DistributionRules Distribution(DistributionRules r) => r
         .Share(Given<Site>.Match((site, facts) =>
             from content in facts.OfType<Content>()
             where content.site == site
@@ -32,7 +38,7 @@ public static class JinagaConfig
         ))
         .With(site => site.creator);
 
-    private static PurgeConditions Purge(PurgeConditions r) => r;
+    public static PurgeConditions Purge(PurgeConditions r) => r;
 
     /// <summary>
     /// Touches a type from a package this project does not copy beside itself,
