@@ -30,8 +30,41 @@ internal static class PurgeFunctions
 
     internal static IEnumerable<string> TestSpecificationForCompliance(ImmutableList<Specification> purgeConditions, Specification specification)
     {
-        return TestMatchesForCompliance(purgeConditions, specification.Matches)
+        return TestGivensForCompliance(purgeConditions, specification.Givens)
+            .Concat(TestMatchesForCompliance(purgeConditions, specification.Matches))
             .Concat(TestProjectionForCompliance(purgeConditions, specification.Projection));
+    }
+
+    private static IEnumerable<string> TestGivensForCompliance(ImmutableList<Specification> purgeConditions, ImmutableList<SpecificationGiven> givens)
+    {
+        // A given answers to the same rule a match does. A match whose unknown is a purge
+        // root carries the negated purge condition, so the trigger takes its rows out of
+        // the result through an ordinary removal. A given is read directly, so without
+        // that condition its descendants leave the store while they are still in the
+        // result, and the caller never sees them go.
+        return givens.SelectMany(given => TestGivenForCompliance(purgeConditions, given));
+    }
+
+    private static IEnumerable<string> TestGivenForCompliance(ImmutableList<Specification> purgeConditions, SpecificationGiven given)
+    {
+        var failedConditions = purgeConditions
+            .Where(pc => pc.Givens[0].Label.Type == given.Label.Type &&
+                !HasCondition(given.ExistentialConditions, pc))
+            .ToList();
+        if (failedConditions.Count > 0)
+        {
+            var specificationDescriptions = failedConditions
+                .Select(pc => DescribePurgeCondition(pc))
+                .ToList();
+            return new[]
+            {
+                $"The given {given.Label.Name} of {given.Label.Type} is missing purge conditions:\n" +
+                string.Join(Environment.NewLine, specificationDescriptions) + "\n" +
+                $"Write the condition on the given with Given<{given.Label.Type}>.Where."
+            };
+        }
+
+        return new string[0];
     }
 
     private static IEnumerable<string> TestMatchesForCompliance(ImmutableList<Specification> purgeConditions, ImmutableList<Match> matches)
