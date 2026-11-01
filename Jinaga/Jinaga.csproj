@@ -5,7 +5,7 @@
     <nullable>enable</nullable> 
     <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
 
-    <VersionPrefix>1.1.55</VersionPrefix>
+    <VersionPrefix>1.2.0</VersionPrefix>
     <EnablePackageValidation>true</EnablePackageValidation>
     <PackageId>Jinaga</PackageId>
     <Authors>Michael L Perry</Authors>

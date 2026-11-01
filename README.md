@@ -155,6 +155,32 @@ private static AuthorizationRules Authorization(AuthorizationRules r) => r
     ;
 ```
 
+### When the Replicator Refuses a Feed
+
+A replicator's distribution rules decide which feeds of a specification a user may read, and it reports a decision for each feed.
+`JinagaClient` reads those decisions, so a refusal is not mistaken for a result with no facts.
+
+- **A structural denial throws.**
+  When no distribution rule matches the specification (`NoMatchingRule`), or the specification is narrower than the rule allows (`SpecMoreRestrictiveThanRule`), no later fact can change the answer.
+  `Query` throws `DistributionDeniedException`, whose `Diagnostics` name each refused feed and the replicator's reason.
+  Before 1.2.0, `Query` returned an empty list here. It now throws, so a specification that the rules can't serve fails where it is called.
+- **Other decisions do not throw.**
+  A `PrincipalExcluded` or `NotAuthenticated` denial, or a `Reactive` decision, can change when a user logs in or a fact arrives.
+  `Query` returns what the replica holds.
+  The client asks the replicator again on the next call instead of reusing the earlier answer.
+- **Every decision is observable.**
+  `OnDistributionDiagnostic` is raised for each decision from `Query`, `Watch` and `Subscribe`.
+  `QueryWithDiagnostics` returns the results with the diagnostics, and never throws on a decision.
+  `Watch` and `Subscribe` never throw on a decision, because a feed that is refused now may be allowed later.
+
+```C#
+var (flights, diagnostics) = await j.QueryWithDiagnostics(flightsOfDay, airlineDay);
+foreach (var diagnostic in diagnostics.Where(d => d.IsStructural))
+{
+    logger.LogError("{Feed} was refused: {Reason}", diagnostic.Feed, diagnostic.Reason);
+}
+```
+
 ## Running a Replicator
 
 A Jinaga front end connects to a device called a Replicator.
