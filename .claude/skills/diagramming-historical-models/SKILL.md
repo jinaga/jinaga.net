@@ -55,6 +55,16 @@ Conventions:
   `creator` alone for exactly one. Don't annotate obvious single-predecessor
   edges.
 
+Past thirty or so fact types, group them into clusters by area so the graph
+stays readable. Edges still cross clusters freely:
+
+```dot
+subgraph cluster_membership {
+  label="Membership"; style=rounded; color=gray;
+  Project; ProjectInvitation; ProjectMember; ProjectMemberRemoval;
+}
+```
+
 ## Specification overlay
 
 To show what a specification reads, overlay it on the same graph with dashed
