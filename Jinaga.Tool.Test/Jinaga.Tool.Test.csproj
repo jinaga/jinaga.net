@@ -1,0 +1,56 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentAssertions" Version="6.12.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.10.0" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="coverlet.collector" Version="6.0.4">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Jinaga.Tool\Jinaga.Tool.csproj" />
+
+    <!--
+      The rules assembly the tests run the tool against. Its output is read from
+      its own build directory, not from this project's, so that the tests see
+      the layout a default `dotnet build` of a class library produces.
+      ReferenceOutputAssembly is off for that reason: copying it here would put
+      its dependencies beside it and hide the very layout under test.
+    -->
+    <ProjectReference Include="..\Jinaga.Tool.TestLibrary\Jinaga.Tool.TestLibrary.csproj"
+                      ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <!--
+    Where those two projects put their output. MSBuild knows it and the test
+    code does not, so it travels as assembly metadata rather than as a path
+    spelled out in C#.
+  -->
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>JinagaToolDirectory</_Parameter1>
+      <_Parameter2>$(MSBuildThisFileDirectory)../Jinaga.Tool/bin/$(Configuration)/net10.0</_Parameter2>
+    </AssemblyAttribute>
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>RulesLibraryDirectory</_Parameter1>
+      <_Parameter2>$(MSBuildThisFileDirectory)../Jinaga.Tool.TestLibrary/bin/$(Configuration)/net10.0</_Parameter2>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+</Project>

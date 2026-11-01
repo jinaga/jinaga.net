@@ -154,8 +154,15 @@ internal class Program
 
     private static Type GetJinagaConfigType(string path)
     {
+        // The tool ships no copy of Jinaga, so the rules assembly's own
+        // dependencies have to be resolved before anything in it is invoked.
+        // Register before the load and leave the hook in place: a JinagaConfig
+        // method body is what pulls Jinaga in, and that runs later.
+        var fullPath = Path.GetFullPath(path);
+        RulesAssemblyDependencyResolver.Register(fullPath);
+
         // Load the assembly
-        var assembly = Assembly.LoadFrom(path);
+        var assembly = Assembly.LoadFrom(fullPath);
         if (assembly == null)
         {
             throw new ArgumentException($"Could not load {path}");
