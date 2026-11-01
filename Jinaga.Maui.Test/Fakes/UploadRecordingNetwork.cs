@@ -29,8 +29,8 @@ internal class UploadRecordingNetwork : INetwork
     public Task<(FactGraph graph, UserProfile profile)> Login(CancellationToken cancellationToken) =>
         throw new NotSupportedException();
 
-    public Task<ImmutableList<string>> Feeds(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken) =>
-        Task.FromResult(ImmutableList<string>.Empty);
+    public Task<(ImmutableList<string> feeds, ImmutableList<FeedDecision> decisions)> Feeds(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken) =>
+        Task.FromResult((ImmutableList<string>.Empty, ImmutableList<FeedDecision>.Empty));
 
     public Task<(ImmutableList<FactReference> references, string bookmark)> FetchFeed(string feed, string bookmark, CancellationToken cancellationToken) =>
         Task.FromResult((ImmutableList<FactReference>.Empty, bookmark));

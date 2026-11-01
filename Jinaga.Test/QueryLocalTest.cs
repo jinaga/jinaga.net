@@ -15,7 +15,7 @@ namespace Jinaga.Test
         public event INetwork.AuthenticationStateChanged OnAuthenticationStateChanged;
 #pragma warning restore CS0067
 
-        public Task<System.Collections.Immutable.ImmutableList<string>> Feeds(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
+        public Task<(System.Collections.Immutable.ImmutableList<string> feeds, System.Collections.Immutable.ImmutableList<FeedDecision> decisions)> Feeds(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
         {
             throw new InvalidOperationException("This network should never be used.");
         }

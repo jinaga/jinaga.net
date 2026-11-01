@@ -149,7 +149,7 @@ namespace Jinaga.Test.Fakes
             throw new NotImplementedException();
         }
 
-        public async Task<ImmutableList<string>> Feeds(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
+        public async Task<(ImmutableList<string> feeds, ImmutableList<FeedDecision> decisions)> Feeds(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
         {
             Task feedsGate = FeedsGate;
             bool cancel;
@@ -174,7 +174,7 @@ namespace Jinaga.Test.Fakes
             {
                 registered = true;
             }
-            return ImmutableList.Create(Feed);
+            return FakeFeedDecisions.AuthorizeAll(ImmutableList.Create(Feed));
         }
 
         public Task<(ImmutableList<FactReference> references, string bookmark)> FetchFeed(string feed, string bookmark, CancellationToken cancellationToken)
