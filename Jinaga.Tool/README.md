@@ -68,7 +68,7 @@ For example:
 ```cs
   public static string Authorization() => AuthorizationRules.Describe(Authorization);
 
-  private static AuthorizationRules Authorization(AuthorizationRules r) => r
+  public static AuthorizationRules Authorization(AuthorizationRules r) => r
     // Anyone can create a user
     .Any<User>()
     // A site can only be created by its creator
@@ -88,13 +88,17 @@ For example:
     ;
 ```
 
+The builder can be public and share its name with the description.
+The tool reads the method that takes no parameters, so the overload doesn't confuse it.
+A public builder can also be used in tests, for example as `JinagaTestOptions.Authorization`, so the rules a test enforces are the same rules the tool deploys.
+
 Use the `DistributionRules` class to build and describe your rules.
 For example:
 
 ```cs
   public static string Distribution() => DistributionRules.Describe(Distribution);
 
-  private static DistributionRules Distribution(DistributionRules r) => r
+  public static DistributionRules Distribution(DistributionRules r) => r
     // Everyone can see published posts
     .Share(Given<Site>.Match((site, facts) =>
       from content in facts.OfType<Content>()
@@ -119,7 +123,7 @@ For example:
 ```cs
   public static string Purge() => PurgeConditions.Describe(Purge);
 
-  private static PurgeConditions Purge(PurgeConditions r) => r
+  public static PurgeConditions Purge(PurgeConditions r) => r
     // Purge posts that have been deleted
     .Purge<Post>().WhenExists<PostDelete>(delete => delete.post)
     ;
