@@ -23,6 +23,13 @@ dotnet jinaga deploy purge <assembly> <endpoint> <secret>
 
 You can find the endpoint and secret in the [Jinaga replicator portal](https://dev.jinaga.com).
 
+The `<assembly>` is usually a class library, and one built with default settings
+works as it is: the tool reads the library's `.deps.json` to find the Jinaga
+assembly in the NuGet global packages folder. That needs the project to have been
+restored on the machine running the tool. Where it has not been, build the library
+with `<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>` so that its
+dependencies are copied beside it.
+
 This tool is to be used with a Jinaga application.
 Install the Jinaga NuGet package and create a model.
 For example:

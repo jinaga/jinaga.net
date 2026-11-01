@@ -59,6 +59,8 @@ dotnet build Jinaga.Test --no-restore
 dotnet build Jinaga.Notebooks --no-restore
 dotnet build Jinaga.Notebooks.Test --no-restore
 dotnet build Jinaga.Tool --no-restore
+dotnet build Jinaga.Tool.TestLibrary --no-restore
+dotnet build Jinaga.Tool.Test --no-restore
 dotnet build Jinaga.Store.SQLite --no-restore
 dotnet build Jinaga.Store.SQLite.Test --no-restore
 dotnet build Jinaga.Maui --no-restore
@@ -67,6 +69,7 @@ dotnet test Jinaga.Test --no-build --verbosity normal
 dotnet test Jinaga.Store.SQLite.Test --no-build --verbosity normal
 dotnet test Jinaga.Notebooks.Test --no-build --verbosity normal
 dotnet test Jinaga.Maui.Test --no-build --verbosity normal
+dotnet test Jinaga.Tool.Test --no-build --verbosity normal
 ```
 
 The solution needs both the .NET 8 and .NET 10 SDKs. `NuGet.config` clears
