@@ -84,7 +84,7 @@ namespace Jinaga.Managers
                     foreach (var parameter in parameters)
                     {
                         var projection = compoundProjection.GetProjection(parameter.Name);
-                        (var obj, var children) = DeserializeParameter(emitter, projection, path, parameter.ParameterType, parameter.Name, product);
+                        (var obj, var children) = DeserializeParameter(emitter, projection, path, type, parameter.ParameterType, parameter.Name, product);
                         args.Add(obj);
                         if (children != null)
                         {
@@ -137,7 +137,7 @@ namespace Jinaga.Managers
             foreach (var property in properties)
             {
                 var projection = compoundProjection.GetProjection(property.Name);
-                (var obj, var children) = DeserializeParameter(emitter, projection, path, property.PropertyType, property.Name, product);
+                (var obj, var children) = DeserializeParameter(emitter, projection, path, type, property.PropertyType, property.Name, product);
                 property.SetValue(result, obj);
                 if (children != null)
                 {
@@ -276,7 +276,7 @@ namespace Jinaga.Managers
             }
         }
 
-        private static (object? obj, ProjectedResultChildCollection? children) DeserializeParameter(Emitter emitter, Projection projection, string parentPath, Type parameterType, string parameterName, Product product)
+        private static (object? obj, ProjectedResultChildCollection? children) DeserializeParameter(Emitter emitter, Projection projection, string parentPath, Type declaringType, Type parameterType, string parameterName, Product product)
         {
             if (parameterType.IsFactType())
             {
@@ -351,8 +351,18 @@ namespace Jinaga.Managers
                 }
             }
             else if (parameterType.IsGenericType &&
-                parameterType.GetGenericTypeDefinition() == typeof(IQueryable<>))
+                (parameterType.GetGenericTypeDefinition() == typeof(IQueryable<>) ||
+                 (parameterType.GetGenericTypeDefinition() == typeof(IEnumerable<>) &&
+                  projection is CollectionProjection)))
             {
+                // IQueryable<T> and IEnumerable<T> express the same intent: a collection
+                // materialized once at the time the projection is read. The queryable
+                // CreateQueryable builds is an IEnumerable<T>, so one code path fills both.
+                //
+                // IEnumerable<T> is also how the projections below spell a value that is not
+                // a collection at all — the signers of a fact are an IEnumerable<User> — so
+                // only a specification that projects a collection takes this path. The
+                // projection kind decides the rest.
                 var elementType = parameterType.GetGenericArguments()[0];
                 if (elementType.IsFactType())
                 {
@@ -437,8 +447,34 @@ namespace Jinaga.Managers
             }
             else
             {
-                throw new NotImplementedException();
+                throw new ArgumentException(
+                    $"Cannot read {parameterName} of {declaringType.Name}, declared as " +
+                    $"{DescribeType(parameterType)}, from a {projection.GetType().Name}. " +
+                    $"Declare a collection as {DescribeType(typeof(IQueryable<>))}, " +
+                    $"{DescribeType(typeof(IEnumerable<>))}, or " +
+                    $"{DescribeType(typeof(IObservableCollection<>))}.");
             }
+        }
+
+        /// <summary>
+        /// Renders a type the way it is written in source, so that a message naming a
+        /// generic type reads as <c>IQueryable&lt;Content&gt;</c> rather than
+        /// <c>IQueryable`1</c>.
+        /// </summary>
+        private static string DescribeType(Type type)
+        {
+            if (!type.IsGenericType)
+            {
+                return type.Name;
+            }
+            var name = type.Name;
+            var arity = name.IndexOf('`');
+            if (arity >= 0)
+            {
+                name = name.Substring(0, arity);
+            }
+            var arguments = string.Join(", ", type.GetGenericArguments().Select(DescribeType));
+            return $"{name}<{arguments}>";
         }
 
         /// <summary>
