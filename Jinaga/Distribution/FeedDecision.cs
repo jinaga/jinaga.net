@@ -77,7 +77,10 @@ namespace Jinaga
 
         /// <summary>
         /// Whether the denial is structural: the specification and the rules cannot
-        /// agree, so no fact anyone later writes will change the answer. This is the
+        /// agree, so no fact anyone later writes will change the answer. It reads the
+        /// code alone, so a structural code makes the feed structural even when the
+        /// replicator reports the decision as <see cref="DistributionDecision.Reactive"/>.
+        /// This is the
         /// only statement of that predicate. Both
         /// <see cref="DistributionDiagnostic.IsStructural"/> and the throw in
         /// <see cref="JinagaClient.Query{TFact, TProjection}(Specification{TFact, TProjection}, TFact, System.Threading.CancellationToken)"/>

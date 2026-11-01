@@ -143,6 +143,63 @@ public class JinagaClientTest
         diagnostic.IsStructural.Should().BeFalse();
     }
 
+    [Theory]
+    [InlineData(DistributionDenialCode.NoMatchingRule)]
+    [InlineData(DistributionDenialCode.SpecMoreRestrictiveThanRule)]
+    public async Task Query_ThrowsOnAStructuralCodeTheReplicatorCallsReactive(DistributionDenialCode code)
+    {
+        // A replicator can report a structural code with decision "reactive" (jinaga.js#242).
+        // No later fact can heal a structural code, so the code decides.
+        var (j, network, _) = CreateClient();
+        network.ReportDecisions(new FeedDecision
+        {
+            Feed = DeniedFeed,
+            Decision = DistributionDecision.Reactive,
+            Code = code,
+            Reason = "The shapes never matched."
+        });
+        var airlineDay = await j.Fact(new AirlineDay(new Airline("IA"), DateTime.Today));
+
+        Func<Task> query = () => j.Query(flightsOfDay, airlineDay);
+
+        var exception = (await query.Should().ThrowAsync<DistributionDeniedException>()).Which;
+        var diagnostic = exception.Diagnostics.Should().ContainSingle().Which;
+        diagnostic.Decision.Should().Be(DistributionDecision.Reactive);
+        diagnostic.Code.Should().Be(code);
+        diagnostic.IsStructural.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Query_AsksTheReplicatorAgainAfterADenial()
+    {
+        var (j, network, diagnostics) = CreateClient();
+        network.ReportDecisions(Denial(DistributionDenialCode.NotAuthenticated, "Log in first."));
+        var airlineDay = await j.Fact(new AirlineDay(new Airline("IA"), DateTime.Today));
+        await j.Query(flightsOfDay, airlineDay);
+        var requestsAfterDenial = network.RequestedFeeds.Count;
+
+        // The user logs in, and the replicator now authorizes the feed.
+        network.ReportDecisions();
+        diagnostics.Clear();
+        await j.Query(flightsOfDay, airlineDay);
+
+        network.RequestedFeeds.Count.Should().Be(requestsAfterDenial + 1);
+        diagnostics.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Query_ReusesAnAuthorizedDeclaration()
+    {
+        var (j, network, _) = CreateClient();
+        var airlineDay = await j.Fact(new AirlineDay(new Airline("IA"), DateTime.Today));
+        await j.Query(flightsOfDay, airlineDay);
+        var requestsAfterFirstQuery = network.RequestedFeeds.Count;
+
+        await j.Query(flightsOfDay, airlineDay);
+
+        network.RequestedFeeds.Count.Should().Be(requestsAfterFirstQuery);
+    }
+
     [Fact]
     public async Task Query_ReportsNothingWhenTheReplicatorReportsNoDecisions()
     {

@@ -671,13 +671,14 @@ namespace Jinaga.Managers
         }
 
         /// <summary>
-        /// Throws if the replicator denied any feed for a structural reason, which no fact
-        /// anyone later writes will change.
+        /// Throws if the replicator refused any feed for a structural reason, which no fact
+        /// anyone later writes will change. The code decides, not the decision: a replicator
+        /// can call a structural refusal reactive, and the code is the claim that can be checked.
         /// </summary>
         private static void ThrowIfStructurallyDenied(DistributionOperation operation, Specification specification, ImmutableList<FeedDecision> decisions)
         {
             var denials = decisions
-                .Where(decision => decision.Decision == DistributionDecision.Denied && decision.IsStructural)
+                .Where(decision => decision.IsStructural)
                 .Select(decision => new DistributionDiagnostic(operation, specification.ToDescriptiveString(), decision))
                 .ToImmutableList();
             if (!denials.IsEmpty)
@@ -697,7 +698,7 @@ namespace Jinaga.Managers
                     // subscriber carries that subscriber's connection token, which its refresh
                     // timer cancels every few minutes. Serving either back would hand every later
                     // caller the same failure.
-                    if (!cached.IsFaulted && !cached.IsCanceled)
+                    if (!cached.IsFaulted && !cached.IsCanceled && !IsUnsettled(cached))
                     {
                         return cached;
                     }
@@ -707,6 +708,18 @@ namespace Jinaga.Managers
                 feedsCache = feedsCache.Add(hash, feeds);
                 return feeds;
             }
+        }
+
+        /// <summary>
+        /// Whether a completed declaration carries a decision other than authorized. The
+        /// replicator decides per request, and a login, a later fact or a redeployed policy
+        /// can change any of those answers, so such a declaration is made again rather than
+        /// served from the cache.
+        /// </summary>
+        private static bool IsUnsettled(Task<(ImmutableList<string> feeds, ImmutableList<FeedDecision> decisions)> declaration)
+        {
+            return declaration.Status == TaskStatus.RanToCompletion &&
+                declaration.Result.decisions.Any(decision => decision.Decision != DistributionDecision.Authorized);
         }
 
         /// <summary>
