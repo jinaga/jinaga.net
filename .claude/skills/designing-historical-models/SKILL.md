@@ -87,6 +87,49 @@ filter) is the shape every delete/restore pair takes; see
 `reviewing-model-idioms` for the half-implemented version of this pattern to
 watch for.
 
+## Membership and roles
+
+A role is granted by one decision and accepted, removed, or revoked by
+others. Each is its own fact:
+
+```
+ProjectInvitation(project: Project, invitee: User, invitedAt: DateTime)
+ProjectMember(invitation: ProjectInvitation, acceptedAt: DateTime)
+ProjectMemberRemoval(member: ProjectMember, removedAt: DateTime)
+```
+
+- **The invitee's acceptance is the membership.** Consent is a decision
+  only the invitee can make, so `ProjectMember` is created by them, and it
+  is the fact later decisions point at (`TaskAssignment(task, member)`).
+  Before a project has members, a task can be assigned to a `User`; once it
+  has them, assign the membership.
+- **A member is current while no removal exists for it.** Removal is the
+  delete pattern without a restore: re-inviting creates a new membership.
+- **Authority chains are facts too.** An organization's administrators
+  appoint a project's administrators, who invite members. Each appointment
+  names the user and the scope it applies to.
+
+## Design every fact so its rule can be written
+
+Next to "what decision is this?", ask "who may make it?". The answer must be
+reachable from the fact by its predecessors: an assignment reaches its
+project through its task, so the rule can name the project's creator.
+
+- **A fact that links two owned facts needs both owners to agree.** A
+  `TaskAssignment` names a task and a member. Both reach a project, and the
+  rule must require them to be the same project, or one project's creator
+  could send another project's member work.
+- **Separate an action from its approval.** If an action can break a policy
+  ("assign a member who lacks a required skill"), the override is a
+  different decision by a different person. Write the rules so the ordinary
+  actor can take only the policy-abiding action, while someone with the
+  authority can take any, recording why in its own fact:
+  `AssignmentApproval(assignment, reason)`. Don't leave the policy to an
+  application-side check: a rule can say "no required skill is missing a
+  certification" (`authoring-factual-specifications`).
+
+`authoring-factual-specifications` covers writing these rules.
+
 ## Naming
 
 Name a fact type for the decision it records, not the table it resembles:
@@ -100,7 +143,11 @@ name alone should be able to guess the shape without opening the definition.
 
 Before writing specifications or code: pick two or three real examples of
 the data this model needs to hold, and check that a fact graph exists that
-represents them, by hand, before generalizing. A model derived from real
+represents them, by hand, before generalizing. Write each example as a
+story: an ordered list of who decided what. "Ana creates the project, invites
+Luis, Luis accepts, Ana assigns him the task" exercises the model and its
+rules together, and the same list becomes test data
+(`testing-jinaga-dotnet`, `testing-jinaga-typescript`). A model derived from real
 examples surfaces missing predecessors and ambiguous cardinality early; a
 model designed abstractly first tends to hide those problems until real data
 arrives.

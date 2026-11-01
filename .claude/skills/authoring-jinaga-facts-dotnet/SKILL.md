@@ -59,6 +59,18 @@ public record Project(User creator, DateTime createdAt);
 This isn't a timestamp for display purposes (though it can serve as one) —
 it's there specifically so identity doesn't collapse.
 
+A `Guid` works the same way, and is the better choice when the fact must be
+constructed identically somewhere else: in a seed that may run twice, or by
+a client that rebuilds a known fact rather than looking it up. A seed that
+stamps `DateTime.UtcNow` creates a new, different fact every time it runs.
+
+## Field types
+
+A field is a `string`, `DateTime`, `DateTimeOffset`, `TimeSpan`, `int`,
+`float`, `double`, `decimal`, `bool`, or `Guid`, or a nullable form of one
+of these. Anything else is either a predecessor (another fact type) or
+belongs in a fact of its own.
+
 ## Mutable properties: the `prior` chain
 
 A value that changes over time — a task's title, its due date — is its own
@@ -109,6 +121,19 @@ public record Task(Project project, DateTime createdAt)
         this.Successors().OfType<TaskAssignment>(a => a.task));
 }
 ```
+
+Name a condition the same way. A `Condition` reads as a boolean inside a
+specification's `where`, and in authorization rules:
+
+```csharp
+public record ProjectMember(ProjectInvitation invitation, DateTime acceptedAt)
+{
+    public Condition IsRemoved => Condition.Define(facts =>
+        facts.Any<ProjectMemberRemoval>(removal => removal.member == this));
+}
+```
+
+Defining "removed" once means no read site, and no rule, can forget it.
 
 For a framework type you don't own (`Jinaga.User`), attach the relation via a
 C# extension member instead of editing the type:

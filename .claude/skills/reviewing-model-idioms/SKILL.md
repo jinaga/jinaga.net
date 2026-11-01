@@ -38,6 +38,12 @@ reads that has a `prior` array or a paired deletion fact type, and confirm a
 "does not have a successor" filter is actually applied at that point in the
 query — not just present somewhere else in the file.
 
+Rules are specifications too. A membership with a removal fact, or an
+appointment with a revocation, must be filtered in every authorization and
+distribution rule that reads it, or a removed member keeps their access.
+Naming the filter once on the fact type (a `Condition` in .NET, a static
+query helper in TypeScript) is the usual defense.
+
 ## Mutable state fields
 
 A boolean or enum field on a fact meant to represent a lifecycle position —
@@ -62,7 +68,9 @@ tenant identity (e.g. building a `User` from a literal string rather than an
 actual authenticated public key) can never match a real login. Anything
 rooted on it is permanently orphaned from the identity it was meant to
 represent. This is easy to miss because it works fine in a dev seed script
-and fails silently in production.
+and fails silently in production. A clearly labeled demo or test fixture
+may use stand-in users; anything that ships must take the user from
+sign-in.
 
 ## Reconstructable keys that silently forked
 
@@ -93,3 +101,14 @@ model can satisfy one and not the other:
 These are independent failure modes — a model can pass one review and fail
 the other, so check both explicitly rather than treating "it's secured" as
 implying "it's reachable."
+
+## Links across owners
+
+A fact with two predecessors from separately owned parts of the graph — a
+`TaskAssignment` naming a task and a project member — can join two owners
+that should never meet. Check that its authorization rule requires both
+predecessors to reach the same owner (two path conditions on one label; see
+`authoring-factual-specifications`). Otherwise one project's creator can
+assign another project's member, and distribution then sends that member
+the first project's tasks. The model passes both the securability and the
+navigability checks above and still leaks.
