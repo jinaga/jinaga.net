@@ -49,7 +49,7 @@ namespace Jinaga.Test.Fakes
             return Task.CompletedTask;
         }
 
-        public Task<ImmutableList<string>> Feeds(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
+        public Task<(ImmutableList<string> feeds, ImmutableList<FeedDecision> decisions)> Feeds(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
         {
             throw new NotImplementedException();
         }
