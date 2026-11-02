@@ -1207,40 +1207,57 @@ namespace Jinaga.Store.SQLite
             return Task.FromResult(facts);
         }
 
+        /// <summary>
+        /// Deletes the descendants of every root a purge condition selects, sparing the
+        /// triggers of every condition on that root's type.
+        /// </summary>
+        /// <remarks>
+        /// A trigger of one condition is a descendant of the root, so it is a target of
+        /// every other condition on the same type. Running each condition on its own
+        /// therefore deleted the triggers of all the others. The conditions on one type are
+        /// run as a group instead: each contributes the facts it spares, each contributes
+        /// its targets, and the difference is what the purge deletes.
+        /// </remarks>
         public Task Purge(ImmutableList<Specification> purgeConditions)
         {
-            foreach (var specification in purgeConditions)
+            var groups = purgeConditions
+                .GroupBy(specification => specification.Givens.Single().Label.Type);
+            foreach (var group in groups)
             {
-                var label = specification.Givens.Single().Label;
-                var givenTuple = FactReferenceTuple.Empty
-                    .Add(label.Name, new FactReference(label.Type, "xxxx"));
-                var factTypes = LoadFactTypesFromSpecification(specification);
-                var factTypeMap = factTypes.Select(factType => KeyValuePair.Create(factType.name, factType.fact_type_id)).ToImmutableDictionary();
-                
-                var roles = LoadRolesFromSpecification(specification, factTypes);
-                var roleMap = roles
-                    .GroupBy(
-                        role => role.defining_fact_type_id, 
-                        role => KeyValuePair.Create(role.name, role.role_id)
-                    )
-                    .Select(
-                        pair => KeyValuePair.Create(pair.Key, pair.ToImmutableDictionary())
-                    )
-                    .ToImmutableDictionary();                                    
+                var statements = ImmutableList.CreateBuilder<(
+                    (string sql, ImmutableList<object> parameters) spare,
+                    (string sql, ImmutableList<object> parameters) target)>();
+                foreach (var specification in group)
+                {
+                    var description = BuildPurgeDescription(specification);
+                    if (!description.QueryDescription.IsSatisfiable())
+                    {
+                        continue;
+                    }
 
-                var descriptionBuilder = new ResultDescriptionBuilder(factTypeMap, roleMap);
-                
-                var description = descriptionBuilder.Build(givenTuple, specification);
-
-                if (!description.QueryDescription.IsSatisfiable())
+                    statements.Add((
+                        SpareSqlFromSpecification(description),
+                        PurgeSqlFromSpecification(description)
+                    ));
+                }
+                if (statements.Count == 0)
                 {
                     continue;
                 }
 
-                (string sql, ImmutableList<object> parameters) = PurgeSqlFromSpecification(description);
+                var groupStatements = statements.ToImmutable();
                 connFactory.WithTxn((conn, i) =>
                 {
-                    CollectPurgeTargets(conn, sql, parameters.ToArray());
+                    PreparePurgeTables(conn);
+                    foreach (var statement in groupStatements)
+                    {
+                        conn.ExecuteNonQuery(statement.spare.sql, statement.spare.parameters.ToArray());
+                    }
+                    foreach (var statement in groupStatements)
+                    {
+                        conn.ExecuteNonQuery(statement.target.sql, statement.target.parameters.ToArray());
+                    }
+                    conn.ExecuteNonQuery(RemoveSparedPurgeTargetsSql);
                     DeletePurgeTargets(conn);
                     return 0;
                 });
@@ -1248,7 +1265,39 @@ namespace Jinaga.Store.SQLite
             return Task.CompletedTask;
         }
 
-        private (string sql, ImmutableList<object> parameters) PurgeSqlFromSpecification(ResultDescription description)
+        private ResultDescription BuildPurgeDescription(Specification specification)
+        {
+            var label = specification.Givens.Single().Label;
+            var givenTuple = FactReferenceTuple.Empty
+                .Add(label.Name, new FactReference(label.Type, "xxxx"));
+            var factTypes = LoadFactTypesFromSpecification(specification);
+            var factTypeMap = factTypes.Select(factType => KeyValuePair.Create(factType.name, factType.fact_type_id)).ToImmutableDictionary();
+
+            var roles = LoadRolesFromSpecification(specification, factTypes);
+            var roleMap = roles
+                .GroupBy(
+                    role => role.defining_fact_type_id,
+                    role => KeyValuePair.Create(role.name, role.role_id)
+                )
+                .Select(
+                    pair => KeyValuePair.Create(pair.Key, pair.ToImmutableDictionary())
+                )
+                .ToImmutableDictionary();
+
+            var descriptionBuilder = new ResultDescriptionBuilder(factTypeMap, roleMap);
+
+            return descriptionBuilder.Build(givenTuple, specification);
+        }
+
+        /// <summary>
+        /// The roots a purge condition selects, each with the facts that triggered it.
+        /// </summary>
+        /// <remarks>
+        /// The target query and the spare query both read this, and both are generated for
+        /// every condition in a group, so the parameters a caller binds are the same for
+        /// either one.
+        /// </remarks>
+        private (string cte, ImmutableList<object> parameters, int triggerCount) CandidatesCteFromSpecification(ResultDescription description)
         {
             var queryDescription = description.QueryDescription;
             if (queryDescription.ExistentialConditions.Count > 0)
@@ -1269,22 +1318,7 @@ namespace Jinaga.Store.SQLite
                 .Select(input => $"f{input.FactIndex}.fact_type_id = ?{input.FactTypeParameter}")
                 .Join(" AND ");
 
-            var triggerWhereClauses = queryDescription.Outputs
-                .Select((label, index) => $"a.fact_id = c2.trigger{index + 1}")
-                .Join("\n            OR ");
-            var triggerAncestorClauses = queryDescription.Outputs
-                .Select((label, index) =>
-                    $"    AND NOT EXISTS (\n" +
-                    $"        SELECT 1\n" +
-                    $"        FROM candidates c2\n" +
-                    $"        JOIN ancestor a2\n" +
-                    $"            ON a2.fact_id = c2.trigger{index + 1}\n" +
-                    $"        WHERE a.fact_id = a2.ancestor_fact_id\n" +
-                    $"    )\n"
-                )
-                .Join("");
-
-            var sql = $@"
+            var cte = $@"
 WITH candidates AS (
     SELECT
         f{firstFactIndex}.fact_id as purge_root,
@@ -1292,20 +1326,58 @@ WITH candidates AS (
     FROM fact f{firstFactIndex}
     {joins.Join("")}
     WHERE {inputWhereClauses}
-), targets AS (
-    SELECT a.fact_id
-    FROM ancestor a
-    JOIN candidates c ON c.purge_root = a.ancestor_fact_id
-    WHERE NOT EXISTS (
-        SELECT 1
-        FROM candidates c2
-        WHERE {triggerWhereClauses}
-    )
-    {triggerAncestorClauses}
-)
-INSERT OR IGNORE INTO purge_targets (fact_id)
-SELECT fact_id FROM targets;";
+)";
             var parameters = queryDescription.Parameters.RemoveAt(1);
+
+            return (cte, parameters, queryDescription.Outputs.Count);
+        }
+
+        /// <summary>
+        /// Every strict descendant of every root this condition selects.
+        /// </summary>
+        /// <remarks>
+        /// Which of them survive is not decided here. A target spares the triggers of every
+        /// condition on its root's type, and this query sees only one condition, so the
+        /// sparing is left to <see cref="SpareSqlFromSpecification"/> and applied to the
+        /// collected targets of the whole group.
+        /// </remarks>
+        private (string sql, ImmutableList<object> parameters) PurgeSqlFromSpecification(ResultDescription description)
+        {
+            var (cte, parameters, _) = CandidatesCteFromSpecification(description);
+
+            var sql = cte + @"
+INSERT OR IGNORE INTO purge_targets (fact_id)
+SELECT a.fact_id
+FROM ancestor a
+JOIN candidates c
+    ON c.purge_root = a.ancestor_fact_id;";
+
+            return (sql, parameters);
+        }
+
+        /// <summary>
+        /// The triggers this condition finds, together with their ancestors.
+        /// </summary>
+        /// <remarks>
+        /// A fact collected here survives the purge of the group, whichever condition
+        /// selected the root it descends from. The root itself is among them, as an ancestor
+        /// of its own triggers.
+        /// </remarks>
+        private (string sql, ImmutableList<object> parameters) SpareSqlFromSpecification(ResultDescription description)
+        {
+            var (cte, parameters, triggerCount) = CandidatesCteFromSpecification(description);
+
+            var spared = Enumerable.Range(1, triggerCount)
+                .SelectMany(index => new[]
+                {
+                    $"SELECT c.trigger{index} as fact_id\n    FROM candidates c",
+                    $"SELECT a.ancestor_fact_id as fact_id\n    FROM ancestor a\n    JOIN candidates c\n        ON a.fact_id = c.trigger{index}"
+                })
+                .Join("\n    UNION\n    ");
+
+            var sql = cte + $@"
+INSERT OR IGNORE INTO purge_spared (fact_id)
+    {spared};";
 
             return (sql, parameters);
         }
@@ -1464,6 +1536,20 @@ SELECT fact_id FROM targets;";
 
         private const string ClearPurgeTargetsSql = @"DELETE FROM purge_targets";
 
+        // The facts a purge spares: the triggers of every purge condition on the root's
+        // type, and their ancestors. Collected before the targets, because a trigger of one
+        // condition is a target of every other condition on the same type.
+        private const string CreatePurgeSparedSql = @"
+            CREATE TEMP TABLE IF NOT EXISTS purge_spared (
+                fact_id INTEGER NOT NULL PRIMARY KEY
+            )";
+
+        private const string ClearPurgeSparedSql = @"DELETE FROM purge_spared";
+
+        private const string RemoveSparedPurgeTargetsSql = @"
+            DELETE FROM purge_targets
+                WHERE fact_id IN (SELECT fact_id FROM purge_spared)";
+
         private static readonly ImmutableList<string> DeletePurgeTargetsSql = ImmutableList.Create(
             @"DELETE FROM edge
                 WHERE successor_fact_id IN (SELECT fact_id FROM purge_targets)
@@ -1479,10 +1565,17 @@ SELECT fact_id FROM targets;";
                 WHERE fact_id IN (SELECT fact_id FROM purge_targets)"
         );
 
-        private static void CollectPurgeTargets(Conn conn, string sql, object[] parameters)
+        private static void PreparePurgeTables(Conn conn)
         {
             conn.ExecuteNonQuery(CreatePurgeTargetsSql);
             conn.ExecuteNonQuery(ClearPurgeTargetsSql);
+            conn.ExecuteNonQuery(CreatePurgeSparedSql);
+            conn.ExecuteNonQuery(ClearPurgeSparedSql);
+        }
+
+        private static void CollectPurgeTargets(Conn conn, string sql, object[] parameters)
+        {
+            PreparePurgeTables(conn);
             conn.ExecuteNonQuery(sql, parameters);
         }
 

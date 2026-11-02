@@ -102,6 +102,27 @@ public class FeedDeclarationTest
         withPathObserver.Stop();
     }
 
+    /// <summary>
+    /// The feed tests above declare <c>ContentWithComments</c> without ever reading it back,
+    /// so nothing here deserialized its <c>IEnumerable&lt;Comment&gt;</c>. Query it through a
+    /// client so the record the suite already declares is also materialized.
+    /// </summary>
+    [Fact]
+    public async Task Query_FillsTheCommentsOfContentWithComments()
+    {
+        var j = JinagaTest.Create();
+        var creator = await j.Fact(new User("--- PUBLIC KEY ---"));
+        var site = await j.Fact(new Site(creator, "contoso"));
+        var content = await j.Fact(new Content(site, "/first-post"));
+        var comment = await j.Fact(new Comment(content, System.Guid.NewGuid(), creator));
+
+        var results = await j.Query(contentWithComments, site);
+
+        var result = results.Should().ContainSingle().Subject;
+        result.content.Should().BeEquivalentTo(content);
+        result.comments.Should().BeEquivalentTo(new[] { comment });
+    }
+
     [Fact]
     public async Task Query_DeclaresSeparateFeedsForDifferentCollections()
     {

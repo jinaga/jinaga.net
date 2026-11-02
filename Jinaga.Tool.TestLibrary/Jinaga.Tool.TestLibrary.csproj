@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    A minimal rules assembly, built with default settings, standing in for the
+    class library a Jinaga author keeps their model and rules in.
+
+    Nothing here turns CopyLocalLockFileAssemblies on, which is the point: this
+    project's build output carries Jinaga.dll, because a project reference is
+    always copied, and carries none of the NuGet assemblies underneath it. Those
+    stay in the global packages folder, listed in this project's .deps.json.
+    Jinaga.Tool.Test runs the tool against this output, so the layout the tool
+    has to cope with is produced by a real build rather than described in a
+    fixture.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Jinaga\Jinaga.csproj" />
+  </ItemGroup>
+
+</Project>

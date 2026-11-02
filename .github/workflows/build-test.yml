@@ -45,6 +45,8 @@ jobs:
         dotnet build Jinaga.Notebooks --no-restore
         dotnet build Jinaga.Notebooks.Test --no-restore
         dotnet build Jinaga.Tool --no-restore
+        dotnet build Jinaga.Tool.TestLibrary --no-restore
+        dotnet build Jinaga.Tool.Test --no-restore
         dotnet build Jinaga.Store.SQLite --no-restore
         dotnet build Jinaga.Store.SQLite.Test --no-restore
         dotnet build Jinaga.Maui --no-restore
@@ -56,6 +58,7 @@ jobs:
         dotnet test Jinaga.Store.SQLite.Test --no-build --verbosity normal
         dotnet test Jinaga.Notebooks.Test --no-build --verbosity normal
         dotnet test Jinaga.Maui.Test --no-build --verbosity normal
+        dotnet test Jinaga.Tool.Test --no-build --verbosity normal
 
     - name: Validate package APIs
       run: bash .github/scripts/validate-package-apis.sh
