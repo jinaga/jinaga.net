@@ -15,12 +15,30 @@ The refusal is deliberate. The request reaches the API and comes back with a str
 
 **Do not route around it by switching off the session's sandbox.** The error text invites exactly that. A scheduled session that removes a safety control because an error message suggested it is a worse defect than the one it fixes.
 
-**Do not relay a cloud session's fire through a CI job or any other caller.** A relay obeys the error text literally, because the fire happens outside the sandbox, and still triggers exactly the fire the platform refused. Where the fire happens is not the point; who decides it is. A caller outside the session may fire on its own trigger, such as a schedule or a pull request opening. A caller that fires because a session asked it to, through an issue comment a workflow reads or any other message, is a relay. Move the process that decides what to fire outside the session instead, as this file does for the coordinator.
+**Do not relay a cloud session's fire through a CI job or any other caller.** A relay obeys the error text literally, because the fire happens outside the sandbox, and still triggers exactly the fire the platform refused. The refusal exists so that a session cannot start sessions, so the test is what a session's output controls.
+- A session's output may be an event that a caller outside the session reacts to by its own fixed rule.
+- It must never choose what that caller fires: not the routine, not the issue, not the message. Nor may it change how many fires happen.
+- A caller that takes the target, the message or the number of its fires from a session's output is a relay, however the output travels.
+
+The cases:
+- **A workflow on `pull_request: opened` that fires a measurement routine:** allowed. The workflow's own rule gives every pull request one fire, and a worker opens one pull request.
+- **An issue comment that a workflow turns into a fire:** a relay. The comment carries the dispatch.
+- **A label that starts a routine on an issue the session chose:** a relay. The label chooses the issue.
+- **A routine that starts the coordinator's job:** a relay. Each run of the job is a sweep with a full budget of its own, so a session that can start the job adds fires each time it does. Start the job from a timer outside any session instead (*When the job starts*, below).
+
+Move the process that decides what to fire outside the session instead, as this file does for the coordinator.
 
 The refusal applies to anything else a cloud session fires: a worker whose repository has it fire another routine after its pull request, for instance. The refusal was observed on coordinator sessions, and nothing distinguishes a worker's session from one. There are two remedies:
 
 1. **Do the work inside the session, and fire nothing.** Run it in a subagent whose definition narrows its tools to what the work needs. The credential the work needs comes from the session's own environment, never from the repository. Prefer this wherever the work fits the session's environment, time and credentials: it adds no component, and the result lands in the session, which can act on it before it stops.
-2. **Move the fan-out to a caller outside the session** when the work needs a different checkout, environment or schedule, or must outlive the session. That caller must decide to fire on its own trigger, such as the pull request opening, or it is the relay forbidden above.
+
+   **That credential reaches every process the session runs, not only the subagent.** A cloud environment's variables become ordinary environment variables that any command in the session can read. As of 2026-11-08, a subagent's definition has no way to hold a credential of its own. A network secret keeps the value off the session's machine, but the proxy adds it to every request to its host, so it does not stop a test from making a paid call either. Before you add a credential to a worker's environment:
+   - **Find the code that would pick it up without being asked**, such as tests, scripts, and the commands under `## Verification commands`.
+   - **Make that code require an explicit opt-in**: a flag the subagent passes on its own command line. The credential's presence alone must trigger nothing.
+   - **Unset it in the verification commands themselves**, as `configuring-a-repository.md` requires, so a test that misses the opt-in still cannot reach it.
+
+   Where the work cannot be made to opt in, take remedy 2, with a routine and environment of its own, so the worker's environment never holds the credential.
+2. **Move the fan-out to a caller outside the session** when the work needs a different checkout, environment or schedule, or must outlive the session. That caller must fire by its own fixed rule, such as one fire per pull request opened, or it is the relay forbidden above.
 
 **A coordinator routine cannot dispatch, so it is not a rollback.** Keeping it disabled buys nothing: re-enabling it does not restore dispatching, because the refusal applies to it as before. It only sweeps and records alongside the job, from a prompt nothing keeps in step. When the coordinator moves to a scheduled job, delete the routine, or clear its schedule and its tokens. The job's rollback is the revert described under *The coordinator's job*.
 
@@ -41,7 +59,7 @@ The coordinator's repository carries `.night-shift/routines.md`. It has one row 
 - the name of its token
 - its schedule
 
-The coordinator's row names the job that runs it in place of a routine identifier.
+The coordinator's row names the job that runs it in place of a routine identifier, and **where the job publishes the coordinator's final report**, such as the workflow whose run summary carries it. `night-shift-review` reads that report each morning, and it is the only place a forked chain, a repeated no-op, a failed fire or an unrecorded dispatch reaches a person. A report published somewhere the review has to guess at is a report nobody reads.
 
 One table, not two. The coordinator reads the worker rows to know what to fire; a person reads every row to know what exists. Storing a session identifier in two places is how the two fall out of step. A job that needs the list of tracked repositories, to scope a credential for example, should read it from the worker rows rather than keep its own.
 
@@ -110,7 +128,7 @@ jobs:
     timeout-minutes: 60
 ```
 
-It needs three credentials.
+It needs four credentials. The first three are the coordinator's. The fourth belongs to the job's own steps, and the coordinator session never sees it.
 
 **A read-only hosting credential covering every tracked repository.**
 - On GitHub, use a GitHub App installed on the tracked repositories and the coordinator's own. Give it read-only access to contents, issues, pull requests and metadata, and mint an installation token for each run.
@@ -129,7 +147,94 @@ It needs three credentials.
 
 **Each worker's fire token**, under the names in the routine table.
 
+**A credential that can open issues in the coordinator's own repository, for the job's notices.** The job opens an issue when the log is unreachable (*Raising an unreachable log*, below) and when a night passes with no sweep (*When the job starts*, below), and the coordinator's own credential is read-only, so it cannot.
+- Scope it to issue writes in the coordinator's repository and nothing else.
+- Use it only in the job's own steps, outside the coordinator session. The coordinator keeps only the read-only credential, so its hard limits stay enforced by the host.
+- On GitHub Actions, this is the workflow's built-in token with `issues: write`. Pass it only to the step that opens the issue, and check the repository out with `persist-credentials: false`. Otherwise the checkout stores the token in `.git/config`, where the coordinator's shell can read it.
+
+```yaml
+permissions:
+  contents: read
+  issues: write
+
+steps:
+  - uses: actions/checkout@v4
+    with:
+      persist-credentials: false
+  - name: Open the outage notice
+    if: steps.preflight.outputs.log_unreachable == 'true'
+    env:
+      GH_TOKEN: ${{ github.token }}
+    run: gh issue create --title "Night shift: log unreachable" --body "..."
+```
+
 Allow the coordinator only the tools it reads and fires with, through headless Claude Code's allowed-tools list: the hosting tools in read-only mode, the log's tools, and a shell for the fire call. It has no repositories to attach, because its credential already reads all of them.
+
+## When the job starts
+
+**On GitHub Actions, the `schedule` trigger starts runs hours late, and some nights not at all.** Evidence from jinaga/night-shift's coordinator, 1 to 8 November 2026:
+- A run due at 04:07 UTC was created between 11:12 and 12:15 UTC on six nights, and not at all on the seventh.
+- Changing the cron and its time zone moved nothing. A run due at 05:07 UTC arrived at 11:51.
+- Each run started in the same second it was created. The delay comes before any runner is chosen, so a self-hosted runner or a larger plan does not change it.
+- A run started through `workflow_dispatch` begins within seconds.
+
+GitHub documents only that scheduled runs "can be delayed during periods of high loads" and that queued jobs "may be dropped". Other users report the same pattern: [community #201738](https://github.com/orgs/community/discussions/201738), [#210888](https://github.com/orgs/community/discussions/210888), [#210625](https://github.com/orgs/community/discussions/210625).
+
+**Decide how late a sweep may start.** A team that reads the night's pull requests at 9 AM may not mind a sweep at 6 AM. A team whose workers need the whole night does. That is your call, and it decides the setup.
+
+Whatever the host, the setup must:
+- **Fire from outside a Claude session**, as *Why the coordinator is not a routine* requires.
+- **Start within the tolerance you chose.**
+- **Keep to the local time you chose across daylight-saving changes.** A scheduler that runs on UTC only needs its cron edited twice a year, and the sweep moves an hour whenever someone forgets.
+- **Make a repeated sweep harmless.** A timer you can trust delivers at least once, so it can deliver twice. A backup schedule runs a second time on purpose, and a person starts a recovery run by hand. The worker's claim (*Claim the issue* in `night-shift-worker`) makes a second worker on a claimed issue stand down. A second sweep still takes a full budget of its own. Most of it lands on issues already claimed, whose workers stand down, but nothing guarantees that. So keep second runs rare, as the backup guard below does, and treat a recovery run as a person's decision about capacity.
+- **Notice a night with no sweep, through something other than the scheduler that missed it.** A dropped scheduled run fails nothing and alerts no one.
+
+| Tolerance | Setup |
+|---|---|
+| Hours, and an occasional missed night | GitHub Actions `schedule` alone. It is free and needs no other service, but it still needs the missed-night check. |
+| Minutes | GitHub Actions, started by a timer outside GitHub through `workflow_dispatch`, with `schedule` kept as a backup. |
+| Minutes, without GitHub Actions | A host with a scheduler of its own, such as a server with a systemd timer (`OnCalendar=*-*-* 23:07:00 America/Chicago`, `Persistent=true`). The job definition changes, but the credential and tool rules in this file carry over. |
+
+**Choose an outside timer by what it does, not by name.** It must support IANA time zones, retry a failed delivery, and send an authenticated `POST` to the workflow's `dispatches` endpoint. As of 2026-11-08, Google Cloud Scheduler does all three. Services change, so check a timer against these three before you rely on it. Give its token only Actions write access on the coordinator's repository.
+
+**An outside timer is not a relay.** No session is involved, so the relay rule under *Why the coordinator is not a routine* does not reach it. It fires no routine either: it starts the job, and the job decides what to fire. A routine used as the timer is a different case, and that section rules it out.
+
+**Skip a backup run when tonight's sweep already ran.** With `schedule` as a backup, every night has two runs: the timer's, and the late scheduled one. Before the sweep, a run whose `event` is `schedule` reads this workflow's own run history. It exits without sweeping if another run in the last 16 hours is in progress or succeeded. Sixteen hours is longer than any delay observed above, and shorter than the gap back to the previous night's run.
+- **It reads the host's record of runs, not the log**, so the log still decides nothing about availability.
+- **It never skips a run started by hand or by the timer**, because their `event` is `workflow_dispatch`. A recovery run always sweeps.
+- **A failed run does not count**, because a failure may have come before the sweep. That includes a night the log was unreachable, which fails its run on purpose. The backup then sweeps again, and the claim makes that harmless.
+
+```yaml
+on:
+  schedule:
+    - cron: '7 23 * * *'
+      timezone: America/Chicago
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  issues: write
+
+steps:
+  - name: Skip a backup run when tonight's sweep already ran
+    id: backup
+    if: github.event_name == 'schedule'
+    env:
+      GH_TOKEN: ${{ github.token }}
+    run: |
+      since=$(date -u -d '16 hours ago' +%Y-%m-%dT%H:%M:%SZ)
+      ran=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow coordinator.yml \
+        --limit 20 --json databaseId,createdAt,status,conclusion \
+        --jq "[.[] | select(.databaseId != $GITHUB_RUN_ID and .createdAt >= \"$since\"
+               and (.status != \"completed\" or .conclusion == \"success\"))] | length")
+      if [ "$ran" -gt 0 ]; then echo "skip=true" >> "$GITHUB_OUTPUT"; fi
+  # Condition every later step on: steps.backup.outputs.skip != 'true'
+```
+
+**Check for a missed night from outside the scheduler that missed it.**
+- **A heartbeat monitor** catches a miss the morning it happens. The job pings it at the end of every sweep, and the monitor alerts a person when no ping arrives by a deadline. Prefer it where a missed night matters.
+- **The next run's pre-flight** can look back for the previous night's run and, finding none, open an issue with the job's notice credential. It needs no other service, but it reports a miss a day late, and reports nothing if runs stop altogether. GitHub disables a scheduled workflow in a public repository after 60 days without activity.
 
 ## Raising an unreachable log
 
@@ -137,10 +242,10 @@ The coordinator skill requires an unreachable log to be raised where a person se
 
 1. **Before the sweep, ask the log's server whether the credential works.** Send its MCP endpoint an `initialize` request with the token. Anything but `200` means unreachable: `401` is an expired or revoked sign-in, and anything else is an outage. Do not judge by the stored expiry alone, or a revoked sign-in passes as a valid one.
 2. **If it is unreachable, leave the log's server out of the coordinator's MCP configuration.** The coordinator then finds its tools absent, which is the skill's own definition of unreachable, and does the hosting-platform work anyway.
-3. **Open an issue in the coordinator's repository before the coordinator runs**, so the notice exists before any dispatch.
+3. **Open an issue in the coordinator's repository before the coordinator runs**, so the notice exists before any dispatch. Use the job's notice credential, never one the coordinator holds.
 4. **Fail the job at the end**, so the host's own failure alert reaches a person.
 
-Publish the coordinator's final report somewhere a person reads, such as the run's summary page. On a night the log was unreachable, that report holds the only list of the night's dispatches.
+Publish the coordinator's final report somewhere a person reads, such as the run's summary page, and name that place in the coordinator's row of `.night-shift/routines.md` (*The routine table*, above). On a night the log was unreachable, that report holds the only list of the night's dispatches.
 
 Workers remain Claude sessions, and need the push-notification tool on their allowed-tools list as before. A session sends that notification itself, so it does not depend on the routine's own completion-notification setting. **That last point is read from the tool contracts and has not been confirmed against a live run**, so confirm it on a worker's first run.
 

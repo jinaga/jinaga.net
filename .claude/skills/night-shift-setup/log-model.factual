@@ -124,6 +124,16 @@ fact NightShift.Answer {
   question: NightShift.Question;
 }
 
+fact NightShift.Night {
+  practice: NightShift.Practice;
+  date: date;
+}
+
+fact NightShift.SweepInNight {
+  sweep: NightShift.Sweep;
+  night: NightShift.Night;
+}
+
 // ---- batch 2 of 4: specifications ----
 
 specification practicesForAdministrator = ($user: Jinaga.User) {
@@ -450,6 +460,100 @@ specification consideredIssuesWithMergedWork = ($practice: NightShift.Practice) 
   }
 }
 
+specification nightsInPractice = ($practice: NightShift.Practice) {
+  $night: NightShift.Night [
+    $night->practice: NightShift.Practice = $practice
+  ]
+} => {
+  date = $night.date
+  nightRef = &$night
+}
+
+specification sweepsInNight = ($night: NightShift.Night) {
+  $link: NightShift.SweepInNight [
+    $link->night: NightShift.Night = $night
+  ]
+  $sweep: NightShift.Sweep [
+    $sweep = $link->sweep: NightShift.Sweep
+  ]
+  $repository: NightShift.Repository [
+    $repository = $sweep->repository: NightShift.Repository
+    $repository->practice: NightShift.Practice = $night->practice: NightShift.Practice
+  ]
+} => {
+  startedAt = $sweep.startedAt
+  headCommit = $sweep.headCommit
+  sweepRef = &$sweep
+  repositoryRef = &$repository
+  repositoryNames = {
+    $n: NightShift.RepositoryName [
+      $n->repository: NightShift.Repository = $repository
+      !E {
+        $next: NightShift.RepositoryName [
+          $next->prior: NightShift.RepositoryName = $n
+        ]
+      }
+    ]
+  } => {
+    name = $n.name
+  }
+}
+
+specification dispatchesAwaitingOutcome = ($night: NightShift.Night) {
+  $link: NightShift.SweepInNight [
+    $link->night: NightShift.Night = $night
+  ]
+  $sweep: NightShift.Sweep [
+    $sweep = $link->sweep: NightShift.Sweep
+  ]
+  $repository: NightShift.Repository [
+    $repository = $sweep->repository: NightShift.Repository
+    $repository->practice: NightShift.Practice = $night->practice: NightShift.Practice
+  ]
+  $consideration: NightShift.Consideration [
+    $consideration->sweep: NightShift.Sweep = $sweep
+  ]
+  $dispatch: NightShift.Dispatch [
+    $dispatch->consideration: NightShift.Consideration = $consideration
+    !E {
+      $pr: NightShift.PullRequestOpened [
+        $pr->dispatch: NightShift.Dispatch = $dispatch
+      ]
+    }
+    !E {
+      $q: NightShift.Question [
+        $q->dispatch: NightShift.Dispatch = $dispatch
+      ]
+    }
+    !E {
+      $nc: NightShift.NoChangeFound [
+        $nc->dispatch: NightShift.Dispatch = $dispatch
+      ]
+    }
+  ]
+} => {
+  issueNumber = $consideration.issueNumber
+  issueTitle = $consideration.issueTitle
+  branch = $dispatch.branch
+  sessionId = $dispatch.sessionId
+  sequence = $dispatch.sequence
+  startedAt = $sweep.startedAt
+  dispatchRef = &$dispatch
+  considerationRef = &$consideration
+  repositoryNames = {
+    $n: NightShift.RepositoryName [
+      $n->repository: NightShift.Repository = $repository
+      !E {
+        $next: NightShift.RepositoryName [
+          $next->prior: NightShift.RepositoryName = $n
+        ]
+      }
+    ]
+  } => {
+    name = $n.name
+  }
+}
+
 // ---- batch 3 of 4: actions ----
 
 action createPractice ($admin: Jinaga.User) {
@@ -475,6 +579,12 @@ action renameRepository ($repository: NightShift.Repository, $name: string, $pri
 
 action startSweep ($repository: NightShift.Repository, $headCommit: string) {
   let $sweep = new NightShift.Sweep(now(), $headCommit, $repository);
+}
+
+action startNightlySweep ($practice: NightShift.Practice, $repository: NightShift.Repository, $headCommit: string, $nightOf: date) {
+  let $night = new NightShift.Night($practice, period("day", $nightOf));
+  let $sweep = new NightShift.Sweep(now(), $headCommit, $repository);
+  new NightShift.SweepInNight($sweep, $night);
 }
 
 action considerIssue ($sweep: NightShift.Sweep, $issueNumber: number, $issueTitle: string) {
@@ -548,9 +658,10 @@ use_when: A night-shift session or a person wants to record or review a sweep of
   labelled issues in a tracked repository — what prior work was found for an
   issue, why it was skipped or dispatched, what a dispatched session produced,
   an answer to a recorded question, or a correction to an earlier verdict. Also
-  covers registering a repository to track, and recording a rename. Does NOT
-  trigger on deciding what is currently available to work; the hosting platform
-  is the queue and the only authority on that.
+  covers the morning review of a night's work across every tracked repository,
+  registering a repository to track, and recording a rename. Does NOT trigger on
+  deciding what is currently available to work; the hosting platform is the
+  queue and the only authority on that.
 examples:
   - Start a sweep of this repository's ready issues
   - Track a new repository for the night shift
@@ -558,6 +669,8 @@ examples:
   - Dispatched issue 14, second in the chain
   - That issue produced no defect, only regression coverage
   - That verdict was wrong, the pull request we credited was not the reason it passed
+  - What did the night shift do last night?
+  - Which of last night's dispatches never reported back?
   - What questions are still unanswered across all my repositories?
   - Which issues did we skip last week and why?
   - The repository was renamed
@@ -572,11 +685,13 @@ A **Repository** is platform-neutral and carries a generated key as its identity
 
 Each run is a **Sweep** of one repository, stamped with the head commit it read. Every issue examined gets one **Consideration**. Issue numbers are scoped by ownership, so the same number in two repositories never collides.
 
+A **Night** is a Period: one practice and one UTC date, and nothing else, so every sweep in a run builds the same Night fact. `startNightlySweep` files each sweep under its Night through a `SweepInNight` link. The night is the operating concept a person reviews in the morning, and it bounds what a review reads: `sweepsInNight` and `dispatchesAwaitingOutcome` start from one Night instead of walking every sweep the practice has ever run. Read the two most recent nights and take the union, so a sweep that began just before midnight UTC is not missed. A sweep started with the older `startSweep` belongs to no Night; `sweepsInRepository` still lists it, and is the way to sweep up anything a night-rooted read cannot reach.
+
 **Findings and decisions are fact types, not field values.** What the claim check turned up is recorded by creating the matching fact — `OpenPullRequestFound`, `MergedPullRequestFound`, `ClosedPullRequestFound`, `BranchFound`, or `NoPriorWorkFound`. What was decided is recorded the same way — a `Dispatch` means the issue was worked, a `Skipped` means it was passed over. There is no `finding` string and no `decision` string to compare against, because a specification cannot filter on a field value. It filters on structure, so every question the log is meant to answer is a join.
 
-The same holds for outcomes. A dispatch produces a `PullRequestOpened`, a `Question`, or a `NoChangeFound` — three types, not one type with a kind. `unansweredQuestions` finds `Question` facts with no `Answer` successor, which is a real structural filter rather than a string comparison the caller has to trust.
+The same holds for outcomes. A dispatch produces a `PullRequestOpened`, a `Question`, or a `NoChangeFound` — three types, not one type with a kind. `unansweredQuestions` finds `Question` facts with no `Answer` successor, and `dispatchesAwaitingOutcome` finds `Dispatch` facts with none of the three, both by structure rather than by a string comparison the caller has to trust.
 
-Nothing is ever edited. A wrong conclusion is corrected by adding a `Correction` against the consideration it was recorded under, ideally with `correctVerdictFromWork` naming the consideration whose work turned up the disproof.
+Nothing is ever edited. A wrong conclusion is corrected by adding a `Correction` against the consideration it was recorded under, ideally with `correctVerdictFromWork` naming the consideration whose work turned up the disproof. A correction a person makes in the morning review, with no later piece of work behind it, uses `correctVerdict`.
 
 Availability is never stored here. The hosting platform is the queue and the only authority on what is currently ready. This application records what was observed and decided, and when.
 MD
@@ -653,19 +768,41 @@ args:
     required: true
 MD
 
+manifest actions.startNightlySweep <<MD
+when: A coordinator run begins its sweep of one repository, before any issue is
+  examined. One Sweep per repository per run. This is the form to use — it files
+  the sweep under its Night, which is where the morning review starts. Every
+  repository in one run passes the same nightOf, so the whole run lands in one
+  Night even when it crosses midnight UTC.
+args:
+  practice:
+    from: the practice being swept — take practiceRef from
+      practicesForAdministrator. It must be the practice the repository belongs
+      to; a sweep filed under another practice's Night is invisible to every
+      night-rooted view.
+  repository:
+    from: the repository being swept — take repositoryRef from
+      practicesForAdministrator or repositoriesInPractice
+  headCommit:
+    from: the SHA of the default branch when the sweep started
+  nightOf:
+    from: the instant the coordinator's run began, as ISO-8601 with an offset
+      (for example 2026-11-09T04:10:00Z). Read it once at the start of the run
+      and pass the same value for every repository. The Night is the UTC date of
+      this instant.
+MD
+
 manifest actions.startSweep <<MD
-when: A night-shift run begins for one repository, before any issue is examined.
-  One Sweep per repository per run.
+when: Superseded by startNightlySweep, and kept so that an older installed copy
+  of the coordinator keeps recording. A sweep started here belongs to no Night,
+  so the night-rooted views never see it; it is still listed by
+  sweepsInRepository. Prefer startNightlySweep.
 args:
   repository:
-    type: NightShift.Repository
     from: the repository being swept — query repositoriesInPractice and pass the
       row's repositoryRef
-    required: true
   headCommit:
-    type: string
     from: the SHA of the default branch when the sweep started
-    required: true
 MD
 
 manifest actions.considerIssue <<MD
@@ -968,4 +1105,35 @@ args:
     type: NightShift.Practice
     from: the practice to check
     required: true
+MD
+
+manifest views.nightsInPractice <<MD
+when: List the nights a practice has swept, one row per UTC date. The entry
+  point for reviewing a night — sort by date and take the most recent two, then
+  spend each nightRef on sweepsInNight or dispatchesAwaitingOutcome.
+args:
+  practice:
+    from: the practice to list nights for — take practiceRef from
+      practicesForAdministrator
+MD
+
+manifest views.sweepsInNight <<MD
+when: List every sweep filed under one night, across all repositories in the
+  practice, with each repository's current name. Spend each sweepRef on
+  considerationsInSweep to read what the sweep considered, dispatched and
+  skipped, and what came of each dispatch.
+args:
+  night:
+    from: the night to review — take nightRef from nightsInPractice
+MD
+
+manifest views.dispatchesAwaitingOutcome <<MD
+when: List the dispatches of one night that have recorded no outcome yet — no
+  pull request, no question, and no finding of nothing to change. A row means
+  the worker is still running, or stopped without recording; the hosting
+  platform says which. Start from a night, because nothing clears a dispatch
+  whose worker died, so a practice-wide list would only grow.
+args:
+  night:
+    from: the night to check — take nightRef from nightsInPractice
 MD
