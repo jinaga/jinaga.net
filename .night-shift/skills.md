@@ -10,7 +10,7 @@ whatever hour the run wakes.
 | `night-shift-setup` | `factoryengineering/skills` | `cb95c83cebec95a0d7871ac2b27dc9779c064f20` |
 | `night-shift-worker` | `factoryengineering/skills` | `cb95c83cebec95a0d7871ac2b27dc9779c064f20` |
 | `refining-issues` | `factoryengineering/skills` | `cb95c83cebec95a0d7871ac2b27dc9779c064f20` |
-| `degrees-of-freedom` | `michaellperry/skills` | `3722c778facbfccc609a928d25ffb22e1ba461e6` |
+| `degrees-of-freedom` | `michaellperry/skills` | `f528e6bffd7f8660be360f0b302c0a10fecf9acd` |
 
 The worker, `refining-issues`, and `degrees-of-freedom` commits are those
 recorded by `jinaga.js`, whose installed copies these are identical to (apart
