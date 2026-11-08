@@ -7,10 +7,10 @@ whatever hour the run wakes.
 
 | Skill | Source | Upstream commit |
 |---|---|---|
-| `night-shift-setup` | `factoryengineering/skills` | `2fb85d8297c0a3059365bd809b8242f5657f2740` |
-| `night-shift-worker` | `factoryengineering/skills` | `2fb85d8297c0a3059365bd809b8242f5657f2740` |
-| `refining-issues` | `factoryengineering/skills` | `9d44b2422f9704e49f13ee2cc61b9a0f0737b07d` |
-| `degrees-of-freedom` | `michaellperry/skills` | `b1dbdfe374847d5a595b0f2a0066feb684fc5219` |
+| `night-shift-setup` | `factoryengineering/skills` | `cb95c83cebec95a0d7871ac2b27dc9779c064f20` |
+| `night-shift-worker` | `factoryengineering/skills` | `cb95c83cebec95a0d7871ac2b27dc9779c064f20` |
+| `refining-issues` | `factoryengineering/skills` | `cb95c83cebec95a0d7871ac2b27dc9779c064f20` |
+| `degrees-of-freedom` | `michaellperry/skills` | `f528e6bffd7f8660be360f0b302c0a10fecf9acd` |
 
 The worker, `refining-issues`, and `degrees-of-freedom` commits are those
 recorded by `jinaga.js`, whose installed copies these are identical to (apart

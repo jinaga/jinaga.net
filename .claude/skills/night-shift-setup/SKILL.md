@@ -1,6 +1,12 @@
 ---
 name: night-shift-setup
-description: Stands up the night-shift protocol for an organization, from nothing to a running nightly sweep. Creates the Night Shift Log application from a committed seed, registers the practice and each tracked repository exactly once, writes the per-repository configuration file the worker refuses to run without, and creates the scheduled sessions that fire the sweep. Use when adopting the night-shift protocol for the first time, when adding a repository to an existing practice, or when a run stopped because it found no practice or no repository matching the one it was sweeping.
+description: Stands up the night-shift protocol for an organization, from nothing to a running nightly sweep. Creates the Night Shift Log application from a committed seed, registers the practice and each tracked repository exactly once, writes the per-repository configuration file the worker refuses to run without, and creates the scheduled job that runs the sweep and the worker sessions it fires. Use when adopting the night-shift protocol for the first time, when adding a repository to an existing practice, or when a run stopped because it found no practice or no repository matching the one it was sweeping.
+metadata:
+    github-path: skills/night-shift-setup
+    github-pinned: cb95c83cebec95a0d7871ac2b27dc9779c064f20
+    github-ref: cb95c83cebec95a0d7871ac2b27dc9779c064f20
+    github-repo: https://github.com/factoryengineering/skills
+    github-tree-sha: 3013cca43d388e186306a5a6e8a7370343765926
 ---
 
 # Night Shift Setup
@@ -27,7 +33,8 @@ This skill covers the one-time acts. `night-shift-coordinator` and `night-shift-
 | `.night-shift/config.md` | each tracked repository | one per repository |
 | `.night-shift/routines.md` | the coordinator's own repository | one |
 | The installed skills | committed into each repository | worker in each tracked repository, coordinator in its own |
-| The scheduled sessions | your agent host | one coordinator, one worker per repository |
+| The worker sessions | your agent host, as routines | one per repository |
+| The coordinator's scheduled job | a CI runner or a server outside the agent host | one |
 
 ```
 Task Progress:
@@ -38,7 +45,7 @@ Task Progress:
 - [ ] Install and commit night-shift-worker and refining-issues in each tracked repository
 - [ ] Install and commit night-shift-coordinator in its own repository
 - [ ] Write .night-shift/routines.md
-- [ ] Create the sessions and fire the coordinator once by hand
+- [ ] Create the worker sessions and the coordinator's job, and run the coordinator once by hand
 ```
 
 ---
@@ -75,13 +82,13 @@ Record which upstream commit each installed copy came from, so a later reader ca
 
 ## Create the sessions
 
-Read **[creating-the-routines.md](creating-the-routines.md)**. Each session's prompt is a loader that names its skill and its configuration file, and nothing more. Protocol restated in a prompt is protocol that can disagree with the skill, and the disagreement will not surface until a run acts on the wrong half.
+Read **[creating-the-routines.md](creating-the-routines.md)**. **The coordinator cannot be a routine**: the fire endpoint refuses a routine token used from inside a Claude Code cloud session, so the coordinator runs as a scheduled job outside one. Each session's prompt is a loader that names its skill and its configuration file, and nothing more. Protocol restated in a prompt is protocol that can disagree with the skill, and the disagreement will not surface until a run acts on the wrong half.
 
 ---
 
 ## Verify before you leave it running
 
-1. Fire the coordinator by hand, in daylight, appending `Dry run. Sweep and report; dispatch nothing.` to the message.
+1. Start the coordinator's job by hand, in daylight, with `Dry run. Sweep and report; dispatch nothing.` appended to its prompt.
 2. Confirm it resolves the practice and every repository, reads each configuration file, and reports a queue per repository.
 3. Let one scheduled run go unattended, then read the sweep back out of the log and check that its dispatch count matches its report.
 
@@ -91,5 +98,5 @@ Read **[creating-the-routines.md](creating-the-routines.md)**. Each session's pr
 |---|---|
 | [creating-the-log.md](creating-the-log.md) | Publishing the seed, and the one-time practice and repository ceremony |
 | [configuring-a-repository.md](configuring-a-repository.md) | The required headings, with a worked example |
-| [creating-the-routines.md](creating-the-routines.md) | The scheduled sessions and their loader prompts |
+| [creating-the-routines.md](creating-the-routines.md) | The coordinator's job, the worker sessions, and their loader prompts |
 | [log-model.factual](log-model.factual) | Read and send. The log's 47 definitions and its manifest, in four batches |
