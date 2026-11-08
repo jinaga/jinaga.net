@@ -12,7 +12,7 @@ It sits outside `.claude/skills/`, so reinstalling a skill cannot clobber it, an
 
 ## The headings
 
-Every heading in the table below is required. `## Branch prefix` is recognized too, and is optional.
+Every heading in the table below is required.
 
 **A missing required heading is a stop, not a default.** A worker that cannot find one names it and opens no pull request. `none` and `Nothing.` are legal values; absence is not, because absence cannot be told apart from an oversight.
 
@@ -28,7 +28,7 @@ Every heading in the table below is required. `## Branch prefix` is recognized t
 | `## After the pull request` | Post-pull-request hooks. This is the heading the rule exists for: `none` says a person decided there is nothing, while absence says nobody looked. |
 | `## What is different about this repository` | Free prose for anything the protocol does not fix. `Nothing.` is a complete answer. |
 
-`## Branch prefix` is optional and defaults to `claude/issue-<number>-<slug>`. It is cosmetic, and a wrong guess costs nothing.
+**An `## After the pull request` hook cannot fire another routine.** A hook runs inside the worker's cloud session, and the fire endpoint refuses a routine token used from there. See *Why the coordinator is not a routine* in [creating-the-routines.md](creating-the-routines.md) for what to do instead.
 
 ## What is deliberately not here
 
@@ -39,6 +39,8 @@ Four values a reader might expect. Each is derivable, and a stored copy can only
 - **Whether stacked pull requests are enabled** comes from `register-stack.sh list` returning exit 3.
 - **Whether a workflow strips the queue label on close** changes nothing a run does, because the protocol always filters for open issues.
 
+**The worker's branch name is not here either, because it is fixed protocol.** Every worker pushes `claude/issue-<number>-<slug>`, and every other session finds that branch from the issue number alone: the layer stacked above it, the coordinator's claim check, and its fork check. Nobody reads anything to find it, and nothing has to agree. A per-repository value would have to be read the same way by every one of them, and a session that missed it would wait for a branch that already exists, or find no claim where there is one.
+
 **Anything that is not one of those headings belongs in the skill.** This file is where a second, per-repository protocol would grow if it were allowed to, and the closed list is what prevents it.
 
 ## Worked example
@@ -47,10 +49,10 @@ Four values a reader might expect. Each is derivable, and a stored copy can only
 # Night shift configuration
 
 The `night-shift-worker`, `night-shift-coordinator`, and `refining-issues`
-skills read this file. Every `##` heading below except `## Branch prefix` is
-required. A missing heading is an error, not a default: stop and name the
-heading you could not find. Anything that is not one of these headings is
-protocol, and protocol lives in the skill.
+skills read this file. Every `##` heading below is required. A missing
+heading is an error, not a default: stop and name the heading you could not
+find. Anything that is not one of these headings is protocol, and protocol
+lives in the skill.
 
 ## Visibility
 
