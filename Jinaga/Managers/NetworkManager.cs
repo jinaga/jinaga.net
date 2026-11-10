@@ -24,8 +24,8 @@ namespace Jinaga.Managers
         private readonly IIdentitySource? identitySource;
         private readonly AuthorizationEngine? authorizationEngine;
 
-        private ImmutableDictionary<string, Task<ImmutableList<string>>> feedsCache =
-            ImmutableDictionary<string, Task<ImmutableList<string>>>.Empty;
+        private ImmutableDictionary<string, Task<(ImmutableList<string> feeds, ImmutableList<FeedDecision> decisions)>> feedsCache =
+            ImmutableDictionary<string, Task<(ImmutableList<string> feeds, ImmutableList<FeedDecision> decisions)>>.Empty;
         private ImmutableDictionary<string, Task> activeFeeds =
             ImmutableDictionary<string, Task>.Empty;
         private ImmutableDictionary<string, Subscriber> subscribers =
@@ -35,6 +35,7 @@ namespace Jinaga.Managers
         private JinagaStatus status = JinagaStatus.Default;
 
         public event JinagaStatusChanged? OnStatusChanged;
+        public event DistributionDiagnosticHandler? OnDistributionDiagnostic;
 
         public NetworkManager(INetwork network, IStore store, ILoggerFactory loggerFactory, Func<FactGraph, CancellationToken, Task> saveAndNotify, int maxBatchSize)
             : this(network, store, loggerFactory, saveAndNotify, maxBatchSize, null, null)
@@ -338,10 +339,14 @@ namespace Jinaga.Managers
             additions.Add(reference);
         }
 
-        public async Task Fetch(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
+        public async Task Fetch(FactReferenceTuple givenTuple, Specification specification, DistributionOperation operation, Action<DistributionDiagnostic>? collectDiagnostic, bool throwOnStructuralDenial, CancellationToken cancellationToken)
         {
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
             SetLoadStatus(true, null);
+
+            // The replicator's decisions are reported once per call, however many times the
+            // feed list is resolved below.
+            var report = ReportOnce(operation, collectDiagnostic);
 
             // Retry once. A feed might be cached and need to be removed and re-added.
             int retryCount = 2;
@@ -350,8 +355,16 @@ namespace Jinaga.Managers
             {
                 try
                 {
-                    await FetchInternal(givenTuple, specification, stopwatch, cancellationToken).ConfigureAwait(false);
+                    await FetchInternal(givenTuple, specification, operation, report, throwOnStructuralDenial, stopwatch, cancellationToken).ConfigureAwait(false);
                     return;
+                }
+                catch (DistributionDeniedException ex)
+                {
+                    // A structural denial is the replicator's settled answer, not a transient
+                    // failure, so retrying it would only ask the same question again.
+                    logger.LogError(ex, "Fetch was denied after {elapsedMilliseconds} ms.", stopwatch.ElapsedMilliseconds);
+                    SetLoadStatus(false, ex);
+                    throw;
                 }
                 catch (Exception ex)
                 {
@@ -370,10 +383,15 @@ namespace Jinaga.Managers
             }
         }
 
-        private async Task FetchInternal(FactReferenceTuple givenTuple, Specification specification, Stopwatch stopwatch, CancellationToken cancellationToken)
+        private async Task FetchInternal(FactReferenceTuple givenTuple, Specification specification, DistributionOperation operation, Action<Specification, ImmutableList<FeedDecision>> report, bool throwOnStructuralDenial, Stopwatch stopwatch, CancellationToken cancellationToken)
         {
             var reducedSpecification = specification.Reduce();
-            var feeds = await GetFeedsFromCache(givenTuple, reducedSpecification, cancellationToken).ConfigureAwait(false);
+            var (feeds, decisions) = await GetFeedsFromCache(givenTuple, reducedSpecification, cancellationToken).ConfigureAwait(false);
+            report(reducedSpecification, decisions);
+            if (throwOnStructuralDenial)
+            {
+                ThrowIfStructurallyDenied(operation, reducedSpecification, decisions);
+            }
             logger.LogInformation("Fetch from {0} feeds.", feeds.Count);
 
             // Fork to fetch from each feed.
@@ -412,6 +430,10 @@ namespace Jinaga.Managers
         {
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
+            // The replicator's decisions are reported once per call, however many times the
+            // feed list is resolved below.
+            var report = ReportOnce(DistributionOperation.Subscribe, null);
+
             // Retry once. A feed might be cached and need to be removed and re-added.
             int retryCount = 2;
 
@@ -419,7 +441,7 @@ namespace Jinaga.Managers
             {
                 try
                 {
-                    return await SubscribeInternal(givenTuple, specification, stopwatch, cancellationToken).ConfigureAwait(false);
+                    return await SubscribeInternal(givenTuple, specification, report, stopwatch, cancellationToken).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
@@ -437,10 +459,11 @@ namespace Jinaga.Managers
             }
         }
 
-        private async Task<ImmutableList<string>> SubscribeInternal(FactReferenceTuple givenTuple, Specification specification, Stopwatch stopwatch, CancellationToken cancellationToken)
+        private async Task<ImmutableList<string>> SubscribeInternal(FactReferenceTuple givenTuple, Specification specification, Action<Specification, ImmutableList<FeedDecision>> report, Stopwatch stopwatch, CancellationToken cancellationToken)
         {
             var reducedSpecification = specification.Reduce();
-            var feeds = await GetFeedsFromCache(givenTuple, reducedSpecification, cancellationToken).ConfigureAwait(false);
+            var (feeds, decisions) = await GetFeedsFromCache(givenTuple, reducedSpecification, cancellationToken).ConfigureAwait(false);
+            report(reducedSpecification, decisions);
             logger.LogInformation("Subscribe to {0} feeds.", feeds.Count);
 
             List<Subscriber> subscribers;
@@ -612,7 +635,59 @@ namespace Jinaga.Managers
             }
         }
 
-        private Task<ImmutableList<string>> GetFeedsFromCache(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
+        /// <summary>
+        /// Reports each of the replicator's decisions to the diagnostic event and to the
+        /// caller's own collector, at most once however many times it is called. A handler
+        /// that throws is isolated: the caller asked for facts, not for the handler.
+        /// </summary>
+        /// <remarks>
+        /// The specification is the one declared to the replicator, reduced, so the diagnostic
+        /// quotes what the replicator decided about rather than what the caller wrote.
+        /// </remarks>
+        private Action<Specification, ImmutableList<FeedDecision>> ReportOnce(DistributionOperation operation, Action<DistributionDiagnostic>? collectDiagnostic)
+        {
+            bool reported = false;
+            return (specification, decisions) =>
+            {
+                if (reported)
+                {
+                    return;
+                }
+                reported = true;
+                foreach (var decision in decisions)
+                {
+                    var diagnostic = new DistributionDiagnostic(operation, specification.ToDescriptiveString(), decision);
+                    collectDiagnostic?.Invoke(diagnostic);
+                    try
+                    {
+                        OnDistributionDiagnostic?.Invoke(diagnostic);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogError(ex, "A distribution diagnostic handler threw.");
+                    }
+                }
+            };
+        }
+
+        /// <summary>
+        /// Throws if the replicator refused any feed for a structural reason, which no fact
+        /// anyone later writes will change. The code decides, not the decision: a replicator
+        /// can call a structural refusal reactive, and the code is the claim that can be checked.
+        /// </summary>
+        private static void ThrowIfStructurallyDenied(DistributionOperation operation, Specification specification, ImmutableList<FeedDecision> decisions)
+        {
+            var denials = decisions
+                .Where(decision => decision.IsStructural)
+                .Select(decision => new DistributionDiagnostic(operation, specification.ToDescriptiveString(), decision))
+                .ToImmutableList();
+            if (!denials.IsEmpty)
+            {
+                throw new DistributionDeniedException(denials);
+            }
+        }
+
+        private Task<(ImmutableList<string> feeds, ImmutableList<FeedDecision> decisions)> GetFeedsFromCache(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
         {
             lock (this)
             {
@@ -623,7 +698,7 @@ namespace Jinaga.Managers
                     // subscriber carries that subscriber's connection token, which its refresh
                     // timer cancels every few minutes. Serving either back would hand every later
                     // caller the same failure.
-                    if (!cached.IsFaulted && !cached.IsCanceled)
+                    if (!cached.IsFaulted && !cached.IsCanceled && !IsUnsettled(cached))
                     {
                         return cached;
                     }
@@ -633,6 +708,18 @@ namespace Jinaga.Managers
                 feedsCache = feedsCache.Add(hash, feeds);
                 return feeds;
             }
+        }
+
+        /// <summary>
+        /// Whether a completed declaration carries a decision other than authorized. The
+        /// replicator decides per request, and a login, a later fact or a redeployed policy
+        /// can change any of those answers, so such a declaration is made again rather than
+        /// served from the cache.
+        /// </summary>
+        private static bool IsUnsettled(Task<(ImmutableList<string> feeds, ImmutableList<FeedDecision> decisions)> declaration)
+        {
+            return declaration.Status == TaskStatus.RanToCompletion &&
+                declaration.Result.decisions.Any(decision => decision.Decision != DistributionDecision.Authorized);
         }
 
         /// <summary>
