@@ -70,8 +70,11 @@ For each algorithm, read three things in jinaga-spec, in this order:
    It's written to be readable on its own.
 2. The theorem it satisfies, and its hypotheses (`JinagaSpec/Proofs/`). Each
    hypothesis on the input is something the port must reject, or must say it
-   assumes. jinaga-spec gives each one a check (`isWellFormed`,
-   `isWellFormedDeep`). Port the check together with the algorithm.
+   assumes. Where jinaga-spec gives one a check, it sits next to the
+   hypothesis's definition with an `_iff` lemma tying the two together (for
+   example `isWellFormed` and `isWellFormed_iff` in `JinagaSpec/WellFormed.lean`).
+   Use the check the theorem's hypothesis names at the commit you're pinning,
+   and port it together with the algorithm.
 3. The TypeScript reference port in `ports/typescript/`. It mirrors the Lean
    line for line, and is the nearest thing to C# you can copy from.
 
