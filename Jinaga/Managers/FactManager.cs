@@ -193,10 +193,10 @@ namespace Jinaga.Managers
                 .ConfigureAwait(false);
         }
 
-        public async Task Fetch(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
+        public async Task Fetch(FactReferenceTuple givenTuple, Specification specification, DistributionOperation operation, CancellationToken cancellationToken)
         {
             VerifyNotUnloaded();
-            await networkManager.Fetch(givenTuple, specification, cancellationToken).ConfigureAwait(false);
+            await networkManager.Fetch(givenTuple, specification, operation, null, false, cancellationToken).ConfigureAwait(false);
         }
 
         public async Task<ImmutableList<string>> Subscribe(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
@@ -226,11 +226,11 @@ namespace Jinaga.Managers
             return DeserializeProductsFromGraph(graph, specification.Projection, products, type, "", watchContext, datesLearned, signingSavers);
         }
 
-        public async Task<ImmutableList<Product>> Query(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
+        public async Task<ImmutableList<Product>> Query(FactReferenceTuple givenTuple, Specification specification, Action<DistributionDiagnostic>? collectDiagnostic, bool throwOnStructuralDenial, CancellationToken cancellationToken)
         {
             VerifyNotUnloaded();
             CheckCompliance(specification);
-            await networkManager.Fetch(givenTuple, specification, cancellationToken).ConfigureAwait(false);
+            await networkManager.Fetch(givenTuple, specification, DistributionOperation.Query, collectDiagnostic, throwOnStructuralDenial, cancellationToken).ConfigureAwait(false);
             return await store.Read(givenTuple, specification, cancellationToken).ConfigureAwait(false);
         }
 

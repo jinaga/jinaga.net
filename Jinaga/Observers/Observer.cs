@@ -82,7 +82,7 @@ namespace Jinaga.Observers
             }
             else
             {
-                await factManager.Fetch(givenTuple, specification, cancellationToken);
+                await factManager.Fetch(givenTuple, specification, DistributionOperation.Watch, cancellationToken);
             }
         }
     }

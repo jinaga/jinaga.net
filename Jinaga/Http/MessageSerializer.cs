@@ -20,6 +20,8 @@ namespace Jinaga.Http
             };
             options.Converters.Add(new PredecessorSetConverter());
             options.Converters.Add(new FieldValueConverter());
+            options.Converters.Add(new DistributionDecisionConverter());
+            options.Converters.Add(new DistributionDenialCodeConverter());
             return options;
         }
 
@@ -31,6 +33,78 @@ namespace Jinaga.Http
         public static TResponse Deserialize<TResponse>(string json)
         {
             return CheckedDeserialize<TResponse>(json);
+        }
+
+        /// <summary>
+        /// Reads and writes an enum as the protocol spells it. One table of names serves
+        /// both directions, so neither can drift from the other, and a name the table does
+        /// not hold fails deserialization rather than becoming a default value.
+        /// </summary>
+        private abstract class ProtocolEnumConverter<T> : JsonConverter<T>
+            where T : struct, Enum
+        {
+            private readonly Dictionary<string, T> valuesByName;
+            private readonly Dictionary<T, string> namesByValue;
+
+            protected ProtocolEnumConverter(params KeyValuePair<T, string>[] names)
+            {
+                namesByValue = new Dictionary<T, string>();
+                valuesByName = new Dictionary<string, T>();
+                foreach (var pair in names)
+                {
+                    namesByValue.Add(pair.Key, pair.Value);
+                    valuesByName.Add(pair.Value, pair.Key);
+                }
+            }
+
+            protected static KeyValuePair<T, string> Name(T value, string name)
+            {
+                return new KeyValuePair<T, string>(value, name);
+            }
+
+            public override T Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+            {
+                if (reader.TokenType != JsonTokenType.String)
+                {
+                    throw new JsonException($"Expected a string for {typeof(T).Name}.");
+                }
+                var name = reader.GetString() ?? "";
+                if (!valuesByName.TryGetValue(name, out var value))
+                {
+                    throw new JsonException($"Unknown {typeof(T).Name} \"{name}\".");
+                }
+                return value;
+            }
+
+            public override void Write(Utf8JsonWriter writer, T value, JsonSerializerOptions options)
+            {
+                if (!namesByValue.TryGetValue(value, out var name))
+                {
+                    throw new JsonException($"Unknown {typeof(T).Name} {value}.");
+                }
+                writer.WriteStringValue(name);
+            }
+        }
+
+        private class DistributionDecisionConverter : ProtocolEnumConverter<DistributionDecision>
+        {
+            public DistributionDecisionConverter() : base(
+                Name(DistributionDecision.Authorized, "authorized"),
+                Name(DistributionDecision.Reactive, "reactive"),
+                Name(DistributionDecision.Denied, "denied"))
+            {
+            }
+        }
+
+        private class DistributionDenialCodeConverter : ProtocolEnumConverter<DistributionDenialCode>
+        {
+            public DistributionDenialCodeConverter() : base(
+                Name(DistributionDenialCode.NoMatchingRule, "no-matching-rule"),
+                Name(DistributionDenialCode.SpecMoreRestrictiveThanRule, "spec-more-restrictive-than-rule"),
+                Name(DistributionDenialCode.PrincipalExcluded, "principal-excluded"),
+                Name(DistributionDenialCode.NotAuthenticated, "not-authenticated"))
+            {
+            }
         }
 
         private class PredecessorSetConverter : JsonConverter<PredecessorSet>

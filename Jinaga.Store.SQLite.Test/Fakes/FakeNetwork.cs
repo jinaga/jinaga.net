@@ -60,9 +60,21 @@ internal class FakeNetwork : INetwork
         throw new NotImplementedException();
     }
 
-    public Task<ImmutableList<string>> Feeds(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
+    public Task<(ImmutableList<string> feeds, ImmutableList<FeedDecision> decisions)> Feeds(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
     {
-        return Task.FromResult(feeds.Select(feed => feed.Name).ToImmutableList());
+        // This fake has no distribution policy to deny anything with, so every feed it
+        // returns is reported authorized. The decisions are derived from the feeds so that
+        // stays true of whatever it returns.
+        var feedNames = feeds.Select(feed => feed.Name).ToImmutableList();
+        var decisions = feedNames
+            .Select(feed => new FeedDecision
+            {
+                Feed = feed,
+                Decision = DistributionDecision.Authorized,
+                Reason = "Fake network."
+            })
+            .ToImmutableList();
+        return Task.FromResult((feedNames, decisions));
     }
 
     public async Task<(ImmutableList<FactReference> references, string bookmark)> FetchFeed(string feed, string bookmark, CancellationToken cancellationToken)

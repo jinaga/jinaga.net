@@ -114,10 +114,27 @@ internal class FakeNetwork : INetwork
         queue.Enqueue(exception);
     }
 
-    public Task<ImmutableList<string>> Feeds(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
+    private ImmutableList<FeedDecision> reportedDecisions = null;
+
+    /// <summary>
+    /// Reports these decisions instead of authorizing every feed, as a replicator applying
+    /// a distribution policy would. A feed the replicator denied is not among the feeds it
+    /// returns, so a denial is given here and not through <see cref="AddFeed"/>.
+    /// </summary>
+    public void ReportDecisions(params FeedDecision[] decisions)
+    {
+        reportedDecisions = decisions.ToImmutableList();
+    }
+
+    public Task<(ImmutableList<string> feeds, ImmutableList<FeedDecision> decisions)> Feeds(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
     {
         RequestedFeeds.Add((givenTuple, specification));
-        return Task.FromResult(feeds.Select(feed => feed.Name).ToImmutableList());
+        var feedNames = feeds.Select(feed => feed.Name).ToImmutableList();
+        if (reportedDecisions == null)
+        {
+            return Task.FromResult(FakeFeedDecisions.AuthorizeAll(feedNames));
+        }
+        return Task.FromResult((feedNames, reportedDecisions));
     }
 
     public async Task<(ImmutableList<FactReference> references, string bookmark)> FetchFeed(string feed, string bookmark, CancellationToken cancellationToken)

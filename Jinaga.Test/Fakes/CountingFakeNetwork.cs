@@ -37,7 +37,7 @@ namespace Jinaga.Test.Fakes
             innerNetwork.AddFeed(name, facts, delay);
         }
 
-        public Task<ImmutableList<string>> Feeds(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
+        public Task<(ImmutableList<string> feeds, ImmutableList<FeedDecision> decisions)> Feeds(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
         {
             FeedsCallCount++;
             return innerNetwork.Feeds(givenTuple, specification, cancellationToken);

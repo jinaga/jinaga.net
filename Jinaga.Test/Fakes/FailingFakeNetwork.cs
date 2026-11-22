@@ -20,7 +20,7 @@ namespace Jinaga.Test.Fakes
         public event INetwork.AuthenticationStateChanged OnAuthenticationStateChanged;
 #pragma warning restore CS0067
 
-        public Task<ImmutableList<string>> Feeds(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
+        public Task<(ImmutableList<string> feeds, ImmutableList<FeedDecision> decisions)> Feeds(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
         {
             throw new NotImplementedException();
         }

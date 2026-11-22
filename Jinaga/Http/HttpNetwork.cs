@@ -77,12 +77,13 @@ namespace Jinaga.Http
             return webClient.Save(graph, () => UploaderChangedException.ThrowIfChanged(identitySource, uploader));
         }
 
-        public async Task<ImmutableList<string>> Feeds(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
+        public async Task<(ImmutableList<string> feeds, ImmutableList<FeedDecision> decisions)> Feeds(FactReferenceTuple givenTuple, Specification specification, CancellationToken cancellationToken)
         {
             string request = CreateFeedsRequest(givenTuple, specification);
             var response = await webClient.Feeds(request).ConfigureAwait(false);
             var feeds = response.Feeds.ToImmutableList();
-            return feeds;
+            var decisions = response.Decisions.ToImmutableList();
+            return (feeds, decisions);
         }
 
         public async Task<(ImmutableList<Facts.FactReference> references, string bookmark)> FetchFeed(string feed, string bookmark, CancellationToken cancellationToken)

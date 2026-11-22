@@ -1,4 +1,4 @@
-using Jinaga.DefaultImplementations;
+﻿using Jinaga.DefaultImplementations;
 using Jinaga.Authorization;
 using Jinaga.Facts;
 using Jinaga.Http;
@@ -259,6 +259,28 @@ namespace Jinaga
         }
 
         /// <summary>
+        /// Raised once for every decision a replicator reports about a feed, whether the
+        /// decision was authorized, reactive, or denied, and for every <see cref="Query{TFact, TProjection}(Specification{TFact, TProjection}, TFact, CancellationToken)"/>,
+        /// <see cref="Watch{TFact, TProjection}(Specification{TFact, TProjection}, TFact, Action{TProjection})"/>
+        /// and <see cref="Subscribe{TFact, TProjection}(Specification{TFact, TProjection}, TFact, Action{TProjection})"/>
+        /// that asks for one.
+        /// </summary>
+        /// <remarks>
+        /// An exception a handler throws is logged and does not reach the caller that asked for facts.
+        /// </remarks>
+        public event DistributionDiagnosticHandler OnDistributionDiagnostic
+        {
+            add
+            {
+                networkManager.OnDistributionDiagnostic += value;
+            }
+            remove
+            {
+                networkManager.OnDistributionDiagnostic -= value;
+            }
+        }
+
+        /// <summary>
         /// Use factory methods such as JinagaClient.Create or
         /// JinagaSQLiteClient.Create instead of this constructor.
         /// </summary>
@@ -474,10 +496,47 @@ namespace Jinaga
         /// <param name="cancellationToken">To cancel the operation</param>
         /// <returns>The results</returns>
         /// <exception cref="ArgumentNullException">If the given is null</exception>
+        /// <exception cref="DistributionDeniedException">If a replicator denied a feed of this
+        /// specification for a structural reason. Use <see cref="QueryWithDiagnostics{TFact, TProjection}(Specification{TFact, TProjection}, TFact, CancellationToken)"/>
+        /// to read the decisions instead of throwing on them.</exception>
         public async Task<ImmutableList<TProjection>> Query<TFact, TProjection>(
             Specification<TFact, TProjection> specification,
             TFact given,
             CancellationToken cancellationToken = default) where TFact : class
+        {
+            var (results, _) = await RunQuery<TFact, TProjection>(specification, given, throwOnStructuralDenial: true, cancellationToken).ConfigureAwait(false);
+            return results;
+        }
+
+        /// <summary>
+        /// Retrieve results of a specification, along with what the replicator decided about
+        /// each of its feeds.
+        /// </summary>
+        /// <remarks>
+        /// Unlike <see cref="Query{TFact, TProjection}(Specification{TFact, TProjection}, TFact, CancellationToken)"/>,
+        /// this never throws on a decision. A denied feed yields a diagnostic and contributes
+        /// no results.
+        /// </remarks>
+        /// <typeparam name="TFact">The type of the starting point</typeparam>
+        /// <typeparam name="TProjection">The type of the results</typeparam>
+        /// <param name="specification">Defines which facts to match and how to project them</param>
+        /// <param name="given">The starting point for the query</param>
+        /// <param name="cancellationToken">To cancel the operation</param>
+        /// <returns>The results, and one diagnostic per decision the replicator reported</returns>
+        /// <exception cref="ArgumentNullException">If the given is null</exception>
+        public async Task<(ImmutableList<TProjection> Results, ImmutableList<DistributionDiagnostic> Diagnostics)> QueryWithDiagnostics<TFact, TProjection>(
+            Specification<TFact, TProjection> specification,
+            TFact given,
+            CancellationToken cancellationToken = default) where TFact : class
+        {
+            return await RunQuery<TFact, TProjection>(specification, given, throwOnStructuralDenial: false, cancellationToken).ConfigureAwait(false);
+        }
+
+        private async Task<(ImmutableList<TProjection> Results, ImmutableList<DistributionDiagnostic> Diagnostics)> RunQuery<TFact, TProjection>(
+            Specification<TFact, TProjection> specification,
+            TFact given,
+            bool throwOnStructuralDenial,
+            CancellationToken cancellationToken) where TFact : class
         {
             if (given == null)
             {
@@ -488,7 +547,7 @@ namespace Jinaga
             var givenReference = graph.Last;
             var givenTuple = FactReferenceTuple.Empty
                 .Add(specification.Givens.Single().Label.Name, givenReference);
-            return await RunSpecification<TProjection>(specification, graph, givenReference, givenTuple, cancellationToken).ConfigureAwait(false);
+            return await RunSpecification<TProjection>(specification, graph, givenReference, givenTuple, throwOnStructuralDenial, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -509,11 +568,52 @@ namespace Jinaga
         /// <param name="cancellationToken">To cancel the operation</param>
         /// <returns>The results</returns>
         /// <exception cref="ArgumentNullException">If either given is null</exception>
+        /// <exception cref="DistributionDeniedException">If a replicator denied a feed of this
+        /// specification for a structural reason. Use <see cref="QueryWithDiagnostics{TFact1, TFact2, TProjection}(Specification{TFact1, TFact2, TProjection}, TFact1, TFact2, CancellationToken)"/>
+        /// to read the decisions instead of throwing on them.</exception>
         public async Task<ImmutableList<TProjection>> Query<TFact1, TFact2, TProjection>(
             Specification<TFact1, TFact2, TProjection> specification,
             TFact1 given1,
             TFact2 given2,
             CancellationToken cancellationToken = default) where TFact1 : class where TFact2 : class
+        {
+            var (results, _) = await RunQuery<TFact1, TFact2, TProjection>(specification, given1, given2, throwOnStructuralDenial: true, cancellationToken).ConfigureAwait(false);
+            return results;
+        }
+
+        /// <summary>
+        /// Retrieve results of a specification, along with what the replicator decided about
+        /// each of its feeds.
+        /// </summary>
+        /// <remarks>
+        /// Unlike <see cref="Query{TFact1, TFact2, TProjection}(Specification{TFact1, TFact2, TProjection}, TFact1, TFact2, CancellationToken)"/>,
+        /// this never throws on a decision. A denied feed yields a diagnostic and contributes
+        /// no results.
+        /// </remarks>
+        /// <typeparam name="TFact1">The type of the first starting point</typeparam>
+        /// <typeparam name="TFact2">The type of the second starting point</typeparam>
+        /// <typeparam name="TProjection">The type of the results</typeparam>
+        /// <param name="specification">Defines which facts to match and how to project them</param>
+        /// <param name="given1">The first starting point for the query</param>
+        /// <param name="given2">The second starting point for the query</param>
+        /// <param name="cancellationToken">To cancel the operation</param>
+        /// <returns>The results, and one diagnostic per decision the replicator reported</returns>
+        /// <exception cref="ArgumentNullException">If either given is null</exception>
+        public async Task<(ImmutableList<TProjection> Results, ImmutableList<DistributionDiagnostic> Diagnostics)> QueryWithDiagnostics<TFact1, TFact2, TProjection>(
+            Specification<TFact1, TFact2, TProjection> specification,
+            TFact1 given1,
+            TFact2 given2,
+            CancellationToken cancellationToken = default) where TFact1 : class where TFact2 : class
+        {
+            return await RunQuery<TFact1, TFact2, TProjection>(specification, given1, given2, throwOnStructuralDenial: false, cancellationToken).ConfigureAwait(false);
+        }
+
+        private async Task<(ImmutableList<TProjection> Results, ImmutableList<DistributionDiagnostic> Diagnostics)> RunQuery<TFact1, TFact2, TProjection>(
+            Specification<TFact1, TFact2, TProjection> specification,
+            TFact1 given1,
+            TFact2 given2,
+            bool throwOnStructuralDenial,
+            CancellationToken cancellationToken) where TFact1 : class where TFact2 : class
         {
             if (given1 == null)
             {
@@ -531,7 +631,7 @@ namespace Jinaga
             var givenTuple = FactReferenceTuple.Empty
                 .Add(specification.Givens[0].Label.Name, givenReference1)
                 .Add(specification.Givens[1].Label.Name, givenReference2);
-            return await RunSpecification<TProjection>(specification, graph1.AddGraph(graph2), givenReference1, givenTuple, cancellationToken).ConfigureAwait(false);
+            return await RunSpecification<TProjection>(specification, graph1.AddGraph(graph2), givenReference1, givenTuple, throwOnStructuralDenial, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -1157,11 +1257,12 @@ namespace Jinaga
             }
         }
 
-        private async Task<ImmutableList<TProjection>> RunSpecification<TProjection>(
+        private async Task<(ImmutableList<TProjection> Results, ImmutableList<DistributionDiagnostic> Diagnostics)> RunSpecification<TProjection>(
             Specification specification,
             FactGraph graph,
             FactReference givenReference,
             FactReferenceTuple givenTuple,
+            bool throwOnStructuralDenial,
             CancellationToken cancellationToken)
         {
             var stopwatch = Stopwatch.StartNew();
@@ -1181,11 +1282,15 @@ namespace Jinaga
                     stopwatch.Stop();
                     logger.LogInformation("Query was able to run on graph in {ElapsedMilliseconds} ms", stopwatch.ElapsedMilliseconds);
 
-                    return productAnchorProjections.Select(pap => (TProjection)pap.Projection).ToImmutableList();
+                    // This specification ran on the graph the caller already held, so no
+                    // replicator was asked and there is nothing for it to have decided.
+                    return (productAnchorProjections.Select(pap => (TProjection)pap.Projection).ToImmutableList(),
+                        ImmutableList<DistributionDiagnostic>.Empty);
                 }
                 else
                 {
-                    var products = await factManager.Query(givenTuple, specification, cancellationToken).ConfigureAwait(false);
+                    var diagnostics = ImmutableList.CreateBuilder<DistributionDiagnostic>();
+                    var products = await factManager.Query(givenTuple, specification, diagnostics.Add, throwOnStructuralDenial, cancellationToken).ConfigureAwait(false);
                     var productProjections = await factManager.ComputeProjections(specification.Projection, products, typeof(TProjection), null, string.Empty, cancellationToken).ConfigureAwait(false);
                     var projections = productProjections
                         .Select(pair => (TProjection)pair.Projection)
@@ -1194,7 +1299,7 @@ namespace Jinaga
                     stopwatch.Stop();
                     logger.LogInformation("Query succeeded after {ElapsedMilliseconds} ms", stopwatch.ElapsedMilliseconds);
 
-                    return projections;
+                    return (projections, diagnostics.ToImmutable());
                 }
             }
             catch (Exception ex)
