@@ -1,0 +1,91 @@
+{"text":
+ "(b: Blog, u: User) {\n    p: Post [\n        p->blog: Blog = b\n    ]\n} => {\n    myComments = {\n        c: Comment [\n            c->post: Post = p\n            c->author: User = u\n        ]\n    } => c\n    post = p\n}\n",
+ "specification":
+ {"projection":
+  {"type": "composite",
+   "components":
+   [{"type": "fact", "name": "post", "label": "p"},
+    {"type": "specification",
+     "projection": {"type": "fact", "label": "c"},
+     "name": "myComments",
+     "matches":
+     [{"unknown": {"type": "Comment", "name": "c"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Post", "name": "post"}],
+         "labelRight": "p"},
+        {"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "User", "name": "author"}],
+         "labelRight": "u"}]}]}]},
+  "matches":
+  [{"unknown": {"type": "Post", "name": "p"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [],
+      "rolesLeft": [{"predecessorType": "Blog", "name": "blog"}],
+      "labelRight": "b"}]}],
+  "given":
+  [{"label": {"type": "Blog", "name": "b"}, "conditions": []},
+   {"label": {"type": "User", "name": "u"}, "conditions": []}]},
+ "source": "The Art of Immutable Architecture, chapter 12, Unused Givens",
+ "rowLabels": ["p"],
+ "name": "child-uses-a-given",
+ "graph":
+ [{"type": "Blog", "predecessors": [], "id": 0},
+  {"type": "User", "predecessors": [], "id": 1},
+  {"type": "User", "predecessors": [], "id": 2},
+  {"type": "Post", "predecessors": [{"role": "blog", "id": 0}], "id": 3},
+  {"type": "Comment",
+   "predecessors": [{"role": "post", "id": 3}, {"role": "author", "id": 1}],
+   "id": 4},
+  {"type": "Comment",
+   "predecessors": [{"role": "post", "id": 3}, {"role": "author", "id": 2}],
+   "id": 5},
+  {"type": "Post", "predecessors": [{"role": "blog", "id": 0}], "id": 6}],
+ "givens": {"u": 1, "b": 0},
+ "expected":
+ {"results": [[3], [6]],
+  "nestedResults":
+  [{"row": [3], "children": [[{"row": [4], "children": []}]]},
+   {"row": [6], "children": [[]]}],
+  "feeds":
+  [{"text": "(b: Blog) {\n    p: Post [\n        p->blog: Blog = b\n    ]\n}\n",
+    "specification":
+    {"projection": {"type": "composite", "components": []},
+     "matches":
+     [{"unknown": {"type": "Post", "name": "p"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Blog", "name": "blog"}],
+         "labelRight": "b"}]}],
+     "given": [{"label": {"type": "Blog", "name": "b"}, "conditions": []}]}},
+   {"text":
+    "(b: Blog, u: User) {\n    p: Post [\n        p->blog: Blog = b\n    ]\n    c: Comment [\n        c->post: Post = p\n        c->author: User = u\n    ]\n}\n",
+    "specification":
+    {"projection": {"type": "composite", "components": []},
+     "matches":
+     [{"unknown": {"type": "Post", "name": "p"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Blog", "name": "blog"}],
+         "labelRight": "b"}]},
+      {"unknown": {"type": "Comment", "name": "c"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Post", "name": "post"}],
+         "labelRight": "p"},
+        {"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "User", "name": "author"}],
+         "labelRight": "u"}]}],
+     "given":
+     [{"label": {"type": "Blog", "name": "b"}, "conditions": []},
+      {"label": {"type": "User", "name": "u"}, "conditions": []}]}}],
+  "delivered": [3, 4, 6]},
+ "description":
+ "Chapter 12's comments for a user: every post of a blog, and the user's own comments on each. The post feed takes only the blog; the comment feed, a child specification's, takes the blog and the user."}

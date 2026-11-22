@@ -1,0 +1,166 @@
+{"text":
+ "(t: Tenant) {\n    e: Event [\n        e->tenant: Tenant = t\n    ]\n} => {\n    event = e\n    names = {\n        n: Name [\n            n->event: Event = e\n        ]\n    } => {\n        name = n\n        notes = {\n            x: Note [\n                x->name: Name = n\n                !E {\n                    rx: Retract [\n                        rx->note: Note = x\n                    ]\n                }\n            ]\n        } => x\n    }\n}\n",
+ "specification":
+ {"projection":
+  {"type": "composite",
+   "components":
+   [{"type": "fact", "name": "event", "label": "e"},
+    {"type": "specification",
+     "projection":
+     {"type": "composite",
+      "components":
+      [{"type": "fact", "name": "name", "label": "n"},
+       {"type": "specification",
+        "projection": {"type": "fact", "label": "x"},
+        "name": "notes",
+        "matches":
+        [{"unknown": {"type": "Note", "name": "x"},
+          "conditions":
+          [{"type": "path",
+            "rolesRight": [],
+            "rolesLeft": [{"predecessorType": "Name", "name": "name"}],
+            "labelRight": "n"},
+           {"type": "existential",
+            "matches":
+            [{"unknown": {"type": "Retract", "name": "rx"},
+              "conditions":
+              [{"type": "path",
+                "rolesRight": [],
+                "rolesLeft": [{"predecessorType": "Note", "name": "note"}],
+                "labelRight": "x"}]}],
+            "exists": false}]}]}]},
+     "name": "names",
+     "matches":
+     [{"unknown": {"type": "Name", "name": "n"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Event", "name": "event"}],
+         "labelRight": "e"}]}]}]},
+  "matches":
+  [{"unknown": {"type": "Event", "name": "e"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [],
+      "rolesLeft": [{"predecessorType": "Tenant", "name": "tenant"}],
+      "labelRight": "t"}]}],
+  "given": [{"label": {"type": "Tenant", "name": "t"}, "conditions": []}]},
+ "source":
+ "The Art of Immutable Architecture, chapter 12: recursively produce feeds from the projections of those child specifications",
+ "rowLabels": ["e"],
+ "name": "grandchild",
+ "graph":
+ [{"type": "Tenant", "predecessors": [], "id": 0},
+  {"type": "Event", "predecessors": [{"role": "tenant", "id": 0}], "id": 1},
+  {"type": "Name", "predecessors": [{"role": "event", "id": 1}], "id": 2},
+  {"type": "Note", "predecessors": [{"role": "name", "id": 2}], "id": 3},
+  {"type": "Note", "predecessors": [{"role": "name", "id": 2}], "id": 4},
+  {"type": "Retract", "predecessors": [{"role": "note", "id": 4}], "id": 5},
+  {"type": "Name", "predecessors": [{"role": "event", "id": 1}], "id": 6},
+  {"type": "Event", "predecessors": [{"role": "tenant", "id": 0}], "id": 7}],
+ "givens": {"t": 0},
+ "expected":
+ {"results": [[1], [7]],
+  "nestedResults":
+  [{"row": [1],
+    "children":
+    [[{"row": [2], "children": [[{"row": [3], "children": []}]]},
+      {"row": [6], "children": [[]]}]]},
+   {"row": [7], "children": [[]]}],
+  "feeds":
+  [{"text":
+    "(t: Tenant) {\n    e: Event [\n        e->tenant: Tenant = t\n    ]\n}\n",
+    "specification":
+    {"projection": {"type": "composite", "components": []},
+     "matches":
+     [{"unknown": {"type": "Event", "name": "e"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Tenant", "name": "tenant"}],
+         "labelRight": "t"}]}],
+     "given": [{"label": {"type": "Tenant", "name": "t"}, "conditions": []}]}},
+   {"text":
+    "(t: Tenant) {\n    e: Event [\n        e->tenant: Tenant = t\n    ]\n    n: Name [\n        n->event: Event = e\n    ]\n}\n",
+    "specification":
+    {"projection": {"type": "composite", "components": []},
+     "matches":
+     [{"unknown": {"type": "Event", "name": "e"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Tenant", "name": "tenant"}],
+         "labelRight": "t"}]},
+      {"unknown": {"type": "Name", "name": "n"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Event", "name": "event"}],
+         "labelRight": "e"}]}],
+     "given": [{"label": {"type": "Tenant", "name": "t"}, "conditions": []}]}},
+   {"text":
+    "(t: Tenant) {\n    e: Event [\n        e->tenant: Tenant = t\n    ]\n    n: Name [\n        n->event: Event = e\n    ]\n    x: Note [\n        x->name: Name = n\n    ]\n    rx: Retract [\n        rx->note: Note = x\n    ]\n}\n",
+    "specification":
+    {"projection": {"type": "composite", "components": []},
+     "matches":
+     [{"unknown": {"type": "Event", "name": "e"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Tenant", "name": "tenant"}],
+         "labelRight": "t"}]},
+      {"unknown": {"type": "Name", "name": "n"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Event", "name": "event"}],
+         "labelRight": "e"}]},
+      {"unknown": {"type": "Note", "name": "x"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Name", "name": "name"}],
+         "labelRight": "n"}]},
+      {"unknown": {"type": "Retract", "name": "rx"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Note", "name": "note"}],
+         "labelRight": "x"}]}],
+     "given": [{"label": {"type": "Tenant", "name": "t"}, "conditions": []}]}},
+   {"text":
+    "(t: Tenant) {\n    e: Event [\n        e->tenant: Tenant = t\n    ]\n    n: Name [\n        n->event: Event = e\n    ]\n    x: Note [\n        x->name: Name = n\n        !E {\n            rx: Retract [\n                rx->note: Note = x\n            ]\n        }\n    ]\n}\n",
+    "specification":
+    {"projection": {"type": "composite", "components": []},
+     "matches":
+     [{"unknown": {"type": "Event", "name": "e"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Tenant", "name": "tenant"}],
+         "labelRight": "t"}]},
+      {"unknown": {"type": "Name", "name": "n"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Event", "name": "event"}],
+         "labelRight": "e"}]},
+      {"unknown": {"type": "Note", "name": "x"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Name", "name": "name"}],
+         "labelRight": "n"},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Retract", "name": "rx"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Note", "name": "note"}],
+             "labelRight": "x"}]}],
+         "exists": false}]}],
+     "given": [{"label": {"type": "Tenant", "name": "t"}, "conditions": []}]}}],
+  "delivered": [1, 2, 3, 4, 5, 6, 7]},
+ "description":
+ "A child specification with a child specification of its own: each event's names, and each name's notes that are not retracted. The grandchild's feeds go on from the child's positive feeds, and its negative condition makes an excluding feed of its own."}

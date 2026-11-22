@@ -39,10 +39,10 @@ Follow "Updating the pin" in `Jinaga.Test/Conformance/README.md`: copy each
 pinned directory over its namesake, deleting files that no longer exist, and
 replace the commit.
 
-- Pin only the directories this library has a test for. `vectors/feeds/` and
-  `vectors/cascade/` exercise code that lives elsewhere (feeds are built by the
-  replicator, and `Network.Feeds` only asks for them), so don't pin them unless
-  this library starts building feeds or running pipelines.
+- Pin only the directories this library has a test for. `vectors/cascade/`
+  exercises code that lives elsewhere, so don't pin it unless this library
+  starts running pipelines. `vectors/feeds/` is pinned: `FeedBuilder` builds
+  feeds here, and `FeedVectorTest` reads them.
 - A vector with a field the loader (`ConformanceVector.cs`) doesn't understand
   should fail loudly, not be ignored. Extend the loader, and say in the README
   which test reads the field.

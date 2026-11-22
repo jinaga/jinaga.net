@@ -1,0 +1,22 @@
+{"text":
+ "(p: Post) {\n    a: Author [\n        a = p->author: Author\n    ]\n} => a\n",
+ "specification":
+ {"projection": {"type": "fact", "label": "a"},
+  "matches":
+  [{"unknown": {"type": "Author", "name": "a"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [{"predecessorType": "Author", "name": "author"}],
+      "rolesLeft": [],
+      "labelRight": "p"}]}],
+  "given": [{"label": {"type": "Post", "name": "p"}, "conditions": []}]},
+ "source": "jinaga.js traversesSuccessors",
+ "rowLabels": ["a"],
+ "name": "predecessors-only",
+ "graph":
+ [{"type": "Author", "predecessors": [], "id": 0},
+  {"type": "Post", "predecessors": [{"role": "author", "id": 0}], "id": 1}],
+ "givens": {"p": 1},
+ "expected": {"results": [[0]], "feeds": [], "delivered": []},
+ "description":
+ "Every match walks to predecessors. The feed is dropped: a replica holding the given holds the results."}

@@ -1,0 +1,96 @@
+{"text":
+ "(p1: User, p2: Channel) {\n    m: Message [\n        m->channel: Channel = p2\n        !E {\n            rd: Read [\n                rd->message: Message = m\n                rd->user: User = p1\n            ]\n        }\n    ]\n} => m\n",
+ "specification":
+ {"projection": {"type": "fact", "label": "m"},
+  "matches":
+  [{"unknown": {"type": "Message", "name": "m"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [],
+      "rolesLeft": [{"predecessorType": "Channel", "name": "channel"}],
+      "labelRight": "p2"},
+     {"type": "existential",
+      "matches":
+      [{"unknown": {"type": "Read", "name": "rd"},
+        "conditions":
+        [{"type": "path",
+          "rolesRight": [],
+          "rolesLeft": [{"predecessorType": "Message", "name": "message"}],
+          "labelRight": "m"},
+         {"type": "path",
+          "rolesRight": [],
+          "rolesLeft": [{"predecessorType": "User", "name": "user"}],
+          "labelRight": "p1"}]}],
+      "exists": false}]}],
+  "given":
+  [{"label": {"type": "User", "name": "p1"}, "conditions": []},
+   {"label": {"type": "Channel", "name": "p2"}, "conditions": []}]},
+ "source": "jinaga/jinaga-spec#8",
+ "rowLabels": ["m"],
+ "name": "two-givens",
+ "graph":
+ [{"type": "User", "predecessors": [], "id": 0},
+  {"type": "Channel", "predecessors": [], "id": 1},
+  {"type": "Message", "predecessors": [{"role": "channel", "id": 1}], "id": 2},
+  {"type": "Message", "predecessors": [{"role": "channel", "id": 1}], "id": 3},
+  {"type": "Read",
+   "predecessors": [{"role": "message", "id": 2}, {"role": "user", "id": 0}],
+   "id": 4}],
+ "givens": {"p2": 1, "p1": 0},
+ "expected":
+ {"results": [[3]],
+  "feeds":
+  [{"text":
+    "(p1: User, p2: Channel) {\n    m: Message [\n        m->channel: Channel = p2\n    ]\n    rd: Read [\n        rd->message: Message = m\n        rd->user: User = p1\n    ]\n}\n",
+    "specification":
+    {"projection": {"type": "composite", "components": []},
+     "matches":
+     [{"unknown": {"type": "Message", "name": "m"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Channel", "name": "channel"}],
+         "labelRight": "p2"}]},
+      {"unknown": {"type": "Read", "name": "rd"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Message", "name": "message"}],
+         "labelRight": "m"},
+        {"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "User", "name": "user"}],
+         "labelRight": "p1"}]}],
+     "given":
+     [{"label": {"type": "User", "name": "p1"}, "conditions": []},
+      {"label": {"type": "Channel", "name": "p2"}, "conditions": []}]}},
+   {"text":
+    "(p1: User, p2: Channel) {\n    m: Message [\n        m->channel: Channel = p2\n        !E {\n            rd: Read [\n                rd->message: Message = m\n                rd->user: User = p1\n            ]\n        }\n    ]\n}\n",
+    "specification":
+    {"projection": {"type": "composite", "components": []},
+     "matches":
+     [{"unknown": {"type": "Message", "name": "m"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Channel", "name": "channel"}],
+         "labelRight": "p2"},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Read", "name": "rd"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Message", "name": "message"}],
+             "labelRight": "m"},
+            {"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "User", "name": "user"}],
+             "labelRight": "p1"}]}],
+         "exists": false}]}],
+     "given":
+     [{"label": {"type": "User", "name": "p1"}, "conditions": []},
+      {"label": {"type": "Channel", "name": "p2"}, "conditions": []}]}}],
+  "delivered": [2, 3, 4]},
+ "description":
+ "Messages in a channel that a user has not read. The excluding feed takes both givens."}

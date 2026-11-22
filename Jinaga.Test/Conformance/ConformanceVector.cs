@@ -3,8 +3,10 @@ using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using Jinaga.Facts;
 using Jinaga.Pipelines;
 using Jinaga.Projections;
+using Jinaga.Storage;
 
 namespace Jinaga.Test.Conformance;
 
@@ -31,6 +33,18 @@ public class ConformanceVector
     public string Text => Json.GetProperty("text").GetString()!;
     public JsonElement Expected => Json.GetProperty("expected");
 
+    /// <summary>The projection's labels: a row lists their facts, in this order.</summary>
+    public ImmutableList<string> RowLabels => Json.GetProperty("rowLabels").EnumerateArray()
+        .Select(label => label.GetString()!)
+        .ToImmutableList();
+
+    /// <summary>The facts the vector's graph holds, before anything arrives.</summary>
+    public IEnumerable<JsonElement> Graph => Json.GetProperty("graph").EnumerateArray();
+
+    /// <summary>The fact id the subscription binds to each given label.</summary>
+    public ImmutableDictionary<string, int> Givens => Json.GetProperty("givens").EnumerateObject()
+        .ToImmutableDictionary(given => given.Name, given => given.Value.GetInt32());
+
     public static IEnumerable<object[]> Names(string kind) =>
         Directory.GetFiles(DirectoryOf(kind), "*.json")
             .Select(Path.GetFileNameWithoutExtension)
@@ -41,8 +55,84 @@ public class ConformanceVector
     {
         // The clone owns its own memory, so the document can return its pooled buffers.
         using var json = JsonDocument.Parse(File.ReadAllText(Path.Combine(DirectoryOf(kind), name + ".json")));
-        return new ConformanceVector(name, json.RootElement.Clone());
+        var root = json.RootElement.Clone();
+        CheckFields(kind, name, root);
+        return new ConformanceVector(name, root);
     }
+
+    /// <summary>
+    /// The fields each kind of vector carries, and the fields of its <c>expected</c>.
+    /// README.md names the test that reads each one.
+    /// </summary>
+    private static readonly ImmutableDictionary<string, (string[] Vector, string[] Expected)> KnownFields =
+        ImmutableDictionary<string, (string[], string[])>.Empty
+            .Add("well-formed", (
+                new[] { "name", "description", "source", "specification", "text", "violates", "expected" },
+                new[] { "wellFormed" }))
+            .Add("split", (
+                new[] { "name", "description", "source", "specification", "text", "expected" },
+                new[] { "head", "headText", "tail", "tailText", "tailReadsGiven" }))
+            .Add("inverse", (
+                new[] { "name", "description", "source", "specification", "text", "rowLabels", "givens", "graph", "fact", "batch", "expected" },
+                new[] { "gained", "lost", "inverses", "reordered", "candidates", "reduced", "exact" }))
+            .Add("feeds", (
+                new[] { "name", "description", "source", "specification", "text", "rowLabels", "givens", "graph", "expected" },
+                new[] { "feeds", "delivered", "results", "nestedResults" }));
+
+    /// <summary>
+    /// Refuses a vector that carries a field this loader does not know. A re-pin that adds one
+    /// states something no test here reads, so it fails loudly rather than passing unnoticed.
+    /// </summary>
+    private static void CheckFields(string kind, string name, JsonElement json)
+    {
+        if (!KnownFields.TryGetValue(kind, out var known))
+        {
+            throw new NotSupportedException($"The vector loader does not read vectors of kind '{kind}'.");
+        }
+        Check(json, known.Vector, $"The {kind} vector '{name}'");
+        Check(json.GetProperty("expected"), known.Expected, $"The expected of the {kind} vector '{name}'");
+
+        static void Check(JsonElement element, string[] known, string description)
+        {
+            var unknown = element.EnumerateObject()
+                .Select(field => field.Name)
+                .Where(field => !known.Contains(field))
+                .ToImmutableList();
+            if (!unknown.IsEmpty)
+            {
+                throw new NotSupportedException(
+                    $"{description} carries the field(s) {string.Join(", ", unknown.Select(field => $"'{field}'"))}, " +
+                    "which the vector loader does not read. Extend it, and say in Conformance/README.md which test reads the field.");
+            }
+        }
+    }
+
+    /// <summary>
+    /// A store holding <paramref name="facts"/>, each identified by the reference the reference
+    /// implementation gives it. A vector's graph may name a predecessor content addressing
+    /// cannot reach -- a fact saved later, or a cycle -- so the facts cannot be hashed, and
+    /// many of the vectors need that.
+    /// </summary>
+    public static (MemoryStore Store, ImmutableDictionary<int, FactReference> References) PlaceGraph(
+        IEnumerable<JsonElement> facts)
+    {
+        var all = facts.ToImmutableList();
+        var references = all.ToImmutableDictionary(
+            IdOf,
+            fact => new FactReference(fact.GetProperty("type").GetString()!, "h" + IdOf(fact)));
+        var store = new MemoryStore();
+        store.PlaceGraphByReference(all.Select(fact => (
+            references[IdOf(fact)],
+            // A fact lists one entry per predecessor, and a role may appear more than once.
+            fact.GetProperty("predecessors").EnumerateArray()
+                .Select(predecessor => (Predecessor)new PredecessorSingle(
+                    predecessor.GetProperty("role").GetString()!,
+                    references[IdOf(predecessor)]))
+                .ToImmutableList())));
+        return (store, references);
+    }
+
+    public static int IdOf(JsonElement json) => json.GetProperty("id").GetInt32();
 
     private static string DirectoryOf(string kind) =>
         Path.Combine(AppContext.BaseDirectory, "Conformance", "Vectors", kind);

@@ -1,0 +1,98 @@
+{"text":
+ "(t: Tenant) {\n    e: Event [\n        e->tenant: Tenant = t\n        !E {\n            d: Delete [\n                d->event: Event = e\n                E {\n                    a: Approval [\n                        a->delete: Delete = d\n                    ]\n                }\n            ]\n        }\n    ]\n} => e\n",
+ "specification":
+ {"projection": {"type": "fact", "label": "e"},
+  "matches":
+  [{"unknown": {"type": "Event", "name": "e"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [],
+      "rolesLeft": [{"predecessorType": "Tenant", "name": "tenant"}],
+      "labelRight": "t"},
+     {"type": "existential",
+      "matches":
+      [{"unknown": {"type": "Delete", "name": "d"},
+        "conditions":
+        [{"type": "path",
+          "rolesRight": [],
+          "rolesLeft": [{"predecessorType": "Event", "name": "event"}],
+          "labelRight": "e"},
+         {"type": "existential",
+          "matches":
+          [{"unknown": {"type": "Approval", "name": "a"},
+            "conditions":
+            [{"type": "path",
+              "rolesRight": [],
+              "rolesLeft": [{"predecessorType": "Delete", "name": "delete"}],
+              "labelRight": "d"}]}],
+          "exists": true}]}],
+      "exists": false}]}],
+  "given": [{"label": {"type": "Tenant", "name": "t"}, "conditions": []}]},
+ "source": "check-feeds",
+ "rowLabels": ["e"],
+ "name": "exists-inside-not-exists",
+ "graph":
+ [{"type": "Tenant", "predecessors": [], "id": 0},
+  {"type": "Event", "predecessors": [{"role": "tenant", "id": 0}], "id": 1},
+  {"type": "Delete", "predecessors": [{"role": "event", "id": 1}], "id": 2},
+  {"type": "Event", "predecessors": [{"role": "tenant", "id": 0}], "id": 3},
+  {"type": "Delete", "predecessors": [{"role": "event", "id": 3}], "id": 4},
+  {"type": "Approval", "predecessors": [{"role": "delete", "id": 4}], "id": 5}],
+ "givens": {"t": 0},
+ "expected":
+ {"results": [[1]],
+  "feeds":
+  [{"text":
+    "(t: Tenant) {\n    e: Event [\n        e->tenant: Tenant = t\n    ]\n    d: Delete [\n        d->event: Event = e\n    ]\n    a: Approval [\n        a->delete: Delete = d\n    ]\n}\n",
+    "specification":
+    {"projection": {"type": "composite", "components": []},
+     "matches":
+     [{"unknown": {"type": "Event", "name": "e"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Tenant", "name": "tenant"}],
+         "labelRight": "t"}]},
+      {"unknown": {"type": "Delete", "name": "d"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Event", "name": "event"}],
+         "labelRight": "e"}]},
+      {"unknown": {"type": "Approval", "name": "a"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Delete", "name": "delete"}],
+         "labelRight": "d"}]}],
+     "given": [{"label": {"type": "Tenant", "name": "t"}, "conditions": []}]}},
+   {"text":
+    "(t: Tenant) {\n    e: Event [\n        e->tenant: Tenant = t\n        !E {\n            d: Delete [\n                d->event: Event = e\n            ]\n            a: Approval [\n                a->delete: Delete = d\n            ]\n        }\n    ]\n}\n",
+    "specification":
+    {"projection": {"type": "composite", "components": []},
+     "matches":
+     [{"unknown": {"type": "Event", "name": "e"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Tenant", "name": "tenant"}],
+         "labelRight": "t"},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Delete", "name": "d"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Event", "name": "event"}],
+             "labelRight": "e"}]},
+          {"unknown": {"type": "Approval", "name": "a"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Delete", "name": "delete"}],
+             "labelRight": "d"}]}],
+         "exists": false}]}],
+     "given": [{"label": {"type": "Tenant", "name": "t"}, "conditions": []}]}}],
+  "delivered": [1, 3, 4, 5]},
+ "description":
+ "notExists { exists }: an event with no approved delete. The filter is the delete's level, with the approval joined in. jinaga.js replaces the condition with its positive one, which names a label it does not bind."}
