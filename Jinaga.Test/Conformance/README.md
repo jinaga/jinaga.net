@@ -5,7 +5,7 @@
 well-formedness check and the specification split in Lean, proves them, and
 generates these vectors from the definitions.
 
-**Pinned at** jinaga-spec `65a5d18524a05e7720f3b58e5a9b59d9e1b523bf`.
+**Pinned at** jinaga-spec `c67eadbd459ddebffd823f81fa95700194b9bdbc`.
 
 | Directory | Test | What a vector holds |
 |---|---|---|
@@ -52,13 +52,18 @@ specification is JSON in the shape jinaga.js serializes. `ConformanceVector`
 loads it into a `Specification`, partitioning each match's conditions into path
 and existential conditions, because `Match` here keeps them apart.
 
+A `specification` component of a composite projection, a child specification,
+loads as a `CollectionProjection`, whose matches go on from its parent's.
+`WellFormedVectorTest` reads it as a descendant checked in its own right
+(`isWellFormedDeep`), and `SplitVectorTest` as labels the tail may need given.
+
 ## `Fixtures/`
 
 `Fixtures/` is not part of the pin, and the procedure below does not touch it.
 
 | File | Test | Where it came from |
 |---|---|---|
-| `Fixtures/exact-inverse-vectors.json` | `ExactInverseVectorTest` | 39 cases generated from the Lean definitions in [jinaga/jinaga-spec#19](https://github.com/jinaga/jinaga-spec/pull/19), at the pin above, and posted as the first comment on [jinaga/jinaga.net#329](https://github.com/jinaga/jinaga.net/issues/329). |
+| `Fixtures/exact-inverse-vectors.json` | `ExactInverseVectorTest` | 39 cases generated from the Lean definitions in [jinaga/jinaga-spec#19](https://github.com/jinaga/jinaga-spec/pull/19), at jinaga-spec `65a5d18`, and posted as the first comment on [jinaga/jinaga.net#329](https://github.com/jinaga/jinaga.net/issues/329). |
 
 Each case names a specification, a graph, a subscription's givens, a fresh fact
 or batch, the top-level unknowns as `keyLabels`, and the rows its `expected`

@@ -1,0 +1,31 @@
+{"violates": ["scoped"],
+ "text":
+ "(p1: Root) {\n    u1: Item [\n        u1->root: Root = p1\n    ]\n} => {\n    item = u1\n    notes = {\n        n: Note [\n            n->item: Item = nosuch\n        ]\n    } => n\n}\n",
+ "specification":
+ {"projection":
+  {"type": "composite",
+   "components":
+   [{"type": "fact", "name": "item", "label": "u1"},
+    {"type": "specification",
+     "projection": {"type": "fact", "label": "n"},
+     "name": "notes",
+     "matches":
+     [{"unknown": {"type": "Note", "name": "n"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Item", "name": "item"}],
+         "labelRight": "nosuch"}]}]}]},
+  "matches":
+  [{"unknown": {"type": "Item", "name": "u1"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [],
+      "rolesLeft": [{"predecessorType": "Root", "name": "root"}],
+      "labelRight": "p1"}]}],
+  "given": [{"label": {"type": "Root", "name": "p1"}, "conditions": []}]},
+ "source": "jinaga-spec review of child specifications",
+ "name": "child-joins-an-undefined-label",
+ "expected": {"wellFormed": false},
+ "description":
+ "A child specification's path condition names a label nothing declares. jinaga.js's wellFormedErrors does not look inside a child specification; its parser rejects the text."}
