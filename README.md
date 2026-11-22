@@ -167,6 +167,7 @@ A replicator's distribution rules decide which feeds of a specification a user m
 - **Other decisions do not throw.**
   A `PrincipalExcluded` or `NotAuthenticated` denial, or a `Reactive` decision, can change when a user logs in or a fact arrives.
   `Query` returns what the replica holds.
+  When only some feeds of a specification are refused, that result can include rows the replicator excludes, or omit rows it restores, until those feeds are allowed.
   The client asks the replicator again on the next call instead of reusing the earlier answer.
 - **Every decision is observable.**
   `OnDistributionDiagnostic` is raised for each decision from `Query`, `Watch` and `Subscribe`.
