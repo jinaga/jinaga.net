@@ -1,0 +1,80 @@
+{"text":
+ "(p1: Item) {\n    u1: Root [\n        u1 = p1->root: Root\n    ]\n    u2: Other [\n        u2->root: Root = u1\n    ]\n} => {\n    notes = {\n        n: Note [\n            n->item: Item = p1\n        ]\n    } => n\n    o = u2\n}\n",
+ "specification":
+ {"projection":
+  {"type": "composite",
+   "components":
+   [{"type": "fact", "name": "o", "label": "u2"},
+    {"type": "specification",
+     "projection": {"type": "fact", "label": "n"},
+     "name": "notes",
+     "matches":
+     [{"unknown": {"type": "Note", "name": "n"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Item", "name": "item"}],
+         "labelRight": "p1"}]}]}]},
+  "matches":
+  [{"unknown": {"type": "Root", "name": "u1"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [{"predecessorType": "Root", "name": "root"}],
+      "rolesLeft": [],
+      "labelRight": "p1"}]},
+   {"unknown": {"type": "Other", "name": "u2"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [],
+      "rolesLeft": [{"predecessorType": "Root", "name": "root"}],
+      "labelRight": "u1"}]}],
+  "given": [{"label": {"type": "Item", "name": "p1"}, "conditions": []}]},
+ "source": "jinaga-spec review of child specifications",
+ "name": "given-only-a-child-uses",
+ "expected":
+ {"tailText":
+  "(p1: Item, u1: Root) {\n    u2: Other [\n        u2->root: Root = u1\n    ]\n} => {\n    notes = {\n        n: Note [\n            n->item: Item = p1\n        ]\n    } => n\n    o = u2\n}\n",
+  "tailReadsGiven": true,
+  "tail":
+  {"projection":
+   {"type": "composite",
+    "components":
+    [{"type": "fact", "name": "o", "label": "u2"},
+     {"type": "specification",
+      "projection": {"type": "fact", "label": "n"},
+      "name": "notes",
+      "matches":
+      [{"unknown": {"type": "Note", "name": "n"},
+        "conditions":
+        [{"type": "path",
+          "rolesRight": [],
+          "rolesLeft": [{"predecessorType": "Item", "name": "item"}],
+          "labelRight": "p1"}]}]}]},
+   "matches":
+   [{"unknown": {"type": "Other", "name": "u2"},
+     "conditions":
+     [{"type": "path",
+       "rolesRight": [],
+       "rolesLeft": [{"predecessorType": "Root", "name": "root"}],
+       "labelRight": "u1"}]}],
+   "given":
+   [{"label": {"type": "Item", "name": "p1"}, "conditions": []},
+    {"label": {"type": "Root", "name": "u1"}, "conditions": []}]},
+  "headText":
+  "(p1: Item) {\n    u1: Root [\n        u1 = p1->root: Root\n    ]\n} => {\n    p1 = p1\n    u1 = u1\n}\n",
+  "head":
+  {"projection":
+   {"type": "composite",
+    "components":
+    [{"type": "fact", "name": "p1", "label": "p1"},
+     {"type": "fact", "name": "u1", "label": "u1"}]},
+   "matches":
+   [{"unknown": {"type": "Root", "name": "u1"},
+     "conditions":
+     [{"type": "path",
+       "rolesRight": [{"predecessorType": "Root", "name": "root"}],
+       "rolesLeft": [],
+       "labelRight": "p1"}]}],
+   "given": [{"label": {"type": "Item", "name": "p1"}, "conditions": []}]}},
+ "description":
+ "Only a child specification in the projection joins the given. The tail is given it, as jinaga.js's labelsInProjection includes a child's matches."}

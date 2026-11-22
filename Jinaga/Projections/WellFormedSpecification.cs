@@ -9,7 +9,9 @@ namespace Jinaga.Projections
     /// <summary>
     /// A specification that <see cref="Check"/> accepted. Every label a path condition names is in
     /// scope, no match declares a label that is already in scope or one reserved for the split,
-    /// and the projection names only labels the specification declares.
+    /// and the projection names only labels the specification declares. Each child specification
+    /// of the projection, at every depth, meets the same conditions, as a specification whose
+    /// matches go on from its parent's.
     ///
     /// These are the preconditions of the split, stated and proved in jinaga-spec
     /// (<c>JinagaSpec/WellFormed.lean</c>, <c>docs/contracts.md</c>). Only <see cref="Check"/> makes
@@ -47,11 +49,66 @@ namespace Jinaga.Projections
         }
 
         /// <summary>
-        /// Report where a specification names a label that is not in scope, declares a label that
-        /// already is, declares one reserved for the split, or projects a label it does not declare.
+        /// Report where a specification, or any of its child specifications, names a label that is
+        /// not in scope, declares a label that already is, declares one reserved for the split, or
+        /// projects a label it does not declare.
+        ///
+        /// This is <c>isWellFormedDeep</c> in jinaga-spec (<c>JinagaSpec/WellFormed.lean</c>):
+        /// <see cref="Descendants"/> is <c>Specification.descendants</c>, and each descendant is
+        /// checked by <see cref="NodeErrors"/>, which is <c>isWellFormed</c>.
+        /// <c>isWellFormedDeep_iff</c> proves that the deep check decides well-formedness of every
+        /// descendant, the hypothesis of the feeds theorems.
         /// </summary>
         /// <returns>One message per defect, or an empty list if the specification is well formed.</returns>
         public static ImmutableList<string> Errors(Specification specification)
+        {
+            // A descendant repeats its parent's givens and matches, so a defect there would be
+            // reported once for each descendant.
+            return Descendants(specification)
+                .SelectMany(NodeErrors)
+                .Distinct()
+                .ToImmutableList();
+        }
+
+        /// <summary>
+        /// The specification and each child specification of its projection, at every depth, as a
+        /// specification of its own: the same givens, and its parent's matches followed by its own.
+        /// This is <c>Specification.descendants</c> (<c>JinagaSpec/Semantics.lean</c>).
+        /// </summary>
+        private static IEnumerable<Specification> Descendants(Specification specification)
+        {
+            yield return specification;
+            foreach (var child in Children(specification.Projection))
+            {
+                var descendant = new Specification(
+                    specification.Givens,
+                    specification.Matches.AddRange(child.Matches),
+                    child.Projection);
+                foreach (var nested in Descendants(descendant))
+                {
+                    yield return nested;
+                }
+            }
+        }
+
+        // The child specifications a projection holds directly. jinaga-spec's composite holds
+        // facts and specifications; a CompoundProjection here may also hold a compound, whose
+        // children belong to the same level.
+        private static IEnumerable<CollectionProjection> Children(Projection projection)
+        {
+            switch (projection)
+            {
+                case CollectionProjection collection:
+                    return new[] { collection };
+                case CompoundProjection compound:
+                    return compound.Names.SelectMany(name => Children(compound.GetProjection(name)));
+                default:
+                    return Enumerable.Empty<CollectionProjection>();
+            }
+        }
+
+        // isWellFormed: one specification, without looking inside its child specifications.
+        private static ImmutableList<string> NodeErrors(Specification specification)
         {
             var errors = ImmutableList.CreateBuilder<string>();
             var givens = specification.Givens.Select(given => given.Label.Name).ToImmutableList();
@@ -108,8 +165,8 @@ namespace Jinaga.Projections
             }
         }
 
-        // The labels a projection names directly. A collection declares its own labels, which
-        // the check does not model, so it contributes none.
+        // The labels a projection names directly (Projection.labels). A collection is checked as
+        // a descendant of its own, so it contributes none here.
         private static IEnumerable<string> ProjectedLabels(Projection projection)
         {
             switch (projection)

@@ -113,6 +113,13 @@ public class ConformanceVector
                         component => component.GetProperty("name").GetString()!,
                         component => ToProjection(component)),
                     typeof(object));
+            case "specification":
+                // A child specification, as a component of a composite projection. Its matches
+                // continue from its parent's, which is what CollectionProjection holds.
+                return new CollectionProjection(
+                    json.GetProperty("matches").EnumerateArray().Select(ToMatch).ToImmutableList(),
+                    ToProjection(json.GetProperty("projection")),
+                    typeof(object));
             case var other:
                 throw new NotSupportedException($"The vector loader does not read a projection of type '{other}'.");
         }
