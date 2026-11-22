@@ -99,6 +99,27 @@ public class FeedBuilderTest
     }
 
     [Fact]
+    public void RefusesAGivenThatCarriesAnExistentialCondition()
+    {
+        // jinaga-spec states the feeds over a specification whose givens are labels alone, so
+        // no theorem says what the feeds of this one are. A store reads nothing at all while a
+        // condition on a given fails, so a feed that had quietly dropped the condition would
+        // deliver facts the specification excludes.
+        var specification = new Specification(
+            ImmutableList.Create(new SpecificationGiven(
+                new Label("t", "Tenant"),
+                ImmutableList.Create(Exists(true, MatchOf("a", "Active", Successor("t", TenantRole)))))),
+            ImmutableList.Create(MatchOf("e", "Event", Successor("t", TenantRole))),
+            new SimpleProjection("e", typeof(object)));
+
+        var building = () => FeedBuilder.BuildFeeds(specification);
+
+        building.Should().Throw<SpecificationException>().WithMessage(
+            "The given 't' carries an existential condition, which a feed cannot: " +
+            "the feeds are defined over a specification whose givens are labels alone.");
+    }
+
+    [Fact]
     public void AcceptsSiblingChildSpecificationsThatShareALabel()
     {
         // No feed binds both: a child specification's feeds carry its parent's labels and its

@@ -60,28 +60,53 @@ public class ConformanceVector
         return new ConformanceVector(name, root);
     }
 
-    /// <summary>
-    /// The fields each kind of vector carries, and the fields of its <c>expected</c>.
-    /// README.md names the test that reads each one.
-    /// </summary>
-    private static readonly ImmutableDictionary<string, (string[] Vector, string[] Expected)> KnownFields =
-        ImmutableDictionary<string, (string[], string[])>.Empty
-            .Add("well-formed", (
-                new[] { "name", "description", "source", "specification", "text", "violates", "expected" },
-                new[] { "wellFormed" }))
-            .Add("split", (
-                new[] { "name", "description", "source", "specification", "text", "expected" },
-                new[] { "head", "headText", "tail", "tailText", "tailReadsGiven" }))
-            .Add("inverse", (
-                new[] { "name", "description", "source", "specification", "text", "rowLabels", "givens", "graph", "fact", "batch", "expected" },
-                new[] { "gained", "lost", "inverses", "reordered", "candidates", "reduced", "exact" }))
-            .Add("feeds", (
-                new[] { "name", "description", "source", "specification", "text", "rowLabels", "givens", "graph", "expected" },
-                new[] { "feeds", "delivered", "results", "nestedResults" }));
+    /// <summary>A specification and the text it prints as.</summary>
+    private static readonly string[] Described = { "specification", "text" };
+
+    /// <summary>A specification on its own, as the split's head and tail are stated.</summary>
+    private static readonly string[] SpecificationFields = { "given", "matches", "projection" };
 
     /// <summary>
-    /// Refuses a vector that carries a field this loader does not know. A re-pin that adds one
+    /// The fields each kind of vector carries: the vector's own, those of its <c>expected</c>,
+    /// and those of each object <c>expected</c> holds, keyed by the field that holds it with
+    /// <c>[]</c> for a field holding an array of them. README.md names the test that reads
+    /// each one, and says where the check stops.
+    /// </summary>
+    private static readonly ImmutableDictionary<string, Shape> KnownFields =
+        ImmutableDictionary<string, Shape>.Empty
+            .Add("well-formed", new Shape(
+                new[] { "name", "description", "source", "specification", "text", "violates", "expected" },
+                new[] { "wellFormed" },
+                ImmutableDictionary<string, string[]>.Empty))
+            .Add("split", new Shape(
+                new[] { "name", "description", "source", "specification", "text", "expected" },
+                new[] { "head", "headText", "tail", "tailText", "tailReadsGiven" },
+                ImmutableDictionary<string, string[]>.Empty
+                    .Add("head", SpecificationFields)
+                    .Add("tail", SpecificationFields)))
+            .Add("inverse", new Shape(
+                new[] { "name", "description", "source", "specification", "text", "rowLabels", "givens", "graph", "fact", "batch", "expected" },
+                new[] { "gained", "lost", "inverses", "reordered", "candidates", "reduced", "exact" },
+                ImmutableDictionary<string, string[]>.Empty
+                    .Add("inverses[]", Described)
+                    .Add("reordered[]", Described)
+                    .Add("reduced", Described)
+                    .Add("exact", new[] { "adds", "removes" })))
+            .Add("feeds", new Shape(
+                new[] { "name", "description", "source", "specification", "text", "rowLabels", "givens", "graph", "expected" },
+                new[] { "feeds", "delivered", "results", "nestedResults" },
+                ImmutableDictionary<string, string[]>.Empty
+                    .Add("feeds[]", Described)
+                    .Add("nestedResults[]", new[] { "row", "children" })));
+
+    private record Shape(string[] Vector, string[] Expected, ImmutableDictionary<string, string[]> Inside);
+
+    /// <summary>
+    /// Refuses a vector that carries a field this loader does not know, in the vector itself,
+    /// in its <c>expected</c>, or in an object <c>expected</c> holds. A re-pin that adds one
     /// states something no test here reads, so it fails loudly rather than passing unnoticed.
+    /// It stops at a specification's own interior, which <see cref="ToSpecification"/> reads;
+    /// README.md says so, so the contract claims no more than this checks.
     /// </summary>
     private static void CheckFields(string kind, string name, JsonElement json)
     {
@@ -89,8 +114,24 @@ public class ConformanceVector
         {
             throw new NotSupportedException($"The vector loader does not read vectors of kind '{kind}'.");
         }
+        var where = $"the {kind} vector '{name}'";
         Check(json, known.Vector, $"The {kind} vector '{name}'");
-        Check(json.GetProperty("expected"), known.Expected, $"The expected of the {kind} vector '{name}'");
+        var expected = json.GetProperty("expected");
+        Check(expected, known.Expected, $"The expected of {where}");
+        foreach (var pair in known.Inside)
+        {
+            var array = pair.Key.EndsWith("[]", StringComparison.Ordinal);
+            var field = array ? pair.Key.Substring(0, pair.Key.Length - 2) : pair.Key;
+            if (!expected.TryGetProperty(field, out var held) || held.ValueKind == JsonValueKind.Null)
+            {
+                continue;
+            }
+            var elements = array ? held.EnumerateArray().ToImmutableList() : ImmutableList.Create(held);
+            foreach (var element in elements)
+            {
+                Check(element, pair.Value, $"The expected.{field} of {where}");
+            }
+        }
 
         static void Check(JsonElement element, string[] known, string description)
         {

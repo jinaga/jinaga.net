@@ -49,8 +49,11 @@ namespace Jinaga.Projections
         public override string  ToDescriptiveString(int depth = 0)
         {
             string indent = Strings.Indent(depth);
+            // Ordinal, so the text a specification describes itself with does not depend on the
+            // current culture. It is compared against pinned conformance vectors, and
+            // FeedBuilder takes a projection's children in this same order.
             var fieldString = string.Join("", projections
-                .OrderBy(pair => pair.Key)
+                .OrderBy(pair => pair.Key, StringComparer.Ordinal)
                 .Select(pair => $"    {indent}{pair.Key} = {pair.Value.ToDescriptiveString(depth + 1)}\n"));
             return $"{{\n{fieldString}{indent}}}";
         }

@@ -124,7 +124,8 @@ namespace Jinaga.Projections
                 .ToImmutableList();
 
         // usedGivens: the givens a feed names, in its path conditions or its filters, in the
-        // specification's order. A feed carries no conditions on a given.
+        // specification's order. A feed's given is a label alone, and CheckGivens has already
+        // refused a specification whose given carried a condition, so none is dropped here.
         private static ImmutableList<SpecificationGiven> UsedGivens(
             ImmutableList<SpecificationGiven> givens, ImmutableList<Match> matches)
         {
@@ -222,8 +223,10 @@ namespace Jinaga.Projections
         // The order of the children is the order of the feeds they produce. jinaga-spec's
         // composite projection is a list, so its children come in the order they were written;
         // a CompoundProjection holds a dictionary, which does not keep that order, so there is
-        // none to follow. The children are taken by name instead, which is deterministic and
-        // is the order <see cref="CompoundProjection.ToDescriptiveString"/> prints them in.
+        // none to follow. The children are taken by name instead, ordinal, which is
+        // deterministic, independent of the current culture, and the same order
+        // <see cref="CompoundProjection.ToDescriptiveString"/> prints a projection's
+        // components in.
         private static IEnumerable<CollectionProjection> Children(Projection projection)
         {
             switch (projection)
@@ -243,6 +246,7 @@ namespace Jinaga.Projections
 
         // The hypotheses of the feeds theorems, each over every descendant of the
         // specification: WellFormed (isWellFormedDeep), DistinctLabels, and RootedMatches.
+        // Then the shape the theorems are stated over at all: givens that are labels alone.
         private static void Refuse(Specification specification)
         {
             var errors = WellFormedSpecification.Errors(specification);
@@ -257,6 +261,25 @@ namespace Jinaga.Projections
                 specification.Matches,
                 specification.Projection);
             CheckRooted(specification.Matches, specification.Projection);
+            CheckGivens(specification.Givens);
+        }
+
+        // jinaga-spec's Specification.given is a List Label, so a condition on a given is not
+        // a shape buildFeeds is defined over, and no theorem says what its feeds are. The
+        // reference port drops such a condition because its own type cannot hold one;
+        // SpecificationGiven can, and dropping it would be worse than refusing it. A store
+        // reads nothing at all while a condition on a given fails (IStore.Read), so a feed
+        // that had quietly lost the condition would deliver facts the specification excludes.
+        private static void CheckGivens(ImmutableList<SpecificationGiven> givens)
+        {
+            var conditioned = givens.FirstOrDefault(given => !given.ExistentialConditions.IsEmpty);
+            if (conditioned != null)
+            {
+                throw new SpecificationException(
+                    $"The given '{conditioned.Label.Name}' carries an existential condition, " +
+                    "which a feed cannot: the feeds are defined over a specification whose " +
+                    "givens are labels alone.");
+            }
         }
 
         // DistinctLabels of every descendant. Joining positive conditions into one level would
