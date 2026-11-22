@@ -128,6 +128,55 @@ public class WellFormedSpecificationTest
             "The specification is not valid. The projection names the label 'nosuchlabel', which has not been defined.");
     }
 
+    [Fact]
+    public void ReportsAChildSpecificationThatJoinsAnUndefinedLabel()
+    {
+        var specification = WithChild(
+            new[] { MatchOf("u1", "Office", Walk("p1", OfficeRole)) },
+            new[] { MatchOf("c1", "Company", Walk("nosuchlabel", CompanyRole)) });
+
+        WellFormedSpecification.Errors(specification).Should().Equal(
+            "The label 'nosuchlabel' has not been defined.");
+    }
+
+    [Fact]
+    public void LetsAChildSpecificationJoinItsParentsUnknowns()
+    {
+        var specification = WithChild(
+            new[] { MatchOf("u1", "Office", Walk("p1", OfficeRole)) },
+            new[] { MatchOf("c1", "Company", Walk("u1", CompanyRole)) });
+
+        WellFormedSpecification.Errors(specification).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ReportsEachDefectOnceWhereTheParentAndTheChildRepeatIt()
+    {
+        // The parent's defect is in scope of the child too, and each is reported once: the same
+        // message from two places is two defects, and from one place is one.
+        var specification = WithChild(
+            new[] { MatchOf("u1", "Office", Walk("nosuchlabel", OfficeRole)) },
+            new[] { MatchOf("c1", "Company", Walk("nosuchlabel", CompanyRole)) });
+
+        WellFormedSpecification.Errors(specification).Should().Equal(
+            "The label 'nosuchlabel' has not been defined.",
+            "The label 'nosuchlabel' has not been defined.");
+    }
+
+    // (p1: Employee) { parent } => { u1 = u1, children = { child } => c1 }
+    private static Specification WithChild(Match[] parent, Match[] child) =>
+        new(
+            ImmutableList.Create(Given("p1", "Employee")),
+            parent.ToImmutableList(),
+            new CompoundProjection(
+                ImmutableDictionary<string, Projection>.Empty
+                    .Add("u1", new SimpleProjection("u1", typeof(object)))
+                    .Add("children", new CollectionProjection(
+                        child.ToImmutableList(),
+                        new SimpleProjection("c1", typeof(object)),
+                        typeof(object))),
+                typeof(object)));
+
     private static SpecificationGiven Given(string name, string type) =>
         new(new Label(name, type), ImmutableList<ExistentialCondition>.Empty);
 

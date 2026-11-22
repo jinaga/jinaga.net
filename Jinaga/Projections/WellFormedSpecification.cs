@@ -53,47 +53,54 @@ namespace Jinaga.Projections
         /// not in scope, declares a label that already is, declares one reserved for the split, or
         /// projects a label it does not declare.
         ///
-        /// This is <c>isWellFormedDeep</c> in jinaga-spec (<c>JinagaSpec/WellFormed.lean</c>):
-        /// <see cref="Descendants"/> is <c>Specification.descendants</c>, and each descendant is
-        /// checked by <see cref="NodeErrors"/>, which is <c>isWellFormed</c>.
+        /// This is <c>isWellFormedDeep</c> in jinaga-spec (<c>JinagaSpec/WellFormed.lean</c>),
+        /// which checks each of <c>Specification.descendants</c> with <c>isWellFormed</c>. A
+        /// descendant keeps its parent's givens, and its matches are its parent's followed by its
+        /// own. Checking scope over that list is checking the parent's matches, then the child's in
+        /// the scope the parent's leave, so <see cref="CheckLevel"/> checks only the child's own
+        /// matches and projection, and reports each defect once.
         /// <c>isWellFormedDeep_iff</c> proves that the deep check decides well-formedness of every
         /// descendant, the hypothesis of the feeds theorems.
         /// </summary>
         /// <returns>One message per defect, or an empty list if the specification is well formed.</returns>
         public static ImmutableList<string> Errors(Specification specification)
         {
-            // A descendant repeats its parent's givens and matches, so a defect there would be
-            // reported once for each descendant.
-            return Descendants(specification)
-                .SelectMany(NodeErrors)
-                .Distinct()
-                .ToImmutableList();
+            var errors = ImmutableList.CreateBuilder<string>();
+            var givens = specification.Givens.Select(given => given.Label.Name).ToImmutableList();
+            foreach (var given in givens)
+            {
+                CheckNotReserved(given, errors);
+            }
+            CheckLevel(givens, specification.Matches, specification.Projection, errors);
+            return errors.ToImmutable();
         }
 
-        /// <summary>
-        /// The specification and each child specification of its projection, at every depth, as a
-        /// specification of its own: the same givens, and its parent's matches followed by its own.
-        /// This is <c>Specification.descendants</c> (<c>JinagaSpec/Semantics.lean</c>).
-        /// </summary>
-        private static IEnumerable<Specification> Descendants(Specification specification)
+        // isWellFormed of one descendant, given the labels its parent's matches leave in scope:
+        // its own matches, and the labels its projection names. The projection may name the
+        // givens and every unknown declared on the way down. Then each child specification of the
+        // projection, in the scope this level leaves.
+        private static void CheckLevel(
+            ImmutableList<string> scope, ImmutableList<Match> matches, Projection projection,
+            ImmutableList<string>.Builder errors)
         {
-            yield return specification;
-            foreach (var child in Children(specification.Projection))
+            CheckScope(scope, matches, errors);
+            var declared = scope.AddRange(matches.Select(match => match.Unknown.Name));
+            foreach (var label in ProjectedLabels(projection))
             {
-                var descendant = new Specification(
-                    specification.Givens,
-                    specification.Matches.AddRange(child.Matches),
-                    child.Projection);
-                foreach (var nested in Descendants(descendant))
+                if (!declared.Contains(label))
                 {
-                    yield return nested;
+                    errors.Add($"The projection names the label '{label}', which has not been defined.");
                 }
+            }
+            foreach (var child in Children(projection))
+            {
+                CheckLevel(declared, child.Matches, child.Projection, errors);
             }
         }
 
-        // The child specifications a projection holds directly. jinaga-spec's composite holds
-        // facts and specifications; a CompoundProjection here may also hold a compound, whose
-        // children belong to the same level.
+        // The child specifications a projection holds directly (Projection.children). jinaga-spec's
+        // composite holds facts and specifications; a CompoundProjection here may also hold a
+        // compound, whose children belong to the same level.
         private static IEnumerable<CollectionProjection> Children(Projection projection)
         {
             switch (projection)
@@ -105,27 +112,6 @@ namespace Jinaga.Projections
                 default:
                     return Enumerable.Empty<CollectionProjection>();
             }
-        }
-
-        // isWellFormed: one specification, without looking inside its child specifications.
-        private static ImmutableList<string> NodeErrors(Specification specification)
-        {
-            var errors = ImmutableList.CreateBuilder<string>();
-            var givens = specification.Givens.Select(given => given.Label.Name).ToImmutableList();
-            foreach (var given in givens)
-            {
-                CheckNotReserved(given, errors);
-            }
-            CheckScope(givens, specification.Matches, errors);
-            var declared = givens.AddRange(specification.Matches.Select(match => match.Unknown.Name));
-            foreach (var label in ProjectedLabels(specification.Projection))
-            {
-                if (!declared.Contains(label))
-                {
-                    errors.Add($"The projection names the label '{label}', which has not been defined.");
-                }
-            }
-            return errors.ToImmutable();
         }
 
         // A match sees the givens, the matches before it, and, inside its own existential
