@@ -43,6 +43,22 @@ The change is additive. It declares new types and definitions, and rewrites noth
 
 **Why a period at all.** Without one, every practice-wide view walks every sweep the practice has ever run, and some questions have no fact that ever clears them. A dispatch whose worker died before recording an outcome is the case: no action removes it, so a practice-wide list of them only grows, and a list a person reads each morning cannot be one that is mostly last month. A Night is the operating concept the morning review already uses, and starting from it bounds what each read walks.
 
+## Upgrading a log that has no Review
+
+A log published before the seed carried the **Review** has no `NightShift.Review`, no verdict or decision types, and none of `startReview`, `currentVerdicts` or `pendingDecisions`. `night-shift-review` records what each morning concluded there and reads it back the next morning, so an unupgraded log leaves every review starting from nothing. Check with `describe startReview`; a `not found` means the log needs this upgrade.
+
+The change is additive, as the Night upgrade was.
+
+1. Open a console and `open` the existing application.
+2. From `log-model.factual`, send only what the log lacks, in file order: the ten `fact` declarations from `NightShift.Review` to `NightShift.Decision` at the end of batch 1, the three `specification` declarations from `reviewsInPractice` to `pendingDecisions` at the end of batch 2, and the nine actions from `startReview` to `recordDecision` at the end of batch 3.
+3. `publish`.
+4. Send the manifest slots for the nine actions and three views, from `actions.startReview` to the end of the file.
+5. Edit the `guide` and `routing` slots by hand, as for the Night upgrade: add the Review paragraph to the guide, and the review clause and examples to the routing, as the seed has them.
+6. `publish` again, then `close_console`.
+7. From a **fresh** console, run `currentVerdicts` and `pendingDecisions` and confirm both answer, with no rows.
+
+**Do not backfill earlier mornings.** A verdict written now for a review that ran before the upgrade would be dated now, and would claim a review recorded something it never did. The next morning's review records its own verdicts, and the hosting platform still holds every earlier pull request.
+
 ## The practice ceremony
 
 A **practice** is one person's night-shift setup, and one practice covers every repository tracked. It roots at a single-use owner, so you reach it through `practicesForAdministrator` rather than by owning it.
