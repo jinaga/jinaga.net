@@ -87,7 +87,11 @@ namespace Jinaga
         {
             var description = new StringBuilder();
             description.Append("authorization {\n");
-            foreach (var pair in rulesByType.OrderBy(p => p.Key))
+            // Ordinal, so the description one set of rules produces does not depend on the
+            // globalization data of the machine that produced it. The default comparer is a
+            // linguistic collation under every culture, the invariant one included, and it
+            // disagrees with code-point order wherever two type names differ in case.
+            foreach (var pair in rulesByType.OrderBy(p => p.Key, StringComparer.Ordinal))
             {
                 foreach (var rule in pair.Value)
                 {

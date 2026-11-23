@@ -1,0 +1,13 @@
+# Ordering calls that pass no comparer. Enumerable.OrderBy and its siblings then use
+# Comparer<T>.Default, which for a string key is a linguistic collation under every culture,
+# the invariant one included. The text Jinaga describes itself with would then depend on the
+# globalization data of the machine that produced it, and the same rules or specification
+# could describe themselves in two orders.
+#
+# Pass StringComparer.Ordinal for a string key. For any other key type, pass
+# Comparer<T>.Default explicitly, which states that the order was chosen; the ban cannot
+# tell key types apart, so it covers them all.
+M:System.Linq.Enumerable.OrderBy``2(System.Collections.Generic.IEnumerable{``0},System.Func{``0,``1});Pass a comparer: StringComparer.Ordinal for a string key, or Comparer<T>.Default to state that the default order was chosen.
+M:System.Linq.Enumerable.OrderByDescending``2(System.Collections.Generic.IEnumerable{``0},System.Func{``0,``1});Pass a comparer: StringComparer.Ordinal for a string key, or Comparer<T>.Default to state that the default order was chosen.
+M:System.Linq.Enumerable.ThenBy``2(System.Linq.IOrderedEnumerable{``0},System.Func{``0,``1});Pass a comparer: StringComparer.Ordinal for a string key, or Comparer<T>.Default to state that the default order was chosen.
+M:System.Linq.Enumerable.ThenByDescending``2(System.Linq.IOrderedEnumerable{``0},System.Func{``0,``1});Pass a comparer: StringComparer.Ordinal for a string key, or Comparer<T>.Default to state that the default order was chosen.
