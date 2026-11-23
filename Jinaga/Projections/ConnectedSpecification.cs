@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Globalization;
 using System.Linq;
 
 namespace Jinaga.Projections
@@ -343,14 +344,24 @@ namespace Jinaga.Projections
         // sibling is independent only where its parent matches nothing from the other chain.
         private const string NoMatchesAbove = "with no matches above them";
 
-        // Clause 1 at the specification itself.
+        // Clause 1 at the specification itself. A specification can fall into more than two
+        // chains, so the count and the groups are rendered from however many there are rather
+        // than from the two the shape is usually written with.
         private static Disconnection SeparateChains(ImmutableList<Chain> chains) =>
             new Disconnection(
                 DisconnectionKind.SeparateChains,
-                $"This specification matches two groups of facts that nothing joins: " +
-                $"{Describe(chains[0])}, and {Describe(chains[1])}. As one list of matches, " +
-                $"every '{First(chains[0])}' would be paired with every '{First(chains[1])}'. " +
+                $"This specification matches {Count(chains.Count)} groups of facts that nothing " +
+                $"joins: {string.Join(", and ", chains.Select(Describe))}. {Pairing(chains)} " +
                 $"{Siblings}: put each group in its own child, {NoMatchesAbove}.");
+
+        // What one list of matches would come to. Two chains pair; more than two multiply, and
+        // naming one pair of them would understate what the store is being asked for.
+        private static string Pairing(ImmutableList<Chain> chains) =>
+            chains.Count == 2
+                ? $"As one list of matches, every '{First(chains[0])}' would be paired with " +
+                  $"every '{First(chains[1])}'."
+                : $"As one list of matches, every combination of " +
+                  $"{Quote(chains.Select(First).ToImmutableList())} would be produced.";
 
         // Clause 1 at a child specification. Where a deeper descendant does join the chains,
         // the shape is a matrix the developer wrote in three levels instead of two, and the
@@ -597,7 +608,7 @@ namespace Jinaga.Projections
                 DisconnectionKind.FeedNotJoined,
                 $"A feed of this specification, through " +
                 $"{Quote(feed.Matches.Select(match => match.Unknown.Name).ToImmutableList())}, joins " +
-                $"{Describe(chains[0])}, to {Describe(chains[1])}, by nothing. " +
+                $"{string.Join(", to ", chains.Select(Describe))}, by nothing. " +
                 $"{Siblings}. A {Filters}.");
 
         // "'a' and 'b', reached from p1", or just the labels where the chain reaches no given.
@@ -613,6 +624,14 @@ namespace Jinaga.Projections
             Conjoin(labels.Select(label => $"'{label}'").ToImmutableList());
 
         private static string Plain(ImmutableList<string> labels) => Conjoin(labels);
+
+        // A count as a word, so the sentence reads. Past a handful the numeral is clearer than
+        // a word would be, and a specification that falls into that many chains is past the
+        // point where the prose carries the argument anyway.
+        private static readonly string[] Numbers = { "no", "one", "two", "three", "four", "five", "six" };
+
+        private static string Count(int count) =>
+            count < Numbers.Length ? Numbers[count] : count.ToString(CultureInfo.InvariantCulture);
 
         private static string Conjoin(ImmutableList<string> parts)
         {

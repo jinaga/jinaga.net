@@ -376,7 +376,12 @@ namespace Jinaga.Projections
             var closing = $"A condition inside '{unknown}' does not anchor it.";
             if (scope.IsEmpty)
             {
-                return $"{opening} Add a path condition that joins it to a fact already matched. {closing}";
+                // Nothing is matched around it, so there is no label to offer: a rewrite that
+                // named one would send the developer to a label the specification does not
+                // declare. A given is the only root a first match can have.
+                return
+                    $"{opening} Nothing is in scope for it to join, so give the specification a " +
+                    $"given and join '{unknown}' to that. {closing}";
             }
             var anchor = scope[scope.Count - 1];
             return

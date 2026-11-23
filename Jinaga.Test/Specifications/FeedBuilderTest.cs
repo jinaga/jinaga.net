@@ -194,6 +194,52 @@ public class FeedBuilderTest
         }
     }
 
+    [Fact]
+    public void NamesEveryChainOfASpecificationThatFallsIntoMoreThanTwo()
+    {
+        // No vector covers three chains: the generator writes the shape with two. The refusal
+        // still has to name every group, because a developer who removed only the two it
+        // mentioned would be refused again.
+        var specification = Rewrite(
+            new[] { GivenOf("p1", "R"), GivenOf("p2", "A"), GivenOf("p3", "E") },
+            new[]
+            {
+                MatchOf("a", "A", Down("r", "R", "p1")),
+                MatchOf("b", "B", Down("a", "A", "p2")),
+                MatchOf("c", "C", Down("e", "E", "p3")),
+            },
+            Composite(("a", Fact("a")), ("b", Fact("b")), ("c", Fact("c"))));
+
+        var building = () => FeedBuilder.BuildFeeds(specification);
+
+        var message = building.Should().Throw<SpecificationException>().Which.Message;
+        foreach (var match in specification.Matches)
+        {
+            message.Should().Contain($"'{match.Unknown.Name}'");
+        }
+        foreach (var given in specification.Givens)
+        {
+            message.Should().Contain(given.Label.Name);
+        }
+    }
+
+    [Fact]
+    public void AdvisesAGivenWhereNothingIsInScopeForAMatchToJoin()
+    {
+        // A first match of a specification with no givens. Nothing is matched around it, so the
+        // refusal has no label to offer, and must not name one: a rewrite that joined 'n' to a
+        // label the specification does not declare would send the developer nowhere.
+        var specification = Rewrite(
+            Array.Empty<SpecificationGiven>(),
+            new[] { MatchOf("n", "Name") },
+            Fact("n"));
+
+        var building = () => FeedBuilder.BuildFeeds(specification);
+
+        var message = building.Should().Throw<SpecificationException>().Which.Message;
+        message.Should().Contain("'n'").And.NotContain("n->", "there is no label to reach");
+    }
+
     /* ---------------------------- The rewrites it advises ---------------------------- */
 
     [Fact]
