@@ -35,7 +35,15 @@ namespace Jinaga
         public DistributionDecision Decision => decision.Decision;
 
         /// <summary>
-        /// Why the feed was denied, or null if it was not.
+        /// Why the feed was denied, as the replicator spelled it, or null if it was not.
+        /// A code this client does not know reaches the caller here, and <see cref="Code"/>
+        /// is null for it.
+        /// </summary>
+        public string? CodeName => decision.CodeName;
+
+        /// <summary>
+        /// Why the feed was denied, as <see cref="FeedDecision.Code"/> gives it: null if it
+        /// was not, and null if the replicator sent a code this client does not know.
         /// </summary>
         public DistributionDenialCode? Code => decision.Code;
 

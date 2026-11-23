@@ -1,3 +1,4 @@
+using Jinaga.Http;
 using System.Text.Json.Serialization;
 
 namespace Jinaga
@@ -65,10 +66,27 @@ namespace Jinaga
         public DistributionDecision Decision { get; set; }
 
         /// <summary>
-        /// Why the feed was denied, or null if it was not.
+        /// Why the feed was denied, as the replicator spelled it, or null if it was not.
+        /// Replicas are peers, and a replicator newer than this client can deny a feed for
+        /// a reason this client has no name for, so the name is kept exactly as received
+        /// rather than reduced to a member this client happens to know.
         /// </summary>
+        [JsonPropertyName("code")]
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-        public DistributionDenialCode? Code { get; set; }
+        public string? CodeName { get; set; }
+
+        /// <summary>
+        /// Why the feed was denied: null if it was not, and null if the replicator sent a
+        /// code this client does not know. <see cref="CodeName"/> carries the name either
+        /// way, and this is derived from it through the serializer's one table of protocol
+        /// names rather than stored beside it.
+        /// </summary>
+        [JsonIgnore]
+        public DistributionDenialCode? Code
+        {
+            get => MessageSerializer.DenialCodeOfName(CodeName);
+            set => CodeName = value.HasValue ? MessageSerializer.NameOfDenialCode(value.Value) : null;
+        }
 
         /// <summary>
         /// The replicator's own account of the decision.
@@ -79,7 +97,9 @@ namespace Jinaga
         /// Whether the denial is structural: the specification and the rules cannot
         /// agree, so no fact anyone later writes will change the answer. It reads the
         /// code alone, so a structural code makes the feed structural even when the
-        /// replicator reports the decision as <see cref="DistributionDecision.Reactive"/>.
+        /// replicator reports the decision as <see cref="DistributionDecision.Reactive"/>,
+        /// and a code this client does not know is not structural because <see cref="Code"/>
+        /// is null for it.
         /// This is the
         /// only statement of that predicate. Both
         /// <see cref="DistributionDiagnostic.IsStructural"/> and the throw in
