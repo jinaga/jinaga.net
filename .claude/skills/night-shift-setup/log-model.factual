@@ -134,6 +134,61 @@ fact NightShift.SweepInNight {
   night: NightShift.Night;
 }
 
+fact NightShift.Review {
+  practice: NightShift.Practice;
+  startedAt: date;
+  nights: NightShift.Night*;
+}
+
+fact NightShift.Verdict {
+  rationale: string;
+  recordedAt: date;
+  review: NightShift.Review;
+  pullRequest: NightShift.PullRequestOpened;
+  prior: NightShift.Verdict*;
+}
+
+fact NightShift.MergeRecommended {
+  verdict: NightShift.Verdict;
+}
+
+fact NightShift.ModifyRecommended {
+  change: string;
+  verdict: NightShift.Verdict;
+}
+
+fact NightShift.ReturnRecommended {
+  rewrite: string;
+  verdict: NightShift.Verdict;
+}
+
+fact NightShift.CloseRecommended {
+  verdict: NightShift.Verdict;
+}
+
+fact NightShift.PullRequestMerged {
+  recordedAt: date;
+  pullRequest: NightShift.PullRequestOpened;
+}
+
+fact NightShift.PullRequestClosed {
+  recordedAt: date;
+  pullRequest: NightShift.PullRequestOpened;
+}
+
+fact NightShift.PendingDecision {
+  text: string;
+  recordedAt: date;
+  review: NightShift.Review;
+  pullRequests: NightShift.PullRequestOpened*;
+}
+
+fact NightShift.Decision {
+  text: string;
+  recordedAt: date;
+  pending: NightShift.PendingDecision;
+}
+
 // ---- batch 2 of 4: specifications ----
 
 specification practicesForAdministrator = ($user: Jinaga.User) {
@@ -554,6 +609,165 @@ specification dispatchesAwaitingOutcome = ($night: NightShift.Night) {
   }
 }
 
+specification reviewsInPractice = ($practice: NightShift.Practice) {
+  $review: NightShift.Review [
+    $review->practice: NightShift.Practice = $practice
+  ]
+} => {
+  startedAt = $review.startedAt
+  reviewRef = &$review
+  nights = {
+    $night: NightShift.Night [
+      $night = $review->nights: NightShift.Night
+      $night->practice: NightShift.Practice = $practice
+    ]
+  } => {
+    date = $night.date
+  }
+}
+
+specification currentVerdicts = ($practice: NightShift.Practice) {
+  $review: NightShift.Review [
+    $review->practice: NightShift.Practice = $practice
+  ]
+  $verdict: NightShift.Verdict [
+    $verdict->review: NightShift.Review = $review
+    !E {
+      $next: NightShift.Verdict [
+        $next->prior: NightShift.Verdict = $verdict
+      ]
+    }
+  ]
+  $pullRequest: NightShift.PullRequestOpened [
+    $pullRequest = $verdict->pullRequest: NightShift.PullRequestOpened
+    !E {
+      $merged: NightShift.PullRequestMerged [
+        $merged->pullRequest: NightShift.PullRequestOpened = $pullRequest
+      ]
+    }
+    !E {
+      $closed: NightShift.PullRequestClosed [
+        $closed->pullRequest: NightShift.PullRequestOpened = $pullRequest
+      ]
+    }
+  ]
+  $dispatch: NightShift.Dispatch [
+    $dispatch = $pullRequest->dispatch: NightShift.Dispatch
+  ]
+  $consideration: NightShift.Consideration [
+    $consideration = $dispatch->consideration: NightShift.Consideration
+  ]
+  $sweep: NightShift.Sweep [
+    $sweep = $consideration->sweep: NightShift.Sweep
+  ]
+  $repository: NightShift.Repository [
+    $repository = $sweep->repository: NightShift.Repository
+    $repository->practice: NightShift.Practice = $practice
+  ]
+} => {
+  pullRequestNumber = $pullRequest.number
+  issueNumber = $consideration.issueNumber
+  issueTitle = $consideration.issueTitle
+  rationale = $verdict.rationale
+  recordedAt = $verdict.recordedAt
+  reviewedAt = $review.startedAt
+  verdictRef = &$verdict
+  pullRequestRef = &$pullRequest
+  merge = {
+    $k: NightShift.MergeRecommended [
+      $k->verdict: NightShift.Verdict = $verdict
+    ]
+  } => {
+    confirmed = #$k
+  }
+  modify = {
+    $k: NightShift.ModifyRecommended [
+      $k->verdict: NightShift.Verdict = $verdict
+    ]
+  } => {
+    change = $k.change
+  }
+  returnToIssue = {
+    $k: NightShift.ReturnRecommended [
+      $k->verdict: NightShift.Verdict = $verdict
+    ]
+  } => {
+    rewrite = $k.rewrite
+  }
+  close = {
+    $k: NightShift.CloseRecommended [
+      $k->verdict: NightShift.Verdict = $verdict
+    ]
+  } => {
+    confirmed = #$k
+  }
+  repositoryNames = {
+    $n: NightShift.RepositoryName [
+      $n->repository: NightShift.Repository = $repository
+      !E {
+        $next: NightShift.RepositoryName [
+          $next->prior: NightShift.RepositoryName = $n
+        ]
+      }
+    ]
+  } => {
+    name = $n.name
+  }
+}
+
+specification pendingDecisions = ($practice: NightShift.Practice) {
+  $review: NightShift.Review [
+    $review->practice: NightShift.Practice = $practice
+  ]
+  $pending: NightShift.PendingDecision [
+    $pending->review: NightShift.Review = $review
+    !E {
+      $decision: NightShift.Decision [
+        $decision->pending: NightShift.PendingDecision = $pending
+      ]
+    }
+  ]
+} => {
+  text = $pending.text
+  recordedAt = $pending.recordedAt
+  reviewedAt = $review.startedAt
+  pendingRef = &$pending
+  pullRequests = {
+    $pullRequest: NightShift.PullRequestOpened [
+      $pullRequest = $pending->pullRequests: NightShift.PullRequestOpened
+    ]
+    $dispatch: NightShift.Dispatch [
+      $dispatch = $pullRequest->dispatch: NightShift.Dispatch
+    ]
+    $consideration: NightShift.Consideration [
+      $consideration = $dispatch->consideration: NightShift.Consideration
+    ]
+    $sweep: NightShift.Sweep [
+      $sweep = $consideration->sweep: NightShift.Sweep
+    ]
+    $repository: NightShift.Repository [
+      $repository = $sweep->repository: NightShift.Repository
+      $repository->practice: NightShift.Practice = $practice
+    ]
+  } => {
+    number = $pullRequest.number
+    issueNumber = $consideration.issueNumber
+    pullRequestRef = &$pullRequest
+    repositoryNames = {
+      $n: NightShift.RepositoryName [
+        $n->repository: NightShift.Repository = $repository
+        !E {
+          $next: NightShift.RepositoryName [
+            $next->prior: NightShift.RepositoryName = $n
+          ]
+        }
+      ]
+    } => {
+      name = $n.name
+    }
+  }
+}
+
 // ---- batch 3 of 4: actions ----
 
 action createPractice ($admin: Jinaga.User) {
@@ -643,6 +857,46 @@ action correctVerdictFromWork ($corrected: NightShift.Consideration, $discovered
   let $correction = new NightShift.Correction($detail, now(), $corrected, $discoveredIn);
 }
 
+action startReview ($practice: NightShift.Practice, $nights: NightShift.Night*) {
+  let $review = new NightShift.Review($practice, now(), $nights);
+}
+
+action recommendMerge ($review: NightShift.Review, $pullRequest: NightShift.PullRequestOpened, $rationale: string, $prior: NightShift.Verdict*) {
+  let $verdict = new NightShift.Verdict($rationale, now(), $review, $pullRequest, $prior);
+  new NightShift.MergeRecommended($verdict);
+}
+
+action recommendModify ($review: NightShift.Review, $pullRequest: NightShift.PullRequestOpened, $rationale: string, $change: string, $prior: NightShift.Verdict*) {
+  let $verdict = new NightShift.Verdict($rationale, now(), $review, $pullRequest, $prior);
+  new NightShift.ModifyRecommended($change, $verdict);
+}
+
+action recommendReturn ($review: NightShift.Review, $pullRequest: NightShift.PullRequestOpened, $rationale: string, $rewrite: string, $prior: NightShift.Verdict*) {
+  let $verdict = new NightShift.Verdict($rationale, now(), $review, $pullRequest, $prior);
+  new NightShift.ReturnRecommended($rewrite, $verdict);
+}
+
+action recommendClose ($review: NightShift.Review, $pullRequest: NightShift.PullRequestOpened, $rationale: string, $prior: NightShift.Verdict*) {
+  let $verdict = new NightShift.Verdict($rationale, now(), $review, $pullRequest, $prior);
+  new NightShift.CloseRecommended($verdict);
+}
+
+action observeMerge ($pullRequest: NightShift.PullRequestOpened) {
+  let $merged = new NightShift.PullRequestMerged(now(), $pullRequest);
+}
+
+action observeClose ($pullRequest: NightShift.PullRequestOpened) {
+  let $closed = new NightShift.PullRequestClosed(now(), $pullRequest);
+}
+
+action raiseDecision ($review: NightShift.Review, $text: string, $pullRequests: NightShift.PullRequestOpened*) {
+  let $pending = new NightShift.PendingDecision($text, now(), $review, $pullRequests);
+}
+
+action recordDecision ($pending: NightShift.PendingDecision, $text: string) {
+  let $decision = new NightShift.Decision($text, now(), $pending);
+}
+
 // ---- batch 4 of 4: manifest ----
 //
 // Send this batch after `publish`, then publish again. Without it the
@@ -653,12 +907,15 @@ manifest routing <<MD
 purpose: Record what an unattended night-shift agent did on each sweep of a
   tracked repository's labelled issue queue — which issues it considered, what
   prior work it found for each, what it dispatched or skipped, what came of it,
-  and how open questions were later answered or verdicts corrected.
+  how open questions were later answered or verdicts corrected, and what each
+  morning review recommended for the pull requests the night left open.
 use_when: A night-shift session or a person wants to record or review a sweep of
   labelled issues in a tracked repository — what prior work was found for an
   issue, why it was skipped or dispatched, what a dispatched session produced,
   an answer to a recorded question, or a correction to an earlier verdict. Also
-  covers the morning review of a night's work across every tracked repository,
+  covers the morning review of a night's work across every tracked repository —
+  its verdict on each pull request, the decisions it left for a person, and the
+  answers given —
   registering a repository to track, and recording a rename. Does NOT trigger on
   deciding what is currently available to work; the hosting platform is the
   queue and the only authority on that.
@@ -674,6 +931,11 @@ examples:
   - What questions are still unanswered across all my repositories?
   - Which issues did we skip last week and why?
   - The repository was renamed
+  - Recommend merging that pull request; it meets every clause
+  - That pull request needs a change before it merges
+  - Which pull requests are still waiting on a verdict from an earlier morning?
+  - What decisions is the morning review still waiting on me for?
+  - I decided the unknown decision kind is non-structural whatever its code
 MD
 
 manifest guide <<MD
@@ -690,6 +952,8 @@ A **Night** is a Period: one practice and one UTC date, and nothing else, so eve
 **Findings and decisions are fact types, not field values.** What the claim check turned up is recorded by creating the matching fact — `OpenPullRequestFound`, `MergedPullRequestFound`, `ClosedPullRequestFound`, `BranchFound`, or `NoPriorWorkFound`. What was decided is recorded the same way — a `Dispatch` means the issue was worked, a `Skipped` means it was passed over. There is no `finding` string and no `decision` string to compare against, because a specification cannot filter on a field value. It filters on structure, so every question the log is meant to answer is a join.
 
 The same holds for outcomes. A dispatch produces a `PullRequestOpened`, a `Question`, or a `NoChangeFound` — three types, not one type with a kind. `unansweredQuestions` finds `Question` facts with no `Answer` successor, and `dispatchesAwaitingOutcome` finds `Dispatch` facts with none of the three, both by structure rather than by a string comparison the caller has to trust.
+
+A **Review** is one morning's review, rooted at the practice and naming the Nights it read. It records what the morning concluded, which nothing else in the log holds. Each **Verdict** is on one `PullRequestOpened`, carries its rationale, and is one of four kinds by structure, never by a string: `MergeRecommended`, `ModifyRecommended` with the change, `ReturnRecommended` with the issue's rewrite, `CloseRecommended`. A later review's verdict on the same pull request names the one it replaces through `prior`, so `currentVerdicts` is the verdicts nothing has superseded. A pull request leaves that list when a review records it settled, with `PullRequestMerged` or `PullRequestClosed`. Until then the hosting platform, not the log, says whether it is still open. What only a person can settle is a **PendingDecision**, naming the pull requests it holds back; a `Decision` answers it, and `pendingDecisions` is those with no answer, exactly as `unansweredQuestions` is for a worker's questions. The answer still goes into the issue first, because the next worker reads the issue and never the log.
 
 Nothing is ever edited. A wrong conclusion is corrected by adding a `Correction` against the consideration it was recorded under, ideally with `correctVerdictFromWork` naming the consideration whose work turned up the disproof. A correction a person makes in the morning review, with no later piece of work behind it, uses `correctVerdict`.
 
@@ -1136,4 +1400,140 @@ when: List the dispatches of one night that have recorded no outcome yet — no
 args:
   night:
     from: the night to check — take nightRef from nightsInPractice
+MD
+
+manifest actions.startReview <<MD
+when: A morning review is about to record what it concluded, in phase 2, after
+  the person has read its report. One per morning; every verdict and pending
+  decision that morning names it.
+args:
+  practice:
+    from: take practiceRef from practicesForAdministrator
+  nights:
+    from: the nights the review read — take each nightRef from nightsInPractice
+MD
+
+manifest actions.recommendMerge <<MD
+when: The review found a worker pull request ready to merge as it stands.
+args:
+  review:
+    from: this morning's review, from startReview
+  pullRequest:
+    from: the pull request's outcome — reach it through considerationsInSweep, or
+      take pullRequestRef from currentVerdicts
+  rationale:
+    from: the one or two findings that decided the verdict
+  prior:
+    from: the verdict this one replaces, from currentVerdicts; [] when the pull
+      request has none
+MD
+
+manifest actions.recommendModify <<MD
+when: The issue is right and the pull request falls short of it in a way a
+  small change fixes.
+args:
+  review:
+    from: this morning's review, from startReview
+  pullRequest:
+    from: the pull request's outcome, as for recommendMerge
+  rationale:
+    from: the findings that decided the verdict
+  change:
+    from: the change to make, and the clause or check it answers
+  prior:
+    from: the verdict this one replaces, from currentVerdicts; [] when none
+MD
+
+manifest actions.recommendReturn <<MD
+when: The pull request does what its issue says, and the issue says the wrong
+  thing.
+args:
+  review:
+    from: this morning's review, from startReview
+  pullRequest:
+    from: the pull request's outcome, as for recommendMerge
+  rationale:
+    from: the findings that decided the verdict
+  rewrite:
+    from: what the issue should say instead
+  prior:
+    from: the verdict this one replaces, from currentVerdicts; [] when none
+MD
+
+manifest actions.recommendClose <<MD
+when: The pull request's premise was wrong, its work is superseded, or it
+  belongs to a decision nobody has made.
+args:
+  review:
+    from: this morning's review, from startReview
+  pullRequest:
+    from: the pull request's outcome, as for recommendMerge
+  rationale:
+    from: why it should close
+  prior:
+    from: the verdict this one replaces, from currentVerdicts; [] when none
+MD
+
+manifest actions.observeMerge <<MD
+when: The review confirmed on the hosting platform that a worker pull request
+  merged. Takes it off currentVerdicts.
+args:
+  pullRequest:
+    from: take pullRequestRef from currentVerdicts
+MD
+
+manifest actions.observeClose <<MD
+when: The review confirmed on the hosting platform that a worker pull request
+  closed without merging. Takes it off currentVerdicts.
+args:
+  pullRequest:
+    from: take pullRequestRef from currentVerdicts
+MD
+
+manifest actions.raiseDecision <<MD
+when: The review found something only the person can decide — a reported
+  deviation, a contradiction between issues, an amendment to an authority
+  document — and it holds back one or more pull requests.
+args:
+  review:
+    from: this morning's review, from startReview
+  text:
+    from: the decision as posed, with the candidate answers and what each leads to
+  pullRequests:
+    from: the pull requests the decision holds back; [] when none
+MD
+
+manifest actions.recordDecision <<MD
+when: The person decided a pending decision. Record it after the answer is
+  written into the issues it settles. This takes it off pendingDecisions.
+args:
+  pending:
+    from: take pendingRef from pendingDecisions
+  text:
+    from: the decision as the person made it, and where it now lives in the issues
+MD
+
+manifest views.reviewsInPractice <<MD
+when: List the morning reviews a practice has recorded, with the nights each
+  read. Sort by startedAt to find the latest.
+args:
+  practice:
+    from: take practiceRef from practicesForAdministrator
+MD
+
+manifest views.currentVerdicts <<MD
+when: List the latest verdict on each worker pull request that no review has yet
+  recorded as merged or closed. A morning review reads it first, so it picks up
+  where the last one stopped. The hosting platform still says what is open now.
+args:
+  practice:
+    from: take practiceRef from practicesForAdministrator
+MD
+
+manifest views.pendingDecisions <<MD
+when: List the decisions a morning review left for a person and nobody has
+  recorded an answer to, with the pull requests each holds back.
+args:
+  practice:
+    from: take practiceRef from practicesForAdministrator
 MD
