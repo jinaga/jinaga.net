@@ -1,21 +1,30 @@
+using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using Jinaga.Pipelines;
 using Jinaga.Projections;
+using Jinaga.Test.Conformance;
 
 namespace Jinaga.Test.Specifications;
 
 /// <summary>
 /// The hypotheses of the feeds theorems, each over every descendant of the specification:
-/// every descendant is well formed, declares each label once, and has a path condition on
-/// every match (<c>JinagaSpec/Feeds.lean</c>). A specification that breaks one has no proven
-/// decomposition, so <see cref="FeedBuilder.BuildFeeds"/> refuses it by name rather than
-/// returning feeds that silently miss results.
+/// every descendant is well formed, declares each label once, has a path condition on every
+/// match, and is connected, so that no feed is a product of two chains nothing joins
+/// (<c>JinagaSpec/Feeds.lean</c>, <c>JinagaSpec/Connected.lean</c>). A specification that
+/// breaks one has no proven decomposition, so <see cref="FeedBuilder.BuildFeeds"/> refuses it
+/// by name rather than returning feeds that silently miss results, or that a store can only
+/// answer as a cross product.
 ///
 /// The feeds themselves are stated by the pinned vectors, which
 /// <see cref="Conformance.FeedVectorTest"/> reads. These build specifications directly, as
 /// <see cref="WellFormedSpecificationTest"/> does, because the model builder produces
 /// specifications that meet the hypotheses by construction.
+///
+/// The rewrites below are the ones the connectivity refusals advise. Each one is built here
+/// and accepted, which is what keeps the advice true: a rewrite the library would refuse is a
+/// message that sends the developer in a circle.
 /// </summary>
 public class FeedBuilderTest
 {
@@ -93,9 +102,11 @@ public class FeedBuilderTest
 
         var building = () => FeedBuilder.BuildFeeds(specification);
 
-        building.Should().Throw<SpecificationException>().WithMessage(
-            "The match 'n' has no path condition, so it has no feed: " +
-            "every match of a feed is reached from a label.");
+        // The rule and the remedy: the match, and the label already in scope that it could be
+        // joined to. The prose stands on review; what this pins is that both are named, so a
+        // developer reading the refusal knows which match and what to do about it.
+        building.Should().Throw<SpecificationException>().Which.Message.Should()
+            .Contain("'n'").And.Contain("'e'").And.Contain("n->e = e");
     }
 
     [Fact]
@@ -139,6 +150,321 @@ public class FeedBuilderTest
             "(t: Tenant) {\n    e: Event [\n        e->tenant: Tenant = t\n    ]\n    c: Name [\n        c->event: Event = e\n    ]\n}\n",
             "(t: Tenant) {\n    e: Event [\n        e->tenant: Tenant = t\n    ]\n    c: Title [\n        c->event: Event = e\n    ]\n}\n");
     }
+
+    /// <summary>
+    /// The well-formed vectors the oracle calls disconnected, selected by their expected
+    /// fields so that a re-pin which adds one brings it here with no edit of this list.
+    /// </summary>
+    public static IEnumerable<object[]> Disconnected =>
+        ConformanceVector.Names("well-formed")
+            .Select(row => (string)row[0])
+            .Where(name =>
+            {
+                var expected = ConformanceVector.Load("well-formed", name).Expected;
+                return expected.GetProperty("wellFormed").GetBoolean() &&
+                    !expected.GetProperty("connected").GetBoolean();
+            })
+            .Select(name => new object[] { name });
+
+    /// <summary>
+    /// Every specification the oracle calls a product is refused by name. The refusal is the
+    /// connectivity check's own message, except where a refusal above it reaches the same
+    /// specification first: the connectivity check assumes every match is anchored, so a
+    /// match with no path condition is refused there instead.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(Disconnected))]
+    public void RefusesASpecificationWhoseFeedsWouldBeProducts(string name)
+    {
+        var specification = ConformanceVector.Load("well-formed", name).Specification;
+
+        var building = () => FeedBuilder.BuildFeeds(specification);
+
+        var message = building.Should().Throw<SpecificationException>().Which.Message;
+        var rootless = Rootless(specification);
+        if (rootless == null)
+        {
+            message.Should().Be(
+                ConnectedSpecification.Disconnect(specification)!.Message,
+                "the connectivity check is what refuses it");
+        }
+        else
+        {
+            message.Should().Contain($"'{rootless.Unknown.Name}'").And.Contain("no path condition");
+        }
+    }
+
+    /* ---------------------------- The rewrites it advises ---------------------------- */
+
+    [Fact]
+    public void AcceptsTwoChainsAsSiblingChildren()
+    {
+        // (p1: Post, p2: Post) { } => { a = { a: Author [a = p1->author: Author] } => a,
+        //                               b = { b: Author [b = p2->author: Author] } => b }
+        var specification = Rewrite(
+            new[] { GivenOf("p1", "Post"), GivenOf("p2", "Post") },
+            Array.Empty<Match>(),
+            Composite(
+                ("a", Collection(new[] { MatchOf("a", "Author", Up("p1", "author", "Author")) }, Fact("a"))),
+                ("b", Collection(new[] { MatchOf("b", "Author", Up("p2", "author", "Author")) }, Fact("b")))));
+
+        var building = () => FeedBuilder.BuildFeeds(specification);
+
+        building.Should().NotThrow();
+    }
+
+    [Fact]
+    public void AcceptsAMatrixDeclaredInTwoLevels()
+    {
+        // The cells that exist, with each column reached from its cell.
+        // (p1: R, p2: A) { u: A [u->a: A = p2] } =>
+        //   { k = { x: B [x->u: A = u]  c: A [c = x->c: A  c->r: R = p1] } => { c = c, x = x } }
+        var specification = Over(
+            new[] { MatchOf("u", "A", Down("a", "A", "p2")) },
+            Composite(("k", Collection(
+                new[]
+                {
+                    MatchOf("x", "B", Down("u", "A", "u")),
+                    MatchOf("c", "A", Up("x", "c", "A"), Down("r", "R", "p1")),
+                },
+                Composite(("c", Fact("c")), ("x", Fact("x")))))));
+
+        var building = () => FeedBuilder.BuildFeeds(specification);
+
+        building.Should().NotThrow();
+    }
+
+    [Fact]
+    public void AcceptsADenseMatrixAsThreeSiblingChildren()
+    {
+        // Every column, even those with no cells: the rows, the columns and the cells each in
+        // their own child, with no matches above them.
+        var specification = Over(
+            Array.Empty<Match>(),
+            Composite(
+                ("rows", Collection(new[] { MatchOf("u", "A", Down("a", "A", "p2")) }, Fact("u"))),
+                ("columns", Collection(new[] { MatchOf("c", "A", Down("r", "R", "p1")) }, Fact("c"))),
+                ("cells", Collection(
+                    new[]
+                    {
+                        MatchOf("u", "A", Down("a", "A", "p2")),
+                        MatchOf("x", "B", Down("u", "A", "u")),
+                        MatchOf("c", "A", Up("x", "c", "A"), Down("r", "R", "p1")),
+                    },
+                    Fact("x")))));
+
+        var building = () => FeedBuilder.BuildFeeds(specification);
+
+        building.Should().NotThrow();
+    }
+
+    [Fact]
+    public void AcceptsAConditionReorderedToStartFromTheFilteredMatch()
+    {
+        // (p1: R, p2: A) { c: A [c->r: R = p1  !E { e: E [e->c: A = c] }]  x: B [x->c: A = c]
+        //                  u: A [u = x->u: A  u->a: A = p2] } => x
+        var specification = Over(
+            new[]
+            {
+                MatchOf("c", "A", new[] { Down("r", "R", "p1") },
+                    Exists(false, MatchOf("e", "E", Down("c", "A", "c")))),
+                MatchOf("x", "B", Down("c", "A", "c")),
+                MatchOf("u", "A", Up("x", "u", "A"), Down("a", "A", "p2")),
+            },
+            Fact("x"));
+
+        var building = () => FeedBuilder.BuildFeeds(specification);
+
+        building.Should().NotThrow();
+    }
+
+    [Fact]
+    public void AcceptsAConditionReorderedToFollowTheJoin()
+    {
+        // (p1: R, p2: A) { u: A [u->a: A = p2]  x: B [x->u: A = u]
+        //                  c: A [c = x->c: A  c->r: R = p1  !E { e: E [e->c: A = c] }] } => x
+        var specification = Over(
+            new[]
+            {
+                MatchOf("u", "A", Down("a", "A", "p2")),
+                MatchOf("x", "B", Down("u", "A", "u")),
+                MatchOf("c", "A", new[] { Up("x", "c", "A"), Down("r", "R", "p1") },
+                    Exists(false, MatchOf("e", "E", Down("c", "A", "c")))),
+            },
+            Fact("x"));
+
+        var building = () => FeedBuilder.BuildFeeds(specification);
+
+        building.Should().NotThrow();
+    }
+
+    [Fact]
+    public void AcceptsAConditionJoinedToTheMatchItFilters()
+    {
+        // (p1: R, p2: A) { u: A [u->a: A = p2  !E { e: E [e->u: A = u  e->r: R = p1] }] } => u
+        var specification = Over(
+            new[]
+            {
+                MatchOf("u", "A", new[] { Down("a", "A", "p2") },
+                    Exists(false, MatchOf("e", "E", Down("u", "A", "u"), Down("r", "R", "p1")))),
+            },
+            Fact("u"));
+
+        var building = () => FeedBuilder.BuildFeeds(specification);
+
+        building.Should().NotThrow();
+    }
+
+    [Fact]
+    public void AcceptsAGateOnAGivenReadAsASiblingChild()
+    {
+        // (p1: R, p2: A) { } => { us = { u: A [u->a: A = p2] } => u,
+        //                         es = { e: E [e->r: R = p1] } => e }
+        var specification = Over(
+            Array.Empty<Match>(),
+            Composite(
+                ("us", Collection(new[] { MatchOf("u", "A", Down("a", "A", "p2")) }, Fact("u"))),
+                ("es", Collection(new[] { MatchOf("e", "E", Down("r", "R", "p1")) }, Fact("e")))));
+
+        var building = () => FeedBuilder.BuildFeeds(specification);
+
+        building.Should().NotThrow();
+    }
+
+    [Fact]
+    public void AcceptsAChainMovedInsideTheConditionThatFiltersIt()
+    {
+        // (p1: R, p2: A) { x: X [x->a: A = p2
+        //                  !E { u: U [u->r: R = p1]  e: E [e->u: U = u  e->x: X = x] }] } => x
+        var specification = Over(
+            new[]
+            {
+                MatchOf("x", "X", new[] { Down("a", "A", "p2") },
+                    Exists(false,
+                        MatchOf("u", "U", Down("r", "R", "p1")),
+                        MatchOf("e", "E", Down("u", "U", "u"), Down("x", "X", "x")))),
+            },
+            Fact("x"));
+
+        var building = () => FeedBuilder.BuildFeeds(specification);
+
+        building.Should().NotThrow();
+    }
+
+    [Fact]
+    public void AcceptsADenseComplementReadAsSiblingChildren()
+    {
+        // (p1: R, p2: A) { } => { links = { u: U [u->r: R = p1]  e: E [e->u: U = u]
+        //                                   x: X [x = e->x: X  x->a: A = p2] } => { u = u, x = x },
+        //                         xs = { x: X [x->a: A = p2] } => x }
+        var specification = Over(
+            Array.Empty<Match>(),
+            Composite(
+                ("links", Collection(
+                    new[]
+                    {
+                        MatchOf("u", "U", Down("r", "R", "p1")),
+                        MatchOf("e", "E", Down("u", "U", "u")),
+                        MatchOf("x", "X", Up("e", "x", "X"), Down("a", "A", "p2")),
+                    },
+                    Composite(("u", Fact("u")), ("x", Fact("x"))))),
+                ("xs", Collection(new[] { MatchOf("x", "X", Down("a", "A", "p2")) }, Fact("x")))));
+
+        var building = () => FeedBuilder.BuildFeeds(specification);
+
+        building.Should().NotThrow();
+    }
+
+    [Fact]
+    public void AcceptsAnUnanchoredMatchGivenAPathCondition()
+    {
+        // The rewrite the reworded rootedness refusal advises: 'e' joined to 'u'.
+        // (p: P) { u: U [u = p->up: U
+        //                !E { e: E [e->u: U = u  !E { f: F [f->e: E = e  f->u: U = u] }] }]
+        //          x: X [x->u: U = u] } => x
+        var specification = Rewrite(
+            new[] { GivenOf("p", "P") },
+            new[]
+            {
+                MatchOf("u", "U", new[] { Up("p", "up", "U") },
+                    Exists(false, MatchOf("e", "E", new[] { Down("u", "U", "u") },
+                        Exists(false, MatchOf("f", "F", Down("e", "E", "e"), Down("u", "U", "u")))))),
+                MatchOf("x", "X", Down("u", "U", "u")),
+            },
+            Fact("x"));
+
+        var building = () => FeedBuilder.BuildFeeds(specification);
+
+        building.Should().NotThrow();
+    }
+
+    /* ----------------------------------- Builders ----------------------------------- */
+
+    // The first match that no path condition anchors, at any depth and in any child
+    // specification, or null where every match is anchored.
+    private static Match? Rootless(Specification specification) =>
+        Rootless(specification.Matches) ??
+        ChildMatches(specification.Projection).Select(Rootless).FirstOrDefault(found => found != null);
+
+    private static Match? Rootless(ImmutableList<Match> matches)
+    {
+        foreach (var match in matches)
+        {
+            if (match.PathConditions.IsEmpty)
+            {
+                return match;
+            }
+            var inner = match.ExistentialConditions
+                .Select(condition => Rootless(condition.Matches))
+                .FirstOrDefault(found => found != null);
+            if (inner != null)
+            {
+                return inner;
+            }
+        }
+        return null;
+    }
+
+    private static IEnumerable<ImmutableList<Match>> ChildMatches(Projection projection)
+    {
+        switch (projection)
+        {
+            case CollectionProjection collection:
+                return new[] { collection.Matches }.Concat(ChildMatches(collection.Projection));
+            case CompoundProjection compound:
+                return compound.Names.SelectMany(name => ChildMatches(compound.GetProjection(name)));
+            default:
+                return Enumerable.Empty<ImmutableList<Match>>();
+        }
+    }
+
+    // (p1: R, p2: A) { matches } => projection, the givens the rewrites above are written over.
+    private static Specification Over(Match[] matches, Projection projection) =>
+        Rewrite(new[] { GivenOf("p1", "R"), GivenOf("p2", "A") }, matches, projection);
+
+    private static Specification Rewrite(
+        SpecificationGiven[] givens, Match[] matches, Projection projection) =>
+        new(givens.ToImmutableList(), matches.ToImmutableList(), projection);
+
+    private static SpecificationGiven GivenOf(string name, string type) =>
+        new(new Label(name, type), ImmutableList<ExistentialCondition>.Empty);
+
+    /// <summary>A walk to the unknown's successors: <c>unknown->role: type = label</c>.</summary>
+    private static PathCondition Down(string role, string type, string label) =>
+        new(ImmutableList.Create(new Role(role, type)), label, ImmutableList<Role>.Empty);
+
+    /// <summary>A walk to a predecessor of the label: <c>unknown = label->role: type</c>.</summary>
+    private static PathCondition Up(string label, string role, string type) =>
+        new(ImmutableList<Role>.Empty, label, ImmutableList.Create(new Role(role, type)));
+
+    private static CompoundProjection Composite(params (string Name, Projection Projection)[] components) =>
+        new(components.ToImmutableDictionary(
+            component => component.Name, component => component.Projection), typeof(object));
+
+    private static CollectionProjection Collection(Match[] matches, Projection projection) =>
+        new(matches.ToImmutableList(), projection, typeof(object));
+
+    private static SimpleProjection Fact(string label) => new(label, typeof(object));
 
     // (t: Tenant) { matches } => projection
     private static Specification Spec(Match[] matches, Projection projection) =>

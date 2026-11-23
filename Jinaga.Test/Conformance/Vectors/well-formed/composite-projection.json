@@ -17,5 +17,5 @@
   "given": [{"label": {"type": "Employee", "name": "p1"}, "conditions": []}]},
  "source": "the baseline",
  "name": "composite-projection",
- "expected": {"wellFormed": true},
+ "expected": {"wellFormed": true, "connected": true},
  "description": "A composite projection names a given and a top-level unknown."}

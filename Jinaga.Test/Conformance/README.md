@@ -5,11 +5,11 @@
 well-formedness check and the specification split in Lean, proves them, and
 generates these vectors from the definitions.
 
-**Pinned at** jinaga-spec `c67eadbd459ddebffd823f81fa95700194b9bdbc`.
+**Pinned at** jinaga-spec `e355dc978a67323e8a2f5d433a6392688e55ae84`.
 
 | Directory | Test | What a vector holds |
 |---|---|---|
-| `Vectors/well-formed/` | `WellFormedVectorTest` | A specification, and whether it is well formed. |
+| `Vectors/well-formed/` | `WellFormedVectorTest` | A specification, whether it is well formed, and whether it is connected. |
 | `Vectors/split/` | `SplitVectorTest` | A specification, the head and tail its split produces, and whether an authorization rule over it is refused because its tail reads the fact under authorization. |
 | `Vectors/inverse/` | `InverseVectorTest` | A specification, a graph, a subscription's givens, a fresh fact or batch, the reduction that removes any conditions on the givens, and the inverses the proven algorithm builds, the reordering of each, and the rows all of them find. |
 | `Vectors/feeds/` | `FeedVectorTest` | A specification, a graph, a subscription's givens, the feeds the proven decomposition builds, and every fact their tuples deliver. |
@@ -61,13 +61,24 @@ algorithm takes no conditions on a given, and `CandidateInverses`, the entry
 point the observer calls, must produce the vector's `expected.reordered` from
 the specification as written.
 
+A well-formed vector's `expected.connected` is the other oracle's verdict,
+`isConnectedDeep` (`JinagaSpec/Connected.lean`): every descendant is connected
+over the givens it uses, every given is used, and every feed is joined by its
+path conditions rather than by a negative condition.
+`WellFormedVectorTest` reads it, against `ConnectedSpecification`. The two
+verdicts are independent, and the field is stated for every vector, so the
+connectivity check runs on specifications the well-formedness check refuses.
+
 `FeedBuilder.BuildFeeds` refuses a specification outside the hypotheses of the
-feeds theorems, and `FeedBuilderTest` states those refusals; no vector covers
-them, because the generator writes vectors only for specifications the theorems
-hold for. One of them has no vector shape at all: jinaga-spec's
-`Specification.given` is a list of labels, so a condition on a given is not a
-shape `buildFeeds` is defined over, and `BuildFeeds` refuses it rather than
-dropping it.
+feeds theorems, and `FeedBuilderTest` states those refusals. The well-formed
+vectors cover the connectivity hypothesis, because the generator states
+`connected` for a specification whether it holds or not;
+`FeedBuilderTest` selects those vectors by their `expected` fields and requires
+a refusal for each. No vector covers the other hypotheses, because the
+generator writes vectors only for specifications the theorems hold for. One of
+them has no vector shape at all: jinaga-spec's `Specification.given` is a list
+of labels, so a condition on a given is not a shape `buildFeeds` is defined
+over, and `BuildFeeds` refuses it rather than dropping it.
 
 `FeedVectorTest` reads each vector's `expected.feeds` two ways.
 `FeedBuilder.BuildFeeds` must build that many feeds, in that order, each printing
@@ -76,8 +87,9 @@ vector's `givens` on its `graph`, must bind to its unknowns exactly the facts of
 `expected.delivered`. The second check states what the feeds come to on a graph
 rather than what they say, so a port that prints the expected text and delivers
 the wrong facts still fails. The pinned vectors are the only statement here of
-what the feeds are; `FeedBuilderTest` states only the refusals, which the vectors
-do not cover.
+what the feeds are; `FeedBuilderTest` states the refusals, and the rewrites each
+connectivity refusal advises, which it builds directly rather than reading from
+a vector.
 
 A vector's graph may name a predecessor
 that content addressing cannot reach -- a fact saved later, or a cycle -- so

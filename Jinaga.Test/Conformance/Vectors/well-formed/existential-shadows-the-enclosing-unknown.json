@@ -23,6 +23,6 @@
  "source":
  "SpecificationParser.parseExistentialCondition adds the unknown to the scope",
  "name": "existential-shadows-the-enclosing-unknown",
- "expected": {"wellFormed": false},
+ "expected": {"wellFormed": false, "connected": true},
  "description":
  "A match inside an existential condition declares the enclosing match's unknown."}

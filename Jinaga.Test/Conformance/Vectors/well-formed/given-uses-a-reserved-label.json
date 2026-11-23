@@ -13,5 +13,5 @@
   "given": [{"label": {"type": "Employee", "name": "__p"}, "conditions": []}]},
  "source": "the reserved-label rule",
  "name": "given-uses-a-reserved-label",
- "expected": {"wellFormed": false},
+ "expected": {"wellFormed": false, "connected": true},
  "description": "A given begins with `__`."}

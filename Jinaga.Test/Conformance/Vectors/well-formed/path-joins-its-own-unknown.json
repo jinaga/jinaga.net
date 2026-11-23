@@ -17,6 +17,6 @@
   "given": [{"label": {"type": "Employee", "name": "p1"}, "conditions": []}]},
  "source": "the counterexample to splitPaths_correct without pivot_paths_ne",
  "name": "path-joins-its-own-unknown",
- "expected": {"wellFormed": false},
+ "expected": {"wellFormed": false, "connected": true},
  "description":
  "A match joins its own unknown. The split reads it bound in the original and unbound in the head."}

@@ -1,0 +1,45 @@
+{"violates": ["connected"],
+ "text":
+ "(p1: R, p2: A) {\n    u: A [\n        u->a: A = p2\n    ]\n    c: A [\n        c->r: R = p1\n        !E {\n            e: E [\n                e->c: A = c\n            ]\n        }\n    ]\n    x: B [\n        x->c: A = c\n        x->u: A = u\n    ]\n} => x\n",
+ "specification":
+ {"projection": {"type": "fact", "label": "x"},
+  "matches":
+  [{"unknown": {"type": "A", "name": "u"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [],
+      "rolesLeft": [{"predecessorType": "A", "name": "a"}],
+      "labelRight": "p2"}]},
+   {"unknown": {"type": "A", "name": "c"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [],
+      "rolesLeft": [{"predecessorType": "R", "name": "r"}],
+      "labelRight": "p1"},
+     {"type": "existential",
+      "matches":
+      [{"unknown": {"type": "E", "name": "e"},
+        "conditions":
+        [{"type": "path",
+          "rolesRight": [],
+          "rolesLeft": [{"predecessorType": "A", "name": "c"}],
+          "labelRight": "c"}]}],
+      "exists": false}]},
+   {"unknown": {"type": "B", "name": "x"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [],
+      "rolesLeft": [{"predecessorType": "A", "name": "c"}],
+      "labelRight": "c"},
+     {"type": "path",
+      "rolesRight": [],
+      "rolesLeft": [{"predecessorType": "A", "name": "u"}],
+      "labelRight": "u"}]}],
+  "given":
+  [{"label": {"type": "R", "name": "p1"}, "conditions": []},
+   {"label": {"type": "A", "name": "p2"}, "conditions": []}]},
+ "source": "jinaga/jinaga-spec#55, J!",
+ "name": "negative-condition-before-the-join",
+ "expected": {"wellFormed": true, "connected": false},
+ "description":
+ "J with a negative condition on c. The excluding feed stops at c, before x joins c's chain to u's, so it is a product. isConnected accepts it."}

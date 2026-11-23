@@ -26,9 +26,12 @@ namespace Jinaga.Projections
     ///
     /// The theorems these feeds satisfy (<c>feeds_cover</c>, <c>buildFeeds_feedShape</c>,
     /// <c>feed_antitone</c>, <c>feeds_defer</c>, <c>feed_converges</c>) assume every
-    /// descendant of the specification is well formed, declares each label once, and has a
-    /// path condition on every match. <see cref="BuildFeeds"/> refuses a specification that
-    /// does not meet them rather than returning feeds that silently miss results.
+    /// descendant of the specification is well formed, declares each label once, has a path
+    /// condition on every match, and is connected, so that no feed is a product two chains
+    /// nothing joins (<c>ConnectedDescendants</c>, jinaga/jinaga-spec#57).
+    /// <see cref="BuildFeeds"/> refuses a specification that does not meet them rather than
+    /// returning feeds that silently miss results, or that a store can only answer as a cross
+    /// product.
     ///
     /// These feeds are not jinaga.js's. jinaga.js filters inside an excluding feed, keeps the
     /// other negative conditions of the fact a restoring feed restores, and leaves a positive
@@ -46,18 +49,29 @@ namespace Jinaga.Projections
         /// <exception cref="SpecificationException">
         /// The specification falls outside the hypotheses of the feeds theorems: it or one of
         /// its child specifications is not well formed, declares a label already declared on
-        /// the way to it, or has a match with no path condition.
+        /// the way to it, has a match with no path condition, or has a feed or a child
+        /// specification that is a product of two chains nothing joins
+        /// (<see cref="ConnectedSpecification"/>).
         /// </exception>
         public static ImmutableList<Specification> BuildFeeds(Specification specification)
         {
             Refuse(specification);
-            return FeedsOf(
+            return FeedsOf(specification);
+        }
+
+        /// <summary>
+        /// The feeds of a specification, with no check of its input (<c>feedsOf</c>). The
+        /// connectivity refusal reads these, so it cannot go through
+        /// <see cref="BuildFeeds"/>: clause 3 of <c>ConnectedDescendants</c> is stated over
+        /// the feeds the walk emits, and the walk has to run before the refusal can.
+        /// </summary>
+        internal static ImmutableList<Specification> FeedsOf(Specification specification) =>
+            FeedsOf(
                 specification,
                 LevelFeeds(
                     ProjectionFeeds(specification.Projection),
                     ImmutableList<Match>.Empty,
                     specification.Matches));
-        }
 
         /* --------------------------------- The feeds --------------------------------- */
 
@@ -125,7 +139,7 @@ namespace Jinaga.Projections
         // usedGivens: the givens a feed names, in its path conditions or its filters, in the
         // specification's order. A feed's given is a label alone, and CheckGivens has already
         // refused a specification whose given carried a condition, so none is dropped here.
-        private static ImmutableList<SpecificationGiven> UsedGivens(
+        internal static ImmutableList<SpecificationGiven> UsedGivens(
             ImmutableList<SpecificationGiven> givens, ImmutableList<Match> matches)
         {
             var free = FreeInMatches(ImmutableList<string>.Empty, matches);
@@ -144,7 +158,7 @@ namespace Jinaga.Projections
         // flattenMatches with every positive condition lifted: each match keeps its path
         // conditions and its negative conditions, and the matches of each positive condition
         // follow it.
-        private static ImmutableList<Match> Flatten(ImmutableList<Match> matches) =>
+        internal static ImmutableList<Match> Flatten(ImmutableList<Match> matches) =>
             matches
                 .SelectMany(match => ImmutableList
                     .Create(new Match(
@@ -159,7 +173,7 @@ namespace Jinaga.Projections
 
         // level: a negative condition's level, as a feed continues with it. Its matches, with
         // every positive condition joined in, keeping only path conditions.
-        private static ImmutableList<Match> Level(ImmutableList<Match> matches) =>
+        internal static ImmutableList<Match> Level(ImmutableList<Match> matches) =>
             Flatten(matches)
                 .Select(match => new Match(
                     match.Unknown, match.PathConditions, ImmutableList<ExistentialCondition>.Empty))
@@ -243,6 +257,7 @@ namespace Jinaga.Projections
         // The hypotheses of the feeds theorems, each over every descendant of the
         // specification: WellFormed (isWellFormedDeep), DistinctLabels, and RootedMatches.
         // Then the shape the theorems are stated over at all: givens that are labels alone.
+        // Then ConnectedDescendants, which the later theorems added.
         private static void Refuse(Specification specification)
         {
             var errors = WellFormedSpecification.Errors(specification);
@@ -252,12 +267,26 @@ namespace Jinaga.Projections
                     "A specification that is not well formed has no feeds. " +
                     string.Join(" ", errors));
             }
-            CheckLabels(
-                specification.Givens.Select(given => given.Label.Name).ToImmutableList(),
-                specification.Matches,
-                specification.Projection);
-            CheckRooted(specification.Matches, specification.Projection);
+            var givens = specification.Givens.Select(given => given.Label.Name).ToImmutableList();
+            CheckLabels(givens, specification.Matches, specification.Projection);
+            CheckRooted(givens, specification.Matches, specification.Projection);
             CheckGivens(specification.Givens);
+            CheckConnected(specification);
+        }
+
+        // ConnectedDescendants: no feed is a product of two chains that nothing joins
+        // (JinagaSpec/Connected.lean, jinaga/jinaga-spec#57, which addresses
+        // jinaga/jinaga-spec#55). It comes last because it reads the feeds the walk emits, and
+        // because it assumes the refusals above: a specification that is not well formed, or
+        // that declares a label twice, or that has a match no path condition anchors, has no
+        // chains to speak of.
+        private static void CheckConnected(Specification specification)
+        {
+            var disconnection = ConnectedSpecification.Disconnect(specification);
+            if (disconnection != null)
+            {
+                throw new SpecificationException(disconnection.Message);
+            }
         }
 
         // jinaga-spec's Specification.given is a List Label, so a condition on a given is not
@@ -302,30 +331,57 @@ namespace Jinaga.Projections
         // RootedMatches of every descendant: every match, at any depth, has a path condition.
         // A match that has none is bound to every fact of its type, and a feed carrying it
         // would deliver them all.
-        private static void CheckRooted(ImmutableList<Match> matches, Projection projection)
+        private static void CheckRooted(
+            ImmutableList<string> scope, ImmutableList<Match> matches, Projection projection)
         {
-            CheckRootedMatches(matches);
+            CheckRootedMatches(scope, matches);
+            var declared = scope.AddRange(matches.Select(match => match.Unknown.Name));
             foreach (var child in Children(projection))
             {
-                CheckRooted(child.Matches, child.Projection);
+                CheckRooted(declared, child.Matches, child.Projection);
             }
         }
 
-        private static void CheckRootedMatches(ImmutableList<Match> matches)
+        // `scope` holds the labels a match may join: the givens, the matches before it, and,
+        // inside its own existential conditions, its own unknown. The innermost of them is the
+        // one the message offers, because a match with no path condition most often belongs to
+        // the fact it was written beneath.
+        private static void CheckRootedMatches(ImmutableList<string> scope, ImmutableList<Match> matches)
         {
             foreach (var match in matches)
             {
                 if (match.PathConditions.IsEmpty)
                 {
-                    throw new SpecificationException(
-                        $"The match '{match.Unknown.Name}' has no path condition, " +
-                        "so it has no feed: every match of a feed is reached from a label.");
+                    throw new SpecificationException(Rootless(match, scope));
                 }
+                var inner = scope.Add(match.Unknown.Name);
                 foreach (var condition in match.ExistentialConditions)
                 {
-                    CheckRootedMatches(condition.Matches);
+                    CheckRootedMatches(inner, condition.Matches);
                 }
+                scope = inner;
             }
+        }
+
+        // The rule and the remedy. Naming the rule alone -- "every match of a feed is reached
+        // from a label" -- left the developer to work out that a condition inside the match
+        // does not count, which is the shape that reaches this refusal
+        // (jinaga/jinaga.js#437's Error messages section carries the same advice).
+        private static string Rootless(Match match, ImmutableList<string> scope)
+        {
+            var unknown = match.Unknown.Name;
+            var opening =
+                $"The match '{unknown}' has no path condition, so it would range over every " +
+                $"{match.Unknown.Type} fact in the store.";
+            var closing = $"A condition inside '{unknown}' does not anchor it.";
+            if (scope.IsEmpty)
+            {
+                return $"{opening} Add a path condition that joins it to a fact already matched. {closing}";
+            }
+            var anchor = scope[scope.Count - 1];
+            return
+                $"{opening} Add a path condition that joins '{unknown}' to a fact already matched, " +
+                $"such as '{anchor}' (for example, {unknown}->{anchor} = {anchor}). {closing}";
         }
     }
 }

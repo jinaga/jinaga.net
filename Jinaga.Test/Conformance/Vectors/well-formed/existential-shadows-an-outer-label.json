@@ -23,6 +23,6 @@
  "source":
  "SpecificationParser.parseExistentialCondition passes the outer labels down",
  "name": "existential-shadows-an-outer-label",
- "expected": {"wellFormed": false},
+ "expected": {"wellFormed": false, "connected": true},
  "description":
  "A match inside an existential condition declares a label that is already in scope."}

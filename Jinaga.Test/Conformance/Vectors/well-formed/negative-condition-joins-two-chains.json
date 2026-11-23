@@ -1,0 +1,39 @@
+{"violates": ["connected"],
+ "text":
+ "(p1: R, p2: A) {\n    u: U [\n        u->r: R = p1\n    ]\n    x: X [\n        x->a: A = p2\n        !E {\n            e: E [\n                e->u: U = u\n                e->x: X = x\n            ]\n        }\n    ]\n} => x\n",
+ "specification":
+ {"projection": {"type": "fact", "label": "x"},
+  "matches":
+  [{"unknown": {"type": "U", "name": "u"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [],
+      "rolesLeft": [{"predecessorType": "R", "name": "r"}],
+      "labelRight": "p1"}]},
+   {"unknown": {"type": "X", "name": "x"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [],
+      "rolesLeft": [{"predecessorType": "A", "name": "a"}],
+      "labelRight": "p2"},
+     {"type": "existential",
+      "matches":
+      [{"unknown": {"type": "E", "name": "e"},
+        "conditions":
+        [{"type": "path",
+          "rolesRight": [],
+          "rolesLeft": [{"predecessorType": "U", "name": "u"}],
+          "labelRight": "u"},
+         {"type": "path",
+          "rolesRight": [],
+          "rolesLeft": [{"predecessorType": "X", "name": "x"}],
+          "labelRight": "x"}]}],
+      "exists": false}]}],
+  "given":
+  [{"label": {"type": "R", "name": "p1"}, "conditions": []},
+   {"label": {"type": "A", "name": "p2"}, "conditions": []}]},
+ "source": "jinaga/jinaga-spec#55, review",
+ "name": "negative-condition-joins-two-chains",
+ "expected": {"wellFormed": true, "connected": false},
+ "description":
+ "B. u joins only p1, and x only p2; the negative condition on x joins the two. The excluding feed is connected, but the filtered feed { u, x [!E { e }] } joins u and x only through its filter, so it is a product. isConnected accepts that feed, since it counts the labels a filter names as joined to its match."}

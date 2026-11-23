@@ -13,6 +13,6 @@
   "given": [{"label": {"type": "Employee", "name": "p1"}, "conditions": []}]},
  "source": "the reserved-label rule",
  "name": "unknown-uses-a-reserved-label",
- "expected": {"wellFormed": false},
+ "expected": {"wellFormed": false, "connected": true},
  "description":
  "A match declares a label that begins with `__`, which the split reserves for the facts it hands from the head to the tail."}

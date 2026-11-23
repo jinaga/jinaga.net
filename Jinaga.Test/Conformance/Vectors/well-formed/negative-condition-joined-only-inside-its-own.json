@@ -1,0 +1,42 @@
+{"violates": ["connected"],
+ "text":
+ "(p: P) {\n    u: U [\n        u = p->up: U\n        !E {\n            e: E [\n                !E {\n                    f: F [\n                        f->e: E = e\n                        f->u: U = u\n                    ]\n                }\n            ]\n        }\n    ]\n    x: X [\n        x->u: U = u\n    ]\n} => x\n",
+ "specification":
+ {"projection": {"type": "fact", "label": "x"},
+  "matches":
+  [{"unknown": {"type": "U", "name": "u"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [{"predecessorType": "U", "name": "up"}],
+      "rolesLeft": [],
+      "labelRight": "p"},
+     {"type": "existential",
+      "matches":
+      [{"unknown": {"type": "E", "name": "e"},
+        "conditions":
+        [{"type": "existential",
+          "matches":
+          [{"unknown": {"type": "F", "name": "f"},
+            "conditions":
+            [{"type": "path",
+              "rolesRight": [],
+              "rolesLeft": [{"predecessorType": "E", "name": "e"}],
+              "labelRight": "e"},
+             {"type": "path",
+              "rolesRight": [],
+              "rolesLeft": [{"predecessorType": "U", "name": "u"}],
+              "labelRight": "u"}]}],
+          "exists": false}]}],
+      "exists": false}]},
+   {"unknown": {"type": "X", "name": "x"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [],
+      "rolesLeft": [{"predecessorType": "U", "name": "u"}],
+      "labelRight": "u"}]}],
+  "given": [{"label": {"type": "P", "name": "p"}, "conditions": []}]},
+ "source": "jinaga/jinaga-spec#55, review",
+ "name": "negative-condition-joined-only-inside-its-own",
+ "expected": {"wellFormed": true, "connected": false},
+ "description":
+ "The negative condition on u has a match e that only its own negative condition joins to u. The filtered feed keeps e without that condition, so the filter { e } is joined to nothing, and isConnected refuses the feed. Its path conditions alone join it, and the excluding feed walks no successor, so the feed is the only one that shows it."}

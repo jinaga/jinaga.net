@@ -1,0 +1,30 @@
+{"violates": ["connected"],
+ "text":
+ "(p1: Post, p2: Post) {\n    a: Author [\n        a = p1->author: Author\n    ]\n    b: Author [\n        b = p2->author: Author\n    ]\n} => {\n    a = a\n    b = b\n}\n",
+ "specification":
+ {"projection":
+  {"type": "composite",
+   "components":
+   [{"type": "fact", "name": "a", "label": "a"},
+    {"type": "fact", "name": "b", "label": "b"}]},
+  "matches":
+  [{"unknown": {"type": "Author", "name": "a"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [{"predecessorType": "Author", "name": "author"}],
+      "rolesLeft": [],
+      "labelRight": "p1"}]},
+   {"unknown": {"type": "Author", "name": "b"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [{"predecessorType": "Author", "name": "author"}],
+      "rolesLeft": [],
+      "labelRight": "p2"}]}],
+  "given":
+  [{"label": {"type": "Post", "name": "p1"}, "conditions": []},
+   {"label": {"type": "Post", "name": "p2"}, "conditions": []}]},
+ "source": "jinaga-spec#55, the clause on descendants",
+ "name": "two-chains-of-predecessors",
+ "expected": {"wellFormed": true, "connected": false},
+ "description":
+ "Each given has its own chain of predecessors, and nothing joins them. No feed walks a successor, so there are none to check; the specification itself is a product."}

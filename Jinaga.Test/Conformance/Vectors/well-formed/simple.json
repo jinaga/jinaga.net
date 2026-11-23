@@ -13,6 +13,6 @@
   "given": [{"label": {"type": "Employee", "name": "p1"}, "conditions": []}]},
  "source": "the baseline",
  "name": "simple",
- "expected": {"wellFormed": true},
+ "expected": {"wellFormed": true, "connected": true},
  "description":
  "A given, one match joined to it, and a projection of that match."}

@@ -1,0 +1,19 @@
+{"violates": ["connected"],
+ "text": "(p1: R, p2: A) {\n    u: A [\n        u->r: R = p1\n    ]\n} => u\n",
+ "specification":
+ {"projection": {"type": "fact", "label": "u"},
+  "matches":
+  [{"unknown": {"type": "A", "name": "u"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [],
+      "rolesLeft": [{"predecessorType": "R", "name": "r"}],
+      "labelRight": "p1"}]}],
+  "given":
+  [{"label": {"type": "R", "name": "p1"}, "conditions": []},
+   {"label": {"type": "A", "name": "p2"}, "conditions": []}]},
+ "source": "jinaga/jinaga-spec#45, random-2 at 77aa47d",
+ "name": "unused-given",
+ "expected": {"wellFormed": true, "connected": false},
+ "description":
+ "A given that no match uses, at any depth. Every feed is connected, since a feed takes only the givens it uses."}

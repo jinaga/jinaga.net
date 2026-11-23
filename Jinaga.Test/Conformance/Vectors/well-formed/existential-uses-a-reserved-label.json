@@ -22,6 +22,6 @@
   "given": [{"label": {"type": "Employee", "name": "p1"}, "conditions": []}]},
  "source": "the reserved-label rule",
  "name": "existential-uses-a-reserved-label",
- "expected": {"wellFormed": false},
+ "expected": {"wellFormed": false, "connected": true},
  "description":
  "A match inside an existential condition declares a label that begins with `__`."}
