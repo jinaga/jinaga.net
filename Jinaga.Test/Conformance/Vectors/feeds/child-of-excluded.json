@@ -1,0 +1,479 @@
+{"text":
+ "(r: Restaurant) {\n    s: Server [\n        s->restaurant: Restaurant = r\n        !E {\n            st: Terminated [\n                st->server: Server = s\n                !E {\n                    sr: Rehired [\n                        sr->terminated: Terminated = st\n                    ]\n                }\n            ]\n        }\n    ]\n} => {\n    names = {\n        sn: Name [\n            sn->server: Server = s\n            !E {\n                next: Name [\n                    next->prior: Name = sn\n                ]\n            }\n        ]\n    } => sn\n    rates = {\n        rt: Rate [\n            rt->server: Server = s\n            !E {\n                next: Rate [\n                    next->prior: Rate = rt\n                ]\n            }\n        ]\n    } => rt\n    server = s\n}\n",
+ "specification":
+ {"projection":
+  {"type": "composite",
+   "components":
+   [{"type": "fact", "name": "server", "label": "s"},
+    {"type": "specification",
+     "projection": {"type": "fact", "label": "sn"},
+     "name": "names",
+     "matches":
+     [{"unknown": {"type": "Name", "name": "sn"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Server", "name": "server"}],
+         "labelRight": "s"},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Name", "name": "next"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Name", "name": "prior"}],
+             "labelRight": "sn"}]}],
+         "exists": false}]}]},
+    {"type": "specification",
+     "projection": {"type": "fact", "label": "rt"},
+     "name": "rates",
+     "matches":
+     [{"unknown": {"type": "Rate", "name": "rt"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Server", "name": "server"}],
+         "labelRight": "s"},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Rate", "name": "next"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Rate", "name": "prior"}],
+             "labelRight": "rt"}]}],
+         "exists": false}]}]}]},
+  "matches":
+  [{"unknown": {"type": "Server", "name": "s"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [],
+      "rolesLeft": [{"predecessorType": "Restaurant", "name": "restaurant"}],
+      "labelRight": "r"},
+     {"type": "existential",
+      "matches":
+      [{"unknown": {"type": "Terminated", "name": "st"},
+        "conditions":
+        [{"type": "path",
+          "rolesRight": [],
+          "rolesLeft": [{"predecessorType": "Server", "name": "server"}],
+          "labelRight": "s"},
+         {"type": "existential",
+          "matches":
+          [{"unknown": {"type": "Rehired", "name": "sr"},
+            "conditions":
+            [{"type": "path",
+              "rolesRight": [],
+              "rolesLeft":
+              [{"predecessorType": "Terminated", "name": "terminated"}],
+              "labelRight": "st"}]}],
+          "exists": false}]}],
+      "exists": false}]}],
+  "given": [{"label": {"type": "Restaurant", "name": "r"}, "conditions": []}]},
+ "source": "The Art of Immutable Architecture, chapter 12, Projections",
+ "rowLabels": ["s"],
+ "name": "child-of-excluded",
+ "graph":
+ [{"type": "Restaurant", "predecessors": [], "id": 0},
+  {"type": "Server",
+   "predecessors": [{"role": "restaurant", "id": 0}],
+   "id": 1},
+  {"type": "Name", "predecessors": [{"role": "server", "id": 1}], "id": 2},
+  {"type": "Name",
+   "predecessors": [{"role": "server", "id": 1}, {"role": "prior", "id": 2}],
+   "id": 3},
+  {"type": "Rate", "predecessors": [{"role": "server", "id": 1}], "id": 4},
+  {"type": "Server",
+   "predecessors": [{"role": "restaurant", "id": 0}],
+   "id": 5},
+  {"type": "Terminated",
+   "predecessors": [{"role": "server", "id": 5}],
+   "id": 6},
+  {"type": "Name", "predecessors": [{"role": "server", "id": 5}], "id": 7},
+  {"type": "Server",
+   "predecessors": [{"role": "restaurant", "id": 0}],
+   "id": 8},
+  {"type": "Terminated",
+   "predecessors": [{"role": "server", "id": 8}],
+   "id": 9},
+  {"type": "Rehired",
+   "predecessors": [{"role": "terminated", "id": 9}],
+   "id": 10},
+  {"type": "Name", "predecessors": [{"role": "server", "id": 8}], "id": 11},
+  {"type": "Rate", "predecessors": [{"role": "server", "id": 8}], "id": 12}],
+ "givens": {"r": 0},
+ "expected":
+ {"results": [[1], [8]],
+  "nestedResults":
+  [{"row": [1],
+    "children":
+    [[{"row": [3], "children": []}], [{"row": [4], "children": []}]]},
+   {"row": [8],
+    "children":
+    [[{"row": [11], "children": []}], [{"row": [12], "children": []}]]}],
+  "feeds":
+  [{"text":
+    "(r: Restaurant) {\n    s: Server [\n        s->restaurant: Restaurant = r\n    ]\n    st: Terminated [\n        st->server: Server = s\n    ]\n}\n",
+    "specification":
+    {"projection": {"type": "composite", "components": []},
+     "matches":
+     [{"unknown": {"type": "Server", "name": "s"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Restaurant", "name": "restaurant"}],
+         "labelRight": "r"}]},
+      {"unknown": {"type": "Terminated", "name": "st"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Server", "name": "server"}],
+         "labelRight": "s"}]}],
+     "given":
+     [{"label": {"type": "Restaurant", "name": "r"}, "conditions": []}]}},
+   {"text":
+    "(r: Restaurant) {\n    s: Server [\n        s->restaurant: Restaurant = r\n        !E {\n            st: Terminated [\n                st->server: Server = s\n            ]\n        }\n    ]\n}\n",
+    "specification":
+    {"projection": {"type": "composite", "components": []},
+     "matches":
+     [{"unknown": {"type": "Server", "name": "s"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Restaurant", "name": "restaurant"}],
+         "labelRight": "r"},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Terminated", "name": "st"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Server", "name": "server"}],
+             "labelRight": "s"}]}],
+         "exists": false}]}],
+     "given":
+     [{"label": {"type": "Restaurant", "name": "r"}, "conditions": []}]}},
+   {"text":
+    "(r: Restaurant) {\n    s: Server [\n        s->restaurant: Restaurant = r\n        !E {\n            st: Terminated [\n                st->server: Server = s\n            ]\n        }\n    ]\n    sn: Name [\n        sn->server: Server = s\n    ]\n    next: Name [\n        next->prior: Name = sn\n    ]\n}\n",
+    "specification":
+    {"projection": {"type": "composite", "components": []},
+     "matches":
+     [{"unknown": {"type": "Server", "name": "s"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Restaurant", "name": "restaurant"}],
+         "labelRight": "r"},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Terminated", "name": "st"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Server", "name": "server"}],
+             "labelRight": "s"}]}],
+         "exists": false}]},
+      {"unknown": {"type": "Name", "name": "sn"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Server", "name": "server"}],
+         "labelRight": "s"}]},
+      {"unknown": {"type": "Name", "name": "next"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Name", "name": "prior"}],
+         "labelRight": "sn"}]}],
+     "given":
+     [{"label": {"type": "Restaurant", "name": "r"}, "conditions": []}]}},
+   {"text":
+    "(r: Restaurant) {\n    s: Server [\n        s->restaurant: Restaurant = r\n        !E {\n            st: Terminated [\n                st->server: Server = s\n            ]\n        }\n    ]\n    sn: Name [\n        sn->server: Server = s\n        !E {\n            next: Name [\n                next->prior: Name = sn\n            ]\n        }\n    ]\n}\n",
+    "specification":
+    {"projection": {"type": "composite", "components": []},
+     "matches":
+     [{"unknown": {"type": "Server", "name": "s"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Restaurant", "name": "restaurant"}],
+         "labelRight": "r"},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Terminated", "name": "st"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Server", "name": "server"}],
+             "labelRight": "s"}]}],
+         "exists": false}]},
+      {"unknown": {"type": "Name", "name": "sn"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Server", "name": "server"}],
+         "labelRight": "s"},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Name", "name": "next"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Name", "name": "prior"}],
+             "labelRight": "sn"}]}],
+         "exists": false}]}],
+     "given":
+     [{"label": {"type": "Restaurant", "name": "r"}, "conditions": []}]}},
+   {"text":
+    "(r: Restaurant) {\n    s: Server [\n        s->restaurant: Restaurant = r\n        !E {\n            st: Terminated [\n                st->server: Server = s\n            ]\n        }\n    ]\n    rt: Rate [\n        rt->server: Server = s\n    ]\n    next: Rate [\n        next->prior: Rate = rt\n    ]\n}\n",
+    "specification":
+    {"projection": {"type": "composite", "components": []},
+     "matches":
+     [{"unknown": {"type": "Server", "name": "s"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Restaurant", "name": "restaurant"}],
+         "labelRight": "r"},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Terminated", "name": "st"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Server", "name": "server"}],
+             "labelRight": "s"}]}],
+         "exists": false}]},
+      {"unknown": {"type": "Rate", "name": "rt"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Server", "name": "server"}],
+         "labelRight": "s"}]},
+      {"unknown": {"type": "Rate", "name": "next"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Rate", "name": "prior"}],
+         "labelRight": "rt"}]}],
+     "given":
+     [{"label": {"type": "Restaurant", "name": "r"}, "conditions": []}]}},
+   {"text":
+    "(r: Restaurant) {\n    s: Server [\n        s->restaurant: Restaurant = r\n        !E {\n            st: Terminated [\n                st->server: Server = s\n            ]\n        }\n    ]\n    rt: Rate [\n        rt->server: Server = s\n        !E {\n            next: Rate [\n                next->prior: Rate = rt\n            ]\n        }\n    ]\n}\n",
+    "specification":
+    {"projection": {"type": "composite", "components": []},
+     "matches":
+     [{"unknown": {"type": "Server", "name": "s"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Restaurant", "name": "restaurant"}],
+         "labelRight": "r"},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Terminated", "name": "st"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Server", "name": "server"}],
+             "labelRight": "s"}]}],
+         "exists": false}]},
+      {"unknown": {"type": "Rate", "name": "rt"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Server", "name": "server"}],
+         "labelRight": "s"},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Rate", "name": "next"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Rate", "name": "prior"}],
+             "labelRight": "rt"}]}],
+         "exists": false}]}],
+     "given":
+     [{"label": {"type": "Restaurant", "name": "r"}, "conditions": []}]}},
+   {"text":
+    "(r: Restaurant) {\n    s: Server [\n        s->restaurant: Restaurant = r\n    ]\n    st: Terminated [\n        st->server: Server = s\n    ]\n    sr: Rehired [\n        sr->terminated: Terminated = st\n    ]\n}\n",
+    "specification":
+    {"projection": {"type": "composite", "components": []},
+     "matches":
+     [{"unknown": {"type": "Server", "name": "s"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Restaurant", "name": "restaurant"}],
+         "labelRight": "r"}]},
+      {"unknown": {"type": "Terminated", "name": "st"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Server", "name": "server"}],
+         "labelRight": "s"}]},
+      {"unknown": {"type": "Rehired", "name": "sr"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Terminated", "name": "terminated"}],
+         "labelRight": "st"}]}],
+     "given":
+     [{"label": {"type": "Restaurant", "name": "r"}, "conditions": []}]}},
+   {"text":
+    "(r: Restaurant) {\n    s: Server [\n        s->restaurant: Restaurant = r\n    ]\n    st: Terminated [\n        st->server: Server = s\n    ]\n    sr: Rehired [\n        sr->terminated: Terminated = st\n    ]\n    sn: Name [\n        sn->server: Server = s\n    ]\n    next: Name [\n        next->prior: Name = sn\n    ]\n}\n",
+    "specification":
+    {"projection": {"type": "composite", "components": []},
+     "matches":
+     [{"unknown": {"type": "Server", "name": "s"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Restaurant", "name": "restaurant"}],
+         "labelRight": "r"}]},
+      {"unknown": {"type": "Terminated", "name": "st"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Server", "name": "server"}],
+         "labelRight": "s"}]},
+      {"unknown": {"type": "Rehired", "name": "sr"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Terminated", "name": "terminated"}],
+         "labelRight": "st"}]},
+      {"unknown": {"type": "Name", "name": "sn"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Server", "name": "server"}],
+         "labelRight": "s"}]},
+      {"unknown": {"type": "Name", "name": "next"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Name", "name": "prior"}],
+         "labelRight": "sn"}]}],
+     "given":
+     [{"label": {"type": "Restaurant", "name": "r"}, "conditions": []}]}},
+   {"text":
+    "(r: Restaurant) {\n    s: Server [\n        s->restaurant: Restaurant = r\n    ]\n    st: Terminated [\n        st->server: Server = s\n    ]\n    sr: Rehired [\n        sr->terminated: Terminated = st\n    ]\n    sn: Name [\n        sn->server: Server = s\n        !E {\n            next: Name [\n                next->prior: Name = sn\n            ]\n        }\n    ]\n}\n",
+    "specification":
+    {"projection": {"type": "composite", "components": []},
+     "matches":
+     [{"unknown": {"type": "Server", "name": "s"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Restaurant", "name": "restaurant"}],
+         "labelRight": "r"}]},
+      {"unknown": {"type": "Terminated", "name": "st"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Server", "name": "server"}],
+         "labelRight": "s"}]},
+      {"unknown": {"type": "Rehired", "name": "sr"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Terminated", "name": "terminated"}],
+         "labelRight": "st"}]},
+      {"unknown": {"type": "Name", "name": "sn"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Server", "name": "server"}],
+         "labelRight": "s"},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Name", "name": "next"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Name", "name": "prior"}],
+             "labelRight": "sn"}]}],
+         "exists": false}]}],
+     "given":
+     [{"label": {"type": "Restaurant", "name": "r"}, "conditions": []}]}},
+   {"text":
+    "(r: Restaurant) {\n    s: Server [\n        s->restaurant: Restaurant = r\n    ]\n    st: Terminated [\n        st->server: Server = s\n    ]\n    sr: Rehired [\n        sr->terminated: Terminated = st\n    ]\n    rt: Rate [\n        rt->server: Server = s\n    ]\n    next: Rate [\n        next->prior: Rate = rt\n    ]\n}\n",
+    "specification":
+    {"projection": {"type": "composite", "components": []},
+     "matches":
+     [{"unknown": {"type": "Server", "name": "s"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Restaurant", "name": "restaurant"}],
+         "labelRight": "r"}]},
+      {"unknown": {"type": "Terminated", "name": "st"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Server", "name": "server"}],
+         "labelRight": "s"}]},
+      {"unknown": {"type": "Rehired", "name": "sr"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Terminated", "name": "terminated"}],
+         "labelRight": "st"}]},
+      {"unknown": {"type": "Rate", "name": "rt"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Server", "name": "server"}],
+         "labelRight": "s"}]},
+      {"unknown": {"type": "Rate", "name": "next"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Rate", "name": "prior"}],
+         "labelRight": "rt"}]}],
+     "given":
+     [{"label": {"type": "Restaurant", "name": "r"}, "conditions": []}]}},
+   {"text":
+    "(r: Restaurant) {\n    s: Server [\n        s->restaurant: Restaurant = r\n    ]\n    st: Terminated [\n        st->server: Server = s\n    ]\n    sr: Rehired [\n        sr->terminated: Terminated = st\n    ]\n    rt: Rate [\n        rt->server: Server = s\n        !E {\n            next: Rate [\n                next->prior: Rate = rt\n            ]\n        }\n    ]\n}\n",
+    "specification":
+    {"projection": {"type": "composite", "components": []},
+     "matches":
+     [{"unknown": {"type": "Server", "name": "s"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Restaurant", "name": "restaurant"}],
+         "labelRight": "r"}]},
+      {"unknown": {"type": "Terminated", "name": "st"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Server", "name": "server"}],
+         "labelRight": "s"}]},
+      {"unknown": {"type": "Rehired", "name": "sr"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Terminated", "name": "terminated"}],
+         "labelRight": "st"}]},
+      {"unknown": {"type": "Rate", "name": "rt"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Server", "name": "server"}],
+         "labelRight": "s"},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Rate", "name": "next"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Rate", "name": "prior"}],
+             "labelRight": "rt"}]}],
+         "exists": false}]}],
+     "given":
+     [{"label": {"type": "Restaurant", "name": "r"}, "conditions": []}]}}],
+  "delivered": [1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12]},
+ "description":
+ "Chapter 12's Entity List. A server's names and rates are child specifications, each the latest of a mutable property. The filtered and restoring feeds of the server go on to them; the excluding feed does not, so the name of a terminated server is deferred until it is rehired. The sibling child specifications both declare next, which only one feed at a time binds."}

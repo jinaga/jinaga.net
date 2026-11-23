@@ -1,0 +1,233 @@
+{"text":
+ "(p1: Tenant) {\n    a: Account [\n        a->tenant: Tenant = p1\n        !E {\n            f: Freeze [\n                f->account: Account = a\n                !E {\n                    u: Unfreeze [\n                        u->freeze: Freeze = f\n                    ]\n                }\n            ]\n        }\n        E {\n            m: Mirror [\n                m->account: Account = a\n                !E {\n                    x: Retired [\n                        x->mirror: Mirror = m\n                    ]\n                }\n            ]\n        }\n    ]\n} => a\n",
+ "specification":
+ {"projection": {"type": "fact", "label": "a"},
+  "matches":
+  [{"unknown": {"type": "Account", "name": "a"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [],
+      "rolesLeft": [{"predecessorType": "Tenant", "name": "tenant"}],
+      "labelRight": "p1"},
+     {"type": "existential",
+      "matches":
+      [{"unknown": {"type": "Freeze", "name": "f"},
+        "conditions":
+        [{"type": "path",
+          "rolesRight": [],
+          "rolesLeft": [{"predecessorType": "Account", "name": "account"}],
+          "labelRight": "a"},
+         {"type": "existential",
+          "matches":
+          [{"unknown": {"type": "Unfreeze", "name": "u"},
+            "conditions":
+            [{"type": "path",
+              "rolesRight": [],
+              "rolesLeft": [{"predecessorType": "Freeze", "name": "freeze"}],
+              "labelRight": "f"}]}],
+          "exists": false}]}],
+      "exists": false},
+     {"type": "existential",
+      "matches":
+      [{"unknown": {"type": "Mirror", "name": "m"},
+        "conditions":
+        [{"type": "path",
+          "rolesRight": [],
+          "rolesLeft": [{"predecessorType": "Account", "name": "account"}],
+          "labelRight": "a"},
+         {"type": "existential",
+          "matches":
+          [{"unknown": {"type": "Retired", "name": "x"},
+            "conditions":
+            [{"type": "path",
+              "rolesRight": [],
+              "rolesLeft": [{"predecessorType": "Mirror", "name": "mirror"}],
+              "labelRight": "m"}]}],
+          "exists": false}]}],
+      "exists": true}]}],
+  "given": [{"label": {"type": "Tenant", "name": "p1"}, "conditions": []}]},
+ "source": "jinaga/jinaga.js#368",
+ "rowLabels": ["a"],
+ "name": "sibling-conditions",
+ "graph":
+ [{"type": "Tenant", "predecessors": [], "id": 0},
+  {"type": "Account", "predecessors": [{"role": "tenant", "id": 0}], "id": 1},
+  {"type": "Freeze", "predecessors": [{"role": "account", "id": 1}], "id": 2},
+  {"type": "Unfreeze", "predecessors": [{"role": "freeze", "id": 2}], "id": 3},
+  {"type": "Mirror", "predecessors": [{"role": "account", "id": 1}], "id": 4}],
+ "givens": {"p1": 0},
+ "expected":
+ {"results": [[1]],
+  "feeds":
+  [{"text":
+    "(p1: Tenant) {\n    a: Account [\n        a->tenant: Tenant = p1\n    ]\n    m: Mirror [\n        m->account: Account = a\n    ]\n    f: Freeze [\n        f->account: Account = a\n    ]\n}\n",
+    "specification":
+    {"projection": {"type": "composite", "components": []},
+     "matches":
+     [{"unknown": {"type": "Account", "name": "a"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Tenant", "name": "tenant"}],
+         "labelRight": "p1"}]},
+      {"unknown": {"type": "Mirror", "name": "m"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Account", "name": "account"}],
+         "labelRight": "a"}]},
+      {"unknown": {"type": "Freeze", "name": "f"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Account", "name": "account"}],
+         "labelRight": "a"}]}],
+     "given": [{"label": {"type": "Tenant", "name": "p1"}, "conditions": []}]}},
+   {"text":
+    "(p1: Tenant) {\n    a: Account [\n        a->tenant: Tenant = p1\n    ]\n    m: Mirror [\n        m->account: Account = a\n        !E {\n            f: Freeze [\n                f->account: Account = a\n            ]\n        }\n    ]\n    x: Retired [\n        x->mirror: Mirror = m\n    ]\n}\n",
+    "specification":
+    {"projection": {"type": "composite", "components": []},
+     "matches":
+     [{"unknown": {"type": "Account", "name": "a"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Tenant", "name": "tenant"}],
+         "labelRight": "p1"}]},
+      {"unknown": {"type": "Mirror", "name": "m"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Account", "name": "account"}],
+         "labelRight": "a"},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Freeze", "name": "f"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Account", "name": "account"}],
+             "labelRight": "a"}]}],
+         "exists": false}]},
+      {"unknown": {"type": "Retired", "name": "x"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Mirror", "name": "mirror"}],
+         "labelRight": "m"}]}],
+     "given": [{"label": {"type": "Tenant", "name": "p1"}, "conditions": []}]}},
+   {"text":
+    "(p1: Tenant) {\n    a: Account [\n        a->tenant: Tenant = p1\n    ]\n    m: Mirror [\n        m->account: Account = a\n        !E {\n            f: Freeze [\n                f->account: Account = a\n            ]\n        }\n        !E {\n            x: Retired [\n                x->mirror: Mirror = m\n            ]\n        }\n    ]\n}\n",
+    "specification":
+    {"projection": {"type": "composite", "components": []},
+     "matches":
+     [{"unknown": {"type": "Account", "name": "a"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Tenant", "name": "tenant"}],
+         "labelRight": "p1"}]},
+      {"unknown": {"type": "Mirror", "name": "m"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Account", "name": "account"}],
+         "labelRight": "a"},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Freeze", "name": "f"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Account", "name": "account"}],
+             "labelRight": "a"}]}],
+         "exists": false},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Retired", "name": "x"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Mirror", "name": "mirror"}],
+             "labelRight": "m"}]}],
+         "exists": false}]}],
+     "given": [{"label": {"type": "Tenant", "name": "p1"}, "conditions": []}]}},
+   {"text":
+    "(p1: Tenant) {\n    a: Account [\n        a->tenant: Tenant = p1\n    ]\n    m: Mirror [\n        m->account: Account = a\n    ]\n    f: Freeze [\n        f->account: Account = a\n    ]\n    u: Unfreeze [\n        u->freeze: Freeze = f\n    ]\n    x: Retired [\n        x->mirror: Mirror = m\n    ]\n}\n",
+    "specification":
+    {"projection": {"type": "composite", "components": []},
+     "matches":
+     [{"unknown": {"type": "Account", "name": "a"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Tenant", "name": "tenant"}],
+         "labelRight": "p1"}]},
+      {"unknown": {"type": "Mirror", "name": "m"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Account", "name": "account"}],
+         "labelRight": "a"}]},
+      {"unknown": {"type": "Freeze", "name": "f"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Account", "name": "account"}],
+         "labelRight": "a"}]},
+      {"unknown": {"type": "Unfreeze", "name": "u"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Freeze", "name": "freeze"}],
+         "labelRight": "f"}]},
+      {"unknown": {"type": "Retired", "name": "x"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Mirror", "name": "mirror"}],
+         "labelRight": "m"}]}],
+     "given": [{"label": {"type": "Tenant", "name": "p1"}, "conditions": []}]}},
+   {"text":
+    "(p1: Tenant) {\n    a: Account [\n        a->tenant: Tenant = p1\n    ]\n    m: Mirror [\n        m->account: Account = a\n    ]\n    f: Freeze [\n        f->account: Account = a\n    ]\n    u: Unfreeze [\n        u->freeze: Freeze = f\n        !E {\n            x: Retired [\n                x->mirror: Mirror = m\n            ]\n        }\n    ]\n}\n",
+    "specification":
+    {"projection": {"type": "composite", "components": []},
+     "matches":
+     [{"unknown": {"type": "Account", "name": "a"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Tenant", "name": "tenant"}],
+         "labelRight": "p1"}]},
+      {"unknown": {"type": "Mirror", "name": "m"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Account", "name": "account"}],
+         "labelRight": "a"}]},
+      {"unknown": {"type": "Freeze", "name": "f"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Account", "name": "account"}],
+         "labelRight": "a"}]},
+      {"unknown": {"type": "Unfreeze", "name": "u"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "Freeze", "name": "freeze"}],
+         "labelRight": "f"},
+        {"type": "existential",
+         "matches":
+         [{"unknown": {"type": "Retired", "name": "x"},
+           "conditions":
+           [{"type": "path",
+             "rolesRight": [],
+             "rolesLeft": [{"predecessorType": "Mirror", "name": "mirror"}],
+             "labelRight": "m"}]}],
+         "exists": false}]}],
+     "given":
+     [{"label": {"type": "Tenant", "name": "p1"}, "conditions": []}]}}],
+  "delivered": [1, 2, 3, 4]},
+ "description":
+ "An account with no unthawed freeze and a mirror that is not retired. The mirror joins the account; the restoring feed for a thawed freeze goes on to the mirror's condition."}

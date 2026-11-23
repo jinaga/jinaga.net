@@ -21,9 +21,12 @@ namespace Jinaga.Projections
         public string ToDescriptiveString(int depth)
         {
             var indent = new string(' ', depth * 4);
+            // Concat, not Union: a match may carry the same condition twice, and a set union
+            // would print it once. Two conditions that read alike are two conditions, and a
+            // specification that holds both describes itself as holding both.
             var conditions = String.Join("", PathConditions
                 .Select(c => c.ToDescriptiveString(Unknown.Name, depth + 1))
-            .Union(ExistentialConditions
+            .Concat(ExistentialConditions
                 .Select(c => c.ToDescriptiveString(Unknown.Name, depth + 1))));
             return $"{indent}{Unknown.Name}: {Unknown.Type} [\n{conditions}{indent}]\n";
         }

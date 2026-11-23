@@ -230,31 +230,9 @@ public class InverseVectorTest
             .ToImmutableList();
     }
 
-    /// <summary>
-    /// A store holding the vector's graph and every fact that arrives, each identified by the
-    /// reference the reference implementation gives it. A vector's graph may name a predecessor
-    /// content addressing cannot reach -- a fact saved later, or a cycle -- so the facts cannot
-    /// be hashed, and many of the vectors need that.
-    /// </summary>
-    private static (MemoryStore Store, ImmutableDictionary<int, FactReference> References) PlaceGraph(ConformanceVector vector)
-    {
-        var facts = vector.Json.GetProperty("graph").EnumerateArray()
-            .Concat(Arrivals(vector))
-            .ToImmutableList();
-        var references = facts.ToImmutableDictionary(
-            IdOf,
-            fact => new FactReference(fact.GetProperty("type").GetString()!, "h" + IdOf(fact)));
-        var store = new MemoryStore();
-        store.PlaceGraphByReference(facts.Select(fact => (
-            references[IdOf(fact)],
-            // A fact lists one entry per predecessor, and a role may appear more than once.
-            fact.GetProperty("predecessors").EnumerateArray()
-                .Select(predecessor => (Predecessor)new PredecessorSingle(
-                    predecessor.GetProperty("role").GetString()!,
-                    references[IdOf(predecessor)]))
-                .ToImmutableList())));
-        return (store, references);
-    }
+    /// <summary>A store holding the vector's graph and every fact that arrives.</summary>
+    private static (MemoryStore Store, ImmutableDictionary<int, FactReference> References) PlaceGraph(ConformanceVector vector) =>
+        ConformanceVector.PlaceGraph(vector.Graph.Concat(Arrivals(vector)));
 
     /// <summary>The facts that arrive: a batch, saved together, or a single fact.</summary>
     private static IEnumerable<JsonElement> Arrivals(ConformanceVector vector) =>
@@ -262,17 +240,14 @@ public class InverseVectorTest
             ? batch.EnumerateArray()
             : ImmutableList.Create(vector.Json.GetProperty("fact"));
 
-    private static ImmutableList<string> RowLabels(ConformanceVector vector) =>
-        vector.Json.GetProperty("rowLabels").EnumerateArray()
-            .Select(label => label.GetString()!)
-            .ToImmutableList();
+    private static ImmutableList<string> RowLabels(ConformanceVector vector) => vector.RowLabels;
 
     private static ImmutableSortedSet<string> Candidates(ConformanceVector vector) =>
         vector.Expected.GetProperty("candidates").EnumerateArray()
             .Select(row => Row(row.EnumerateArray().Select(id => "h" + id.GetInt32())))
             .ToImmutableSortedSet();
 
-    private static int IdOf(JsonElement json) => json.GetProperty("id").GetInt32();
+    private static int IdOf(JsonElement json) => ConformanceVector.IdOf(json);
 
     private static string Row(IEnumerable<string> hashes) => string.Join(",", hashes);
 }
