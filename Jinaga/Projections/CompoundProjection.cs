@@ -6,6 +6,17 @@ using System.Linq;
 
 namespace Jinaga.Projections
 {
+    /// <summary>
+    /// A projection of several named components.
+    /// </summary>
+    /// <remarks>
+    /// The components are ordered by name, ordinal, and this type is where that order lives.
+    /// The order reaches results — it is the order of the feeds the projection produces, and the
+    /// order <see cref="ToDescriptiveString"/> prints the components in — so it is a property of
+    /// the projection rather than of each caller. Ordinal, so the order does not depend on the
+    /// current culture. Every enumeration of <see cref="Names"/>, and of the components
+    /// <see cref="Apply"/> rebuilds, comes out in that one order with no help from the caller.
+    /// </remarks>
     public class CompoundProjection : Projection
     {
         public static CompoundProjection Empty = new CompoundProjection(
@@ -13,12 +24,12 @@ namespace Jinaga.Projections
             typeof(object)
         );
 
-        private ImmutableDictionary<string, Projection> projections;
+        private ImmutableSortedDictionary<string, Projection> projections;
 
         public CompoundProjection(ImmutableDictionary<string, Projection> projections, Type type) :
             base(type)
         {
-            this.projections = projections;
+            this.projections = projections.ToImmutableSortedDictionary(StringComparer.Ordinal);
         }
 
         public IEnumerable<string> Names => projections.Keys;
@@ -49,11 +60,7 @@ namespace Jinaga.Projections
         public override string  ToDescriptiveString(int depth = 0)
         {
             string indent = Strings.Indent(depth);
-            // Ordinal, so the text a specification describes itself with does not depend on the
-            // current culture. It is compared against pinned conformance vectors, and
-            // FeedBuilder takes a projection's children in this same order.
             var fieldString = string.Join("", projections
-                .OrderBy(pair => pair.Key, StringComparer.Ordinal)
                 .Select(pair => $"    {indent}{pair.Key} = {pair.Value.ToDescriptiveString(depth + 1)}\n"));
             return $"{{\n{fieldString}{indent}}}";
         }
