@@ -14,8 +14,9 @@ namespace Jinaga.Projections
     /// The order reaches results — it is the order of the feeds the projection produces, and the
     /// order <see cref="ToDescriptiveString"/> prints the components in — so it is a property of
     /// the projection rather than of each caller. Ordinal, so the order does not depend on the
-    /// current culture. Every enumeration of <see cref="Names"/>, and of the components
-    /// <see cref="Apply"/> rebuilds, comes out in that one order with no help from the caller.
+    /// current culture. The constructor is what imposes it, so <see cref="Names"/> enumerates in
+    /// that one order with no help from the caller, and so does the projection
+    /// <see cref="Apply"/> returns, which rebuilds the components.
     /// </remarks>
     public class CompoundProjection : Projection
     {
