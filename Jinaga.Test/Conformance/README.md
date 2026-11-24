@@ -5,7 +5,7 @@
 well-formedness check and the specification split in Lean, proves them, and
 generates these vectors from the definitions.
 
-**Pinned at** jinaga-spec `e355dc978a67323e8a2f5d433a6392688e55ae84`.
+**Pinned at** jinaga-spec `79d406a3be968f5f7fa0331932542c7a43bfb973`.
 
 | Directory | Test | What a vector holds |
 |---|---|---|
@@ -63,11 +63,14 @@ the specification as written.
 
 A well-formed vector's `expected.connected` is the other oracle's verdict,
 `isConnectedDeep` (`JinagaSpec/Connected.lean`): every descendant is connected
-over the givens it uses, every given is used, and every feed is joined by its
-path conditions rather than by a negative condition.
-`WellFormedVectorTest` reads it, against `ConnectedSpecification`. The two
-verdicts are independent, and the field is stated for every vector, so the
-connectivity check runs on specifications the well-formedness check refuses.
+over the givens it uses, and every feed is joined by its path conditions rather
+than by a negative condition. A given no descendant uses is allowed
+(jinaga/jinaga-spec#60), and `isConnected` counts only the givens the matches
+use, so `unused-given`, `no-matches` and `no-matches-two-givens` are connected.
+`WellFormedVectorTest.TheConnectivityCheckAgreesWithTheOracle` reads the field,
+against `ConnectedSpecification`. The two verdicts are independent, and the
+field is stated for every vector, so the connectivity check runs on
+specifications the well-formedness check refuses.
 
 `FeedBuilder.BuildFeeds` refuses a specification outside the hypotheses of the
 feeds theorems, and `FeedBuilderTest` states those refusals. The well-formed

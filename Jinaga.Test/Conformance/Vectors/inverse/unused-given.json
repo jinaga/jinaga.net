@@ -1,0 +1,68 @@
+{"text": "(p1: R, p2: A) {\n    u: A [\n        u->r: R = p1\n    ]\n} => u\n",
+ "specification":
+ {"projection": {"type": "fact", "label": "u"},
+  "matches":
+  [{"unknown": {"type": "A", "name": "u"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [],
+      "rolesLeft": [{"predecessorType": "R", "name": "r"}],
+      "labelRight": "p1"}]}],
+  "given":
+  [{"label": {"type": "R", "name": "p1"}, "conditions": []},
+   {"label": {"type": "A", "name": "p2"}, "conditions": []}]},
+ "source": "jinaga/jinaga-spec#60",
+ "rowLabels": ["u"],
+ "name": "unused-given",
+ "graph":
+ [{"type": "R", "predecessors": [], "id": 0},
+  {"type": "A", "predecessors": [], "id": 1}],
+ "givens": {"p2": 1, "p1": 0},
+ "fact": {"type": "A", "predecessors": [{"role": "r", "id": 0}], "id": 2},
+ "expected":
+ {"reordered":
+  [{"text":
+    "(p1: R, p2: A, __f: A) {\n    u: A [\n        u = __f\n        u->r: R = p1\n    ]\n} => u\n",
+    "specification":
+    {"projection": {"type": "fact", "label": "u"},
+     "matches":
+     [{"unknown": {"type": "A", "name": "u"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [],
+         "labelRight": "__f"},
+        {"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "R", "name": "r"}],
+         "labelRight": "p1"}]}],
+     "given":
+     [{"label": {"type": "R", "name": "p1"}, "conditions": []},
+      {"label": {"type": "A", "name": "p2"}, "conditions": []},
+      {"label": {"type": "A", "name": "__f"}, "conditions": []}]}}],
+  "lost": [],
+  "inverses":
+  [{"text":
+    "(p1: R, p2: A, __f: A) {\n    u: A [\n        u = __f\n        u->r: R = p1\n    ]\n} => u\n",
+    "specification":
+    {"projection": {"type": "fact", "label": "u"},
+     "matches":
+     [{"unknown": {"type": "A", "name": "u"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [],
+         "labelRight": "__f"},
+        {"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "R", "name": "r"}],
+         "labelRight": "p1"}]}],
+     "given":
+     [{"label": {"type": "R", "name": "p1"}, "conditions": []},
+      {"label": {"type": "A", "name": "p2"}, "conditions": []},
+      {"label": {"type": "A", "name": "__f"}, "conditions": []}]}}],
+  "gained": [[2]],
+  "exact": {"removes": [], "adds": [[2]]},
+  "candidates": [[2]]},
+ "description":
+ "A given that no match uses (jinaga/jinaga-spec#60). A new A under the root joins the result; p2, also an A, is neither read nor joined, and has no inverse of its own."}

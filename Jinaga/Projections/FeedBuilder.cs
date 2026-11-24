@@ -11,9 +11,10 @@ namespace Jinaga.Projections
     ///
     /// Ported from <c>buildFeeds</c> in jinaga-spec (<c>JinagaSpec/Feeds.lean</c>), following
     /// the reference port <c>ports/typescript/feed-builder.ts</c>, at jinaga-spec
-    /// <c>c67eadbd459ddebffd823f81fa95700194b9bdbc</c>, the commit
-    /// <c>Jinaga.Test/Conformance/Vectors</c> is pinned at. Each method below names the Lean
-    /// function it corresponds to.
+    /// <c>c67eadbd459ddebffd823f81fa95700194b9bdbc</c>. <c>buildFeeds</c> itself is unchanged
+    /// since, and <c>Jinaga.Test/Conformance/Vectors</c> is pinned at a later commit, which
+    /// <see cref="ConnectedSpecification"/> names. Each method below names the Lean function
+    /// it corresponds to.
     ///
     /// Walk the specification's matches, each joined with its positive conditions. At every
     /// negative condition, each feed built so far emits an <em>excluding</em> feed -- itself
@@ -62,7 +63,7 @@ namespace Jinaga.Projections
         /// <summary>
         /// The feeds of a specification, with no check of its input (<c>feedsOf</c>). The
         /// connectivity refusal reads these, so it cannot go through
-        /// <see cref="BuildFeeds"/>: clause 3 of <c>ConnectedDescendants</c> is stated over
+        /// <see cref="BuildFeeds"/>: clause 2 of <c>ConnectedDescendants</c> is stated over
         /// the feeds the walk emits, and the walk has to run before the refusal can.
         /// </summary>
         internal static ImmutableList<Specification> FeedsOf(Specification specification) =>

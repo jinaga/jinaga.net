@@ -444,6 +444,32 @@ public class FeedBuilderTest
         building.Should().NotThrow();
     }
 
+    /// <summary>
+    /// A given its matches do not use is allowed (jinaga/jinaga-spec#60): a feed takes only
+    /// the givens it uses, and no match reads the others, so there is no chain for one to be
+    /// on. The three vectors are the whole of the shape: a given unused beside one that is
+    /// used, a specification with no matches at all, and one with no matches and a given it
+    /// does not even project.
+    ///
+    /// They are read from the pinned vectors rather than built here, because the oracle's
+    /// verdict on each is what makes them the cases: the previous pin refused
+    /// <c>unused-given</c>, and this test is what fails if the clause comes back.
+    /// </summary>
+    [Theory]
+    [InlineData("unused-given")]
+    [InlineData("no-matches")]
+    [InlineData("no-matches-two-givens")]
+    public void AcceptsAGivenThatItsMatchesDoNotUse(string name)
+    {
+        var vector = ConformanceVector.Load("well-formed", name);
+        vector.Expected.GetProperty("connected").GetBoolean().Should().BeTrue(
+            "the oracle allows an unused given");
+
+        var building = () => FeedBuilder.BuildFeeds(vector.Specification);
+
+        building.Should().NotThrow();
+    }
+
     /* ----------------------------------- Builders ----------------------------------- */
 
     // The first match that no path condition anchors, at any depth and in any child

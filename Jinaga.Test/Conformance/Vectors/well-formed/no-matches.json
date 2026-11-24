@@ -1,0 +1,11 @@
+{"violates": [],
+ "text": "(p1: R) {\n} => p1\n",
+ "specification":
+ {"projection": {"type": "fact", "label": "p1"},
+  "matches": [],
+  "given": [{"label": {"type": "R", "name": "p1"}, "conditions": []}]},
+ "source": "jinaga/jinaga-spec#60",
+ "name": "no-matches",
+ "expected": {"wellFormed": true, "connected": true},
+ "description":
+ "A specification with no matches, projecting its one given. No match uses the given, and it is allowed: it has no feed, and its result is the given once the replica holds it."}

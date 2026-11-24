@@ -1,4 +1,4 @@
-{"violates": ["connected"],
+{"violates": [],
  "text": "(p1: R, p2: A) {\n    u: A [\n        u->r: R = p1\n    ]\n} => u\n",
  "specification":
  {"projection": {"type": "fact", "label": "u"},
@@ -12,8 +12,9 @@
   "given":
   [{"label": {"type": "R", "name": "p1"}, "conditions": []},
    {"label": {"type": "A", "name": "p2"}, "conditions": []}]},
- "source": "jinaga/jinaga-spec#45, random-2 at 77aa47d",
+ "source":
+ "jinaga/jinaga-spec#60 (earlier refused by jinaga-spec#45's rule), random-2 at 77aa47d",
  "name": "unused-given",
- "expected": {"wellFormed": true, "connected": false},
+ "expected": {"wellFormed": true, "connected": true},
  "description":
- "A given that no match uses, at any depth. Every feed is connected, since a feed takes only the givens it uses."}
+ "A given that no match uses, at any depth. It is allowed: every feed is connected, since a feed takes only the givens it uses, and isConnected counts only those."}

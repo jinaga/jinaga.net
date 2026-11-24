@@ -19,26 +19,29 @@ namespace Jinaga.Projections
     /// Ported from <c>isConnectedDeep</c> in jinaga-spec
     /// (<c>JinagaSpec/Connected.lean</c>), following the reference port
     /// <c>ports/typescript/well-formed.ts</c>, at jinaga-spec
-    /// <c>e355dc978a67323e8a2f5d433a6392688e55ae84</c>, the commit
+    /// <c>79d406a3be968f5f7fa0331932542c7a43bfb973</c>, the commit
     /// <c>Jinaga.Test/Conformance/Vectors</c> is pinned at. Each method below names the Lean
     /// function it corresponds to. <c>ConnectedDescendants</c> is the hypothesis the feeds
     /// theorems take (jinaga/jinaga-spec#57, which addresses jinaga/jinaga-spec#55), and
     /// <c>isConnectedDeep_iff</c> proves this check decides it.
     ///
-    /// The three clauses are
+    /// The two clauses are
     /// <list type="number">
-    /// <item>every descendant, as a feed, is connected over the givens it uses;</item>
-    /// <item>every given is used by some descendant (jinaga/jinaga-spec#45); and</item>
+    /// <item>every descendant, as a feed, is connected over the givens it uses; and</item>
     /// <item>every feed is joined -- its path conditions alone join its matches, so a negative
     /// condition never counts as the join.</item>
     /// </list>
     ///
-    /// <see cref="Disconnect"/> is the one implementation of all three: it reports the first
+    /// A given no descendant uses is allowed (jinaga/jinaga-spec#60): no feed takes it, and no
+    /// match reads it. An earlier clause refused it (jinaga/jinaga-spec#45), and
+    /// <see cref="IsConnected"/> counts only the givens the matches use, which is what makes
+    /// <c>unused-given</c> and a specification with no matches at all connected.
+    ///
+    /// <see cref="Disconnect"/> is the one implementation of both clauses: it reports the first
     /// failure it finds, and <see cref="IsConnectedDeep"/> is the question of whether it found
-    /// one. It checks them in the order a developer can act on rather than the order the Lean
-    /// definition conjoins them -- an unused given first, because a given nothing uses is also
-    /// a chain nothing joins, and the shorter message is the one that says what to do. The
-    /// conjunction is the same either way.
+    /// one. Clause 1 is checked at the specification itself, then at each child specification
+    /// outermost first, then clause 3 over the feeds in <see cref="FeedBuilder.FeedsOf"/>
+    /// order, so the advice names the shallowest level that is already a product.
     /// </summary>
     internal static class ConnectedSpecification
     {
@@ -56,26 +59,11 @@ namespace Jinaga.Projections
         {
             var descendants = Descendants(specification);
 
-            // Clause 2: every given is used by some descendant, in a path condition or in a
-            // filter (`usedGivens`).
-            foreach (var given in specification.Givens)
-            {
-                var used = descendants.Any(descendant => FeedBuilder
-                    .UsedGivens(descendant.Specification.Givens, descendant.Specification.Matches)
-                    .Any(use => use.Label.Name == given.Label.Name));
-                if (!used)
-                {
-                    return new Disconnection(
-                        DisconnectionKind.UnusedGiven,
-                        $"The given '{given.Label.Name}' is not used by any match. Remove it.");
-                }
-            }
-
             // Clause 1 at the specification itself.
             var top = Chains(AsFeed(specification.Givens, specification.Matches));
             if (top.Count > 1)
             {
-                return SeparateChains(top);
+                return Disconnection.SeparateChains(top);
             }
 
             // Clause 1 at a child specification, outermost first, so the advice names the
@@ -89,7 +77,7 @@ namespace Jinaga.Projections
                 }
             }
 
-            // Clause 3: every feed `buildFeeds` emits is joined. The feeds come from the
+            // Clause 2: every feed `buildFeeds` emits is joined. The feeds come from the
             // unchecked FeedsOf, in its order, because the refusal this serves runs before
             // BuildFeeds returns any.
             foreach (var feed in FeedBuilder.FeedsOf(specification))
@@ -108,7 +96,8 @@ namespace Jinaga.Projections
         /// Whether every label of a specification is joined to every other, through path
         /// conditions or through the labels an existential condition names
         /// (<c>isConnected</c>, the check <c>invertSpecification</c> runs). It reads only the
-        /// givens and the top-level matches.
+        /// top-level matches and the givens those matches use, so a given nothing uses is not
+        /// a chain of its own (jinaga/jinaga-spec#60).
         /// </summary>
         public static bool IsConnected(Specification specification) => Chains(specification).Count <= 1;
 
@@ -182,30 +171,17 @@ namespace Jinaga.Projections
 
         /* --------------------------------- The chains --------------------------------- */
 
-        /// <summary>
-        /// One connected component of a specification's join graph: the labels it reaches that
-        /// the specification declares, and the givens it reaches, each in written order.
-        /// </summary>
-        private sealed class Chain
-        {
-            public Chain(ImmutableList<string> unknowns, ImmutableList<string> givens)
-            {
-                Unknowns = unknowns;
-                Givens = givens;
-            }
-
-            public ImmutableList<string> Unknowns { get; }
-            public ImmutableList<string> Givens { get; }
-
-            public bool Holds(string label) => Unknowns.Contains(label) || Givens.Contains(label);
-        }
-
         // The connected components of a specification's join graph, each in the order its
-        // labels were first named, the components in the order they were first reached. A
-        // specification with no labels at all has none, and so is connected.
-        private static ImmutableList<Chain> Chains(Specification specification)
+        // labels were first named, the components in the order they were first reached. Only
+        // the givens the matches use are labels, as for a feed (`usedGivens`), so a given
+        // nothing uses is no component of its own. A specification with no labels at all has
+        // none, and so is connected.
+        private static ImmutableList<DisconnectedChain> Chains(Specification specification)
         {
-            var givens = specification.Givens.Select(given => given.Label.Name).ToImmutableList();
+            var givens = FeedBuilder
+                .UsedGivens(specification.Givens, specification.Matches)
+                .Select(given => given.Label.Name)
+                .ToImmutableList();
             var connections = Connections(specification.Matches);
             var labels = givens.AddRange(connections.Labels).Distinct().ToImmutableList();
 
@@ -247,7 +223,7 @@ namespace Jinaga.Projections
             }
             return order
                 .Select(root => members[root].ToImmutable())
-                .Select(group => new Chain(
+                .Select(group => new DisconnectedChain(
                     group.Where(label => !givens.Contains(label)).ToImmutableList(),
                     givens.Where(group.Contains).ToImmutableList()))
                 .ToImmutableList();
@@ -323,51 +299,14 @@ namespace Jinaga.Projections
         private static string NameOf(CollectionProjection collection) =>
             collection.Matches.IsEmpty ? "(unnamed)" : collection.Matches[0].Unknown.Name;
 
-        /* --------------------------------- The messages --------------------------------- */
-
-        // Each message says what is disconnected, in the developer's own labels and the givens
-        // each chain is reached from; what that would mean, every fact of one chain paired with
-        // every fact of the other; and the rewrite that states what they probably meant. They
-        // match jinaga/jinaga.js#437's Error messages section for shape, so the two libraries
-        // advise a developer alike; a change to one should be made to the other.
-        // "Independent parts of a specification belong in sibling child projections, never in
-        // one list of matches", without the article, so each site punctuates it for the
-        // sentence it stands in rather than keeping a second copy of the words.
-        private const string Siblings =
-            "Independent parts of a specification belong in sibling child projections, " +
-            "never in one list of matches";
-
-        // "a negative condition filters a match; it never joins two", likewise.
-        private const string Filters = "negative condition filters a match; it never joins two";
-
-        // Where a sibling goes. A child specification inherits its parent's matches, so a
-        // sibling is independent only where its parent matches nothing from the other chain.
-        private const string NoMatchesAbove = "with no matches above them";
-
-        // Clause 1 at the specification itself. A specification can fall into more than two
-        // chains, so the count and the groups are rendered from however many there are rather
-        // than from the two the shape is usually written with.
-        private static Disconnection SeparateChains(ImmutableList<Chain> chains) =>
-            new Disconnection(
-                DisconnectionKind.SeparateChains,
-                $"This specification matches {Count(chains.Count)} groups of facts that nothing " +
-                $"joins: {string.Join(", and ", chains.Select(Describe))}. {Pairing(chains)} " +
-                $"{Siblings}: put each group in its own child, {NoMatchesAbove}.");
-
-        // What one list of matches would come to. Two chains pair; more than two multiply, and
-        // naming one pair of them would understate what the store is being asked for.
-        private static string Pairing(ImmutableList<Chain> chains) =>
-            chains.Count == 2
-                ? $"As one list of matches, every '{First(chains[0])}' would be paired with " +
-                  $"every '{First(chains[1])}'."
-                : $"As one list of matches, every combination of " +
-                  $"{Quote(chains.Select(First).ToImmutableList())} would be produced.";
+        /* ------------------------------- Which shape it is ------------------------------- */
 
         // Clause 1 at a child specification. Where a deeper descendant does join the chains,
         // the shape is a matrix the developer wrote in three levels instead of two, and the
-        // message names the match that joins them and the child that holds it.
+        // disconnection carries the match that joins them and the child that declares it.
+        // Where none does, the two chains are genuinely independent and it carries neither.
         private static Disconnection ChildJoinsLate(
-            ImmutableList<Descendant> descendants, Descendant child, ImmutableList<Chain> chains)
+            ImmutableList<Descendant> descendants, Descendant child, ImmutableList<DisconnectedChain> chains)
         {
             var own = child.Own.Select(match => match.Unknown.Name).ToImmutableList();
             var ownChain = chains.FirstOrDefault(chain => own.Any(chain.Holds)) ?? chains[0];
@@ -375,38 +314,17 @@ namespace Jinaga.Projections
                 chain != ownChain && child.Inherited.Any(match => chain.Holds(match.Unknown.Name)))
                 ?? chains.First(chain => chain != ownChain);
 
-            var opening =
-                $"The child specification '{child.Path}' matches {Describe(ownChain)}, " +
-                $"but its parent matches {Describe(parentChain)}.";
-            var matrix =
-                $"so '{child.Path}' would hold every '{First(ownChain)}' for every " +
-                $"'{First(parentChain)}': a full matrix.";
-
             var joiner = Joiner(descendants, child, ownChain, parentChain);
-            if (joiner == null)
-            {
-                return new Disconnection(
-                    DisconnectionKind.ChildJoinsLate,
-                    $"{opening} Nothing joins them, {matrix} {Siblings}: " +
-                    $"put each group in its own child, {NoMatchesAbove}.");
-            }
-            var cell = joiner.Value.Match.Unknown.Name;
-            return new Disconnection(
-                DisconnectionKind.ChildJoinsLate,
-                $"{opening} Nothing joins them until '{joiner.Value.Path}' matches '{cell}', {matrix} " +
-                $"For the cells that exist, use two levels instead of three: declare " +
-                $"'{First(ownChain)}' in the same child as '{cell}', reached from it " +
-                $"({Reached(joiner.Value.Match, First(ownChain))}), so each cell comes with its column. " +
-                $"If you need every column, even those with no cells, independent parts belong in " +
-                $"sibling child projections: give the rows, the columns and the cells each their own " +
-                $"child, {NoMatchesAbove}.");
+            return Disconnection.ChildJoinsLate(
+                child.Path!, ownChain, parentChain, joiner?.Path, joiner?.Match);
         }
 
         // The first match of a deeper descendant that joins the two chains, and the path of the
         // descendant that declares it. A deeper descendant that is itself disconnected joins
         // nothing, so it is passed over.
         private static (string Path, Match Match)? Joiner(
-            ImmutableList<Descendant> descendants, Descendant child, Chain own, Chain parent)
+            ImmutableList<Descendant> descendants, Descendant child,
+            DisconnectedChain own, DisconnectedChain parent)
         {
             var prefix = child.Path + ".";
             foreach (var deeper in descendants.Where(descendant =>
@@ -427,10 +345,11 @@ namespace Jinaga.Projections
             return null;
         }
 
-        // Clause 3: the first feed that is not joined. A feed that is disconnected even with
+        // Clause 2: the first feed that is not joined. A feed that is disconnected even with
         // its filters was cut before its chains were joined; one that only its filters join is
         // a product the filter hides.
-        private static Disconnection FeedDisconnection(ImmutableList<Descendant> descendants, Specification feed)
+        private static Disconnection FeedDisconnection(
+            ImmutableList<Descendant> descendants, Specification feed)
         {
             var withFilters = Chains(feed);
             if (withFilters.Count > 1)
@@ -446,8 +365,8 @@ namespace Jinaga.Projections
         // the match that carries it is unrelated to that match; one that is joined, but whose
         // match is not yet joined to a chain a later match joins, is checked too early.
         //
-        // Each of these messages advises the developer about two givens, so a chain that
-        // reaches none is left to the fallback, which names the labels instead.
+        // Each of these shapes is advice about two givens, so a chain that reaches none is
+        // left to the fallback, which names the labels instead.
         private static Disconnection? ConditionCut(ImmutableList<Descendant> descendants)
         {
             foreach (var descendant in descendants)
@@ -476,7 +395,7 @@ namespace Jinaga.Projections
             return null;
         }
 
-        // Kind 5: the negative condition's level is not joined by path conditions to the match
+        // Kind 4: the negative condition's level is not joined by path conditions to the match
         // that carries it, so the condition removes every fact of that match whenever the
         // level matches anything at all.
         private static Disconnection? ConditionUnrelated(
@@ -494,22 +413,10 @@ namespace Jinaga.Projections
             {
                 return null;
             }
-            var unknown = carrier.Unknown.Name;
-            var inner = First(away);
-            var given = Plain(away.Givens);
-            return new Disconnection(
-                DisconnectionKind.ConditionUnrelated,
-                $"The negative condition on '{unknown}' matches {Quote(away.Unknowns)}, which is " +
-                $"reached from {given} but not from '{unknown}'. A {Filters}, so as written it " +
-                $"removes every '{unknown}' whenever {given} has any '{inner}'. If the condition " +
-                $"is about each '{unknown}', join '{inner}' to '{unknown}' (for example, " +
-                $"{inner}->{unknown} = {unknown}). If it is a gate on {given} as a whole, it " +
-                $"cannot be one specification: a condition on the given is refused too. Read the " +
-                $"'{unknown}'s and {given}'s '{inner}'s as sibling child projections, " +
-                $"{NoMatchesAbove}, and decide in your code.");
+            return Disconnection.ConditionUnrelated(carrier.Unknown.Name, away);
         }
 
-        // Kind 4: the negative condition's level is joined to the match that carries it, but
+        // Kind 3: the negative condition's level is joined to the match that carries it, but
         // the matches up to and including that match form two chains, and a later match joins
         // them. The excluding feed stops at the condition, before the join.
         private static Disconnection? ConditionBeforeJoin(
@@ -539,28 +446,15 @@ namespace Jinaga.Projections
                 return null;
             }
 
-            var unknown = carrier.Unknown.Name;
-            var away = First(other);
-            var cell = joiner.Unknown.Name;
-            return new Disconnection(
-                DisconnectionKind.ConditionBeforeJoin,
-                $"The negative condition on '{unknown}' is checked before '{unknown}' is joined to " +
-                $"'{away}': at that point '{away}' is reached only from {Plain(other.Givens)} and " +
-                $"'{unknown}' only from {Plain(carrierChain.Givens)}, and '{cell}' joins them later. " +
-                $"A {Filters}. Reorder the matches so that the chain is joined before the condition " +
-                $"applies. Either start from '{unknown}', then reach '{cell}' from '{unknown}' and " +
-                $"'{away}' from '{cell}', or reach '{cell}' from '{away}' and then '{unknown}' from " +
-                $"'{cell}'. Both read the same results, and they differ in what reaches a replica. " +
-                $"Starting from '{unknown}' sends no '{cell}' while its '{unknown}' is removed, but " +
-                $"it sends every '{unknown}' of {Plain(carrierChain.Givens)} and its removals, even " +
-                $"where no '{away}' is joined. Reaching '{unknown}' through '{cell}' sends only " +
-                $"joined facts, but it can send an '{cell}' whose '{unknown}' is removed.");
+            return Disconnection.ConditionBeforeJoin(
+                carrier.Unknown.Name, carrierChain, other, joiner);
         }
 
-        // Kind 6: the feed's path conditions leave two chains, and a negative condition on one
+        // Kind 5: the feed's path conditions leave two chains, and a negative condition on one
         // of its matches names labels in both. The filter is what makes the feed read as
         // connected, and a filter never joins.
-        private static Disconnection? JoinedOnlyByCondition(Specification feed, ImmutableList<Chain> chains)
+        private static Disconnection? JoinedOnlyByCondition(
+            Specification feed, ImmutableList<DisconnectedChain> chains)
         {
             if (chains.Count < 2)
             {
@@ -583,47 +477,347 @@ namespace Jinaga.Projections
                     {
                         continue;
                     }
-                    var paired = First(other);
-                    var unknown = match.Unknown.Name;
-                    var givenOther = Plain(other.Givens);
-                    return new Disconnection(
-                        DisconnectionKind.JoinedOnlyByCondition,
-                        $"'{paired}' is reached only from {givenOther}, and '{unknown}' only from " +
-                        $"{Plain(carried.Givens)}. The negative condition on '{unknown}' mentions " +
-                        $"both, but a {Filters}, so " +
-                        $"every '{paired}' would be paired with every '{unknown}'. If you mean the " +
-                        $"'{unknown}'s that no '{paired}' of {givenOther} links, move '{paired}' " +
-                        $"into the condition. If you mean, for each '{paired}', the '{unknown}'s it " +
-                        $"does not link, that is a dense complement and a product however it is " +
-                        $"nested: read the links and the '{unknown}'s as sibling child projections, " +
-                        $"{NoMatchesAbove}, and compute the complement in your code.");
+                    return Disconnection.JoinedOnlyByCondition(match.Unknown.Name, carried, other);
                 }
             }
             return null;
         }
 
-        // Kind 7: any other clause-3 failure, so that no refusal is silent about its labels.
-        private static Disconnection FeedNotJoined(Specification feed, ImmutableList<Chain> chains) =>
+        // Kind 6: any other clause-2 failure, so that no refusal is silent about its labels.
+        private static Disconnection FeedNotJoined(
+            Specification feed, ImmutableList<DisconnectedChain> chains) =>
+            Disconnection.FeedNotJoined(
+                feed.Matches.Select(match => match.Unknown.Name).ToImmutableList(), chains);
+    }
+
+    /// <summary>
+    /// One connected component of a specification's join graph: the labels it reaches that the
+    /// specification declares, and the givens it reaches, each in written order.
+    /// </summary>
+    internal sealed class DisconnectedChain
+    {
+        public DisconnectedChain(ImmutableList<string> unknowns, ImmutableList<string> givens)
+        {
+            Unknowns = unknowns;
+            Givens = givens;
+        }
+
+        public ImmutableList<string> Unknowns { get; }
+        public ImmutableList<string> Givens { get; }
+
+        public bool Holds(string label) => Unknowns.Contains(label) || Givens.Contains(label);
+
+        /// <summary>The label a message names this chain by: its first unknown, or its givens.</summary>
+        public string First => Unknowns.IsEmpty ? DisconnectionMessage.Plain(Givens) : Unknowns[0];
+    }
+
+    /// <summary>
+    /// Which of the ways a specification can be a product it is, so the refusal can advise the
+    /// developer about the shape they wrote rather than name the rule alone.
+    /// </summary>
+    internal enum DisconnectionKind
+    {
+        /// <summary>The specification's own matches fall into chains nothing joins.</summary>
+        SeparateChains,
+
+        /// <summary>A child specification is a matrix, which a deeper one may fill in.</summary>
+        ChildJoinsLate,
+
+        /// <summary>A negative condition is checked before the chain it sits on is joined.</summary>
+        ConditionBeforeJoin,
+
+        /// <summary>A negative condition's level is joined to another given, not to its match.</summary>
+        ConditionUnrelated,
+
+        /// <summary>A feed's two chains are joined only by a negative condition.</summary>
+        JoinedOnlyByCondition,
+
+        /// <summary>Any other feed that nothing joins.</summary>
+        FeedNotJoined
+    }
+
+    /// <summary>
+    /// Why a specification is a product: which shape it is, and the labels the refusal names.
+    ///
+    /// It holds structure alone. <see cref="Message"/> is rendered from the kind and these
+    /// labels on each read and is never stored beside them, so the prose cannot drift from the
+    /// shape it describes. Tests assert the labels; the prose stands on review.
+    /// </summary>
+    internal sealed class Disconnection
+    {
+        private Disconnection(
+            DisconnectionKind kind,
+            ImmutableList<DisconnectedChain> chains,
+            string? conditionLabel,
+            string? childPath,
+            string? joinerPath,
+            Match? joiningMatch,
+            ImmutableList<string> feedLabels)
+        {
+            Kind = kind;
+            Chains = chains;
+            ConditionLabel = conditionLabel;
+            ChildPath = childPath;
+            JoinerPath = joinerPath;
+            JoiningMatch = joiningMatch;
+            FeedLabels = feedLabels;
+        }
+
+        public DisconnectionKind Kind { get; }
+
+        /// <summary>
+        /// The chains the refusal names, in the order it names them. For a condition it is the
+        /// chain of the match that carries the condition and then the chain across the cut,
+        /// except in <see cref="DisconnectionKind.ConditionUnrelated"/>, where the condition's
+        /// own label stands for the near side and the one chain is the far one. For
+        /// <see cref="DisconnectionKind.ChildJoinsLate"/> it is the child's chain and then its
+        /// parent's.
+        /// </summary>
+        public ImmutableList<DisconnectedChain> Chains { get; }
+
+        /// <summary>The unknown whose negative condition cuts the feed, where one does.</summary>
+        public string? ConditionLabel { get; }
+
+        /// <summary>The component path of the disconnected child specification.</summary>
+        public string? ChildPath { get; }
+
+        /// <summary>The component path of the descendant whose match joins the chains.</summary>
+        public string? JoinerPath { get; }
+
+        /// <summary>The match that joins the two chains, later than the feed needs it.</summary>
+        public Match? JoiningMatch { get; }
+
+        /// <summary>The unknowns of the feed that is a product, in its order.</summary>
+        public ImmutableList<string> FeedLabels { get; }
+
+        /// <summary>
+        /// Every label the message names, so a test can assert that the analysis picked the
+        /// right side of the disconnection without reading the prose.
+        /// </summary>
+        public ImmutableList<string> Labels =>
+            Chains.SelectMany(chain => chain.Unknowns.Concat(chain.Givens))
+                .Concat(ConditionLabel == null ? Enumerable.Empty<string>() : new[] { ConditionLabel })
+                .Concat(JoiningMatch == null
+                    ? Enumerable.Empty<string>()
+                    : new[] { JoiningMatch.Unknown.Name })
+                .Concat(FeedLabels)
+                .Distinct()
+                .ToImmutableList();
+
+        /// <summary>
+        /// What is disconnected, in the developer's own labels; what that would mean; and the
+        /// rewrite. Rendered from this disconnection's kind and labels, so it names the labels
+        /// the developer wrote rather than one of a table of examples.
+        /// </summary>
+        public string Message => DisconnectionMessage.Render(this);
+
+        public static Disconnection SeparateChains(ImmutableList<DisconnectedChain> chains) =>
             new Disconnection(
-                DisconnectionKind.FeedNotJoined,
-                $"A feed of this specification, through " +
-                $"{Quote(feed.Matches.Select(match => match.Unknown.Name).ToImmutableList())}, joins " +
-                $"{string.Join(", to ", chains.Select(Describe))}, by nothing. " +
-                $"{Siblings}. A {Filters}.");
+                DisconnectionKind.SeparateChains, chains, null, null, null, null,
+                ImmutableList<string>.Empty);
+
+        public static Disconnection ChildJoinsLate(
+            string childPath, DisconnectedChain own, DisconnectedChain parent,
+            string? joinerPath, Match? joiningMatch) =>
+            new Disconnection(
+                DisconnectionKind.ChildJoinsLate, ImmutableList.Create(own, parent), null,
+                childPath, joinerPath, joiningMatch, ImmutableList<string>.Empty);
+
+        public static Disconnection ConditionBeforeJoin(
+            string conditionLabel, DisconnectedChain carried, DisconnectedChain other,
+            Match joiningMatch) =>
+            new Disconnection(
+                DisconnectionKind.ConditionBeforeJoin, ImmutableList.Create(carried, other),
+                conditionLabel, null, null, joiningMatch, ImmutableList<string>.Empty);
+
+        public static Disconnection ConditionUnrelated(string conditionLabel, DisconnectedChain away) =>
+            new Disconnection(
+                DisconnectionKind.ConditionUnrelated, ImmutableList.Create(away), conditionLabel,
+                null, null, null, ImmutableList<string>.Empty);
+
+        public static Disconnection JoinedOnlyByCondition(
+            string conditionLabel, DisconnectedChain carried, DisconnectedChain other) =>
+            new Disconnection(
+                DisconnectionKind.JoinedOnlyByCondition, ImmutableList.Create(carried, other),
+                conditionLabel, null, null, null, ImmutableList<string>.Empty);
+
+        public static Disconnection FeedNotJoined(
+            ImmutableList<string> feedLabels, ImmutableList<DisconnectedChain> chains) =>
+            new Disconnection(
+                DisconnectionKind.FeedNotJoined, chains, null, null, null, null, feedLabels);
+    }
+
+    /// <summary>
+    /// The prose of a refusal, rendered from a <see cref="Disconnection"/>.
+    ///
+    /// Each message says what is disconnected, in the developer's own labels and the givens
+    /// each chain is reached from; what that would mean, every fact of one chain paired with
+    /// every fact of the other; and the rewrite that states what they probably meant. They
+    /// match jinaga/jinaga.js#437's <em>Error messages</em> section for shape, so the two
+    /// libraries advise a developer alike; a change to one should be made to the other. Parity
+    /// is of shape and advice, not of text.
+    /// </summary>
+    internal static class DisconnectionMessage
+    {
+        public static string Render(Disconnection disconnection)
+        {
+            switch (disconnection.Kind)
+            {
+                case DisconnectionKind.SeparateChains:
+                    return SeparateChains(disconnection.Chains);
+                case DisconnectionKind.ChildJoinsLate:
+                    return ChildJoinsLate(disconnection);
+                case DisconnectionKind.ConditionBeforeJoin:
+                    return ConditionBeforeJoin(disconnection);
+                case DisconnectionKind.ConditionUnrelated:
+                    return ConditionUnrelated(disconnection);
+                case DisconnectionKind.JoinedOnlyByCondition:
+                    return JoinedOnlyByCondition(disconnection);
+                default:
+                    return FeedNotJoined(disconnection);
+            }
+        }
+
+        // "Independent parts of a specification belong in sibling child projections, never in
+        // one list of matches", without the article, so each site punctuates it for the
+        // sentence it stands in rather than keeping a second copy of the words.
+        private const string Siblings =
+            "Independent parts of a specification belong in sibling child projections, " +
+            "never in one list of matches";
+
+        // "a negative condition filters a match; it never joins two", likewise.
+        private const string Filters = "negative condition filters a match; it never joins two";
+
+        // Where a sibling goes. A child specification inherits its parent's matches, so a
+        // sibling is independent only where its parent matches nothing from the other chain.
+        private const string NoMatchesAbove = "with no matches above them";
+
+        // Kind 1. A specification can fall into more than two chains, so the count and the
+        // groups are rendered from however many there are rather than from the two the shape is
+        // usually written with.
+        private static string SeparateChains(ImmutableList<DisconnectedChain> chains) =>
+            $"This specification matches {Count(chains.Count)} groups of facts that nothing " +
+            $"joins: {string.Join(", and ", chains.Select(Describe))}. {Pairing(chains)} " +
+            $"{Siblings}: put each group in its own child, {NoMatchesAbove}.";
+
+        // What one list of matches would come to. Two chains pair; more than two multiply, and
+        // naming one pair of them would understate what the store is being asked for.
+        private static string Pairing(ImmutableList<DisconnectedChain> chains) =>
+            chains.Count == 2
+                ? $"As one list of matches, every '{chains[0].First}' would be paired with " +
+                  $"every '{chains[1].First}'."
+                : $"As one list of matches, every combination of " +
+                  $"{Quote(chains.Select(chain => chain.First).ToImmutableList())} would be produced.";
+
+        // Kind 2. Where a deeper descendant does join the chains, the shape is a matrix the
+        // developer wrote in three levels instead of two, and the message names the match that
+        // joins them and the child that holds it. Where none does, the two chains are genuinely
+        // independent: the advice to use two levels would have no match to name, so the message
+        // keeps the matrix and gives the sibling rewrite alone.
+        private static string ChildJoinsLate(Disconnection disconnection)
+        {
+            var own = disconnection.Chains[0];
+            var parent = disconnection.Chains[1];
+            var opening =
+                $"The child specification '{disconnection.ChildPath}' matches {Describe(own)}, " +
+                $"but its parent matches {Describe(parent)}.";
+            var matrix =
+                $"so '{disconnection.ChildPath}' would hold every '{own.First}' for every " +
+                $"'{parent.First}': a full matrix.";
+
+            if (disconnection.JoiningMatch == null)
+            {
+                return
+                    $"{opening} Nothing joins them, {matrix} {Siblings}: " +
+                    $"put each group in its own child, {NoMatchesAbove}.";
+            }
+            var cell = disconnection.JoiningMatch.Unknown.Name;
+            return
+                $"{opening} Nothing joins them until '{disconnection.JoinerPath}' matches " +
+                $"'{cell}', {matrix} For the cells that exist, use two levels instead of " +
+                $"three: declare '{own.First}' in the same child as '{cell}', reached from it " +
+                $"({Reached(disconnection.JoiningMatch, own.First)}), so each cell comes with " +
+                $"its column. If you need every column, even those with no cells, independent " +
+                $"parts belong in sibling child projections: give the rows, the columns and the " +
+                $"cells each their own child, {NoMatchesAbove}.";
+        }
+
+        // Kind 3.
+        private static string ConditionBeforeJoin(Disconnection disconnection)
+        {
+            var carried = disconnection.Chains[0];
+            var other = disconnection.Chains[1];
+            var unknown = disconnection.ConditionLabel;
+            var away = other.First;
+            var cell = disconnection.JoiningMatch!.Unknown.Name;
+            return
+                $"The negative condition on '{unknown}' is checked before '{unknown}' is joined to " +
+                $"'{away}': at that point '{away}' is reached only from {Plain(other.Givens)} and " +
+                $"'{unknown}' only from {Plain(carried.Givens)}, and '{cell}' joins them later. " +
+                $"A {Filters}. Reorder the matches so that the chain is joined before the condition " +
+                $"applies. Either start from '{unknown}', then reach '{cell}' from '{unknown}' and " +
+                $"'{away}' from '{cell}', or reach '{cell}' from '{away}' and then '{unknown}' from " +
+                $"'{cell}'. Both read the same results, and they differ in what reaches a replica. " +
+                $"Starting from '{unknown}' sends no '{cell}' while its '{unknown}' is removed, but " +
+                $"it sends every '{unknown}' of {Plain(carried.Givens)} and its removals, even " +
+                $"where no '{away}' is joined. Reaching '{unknown}' through '{cell}' sends only " +
+                $"joined facts, but it can send an '{cell}' whose '{unknown}' is removed.";
+        }
+
+        // Kind 4.
+        private static string ConditionUnrelated(Disconnection disconnection)
+        {
+            var away = disconnection.Chains[0];
+            var unknown = disconnection.ConditionLabel;
+            var inner = away.First;
+            var given = Plain(away.Givens);
+            return
+                $"The negative condition on '{unknown}' matches {Quote(away.Unknowns)}, which is " +
+                $"reached from {given} but not from '{unknown}'. A {Filters}, so as written it " +
+                $"removes every '{unknown}' whenever {given} has any '{inner}'. If the condition " +
+                $"is about each '{unknown}', join '{inner}' to '{unknown}' (for example, " +
+                $"{inner}->{unknown} = {unknown}). If it is a gate on {given} as a whole, it " +
+                $"cannot be one specification: a condition on the given is refused too. Read the " +
+                $"'{unknown}'s and {given}'s '{inner}'s as sibling child projections, " +
+                $"{NoMatchesAbove}, and decide in your code.";
+        }
+
+        // Kind 5.
+        private static string JoinedOnlyByCondition(Disconnection disconnection)
+        {
+            var carried = disconnection.Chains[0];
+            var other = disconnection.Chains[1];
+            var unknown = disconnection.ConditionLabel;
+            var paired = other.First;
+            var givenOther = Plain(other.Givens);
+            return
+                $"'{paired}' is reached only from {givenOther}, and '{unknown}' only from " +
+                $"{Plain(carried.Givens)}. The negative condition on '{unknown}' mentions " +
+                $"both, but a {Filters}, so " +
+                $"every '{paired}' would be paired with every '{unknown}'. If you mean the " +
+                $"'{unknown}'s that no '{paired}' of {givenOther} links, move '{paired}' " +
+                $"into the condition. If you mean, for each '{paired}', the '{unknown}'s it " +
+                $"does not link, that is a dense complement and a product however it is " +
+                $"nested: read the links and the '{unknown}'s as sibling child projections, " +
+                $"{NoMatchesAbove}, and compute the complement in your code.";
+        }
+
+        // Kind 6, the fallback.
+        private static string FeedNotJoined(Disconnection disconnection) =>
+            $"A feed of this specification, through {Quote(disconnection.FeedLabels)}, joins " +
+            $"{string.Join(", to ", disconnection.Chains.Select(Describe))}, by nothing. " +
+            $"{Siblings}. A {Filters}.";
 
         // "'a' and 'b', reached from p1", or just the labels where the chain reaches no given.
-        private static string Describe(Chain chain) =>
+        private static string Describe(DisconnectedChain chain) =>
             chain.Givens.IsEmpty
                 ? Quote(chain.Unknowns)
                 : $"{Quote(chain.Unknowns)}, reached from {Plain(chain.Givens)}";
 
-        private static string First(Chain chain) =>
-            chain.Unknowns.IsEmpty ? Plain(chain.Givens) : chain.Unknowns[0];
-
         private static string Quote(ImmutableList<string> labels) =>
             Conjoin(labels.Select(label => $"'{label}'").ToImmutableList());
 
-        private static string Plain(ImmutableList<string> labels) => Conjoin(labels);
+        public static string Plain(ImmutableList<string> labels) => Conjoin(labels);
 
         // A count as a word, so the sentence reads. Past a handful the numeral is clearer than
         // a word would be, and a specification that falls into that many chains is past the
@@ -648,7 +842,8 @@ namespace Jinaga.Projections
 
         // A path condition that would reach `label` from `match`, written as
         // ToDescriptiveString prints one with its role types left off: it is advice about a
-        // specification the developer has yet to write, not an echo of one they wrote.
+        // specification the developer has yet to write, not an echo of one they wrote, and it
+        // may name a role the developer has not declared.
         private static string Reached(Match match, string label)
         {
             var condition = match.PathConditions.FirstOrDefault(each => each.LabelRight == label);
@@ -660,56 +855,5 @@ namespace Jinaga.Projections
             var right = string.Join("", condition.RolesLeft.Select(role => $"->{role.Name}"));
             return $"{label}{left} = {match.Unknown.Name}{right}";
         }
-    }
-
-    /// <summary>
-    /// Which of the ways a specification can be a product it is, so the refusal can advise the
-    /// developer about the shape they wrote rather than name the rule alone.
-    /// </summary>
-    internal enum DisconnectionKind
-    {
-        /// <summary>A given no descendant uses.</summary>
-        UnusedGiven,
-
-        /// <summary>The specification's own matches fall into chains nothing joins.</summary>
-        SeparateChains,
-
-        /// <summary>A child specification is a matrix, which a deeper one may fill in.</summary>
-        ChildJoinsLate,
-
-        /// <summary>A negative condition is checked before the chain it sits on is joined.</summary>
-        ConditionBeforeJoin,
-
-        /// <summary>A negative condition's level is joined to another given, not to its match.</summary>
-        ConditionUnrelated,
-
-        /// <summary>A feed's two chains are joined only by a negative condition.</summary>
-        JoinedOnlyByCondition,
-
-        /// <summary>Any other feed that nothing joins.</summary>
-        FeedNotJoined
-    }
-
-    /// <summary>
-    /// Why a specification is a product: which shape it is, and the message that names the
-    /// labels on both sides of the disconnection and the rewrite that states what the developer
-    /// probably meant.
-    /// </summary>
-    internal sealed class Disconnection
-    {
-        public Disconnection(DisconnectionKind kind, string message)
-        {
-            Kind = kind;
-            Message = message;
-        }
-
-        public DisconnectionKind Kind { get; }
-
-        /// <summary>
-        /// What is disconnected, in the developer's own labels; what that would mean; and the
-        /// rewrite. Rendered from the structure of the specification, so it names the labels
-        /// the developer wrote rather than one of a table of examples.
-        /// </summary>
-        public string Message { get; }
     }
 }

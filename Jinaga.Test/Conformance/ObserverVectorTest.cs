@@ -234,11 +234,23 @@ public class ObserverVectorTest
     /// once. The givens are the same for every row of one watch, so the unknowns settle a
     /// row's identity within it.
     /// </summary>
-    private static ImmutableList<string> UnknownLabels(ConformanceVector vector) =>
-        vector.Json.GetProperty("specification").GetProperty("matches").EnumerateArray()
+    private static ImmutableList<string> UnknownLabels(ConformanceVector vector)
+    {
+        var unknowns = vector.Json.GetProperty("specification").GetProperty("matches").EnumerateArray()
             .Select(match => match.GetProperty("unknown").GetProperty("name").GetString()!)
             .Distinct()
             .ToImmutableList();
+        if (!unknowns.IsEmpty)
+        {
+            return unknowns;
+        }
+        // A specification with no matches has no unknowns, and exactly one row: its givens
+        // (jinaga/jinaga-spec#60). The vector's own `rowLabels` name them, and with one row
+        // possible they identify it, which is the only thing the comment above needs of a key.
+        return vector.Json.GetProperty("rowLabels").EnumerateArray()
+            .Select(label => label.GetString()!)
+            .ToImmutableList();
+    }
 
     private static int IdOf(JsonElement json) => json.GetProperty("id").GetInt32();
 

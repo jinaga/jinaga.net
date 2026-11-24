@@ -1,0 +1,13 @@
+{"violates": [],
+ "text": "(p1: R, p2: A) {\n} => p2\n",
+ "specification":
+ {"projection": {"type": "fact", "label": "p2"},
+  "matches": [],
+  "given":
+  [{"label": {"type": "R", "name": "p1"}, "conditions": []},
+   {"label": {"type": "A", "name": "p2"}, "conditions": []}]},
+ "source": "jinaga/jinaga-spec#60",
+ "name": "no-matches-two-givens",
+ "expected": {"wellFormed": true, "connected": true},
+ "description":
+ "A specification with no matches and two givens, projecting the second. Neither given is used, and both are allowed."}
