@@ -129,6 +129,55 @@ public class ConnectedSpecificationTest
     }
 
     /// <summary>
+    /// The rendered message names every label the disconnection carries, on both sides of the
+    /// cut. Both sides come from the one structure, so this does not restate a sentence: it
+    /// goes red when the renderer is handed a label and drops it, and stays green through any
+    /// rewording that keeps the labels. A dropped label is the failure that matters, because a
+    /// developer cannot act on advice that does not name what it is about.
+    /// </summary>
+    [Theory]
+    [InlineData("two-chains-of-predecessors")]
+    [InlineData("child-joins-two-chains-only-in-a-grandchild")]
+    [InlineData("negative-condition-before-the-join")]
+    [InlineData("negative-condition-joins-another-given")]
+    [InlineData("negative-condition-joins-two-chains")]
+    public void RendersAMessageThatNamesEveryLabelItCarries(string name)
+    {
+        var disconnection = ConnectedSpecification.Disconnect(Vector(name));
+
+        var message = disconnection!.Message;
+        foreach (var chain in disconnection.Chains)
+        {
+            // An unknown is quoted, and a given is named plainly, so a one-letter label is
+            // matched as a label rather than as a letter inside an ordinary word.
+            foreach (var unknown in chain.Unknowns)
+            {
+                message.Should().Contain($"'{unknown}'");
+            }
+            foreach (var given in chain.Givens)
+            {
+                message.Should().Contain(given);
+            }
+        }
+        if (disconnection.ConditionLabel != null)
+        {
+            message.Should().Contain($"'{disconnection.ConditionLabel}'");
+        }
+        if (disconnection.JoiningMatch != null)
+        {
+            message.Should().Contain($"'{disconnection.JoiningMatch.Unknown.Name}'");
+        }
+        if (disconnection.ChildPath != null)
+        {
+            message.Should().Contain($"'{disconnection.ChildPath}'");
+        }
+        if (disconnection.JoinerPath != null)
+        {
+            message.Should().Contain($"'{disconnection.JoinerPath}'");
+        }
+    }
+
+    /// <summary>
     /// A given its matches do not use is no chain of its own, so nothing is refused for one
     /// (jinaga/jinaga-spec#60). <c>unused-given</c> carried the opposite verdict at the
     /// previous pin, which is why it is stated here as well as in the vector test.
