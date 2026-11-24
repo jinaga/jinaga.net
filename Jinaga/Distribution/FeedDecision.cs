@@ -1,3 +1,4 @@
+using Jinaga.Http;
 using System.Text.Json.Serialization;
 
 namespace Jinaga
@@ -57,29 +58,78 @@ namespace Jinaga
         /// <summary>
         /// The feed the decision is about.
         /// </summary>
+        [JsonConverter(typeof(ProtocolStringConverter))]
         public string Feed { get; set; } = string.Empty;
 
         /// <summary>
-        /// Whether the feed is authorized, reactive, or denied.
+        /// What the replicator decided, as it spelled it. Replicas are peers, and a
+        /// replicator newer than this client can decide something this client has no
+        /// name for, so the name is kept exactly as received rather than reduced to a
+        /// member this client happens to know. Required: a decision with no such member is
+        /// malformed rather than a decision this client cannot read, so it is refused instead
+        /// of read as <see cref="DistributionDecision.Denied"/>.
         /// </summary>
-        public DistributionDecision Decision { get; set; }
+        [JsonPropertyName("decision")]
+        [JsonRequired]
+        [JsonConverter(typeof(ProtocolStringConverter))]
+        public string DecisionName { get; set; } = string.Empty;
 
         /// <summary>
-        /// Why the feed was denied, or null if it was not.
+        /// Whether the feed is authorized, reactive, or denied: <see cref="DistributionDecision.Denied"/>
+        /// when the replicator sent a decision this client does not know, which is the safe
+        /// reading, because no path treats a denied feed as authorized. <see cref="DecisionName"/>
+        /// carries the name either way, and this is derived from it through the serializer's one
+        /// table of protocol names rather than stored beside it.
         /// </summary>
+        [JsonIgnore]
+        public DistributionDecision Decision
+        {
+            get => MessageSerializer.DecisionOfName(DecisionName) ?? DistributionDecision.Denied;
+            set => DecisionName = MessageSerializer.NameOfDecision(value);
+        }
+
+        /// <summary>
+        /// Why the feed was denied, as the replicator spelled it, or null if it was not.
+        /// Replicas are peers, and a replicator newer than this client can deny a feed for
+        /// a reason this client has no name for, so the name is kept exactly as received
+        /// rather than reduced to a member this client happens to know.
+        /// </summary>
+        [JsonPropertyName("code")]
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-        public DistributionDenialCode? Code { get; set; }
+        [JsonConverter(typeof(ProtocolStringConverter))]
+        public string? CodeName { get; set; }
+
+        /// <summary>
+        /// Why the feed was denied: null if it was not, and null if the replicator sent a
+        /// code this client does not know. <see cref="CodeName"/> carries the name either
+        /// way, and this is derived from it through the serializer's one table of protocol
+        /// names rather than stored beside it.
+        /// </summary>
+        [JsonIgnore]
+        public DistributionDenialCode? Code
+        {
+            get => MessageSerializer.DenialCodeOfName(CodeName);
+            set => CodeName = value.HasValue ? MessageSerializer.NameOfDenialCode(value.Value) : null;
+        }
 
         /// <summary>
         /// The replicator's own account of the decision.
         /// </summary>
+        [JsonConverter(typeof(ProtocolStringConverter))]
         public string Reason { get; set; } = string.Empty;
 
         /// <summary>
         /// Whether the denial is structural: the specification and the rules cannot
-        /// agree, so no fact anyone later writes will change the answer. It reads the
-        /// code alone, so a structural code makes the feed structural even when the
-        /// replicator reports the decision as <see cref="DistributionDecision.Reactive"/>.
+        /// agree, so no fact anyone later writes will change the answer. It holds only
+        /// when <see cref="DecisionName"/> names a decision this client knows and
+        /// <see cref="Code"/> is one of the two structural codes. Under a decision this
+        /// client knows, the code decides, so a structural code makes the feed structural
+        /// even when the replicator reports the decision as
+        /// <see cref="DistributionDecision.Reactive"/>. Under a decision this client does
+        /// not know, nothing is structural, whatever the code, because structurality is a
+        /// claim about a decision whose meaning this client can read. A code this client
+        /// does not know needs no rule of its own, because <see cref="Code"/> is null for
+        /// one.
         /// This is the
         /// only statement of that predicate. Both
         /// <see cref="DistributionDiagnostic.IsStructural"/> and the throw in
@@ -88,7 +138,8 @@ namespace Jinaga
         /// </summary>
         [JsonIgnore]
         public bool IsStructural =>
-            Code == DistributionDenialCode.NoMatchingRule ||
-            Code == DistributionDenialCode.SpecMoreRestrictiveThanRule;
+            MessageSerializer.DecisionOfName(DecisionName).HasValue &&
+            (Code == DistributionDenialCode.NoMatchingRule ||
+                Code == DistributionDenialCode.SpecMoreRestrictiveThanRule);
     }
 }

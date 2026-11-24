@@ -9,6 +9,8 @@ namespace Jinaga.Http
 {
     public static class MessageSerializer
     {
+        private static readonly DistributionDecisionConverter decisionConverter = new DistributionDecisionConverter();
+        private static readonly DistributionDenialCodeConverter denialCodeConverter = new DistributionDenialCodeConverter();
         private static JsonSerializerOptions options = GetOptions();
 
         private static JsonSerializerOptions GetOptions()
@@ -20,9 +22,47 @@ namespace Jinaga.Http
             };
             options.Converters.Add(new PredecessorSetConverter());
             options.Converters.Add(new FieldValueConverter());
-            options.Converters.Add(new DistributionDecisionConverter());
-            options.Converters.Add(new DistributionDenialCodeConverter());
+            options.Converters.Add(decisionConverter);
+            options.Converters.Add(denialCodeConverter);
             return options;
+        }
+
+        /// <summary>
+        /// The <see cref="DistributionDenialCode"/> that the protocol spells with this name,
+        /// or null when the name is null or names a code this client does not know. It reads
+        /// the same table the converter reads, so a name stored as the replicator sent it and
+        /// a code derived from that name cannot drift apart.
+        /// </summary>
+        internal static DistributionDenialCode? DenialCodeOfName(string? name)
+        {
+            return name == null ? null : denialCodeConverter.ValueOfName(name);
+        }
+
+        /// <summary>
+        /// How the protocol spells this denial code, from the same table.
+        /// </summary>
+        internal static string NameOfDenialCode(DistributionDenialCode code)
+        {
+            return denialCodeConverter.NameOfValue(code);
+        }
+
+        /// <summary>
+        /// The <see cref="DistributionDecision"/> that the protocol spells with this name,
+        /// or null when the name is null or names a decision this client does not know. It
+        /// reads the same table the converter reads, so a name stored as the replicator sent
+        /// it and a decision derived from that name cannot drift apart.
+        /// </summary>
+        internal static DistributionDecision? DecisionOfName(string? name)
+        {
+            return name == null ? null : decisionConverter.ValueOfName(name);
+        }
+
+        /// <summary>
+        /// How the protocol spells this decision, from the same table.
+        /// </summary>
+        internal static string NameOfDecision(DistributionDecision decision)
+        {
+            return decisionConverter.NameOfValue(decision);
         }
 
         public static string Serialize<TRequest>(TRequest request)
@@ -37,8 +77,15 @@ namespace Jinaga.Http
 
         /// <summary>
         /// Reads and writes an enum as the protocol spells it. One table of names serves
-        /// both directions, so neither can drift from the other, and a name the table does
-        /// not hold fails deserialization rather than becoming a default value.
+        /// both directions, so neither can drift from the other. A name the table does not
+        /// hold fails deserialization rather than becoming a default value, as does a token
+        /// that is not a string. Both hold for every converter.
+        /// A protocol value a newer replicator may spell in a way this client has no name
+        /// for therefore does not reach a converter at all: <see cref="FeedDecision.DecisionName"/>
+        /// and <see cref="FeedDecision.CodeName"/> are read as the strings they are, and
+        /// <see cref="FeedDecision.Decision"/> and <see cref="FeedDecision.Code"/> are
+        /// derived from them through this same table, by <see cref="DecisionOfName"/> and
+        /// <see cref="DenialCodeOfName"/>.
         /// </summary>
         private abstract class ProtocolEnumConverter<T> : JsonConverter<T>
             where T : struct, Enum
@@ -62,6 +109,27 @@ namespace Jinaga.Http
                 return new KeyValuePair<T, string>(value, name);
             }
 
+            /// <summary>
+            /// The value the protocol spells with this name, or null when the table holds
+            /// no such name. Callers outside deserialization read the table through this.
+            /// </summary>
+            public T? ValueOfName(string name)
+            {
+                return valuesByName.TryGetValue(name, out var value) ? value : (T?)null;
+            }
+
+            /// <summary>
+            /// How the protocol spells this value.
+            /// </summary>
+            public string NameOfValue(T value)
+            {
+                if (!namesByValue.TryGetValue(value, out var name))
+                {
+                    throw new JsonException($"Unknown {typeof(T).Name} {value}.");
+                }
+                return name;
+            }
+
             public override T Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
             {
                 if (reader.TokenType != JsonTokenType.String)
@@ -69,20 +137,17 @@ namespace Jinaga.Http
                     throw new JsonException($"Expected a string for {typeof(T).Name}.");
                 }
                 var name = reader.GetString() ?? "";
-                if (!valuesByName.TryGetValue(name, out var value))
+                var value = ValueOfName(name);
+                if (value == null)
                 {
                     throw new JsonException($"Unknown {typeof(T).Name} \"{name}\".");
                 }
-                return value;
+                return value.Value;
             }
 
             public override void Write(Utf8JsonWriter writer, T value, JsonSerializerOptions options)
             {
-                if (!namesByValue.TryGetValue(value, out var name))
-                {
-                    throw new JsonException($"Unknown {typeof(T).Name} {value}.");
-                }
-                writer.WriteStringValue(name);
+                writer.WriteStringValue(NameOfValue(value));
             }
         }
 

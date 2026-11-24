@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using Jinaga.Http;
 using Jinaga.Storage;
 using Jinaga.Test.Fakes;
 using Jinaga.Test.Model;
@@ -259,6 +260,99 @@ public class JinagaClientTest
         var requested = network.RequestedFeeds.Should().ContainSingle().Which;
         diagnostics.Should().ContainSingle().Which
             .Specification.Should().Be(requested.specification.ToDescriptiveString());
+    }
+
+    private const string AuthorizedFeed = "ThHxGPTRPZ";
+
+    [Fact]
+    public async Task Query_UsesTheFeedsBesideADenialWithAnUnknownCode()
+    {
+        // A replicator newer than this client can deny a feed for a reason this client has
+        // no name for. The feeds it did authorize are still good, and the code it sent
+        // reaches the caller as it sent it.
+        var (j, network, diagnostics) = CreateClient();
+        var airlineDay = await j.Fact(new AirlineDay(new Airline("IA"), DateTime.Today));
+        var flight = new Flight(airlineDay, 4247);
+        network.AddFeed(AuthorizedFeed, new object[] { flight });
+        network.ReportDecisions(
+            new FeedDecision
+            {
+                Feed = AuthorizedFeed,
+                Decision = DistributionDecision.Authorized,
+                Reason = "Matched a rule."
+            },
+            new FeedDecision
+            {
+                Feed = DeniedFeed,
+                Decision = DistributionDecision.Denied,
+                CodeName = "some-future-code",
+                Reason = "A replicator newer than this client said so."
+            });
+
+        var flights = await j.Query(flightsOfDay, airlineDay);
+
+        flights.Should().ContainSingle().Which.Should().BeEquivalentTo(flight);
+        var diagnostic = diagnostics.Should().ContainSingle(d => d.Feed == DeniedFeed).Which;
+        diagnostic.Decision.Should().Be(DistributionDecision.Denied);
+        diagnostic.CodeName.Should().Be("some-future-code");
+        diagnostic.Code.Should().BeNull();
+        diagnostic.IsStructural.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(DistributionDenialCode.NoMatchingRule)]
+    [InlineData(DistributionDenialCode.SpecMoreRestrictiveThanRule)]
+    public async Task Query_DoesNotThrowOnAnUnknownDecisionWithAStructuralCode(DistributionDenialCode structuralCode)
+    {
+        // A replicator newer than this client can decide something this client has no name
+        // for. Structurality is a claim about a decision whose meaning this client can read,
+        // so such a decision is non-structural even carrying a code that is structural under
+        // a decision this client knows, and nothing throws on it.
+        var (j, network, diagnostics) = CreateClient();
+        network.ReportDecisions(new FeedDecision
+        {
+            Feed = DeniedFeed,
+            DecisionName = "some-future-kind",
+            Code = structuralCode,
+            Reason = "A replicator newer than this client said so."
+        });
+        var airlineDay = await j.Fact(new AirlineDay(new Airline("IA"), DateTime.Today));
+
+        var flights = await j.Query(flightsOfDay, airlineDay);
+
+        flights.Should().BeEmpty();
+        var diagnostic = diagnostics.Should().ContainSingle().Which;
+        diagnostic.DecisionName.Should().Be("some-future-kind");
+        diagnostic.Decision.Should().Be(DistributionDecision.Denied);
+        diagnostic.Code.Should().Be(structuralCode);
+        diagnostic.IsStructural.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Query_ReportsAKnownCodeUnderTheNameTheProtocolSpells()
+    {
+        // The name and the code are one fact, so a decision built from either side reads
+        // the same on the other. Nothing here restates the table that maps them.
+        var (j, network, diagnostics) = CreateClient();
+        network.ReportDecisions(Denial(DistributionDenialCode.PrincipalExcluded, "A later fact can change this."));
+        var airlineDay = await j.Fact(new AirlineDay(new Airline("IA"), DateTime.Today));
+
+        await j.Query(flightsOfDay, airlineDay);
+
+        var diagnostic = diagnostics.Should().ContainSingle().Which;
+        diagnostic.Code.Should().Be(DistributionDenialCode.PrincipalExcluded);
+
+        // Read the name back through the serializer rather than quoting it here, so this
+        // fails when the two directions of the one table diverge.
+        var roundTripped = MessageSerializer.Deserialize<FeedDecision>(
+            MessageSerializer.Serialize(new FeedDecision
+            {
+                Feed = DeniedFeed,
+                Decision = DistributionDecision.Denied,
+                CodeName = diagnostic.CodeName,
+                Reason = diagnostic.Reason
+            }));
+        roundTripped.Code.Should().Be(DistributionDenialCode.PrincipalExcluded);
     }
 
     [Fact]

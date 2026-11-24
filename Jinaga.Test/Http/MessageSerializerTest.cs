@@ -238,12 +238,145 @@ namespace Jinaga.Test.Http
         private const string ExampleFeedsResponseWithAnUnknownCode = "{\"feeds\":[],\"decisions\":[{\"feed\":\"denied-feed\",\"decision\":\"denied\",\"code\":\"rule-ate-my-homework\",\"reason\":\"...\"}]}";
 
         [Fact]
-        public void FeedsResponseRejectsAnUnknownCode()
+        public void FeedsResponseKeepsAnUnknownCodeAsReceived()
         {
-            Action deserialize = () => MessageSerializer.Deserialize<FeedsResponse>(ExampleFeedsResponseWithAnUnknownCode);
+            var response = MessageSerializer.Deserialize<FeedsResponse>(ExampleFeedsResponseWithAnUnknownCode);
 
-            deserialize.Should().Throw<JsonException>()
-                .WithMessage("*rule-ate-my-homework*");
+            var decision = response.Decisions.Should().ContainSingle().Which;
+            decision.CodeName.Should().Be("rule-ate-my-homework");
+            decision.Code.Should().BeNull();
+            decision.IsStructural.Should().BeFalse();
+
+            // Write it back through the serializer the client ships, so this fails when the
+            // client stops carrying the code it was sent rather than when a literal is edited.
+            MessageSerializer.Serialize(response).Should().Be(ExampleFeedsResponseWithAnUnknownCode);
+        }
+
+        private const string ExampleFeedsResponseWithAFeedAndAnUnknownCode = "{\"feeds\":[\"authorized-feed\"],\"decisions\":[{\"feed\":\"authorized-feed\",\"decision\":\"authorized\",\"reason\":\"Matched rule 1\"},{\"feed\":\"denied-feed\",\"decision\":\"denied\",\"code\":\"rule-ate-my-homework\",\"reason\":\"...\"}]}";
+
+        [Fact]
+        public void FeedsResponseKeepsTheFeedsBesideAnUnknownCode()
+        {
+            var response = MessageSerializer.Deserialize<FeedsResponse>(ExampleFeedsResponseWithAFeedAndAnUnknownCode);
+
+            response.Feeds.Should().Equal("authorized-feed");
+            response.Decisions.Should().HaveCount(2);
+            response.Decisions[0].Decision.Should().Be(DistributionDecision.Authorized);
+            response.Decisions[0].CodeName.Should().BeNull();
+            response.Decisions[1].CodeName.Should().Be("rule-ate-my-homework");
+            response.Decisions[1].Code.Should().BeNull();
+        }
+
+        private const string UnknownDecisionName = "some-future-kind";
+
+        private const string ExampleFeedsResponseWithAnUnknownDecision = "{\"feeds\":[\"some-feed\"],\"decisions\":[{\"feed\":\"some-feed\",\"decision\":\"" + UnknownDecisionName + "\",\"reason\":\"A newer replicator decided something this client has no name for\"}]}";
+
+        [Fact]
+        public void FeedsResponseReadsAnUnknownDecisionAsDenied()
+        {
+            var response = MessageSerializer.Deserialize<FeedsResponse>(ExampleFeedsResponseWithAnUnknownDecision);
+
+            response.Feeds.Should().Equal("some-feed");
+            var decision = response.Decisions.Should().ContainSingle().Which;
+            decision.DecisionName.Should().Be(UnknownDecisionName);
+            decision.Decision.Should().Be(DistributionDecision.Denied);
+            decision.CodeName.Should().BeNull();
+            decision.Code.Should().BeNull();
+            decision.IsStructural.Should().BeFalse();
+
+            // Write it back through the serializer the client ships, so this fails when the
+            // client stops carrying the decision it was sent rather than when a literal is
+            // edited.
+            MessageSerializer.Serialize(response).Should().Be(ExampleFeedsResponseWithAnUnknownDecision);
+        }
+
+        [Theory]
+        [InlineData(DistributionDenialCode.NoMatchingRule)]
+        [InlineData(DistributionDenialCode.SpecMoreRestrictiveThanRule)]
+        public void FeedsResponseReadsAnUnknownDecisionAsNonStructuralWhateverTheCode(DistributionDenialCode structuralCode)
+        {
+            // Structurality is a claim about a decision whose meaning this client can read,
+            // so a decision kind this client has no name for is non-structural even when it
+            // carries one of the two codes that are structural under a decision it knows.
+            // Spell the response through the serializer the client ships, so the code on the
+            // wire comes from the one table of protocol names rather than from a literal here.
+            var json = MessageSerializer.Serialize(new FeedsResponse
+            {
+                Feeds = new List<string> { "some-feed" },
+                Decisions = new List<FeedDecision>
+                {
+                    new FeedDecision
+                    {
+                        Feed = "some-feed",
+                        DecisionName = UnknownDecisionName,
+                        Code = structuralCode,
+                        Reason = "A newer replicator decided something this client has no name for"
+                    }
+                }
+            });
+
+            var response = MessageSerializer.Deserialize<FeedsResponse>(json);
+
+            response.Feeds.Should().Equal("some-feed");
+            var decision = response.Decisions.Should().ContainSingle().Which;
+            decision.DecisionName.Should().Be(UnknownDecisionName);
+            decision.Decision.Should().Be(DistributionDecision.Denied);
+            decision.Code.Should().Be(structuralCode);
+            decision.IsStructural.Should().BeFalse();
+        }
+
+        [Theory]
+        [InlineData("{\"feeds\":[],\"decisions\":[{\"feed\":\"denied-feed\",\"decision\":7,\"reason\":\"...\"}]}")]
+        [InlineData("{\"feeds\":[],\"decisions\":[{\"feed\":\"denied-feed\",\"decision\":\"denied\",\"code\":7,\"reason\":\"...\"}]}")]
+        [InlineData("{\"feeds\":[],\"decisions\":[{\"feed\":\"denied-feed\",\"decision\":\"denied\",\"code\":\"no-matching-rule\",\"reason\":7}]}")]
+        [InlineData("{\"feeds\":[],\"decisions\":[{\"feed\":7,\"decision\":\"denied\",\"reason\":\"...\"}]}")]
+        [InlineData("{\"feeds\":[],\"decisions\":[{\"feed\":\"denied-feed\",\"decision\":null,\"reason\":\"...\"}]}")]
+        [InlineData("{\"feeds\":[],\"decisions\":[{\"feed\":\"denied-feed\",\"decision\":\"denied\",\"code\":null,\"reason\":\"...\"}]}")]
+        [InlineData("{\"feeds\":[],\"decisions\":[{\"feed\":\"denied-feed\",\"decision\":\"denied\",\"reason\":null}]}")]
+        [InlineData("{\"feeds\":[],\"decisions\":[{\"feed\":null,\"decision\":\"denied\",\"reason\":\"...\"}]}")]
+        public void FeedsResponseRejectsAMalformedDecision(string json)
+        {
+            // A null is a shape, not a value a newer replicator might give meaning to, so
+            // it is refused exactly as a number is.
+            Action deserialize = () => MessageSerializer.Deserialize<FeedsResponse>(json);
+
+            deserialize.Should().Throw<JsonException>();
+        }
+
+        [Fact]
+        public void FeedsResponseRejectsAResponseWithoutFeeds()
+        {
+            // Only values this client does not know are tolerated. A missing member is a
+            // malformed response, not a declaration of no feeds.
+            Action deserialize = () => MessageSerializer.Deserialize<FeedsResponse>("{\"decisions\":[]}");
+
+            deserialize.Should().Throw<JsonException>();
+        }
+
+        [Fact]
+        public void FeedsResponseRejectsADecisionWithoutADecisionMember()
+        {
+            // A newer replicator may send a decision this client has no name for, and that is
+            // read as Denied. A decision that names none at all is a malformed shape, not an
+            // unknown value, so it is refused rather than read as Denied.
+            Action deserialize = () => MessageSerializer.Deserialize<FeedsResponse>(
+                "{\"feeds\":[],\"decisions\":[{\"feed\":\"f\",\"reason\":\"r\"}]}");
+
+            deserialize.Should().Throw<JsonException>();
+        }
+
+        [Theory]
+        [InlineData("{\"feeds\":null,\"decisions\":[]}")]
+        [InlineData("{\"feeds\":7,\"decisions\":[]}")]
+        [InlineData("{\"feeds\":[\"authorized-feed\"],\"decisions\":null}")]
+        public void FeedsResponseRejectsAMalformedListMember(string json)
+        {
+            // A member the response declares as an array is read as one or refused. Read as
+            // a null it would deserialize here and fail wherever the caller first reaches
+            // for it, which is not the JsonException a malformed response promises.
+            Action deserialize = () => MessageSerializer.Deserialize<FeedsResponse>(json);
+
+            deserialize.Should().Throw<JsonException>();
         }
 
         private const string ExampleFeedsResponseWithoutDecisions = "{\"feeds\":[\"authorized-feed\"]}";
