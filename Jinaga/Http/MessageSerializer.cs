@@ -46,6 +46,25 @@ namespace Jinaga.Http
             return denialCodeConverter.NameOfValue(code);
         }
 
+        /// <summary>
+        /// The <see cref="DistributionDecision"/> that the protocol spells with this name,
+        /// or null when the name is null or names a decision this client does not know. It
+        /// reads the same table the converter reads, so a name stored as the replicator sent
+        /// it and a decision derived from that name cannot drift apart.
+        /// </summary>
+        internal static DistributionDecision? DecisionOfName(string? name)
+        {
+            return name == null ? null : decisionConverter.ValueOfName(name);
+        }
+
+        /// <summary>
+        /// How the protocol spells this decision, from the same table.
+        /// </summary>
+        internal static string NameOfDecision(DistributionDecision decision)
+        {
+            return decisionConverter.NameOfValue(decision);
+        }
+
         public static string Serialize<TRequest>(TRequest request)
         {
             return JsonSerializer.Serialize(request, options);
@@ -59,11 +78,14 @@ namespace Jinaga.Http
         /// <summary>
         /// Reads and writes an enum as the protocol spells it. One table of names serves
         /// both directions, so neither can drift from the other. A name the table does not
-        /// hold reads as whatever <see cref="ValueOfUnknownName"/> gives: by default it
-        /// fails deserialization rather than becoming a default value, and a converter
-        /// whose type has a safe reading of an unknown name overrides that.
-        /// <see cref="DistributionDecisionConverter"/> is the one that does. A token that
-        /// is not a string always fails, whatever the converter.
+        /// hold fails deserialization rather than becoming a default value, as does a token
+        /// that is not a string. Both hold for every converter.
+        /// A protocol value a newer replicator may spell in a way this client has no name
+        /// for therefore does not reach a converter at all: <see cref="FeedDecision.DecisionName"/>
+        /// and <see cref="FeedDecision.CodeName"/> are read as the strings they are, and
+        /// <see cref="FeedDecision.Decision"/> and <see cref="FeedDecision.Code"/> are
+        /// derived from them through this same table, by <see cref="DecisionOfName"/> and
+        /// <see cref="DenialCodeOfName"/>.
         /// </summary>
         private abstract class ProtocolEnumConverter<T> : JsonConverter<T>
             where T : struct, Enum
@@ -108,16 +130,6 @@ namespace Jinaga.Http
                 return name;
             }
 
-            /// <summary>
-            /// What a name this client does not know reads as. The base fails
-            /// deserialization, so a type with no safe reading of an unknown name needs
-            /// no rule of its own.
-            /// </summary>
-            protected virtual T ValueOfUnknownName(string name)
-            {
-                throw new JsonException($"Unknown {typeof(T).Name} \"{name}\".");
-            }
-
             public override T Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
             {
                 if (reader.TokenType != JsonTokenType.String)
@@ -126,7 +138,11 @@ namespace Jinaga.Http
                 }
                 var name = reader.GetString() ?? "";
                 var value = ValueOfName(name);
-                return value ?? ValueOfUnknownName(name);
+                if (value == null)
+                {
+                    throw new JsonException($"Unknown {typeof(T).Name} \"{name}\".");
+                }
+                return value.Value;
             }
 
             public override void Write(Utf8JsonWriter writer, T value, JsonSerializerOptions options)
@@ -142,16 +158,6 @@ namespace Jinaga.Http
                 Name(DistributionDecision.Reactive, "reactive"),
                 Name(DistributionDecision.Denied, "denied"))
             {
-            }
-
-            /// <summary>
-            /// A replicator newer than this client can decide something this client has no
-            /// name for. Reading it as <see cref="DistributionDecision.Denied"/> leaves the
-            /// rest of the response usable while no path treats the feed as authorized.
-            /// </summary>
-            protected override DistributionDecision ValueOfUnknownName(string name)
-            {
-                return DistributionDecision.Denied;
             }
         }
 

@@ -299,6 +299,35 @@ public class JinagaClientTest
         diagnostic.IsStructural.Should().BeFalse();
     }
 
+    [Theory]
+    [InlineData(DistributionDenialCode.NoMatchingRule)]
+    [InlineData(DistributionDenialCode.SpecMoreRestrictiveThanRule)]
+    public async Task Query_DoesNotThrowOnAnUnknownDecisionWithAStructuralCode(DistributionDenialCode structuralCode)
+    {
+        // A replicator newer than this client can decide something this client has no name
+        // for. Structurality is a claim about a decision whose meaning this client can read,
+        // so such a decision is non-structural even carrying a code that is structural under
+        // a decision this client knows, and nothing throws on it.
+        var (j, network, diagnostics) = CreateClient();
+        network.ReportDecisions(new FeedDecision
+        {
+            Feed = DeniedFeed,
+            DecisionName = "some-future-kind",
+            Code = structuralCode,
+            Reason = "A replicator newer than this client said so."
+        });
+        var airlineDay = await j.Fact(new AirlineDay(new Airline("IA"), DateTime.Today));
+
+        var flights = await j.Query(flightsOfDay, airlineDay);
+
+        flights.Should().BeEmpty();
+        var diagnostic = diagnostics.Should().ContainSingle().Which;
+        diagnostic.DecisionName.Should().Be("some-future-kind");
+        diagnostic.Decision.Should().Be(DistributionDecision.Denied);
+        diagnostic.Code.Should().Be(structuralCode);
+        diagnostic.IsStructural.Should().BeFalse();
+    }
+
     [Fact]
     public async Task Query_ReportsAKnownCodeUnderTheNameTheProtocolSpells()
     {

@@ -30,7 +30,15 @@ namespace Jinaga
         public string Feed => decision.Feed;
 
         /// <summary>
-        /// Whether the feed is authorized, reactive, or denied.
+        /// What the replicator decided, as it spelled it. A decision this client does not
+        /// know reaches the caller here, and <see cref="Decision"/> reads
+        /// <see cref="DistributionDecision.Denied"/> for it.
+        /// </summary>
+        public string DecisionName => decision.DecisionName;
+
+        /// <summary>
+        /// Whether the feed is authorized, reactive, or denied, as
+        /// <see cref="FeedDecision.Decision"/> gives it.
         /// </summary>
         public DistributionDecision Decision => decision.Decision;
 

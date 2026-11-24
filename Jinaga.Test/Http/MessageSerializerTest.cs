@@ -267,7 +267,9 @@ namespace Jinaga.Test.Http
             response.Decisions[1].Code.Should().BeNull();
         }
 
-        private const string ExampleFeedsResponseWithAnUnknownDecision = "{\"feeds\":[\"some-feed\"],\"decisions\":[{\"feed\":\"some-feed\",\"decision\":\"some-future-kind\",\"reason\":\"A newer replicator decided something this client has no name for\"}]}";
+        private const string UnknownDecisionName = "some-future-kind";
+
+        private const string ExampleFeedsResponseWithAnUnknownDecision = "{\"feeds\":[\"some-feed\"],\"decisions\":[{\"feed\":\"some-feed\",\"decision\":\"" + UnknownDecisionName + "\",\"reason\":\"A newer replicator decided something this client has no name for\"}]}";
 
         [Fact]
         public void FeedsResponseReadsAnUnknownDecisionAsDenied()
@@ -276,9 +278,50 @@ namespace Jinaga.Test.Http
 
             response.Feeds.Should().Equal("some-feed");
             var decision = response.Decisions.Should().ContainSingle().Which;
+            decision.DecisionName.Should().Be(UnknownDecisionName);
             decision.Decision.Should().Be(DistributionDecision.Denied);
             decision.CodeName.Should().BeNull();
             decision.Code.Should().BeNull();
+            decision.IsStructural.Should().BeFalse();
+
+            // Write it back through the serializer the client ships, so this fails when the
+            // client stops carrying the decision it was sent rather than when a literal is
+            // edited.
+            MessageSerializer.Serialize(response).Should().Be(ExampleFeedsResponseWithAnUnknownDecision);
+        }
+
+        [Theory]
+        [InlineData(DistributionDenialCode.NoMatchingRule)]
+        [InlineData(DistributionDenialCode.SpecMoreRestrictiveThanRule)]
+        public void FeedsResponseReadsAnUnknownDecisionAsNonStructuralWhateverTheCode(DistributionDenialCode structuralCode)
+        {
+            // Structurality is a claim about a decision whose meaning this client can read,
+            // so a decision kind this client has no name for is non-structural even when it
+            // carries one of the two codes that are structural under a decision it knows.
+            // Spell the response through the serializer the client ships, so the code on the
+            // wire comes from the one table of protocol names rather than from a literal here.
+            var json = MessageSerializer.Serialize(new FeedsResponse
+            {
+                Feeds = new List<string> { "some-feed" },
+                Decisions = new List<FeedDecision>
+                {
+                    new FeedDecision
+                    {
+                        Feed = "some-feed",
+                        DecisionName = UnknownDecisionName,
+                        Code = structuralCode,
+                        Reason = "A newer replicator decided something this client has no name for"
+                    }
+                }
+            });
+
+            var response = MessageSerializer.Deserialize<FeedsResponse>(json);
+
+            response.Feeds.Should().Equal("some-feed");
+            var decision = response.Decisions.Should().ContainSingle().Which;
+            decision.DecisionName.Should().Be(UnknownDecisionName);
+            decision.Decision.Should().Be(DistributionDecision.Denied);
+            decision.Code.Should().Be(structuralCode);
             decision.IsStructural.Should().BeFalse();
         }
 
@@ -289,6 +332,16 @@ namespace Jinaga.Test.Http
         public void FeedsResponseRejectsAMalformedDecision(string json)
         {
             Action deserialize = () => MessageSerializer.Deserialize<FeedsResponse>(json);
+
+            deserialize.Should().Throw<JsonException>();
+        }
+
+        [Fact]
+        public void FeedsResponseRejectsAResponseWithoutFeeds()
+        {
+            // Only values this client does not know are tolerated. A missing member is a
+            // malformed response, not a declaration of no feeds.
+            Action deserialize = () => MessageSerializer.Deserialize<FeedsResponse>("{\"decisions\":[]}");
 
             deserialize.Should().Throw<JsonException>();
         }
