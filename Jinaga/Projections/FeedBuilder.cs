@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
@@ -222,11 +221,9 @@ namespace Jinaga.Projections
         //
         // The order of the children is the order of the feeds they produce. jinaga-spec's
         // composite projection is a list, so its children come in the order they were written;
-        // a CompoundProjection holds a dictionary, which does not keep that order, so there is
-        // none to follow. The children are taken by name instead, ordinal, which is
-        // deterministic, independent of the current culture, and the same order
-        // <see cref="CompoundProjection.ToDescriptiveString"/> prints a projection's
-        // components in.
+        // a CompoundProjection orders its components by name instead, and
+        // <see cref="CompoundProjection"/> is where that order lives. This traversal takes them
+        // in the order it is given.
         private static IEnumerable<CollectionProjection> Children(Projection projection)
         {
             switch (projection)
@@ -235,7 +232,6 @@ namespace Jinaga.Projections
                     return new[] { collection };
                 case CompoundProjection compound:
                     return compound.Names
-                        .OrderBy(name => name, StringComparer.Ordinal)
                         .SelectMany(name => Children(compound.GetProjection(name)));
                 default:
                     return Enumerable.Empty<CollectionProjection>();

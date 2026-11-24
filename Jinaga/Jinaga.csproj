@@ -29,11 +29,21 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <AdditionalFiles Include="BannedSymbols.txt" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Include="..\README.md" Pack="true" PackagePath="\" />
     <None Include="..\JinagaIcon.png" Pack="True" PackagePath="\" />
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Enforces BannedSymbols.txt at build time. PrivateAssets="all" keeps it out of the
+         package's dependencies: it is a build-time analyzer, not something a consumer takes on. -->
+    <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="4.14.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.0" />
     <PackageReference Include="System.Collections.Immutable" Version="8.0.0" />
     <PackageReference Include="System.Net.Http" Version="4.3.4" />
