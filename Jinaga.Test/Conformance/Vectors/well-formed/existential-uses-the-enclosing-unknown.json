@@ -23,6 +23,6 @@
  "source":
  "splitSpecificationSpec: should split path when existential condition exists",
  "name": "existential-uses-the-enclosing-unknown",
- "expected": {"wellFormed": true},
+ "expected": {"wellFormed": true, "connected": true},
  "description":
  "An existential condition joins the unknown of the match it belongs to. That unknown is in scope inside it, and only there."}

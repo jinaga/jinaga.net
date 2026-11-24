@@ -22,6 +22,6 @@
   "given": [{"label": {"type": "Employee", "name": "p1"}, "conditions": []}]},
  "source": "the theorem's Projected condition",
  "name": "projection-names-a-nested-unknown",
- "expected": {"wellFormed": false},
+ "expected": {"wellFormed": false, "connected": true},
  "description":
  "The projection names a match declared inside an existential condition, which is not in scope outside it."}

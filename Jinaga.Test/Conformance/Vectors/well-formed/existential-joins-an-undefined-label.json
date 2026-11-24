@@ -22,6 +22,6 @@
   "given": [{"label": {"type": "Employee", "name": "p1"}, "conditions": []}]},
  "source": "SpecificationParser.parsePathCondition, in a nested match",
  "name": "existential-joins-an-undefined-label",
- "expected": {"wellFormed": false},
+ "expected": {"wellFormed": false, "connected": false},
  "description":
  "A path condition inside an existential condition joins a label nothing declares."}

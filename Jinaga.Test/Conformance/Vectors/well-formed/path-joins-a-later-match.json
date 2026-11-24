@@ -19,5 +19,5 @@
   "given": [{"label": {"type": "Employee", "name": "p1"}, "conditions": []}]},
  "source": "scope is lexical: a match sees only the matches before it",
  "name": "path-joins-a-later-match",
- "expected": {"wellFormed": false},
+ "expected": {"wellFormed": false, "connected": true},
  "description": "A match joins a label that a later match declares."}

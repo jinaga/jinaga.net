@@ -19,5 +19,5 @@
   "given": [{"label": {"type": "Employee", "name": "p1"}, "conditions": []}]},
  "source": "SpecificationParser.parseMatch: The name ... has already been used",
  "name": "unknown-shadows-an-earlier-match",
- "expected": {"wellFormed": false},
+ "expected": {"wellFormed": false, "connected": true},
  "description": "Two matches declare the same label."}

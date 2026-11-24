@@ -76,7 +76,7 @@ public class ConformanceVector
         ImmutableDictionary<string, Shape>.Empty
             .Add("well-formed", new Shape(
                 new[] { "name", "description", "source", "specification", "text", "violates", "expected" },
-                new[] { "wellFormed" },
+                new[] { "wellFormed", "connected" },
                 ImmutableDictionary<string, string[]>.Empty))
             .Add("split", new Shape(
                 new[] { "name", "description", "source", "specification", "text", "expected" },

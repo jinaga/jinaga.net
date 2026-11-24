@@ -1,0 +1,29 @@
+{"violates": ["connected"],
+ "text":
+ "(p1: R, p2: A) {\n    u: A [\n        u->a: A = p2\n        !E {\n            e: E [\n                e->r: R = p1\n            ]\n        }\n    ]\n} => u\n",
+ "specification":
+ {"projection": {"type": "fact", "label": "u"},
+  "matches":
+  [{"unknown": {"type": "A", "name": "u"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [],
+      "rolesLeft": [{"predecessorType": "A", "name": "a"}],
+      "labelRight": "p2"},
+     {"type": "existential",
+      "matches":
+      [{"unknown": {"type": "E", "name": "e"},
+        "conditions":
+        [{"type": "path",
+          "rolesRight": [],
+          "rolesLeft": [{"predecessorType": "R", "name": "r"}],
+          "labelRight": "p1"}]}],
+      "exists": false}]}],
+  "given":
+  [{"label": {"type": "R", "name": "p1"}, "conditions": []},
+   {"label": {"type": "A", "name": "p2"}, "conditions": []}]},
+ "source": "jinaga/jinaga-spec#55, N",
+ "name": "negative-condition-joins-another-given",
+ "expected": {"wellFormed": true, "connected": false},
+ "description":
+ "N. The negative condition on u joins only p1, and u only p2. isConnected counts the condition's label as joined to u, so it accepts N, but the excluding feed has one match for each given and nothing joins them."}

@@ -1,0 +1,22 @@
+{"text": "(p1: R, p2: A) {\n} => p2\n",
+ "specification":
+ {"projection": {"type": "fact", "label": "p2"},
+  "matches": [],
+  "given":
+  [{"label": {"type": "R", "name": "p1"}, "conditions": []},
+   {"label": {"type": "A", "name": "p2"}, "conditions": []}]},
+ "source": "jinaga/jinaga-spec#60",
+ "rowLabels": ["p2"],
+ "name": "no-matches-two-givens",
+ "graph": [{"type": "A", "predecessors": [], "id": 1}],
+ "givens": {"p2": 1, "p1": 0},
+ "fact": {"type": "R", "predecessors": [], "id": 0},
+ "expected":
+ {"reordered": [],
+  "lost": [],
+  "inverses": [],
+  "gained": [[1]],
+  "exact": {"removes": [], "adds": [[1]]},
+  "candidates": [[1]]},
+ "description":
+ "No matches and two givens, projecting the second (jinaga/jinaga-spec#60). The first given arrives last; nothing was read before, and the second given is read now."}

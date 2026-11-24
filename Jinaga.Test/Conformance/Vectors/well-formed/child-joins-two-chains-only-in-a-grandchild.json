@@ -1,0 +1,48 @@
+{"violates": ["connected"],
+ "text":
+ "(p1: R, p2: A) {\n    u: A [\n        u->a: A = p2\n    ]\n} => {\n    k = {\n        c: A [\n            c->r: R = p1\n        ]\n    } => {\n        g = {\n            x: B [\n                x->c: A = c\n                x->u: A = u\n            ]\n        } => x\n    }\n}\n",
+ "specification":
+ {"projection":
+  {"type": "composite",
+   "components":
+   [{"type": "specification",
+     "projection":
+     {"type": "composite",
+      "components":
+      [{"type": "specification",
+        "projection": {"type": "fact", "label": "x"},
+        "name": "g",
+        "matches":
+        [{"unknown": {"type": "B", "name": "x"},
+          "conditions":
+          [{"type": "path",
+            "rolesRight": [],
+            "rolesLeft": [{"predecessorType": "A", "name": "c"}],
+            "labelRight": "c"},
+           {"type": "path",
+            "rolesRight": [],
+            "rolesLeft": [{"predecessorType": "A", "name": "u"}],
+            "labelRight": "u"}]}]}]},
+     "name": "k",
+     "matches":
+     [{"unknown": {"type": "A", "name": "c"},
+       "conditions":
+       [{"type": "path",
+         "rolesRight": [],
+         "rolesLeft": [{"predecessorType": "R", "name": "r"}],
+         "labelRight": "p1"}]}]}]},
+  "matches":
+  [{"unknown": {"type": "A", "name": "u"},
+    "conditions":
+    [{"type": "path",
+      "rolesRight": [],
+      "rolesLeft": [{"predecessorType": "A", "name": "a"}],
+      "labelRight": "p2"}]}],
+  "given":
+  [{"label": {"type": "R", "name": "p1"}, "conditions": []},
+   {"label": {"type": "A", "name": "p2"}, "conditions": []}]},
+ "source": "jinaga/jinaga-spec#55, P",
+ "name": "child-joins-two-chains-only-in-a-grandchild",
+ "expected": {"wellFormed": true, "connected": false},
+ "description":
+ "P of jinaga/jinaga-server#233. The child joins only p1 and its parent only p2; a grandchild joins the two. The child's own feed is a product of the two chains."}

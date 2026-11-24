@@ -1,0 +1,20 @@
+{"text": "(p1: R) {\n} => p1\n",
+ "specification":
+ {"projection": {"type": "fact", "label": "p1"},
+  "matches": [],
+  "given": [{"label": {"type": "R", "name": "p1"}, "conditions": []}]},
+ "source": "jinaga/jinaga-spec#60",
+ "rowLabels": ["p1"],
+ "name": "no-matches",
+ "graph": [],
+ "givens": {"p1": 0},
+ "fact": {"type": "R", "predecessors": [], "id": 0},
+ "expected":
+ {"reordered": [],
+  "lost": [],
+  "inverses": [],
+  "gained": [[0]],
+  "exact": {"removes": [], "adds": [[0]]},
+  "candidates": [[0]]},
+ "description":
+ "No matches: the result is the one given, once the replica holds it (jinaga/jinaga-spec#60). The given arrives, and is read."}

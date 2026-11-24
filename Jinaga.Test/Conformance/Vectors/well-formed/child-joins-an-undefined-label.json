@@ -26,6 +26,6 @@
   "given": [{"label": {"type": "Root", "name": "p1"}, "conditions": []}]},
  "source": "jinaga-spec review of child specifications",
  "name": "child-joins-an-undefined-label",
- "expected": {"wellFormed": false},
+ "expected": {"wellFormed": false, "connected": false},
  "description":
  "A child specification's path condition names a label nothing declares. jinaga.js's wellFormedErrors does not look inside a child specification; its parser rejects the text."}

@@ -17,6 +17,6 @@
   "given": [{"label": {"type": "Employee", "name": "p1"}, "conditions": []}]},
  "source": "docs/contracts.md: the gap",
  "name": "composite-projection-names-an-undefined-label",
- "expected": {"wellFormed": false},
+ "expected": {"wellFormed": false, "connected": true},
  "description":
  "One component of a composite projection names a label nothing declares."}

@@ -32,6 +32,6 @@
  "source":
  "SpecificationParser.parseMatches discards a nested match's labels when the condition ends",
  "name": "sibling-existentials-reuse-a-name",
- "expected": {"wellFormed": true},
+ "expected": {"wellFormed": true, "connected": true},
  "description":
  "Two existential conditions each declare a match named e. Scope is lexical, so the second does not see the first."}

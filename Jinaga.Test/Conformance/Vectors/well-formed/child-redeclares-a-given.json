@@ -25,6 +25,6 @@
   "given": [{"label": {"type": "Root", "name": "p1"}, "conditions": []}]},
  "source": "jinaga-spec review of child specifications",
  "name": "child-redeclares-a-given",
- "expected": {"wellFormed": false},
+ "expected": {"wellFormed": false, "connected": true},
  "description":
  "A child specification declares a label its parent's given already names. jinaga.js's wellFormedErrors does not look inside a child specification."}
