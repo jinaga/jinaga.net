@@ -58,6 +58,7 @@ namespace Jinaga
         /// <summary>
         /// The feed the decision is about.
         /// </summary>
+        [JsonConverter(typeof(ProtocolStringConverter))]
         public string Feed { get; set; } = string.Empty;
 
         /// <summary>
@@ -67,6 +68,7 @@ namespace Jinaga
         /// member this client happens to know.
         /// </summary>
         [JsonPropertyName("decision")]
+        [JsonConverter(typeof(ProtocolStringConverter))]
         public string DecisionName { get; set; } = string.Empty;
 
         /// <summary>
@@ -91,6 +93,7 @@ namespace Jinaga
         /// </summary>
         [JsonPropertyName("code")]
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonConverter(typeof(ProtocolStringConverter))]
         public string? CodeName { get; set; }
 
         /// <summary>
@@ -109,6 +112,7 @@ namespace Jinaga
         /// <summary>
         /// The replicator's own account of the decision.
         /// </summary>
+        [JsonConverter(typeof(ProtocolStringConverter))]
         public string Reason { get; set; } = string.Empty;
 
         /// <summary>

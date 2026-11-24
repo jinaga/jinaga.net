@@ -329,8 +329,15 @@ namespace Jinaga.Test.Http
         [InlineData("{\"feeds\":[],\"decisions\":[{\"feed\":\"denied-feed\",\"decision\":7,\"reason\":\"...\"}]}")]
         [InlineData("{\"feeds\":[],\"decisions\":[{\"feed\":\"denied-feed\",\"decision\":\"denied\",\"code\":7,\"reason\":\"...\"}]}")]
         [InlineData("{\"feeds\":[],\"decisions\":[{\"feed\":\"denied-feed\",\"decision\":\"denied\",\"code\":\"no-matching-rule\",\"reason\":7}]}")]
+        [InlineData("{\"feeds\":[],\"decisions\":[{\"feed\":7,\"decision\":\"denied\",\"reason\":\"...\"}]}")]
+        [InlineData("{\"feeds\":[],\"decisions\":[{\"feed\":\"denied-feed\",\"decision\":null,\"reason\":\"...\"}]}")]
+        [InlineData("{\"feeds\":[],\"decisions\":[{\"feed\":\"denied-feed\",\"decision\":\"denied\",\"code\":null,\"reason\":\"...\"}]}")]
+        [InlineData("{\"feeds\":[],\"decisions\":[{\"feed\":\"denied-feed\",\"decision\":\"denied\",\"reason\":null}]}")]
+        [InlineData("{\"feeds\":[],\"decisions\":[{\"feed\":null,\"decision\":\"denied\",\"reason\":\"...\"}]}")]
         public void FeedsResponseRejectsAMalformedDecision(string json)
         {
+            // A null is a shape, not a value a newer replicator might give meaning to, so
+            // it is refused exactly as a number is.
             Action deserialize = () => MessageSerializer.Deserialize<FeedsResponse>(json);
 
             deserialize.Should().Throw<JsonException>();
@@ -342,6 +349,20 @@ namespace Jinaga.Test.Http
             // Only values this client does not know are tolerated. A missing member is a
             // malformed response, not a declaration of no feeds.
             Action deserialize = () => MessageSerializer.Deserialize<FeedsResponse>("{\"decisions\":[]}");
+
+            deserialize.Should().Throw<JsonException>();
+        }
+
+        [Theory]
+        [InlineData("{\"feeds\":null,\"decisions\":[]}")]
+        [InlineData("{\"feeds\":7,\"decisions\":[]}")]
+        [InlineData("{\"feeds\":[\"authorized-feed\"],\"decisions\":null}")]
+        public void FeedsResponseRejectsAMalformedListMember(string json)
+        {
+            // A member the response declares as an array is read as one or refused. Read as
+            // a null it would deserialize here and fail wherever the caller first reaches
+            // for it, which is not the JsonException a malformed response promises.
+            Action deserialize = () => MessageSerializer.Deserialize<FeedsResponse>(json);
 
             deserialize.Should().Throw<JsonException>();
         }
