@@ -102,11 +102,12 @@ public class FeedBuilderTest
 
         var building = () => FeedBuilder.BuildFeeds(specification);
 
-        // The rule and the remedy: the match, and the label already in scope that it could be
-        // joined to. The prose stands on review; what this pins is that both are named, so a
-        // developer reading the refusal knows which match and what to do about it.
+        // The match, and the label already in scope that it could be joined to. The prose,
+        // including the example path condition, stands on review; what this pins is that both
+        // labels are named, so a developer reading the refusal knows which match and what to
+        // join it to.
         building.Should().Throw<SpecificationException>().Which.Message.Should()
-            .Contain("'n'").And.Contain("'e'").And.Contain("n->e = e");
+            .Contain("'n'").And.Contain("'e'");
     }
 
     [Fact]
@@ -190,7 +191,12 @@ public class FeedBuilderTest
         }
         else
         {
-            message.Should().Contain($"'{rootless.Unknown.Name}'").And.Contain("no path condition");
+            // The match and the label it could be joined to, read from the specification. The
+            // advice around them is prose, and stands on review (#373, Tests).
+            var (match, anchor) = rootless.Value;
+            message.Should().Contain($"'{match.Unknown.Name}'");
+            anchor.Should().NotBeNull("the vector's rootless match is written beneath a match it could join");
+            message.Should().Contain($"'{anchor}'");
         }
     }
 
@@ -473,41 +479,57 @@ public class FeedBuilderTest
     /* ----------------------------------- Builders ----------------------------------- */
 
     // The first match that no path condition anchors, at any depth and in any child
-    // specification, or null where every match is anchored.
-    private static Match? Rootless(Specification specification) =>
-        Rootless(specification.Matches) ??
-        ChildMatches(specification.Projection).Select(Rootless).FirstOrDefault(found => found != null);
+    // specification, with the innermost label declared around it, or null where every match is
+    // anchored. The labels around a match are the givens, the matches written before it, a
+    // parent specification's matches, and, inside an existential condition, the unknown of the
+    // match that carries it; the anchor is null where there are none.
+    private static (Match Match, string? Anchor)? Rootless(Specification specification) =>
+        Rootless(
+            specification.Givens.Select(given => given.Label.Name).ToImmutableList(),
+            specification.Matches,
+            specification.Projection);
 
-    private static Match? Rootless(ImmutableList<Match> matches)
+    private static (Match Match, string? Anchor)? Rootless(
+        ImmutableList<string> scope, ImmutableList<Match> matches, Projection projection)
+    {
+        var found = Rootless(scope, matches);
+        if (found != null)
+        {
+            return found;
+        }
+        var inner = scope.AddRange(matches.Select(match => match.Unknown.Name));
+        switch (projection)
+        {
+            case CollectionProjection collection:
+                return Rootless(inner, collection.Matches, collection.Projection);
+            case CompoundProjection compound:
+                return compound.Names
+                    .Select(name => Rootless(inner, ImmutableList<Match>.Empty, compound.GetProjection(name)))
+                    .FirstOrDefault(child => child != null);
+            default:
+                return null;
+        }
+    }
+
+    private static (Match Match, string? Anchor)? Rootless(ImmutableList<string> scope, ImmutableList<Match> matches)
     {
         foreach (var match in matches)
         {
             if (match.PathConditions.IsEmpty)
             {
-                return match;
+                return (match, scope.IsEmpty ? null : scope[scope.Count - 1]);
             }
-            var inner = match.ExistentialConditions
-                .Select(condition => Rootless(condition.Matches))
+            var inner = scope.Add(match.Unknown.Name);
+            var nested = match.ExistentialConditions
+                .Select(condition => Rootless(inner, condition.Matches))
                 .FirstOrDefault(found => found != null);
-            if (inner != null)
+            if (nested != null)
             {
-                return inner;
+                return nested;
             }
+            scope = inner;
         }
         return null;
-    }
-
-    private static IEnumerable<ImmutableList<Match>> ChildMatches(Projection projection)
-    {
-        switch (projection)
-        {
-            case CollectionProjection collection:
-                return new[] { collection.Matches }.Concat(ChildMatches(collection.Projection));
-            case CompoundProjection compound:
-                return compound.Names.SelectMany(name => ChildMatches(compound.GetProjection(name)));
-            default:
-                return Enumerable.Empty<ImmutableList<Match>>();
-        }
     }
 
     // (p1: R, p2: A) { matches } => projection, the givens the rewrites above are written over.
