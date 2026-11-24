@@ -353,6 +353,18 @@ namespace Jinaga.Test.Http
             deserialize.Should().Throw<JsonException>();
         }
 
+        [Fact]
+        public void FeedsResponseRejectsADecisionWithoutADecisionMember()
+        {
+            // A newer replicator may send a decision this client has no name for, and that is
+            // read as Denied. A decision that names none at all is a malformed shape, not an
+            // unknown value, so it is refused rather than read as Denied.
+            Action deserialize = () => MessageSerializer.Deserialize<FeedsResponse>(
+                "{\"feeds\":[],\"decisions\":[{\"feed\":\"f\",\"reason\":\"r\"}]}");
+
+            deserialize.Should().Throw<JsonException>();
+        }
+
         [Theory]
         [InlineData("{\"feeds\":null,\"decisions\":[]}")]
         [InlineData("{\"feeds\":7,\"decisions\":[]}")]

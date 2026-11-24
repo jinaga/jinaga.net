@@ -65,9 +65,12 @@ namespace Jinaga
         /// What the replicator decided, as it spelled it. Replicas are peers, and a
         /// replicator newer than this client can decide something this client has no
         /// name for, so the name is kept exactly as received rather than reduced to a
-        /// member this client happens to know.
+        /// member this client happens to know. Required: a decision with no such member is
+        /// malformed rather than a decision this client cannot read, so it is refused instead
+        /// of read as <see cref="DistributionDecision.Denied"/>.
         /// </summary>
         [JsonPropertyName("decision")]
+        [JsonRequired]
         [JsonConverter(typeof(ProtocolStringConverter))]
         public string DecisionName { get; set; } = string.Empty;
 
