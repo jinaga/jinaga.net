@@ -75,12 +75,22 @@ public class SaveAndReadIsolationTest
                 }
             });
 
-            // The save overlaps a read because the reader is already reading,
-            // not because the thread pool happened to start it in time.
-            await AwaitFirstRead(firstRead.Task, reading, $"reader of round {round}");
-            await store.Save(secondPair, false, default);
-            readingStopped.Cancel();
-            await reading;
+            try
+            {
+                // The save overlaps a read because the reader is already
+                // reading, not because the thread pool happened to start it in
+                // time.
+                await AwaitFirstRead(firstRead.Task, reading, $"reader of round {round}");
+                await store.Save(secondPair, false, default);
+            }
+            finally
+            {
+                // However this round leaves, the reader stops with it. One left
+                // running would read on past the round that started it, against
+                // a store the rounds after it are still using.
+                readingStopped.Cancel();
+                await reading;
+            }
         }
 
         rowCounts.Should().OnlyContain(count => count == 1 || count == 4);
@@ -138,19 +148,24 @@ public class SaveAndReadIsolationTest
             }
         });
 
-        await AwaitFirstRead(firstRead.Task, reading, "reader of the nested query");
-
-        Volatile.Write(ref saving, true);
-        for (int index = 1; index <= 40; index++)
+        try
         {
-            var pair = GraphOfOnly(new IsolationA(root, index))
-                .AddGraph(GraphOfOnly(new IsolationB(root, index)));
-            await store.Save(pair, false, default);
-        }
-        Volatile.Write(ref saving, false);
+            await AwaitFirstRead(firstRead.Task, reading, "reader of the nested query");
 
-        readingStopped.Cancel();
-        await reading;
+            Volatile.Write(ref saving, true);
+            for (int index = 1; index <= 40; index++)
+            {
+                var pair = GraphOfOnly(new IsolationA(root, index))
+                    .AddGraph(GraphOfOnly(new IsolationB(root, index)));
+                await store.Save(pair, false, default);
+            }
+            Volatile.Write(ref saving, false);
+        }
+        finally
+        {
+            readingStopped.Cancel();
+            await reading;
+        }
 
         mismatches.Should().BeEmpty();
         // Without this, a reader that read nothing while the saves ran would
@@ -191,7 +206,9 @@ public class SaveAndReadIsolationTest
     /// does next overlaps one. A reader that stopped first is awaited, which
     /// reports its own failure rather than this wait's. A reader that did
     /// neither within <see cref="FirstReadTimeout"/> never ran, so the wait
-    /// throws instead of hanging the suite or letting the test pass.
+    /// throws instead of hanging the suite or letting the test pass. Each
+    /// caller cancels and awaits its reader in a finally, so a throw here
+    /// leaves no reader running.
     /// </summary>
     private static async Task AwaitFirstRead(Task firstRead, Task reading, string reader)
     {
