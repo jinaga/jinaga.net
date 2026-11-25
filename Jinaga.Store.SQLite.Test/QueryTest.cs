@@ -5,23 +5,15 @@ using Xunit.Abstractions;
 
 namespace Jinaga.Store.SQLite.Test;
 
-public class QueryTest
+public class QueryTest : SQLiteTest
 {
     private readonly JinagaClient j;
     private readonly ITestOutputHelper output;
 
-    private static string SQLitePath { get; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "JinagaSQLiteTest",
-        "QueryTest.db");
-
     public QueryTest(ITestOutputHelper output)
     {
-        if (File.Exists(SQLitePath))
-            File.Delete(SQLitePath);
-
         var options = new JinagaClientOptions();
-        j = new JinagaClient(new SQLiteStore(SQLitePath, NullLoggerFactory.Instance), new LocalNetwork(), [], NullLoggerFactory.Instance, options);
+        j = Track(new JinagaClient(new SQLiteStore(DatabasePath, NullLoggerFactory.Instance), new LocalNetwork(), [], NullLoggerFactory.Instance, options));
         this.output = output;
     }
 
@@ -38,7 +30,7 @@ public class QueryTest
 
         flights.Should().ContainSingle().Which.Should().BeEquivalentTo(flight);
 
-        await j.Unload();
+        await j.DisposeAsync();
     }
 
     [Fact]
@@ -56,7 +48,7 @@ public class QueryTest
 
         flights.Should().ContainSingle().Which.Should().BeEquivalentTo(flight);
 
-        await j.Unload();
+        await j.DisposeAsync();
     }
 
     [Fact]
@@ -75,7 +67,7 @@ public class QueryTest
 
         hashes.Should().ContainSingle().Which.Should().Be(flightHash);
 
-        await j.Unload();
+        await j.DisposeAsync();
     }
 
     [Fact]
@@ -98,7 +90,7 @@ public class QueryTest
         var passengers = await j.Query(passengersForAirline, airline);
         passengers.Should().BeEquivalentTo(expectedPassengers);
 
-        await j.Unload();
+        await j.DisposeAsync();
     }
 
     private async Task<Passenger> BookPassenger(Flight flight)
@@ -131,7 +123,7 @@ public class QueryTest
             .Should().BeEquivalentTo(flight);
         output.WriteLine($"Flight = {flight}\n\r");
 
-        await j.Unload();
+        await j.DisposeAsync();
     }
 
     [Fact]
@@ -158,7 +150,7 @@ public class QueryTest
         currentNames.Should().ContainSingle().Which
             .value.Should().Be("Joseph");
 
-        await j.Unload();
+        await j.DisposeAsync();
     }
 
     [Fact]
@@ -189,7 +181,7 @@ public class QueryTest
         pair.booking.Should().BeEquivalentTo(booking);
         pair.cancellation.Should().BeEquivalentTo(cancellation);
 
-        await j.Unload();
+        await j.DisposeAsync();
     }
 
     [Fact]
@@ -222,7 +214,7 @@ public class QueryTest
             .titles.Should().ContainSingle().Which
                 .Should().Be("Introduction to Jinaga Replicator");
 
-        await j.Unload();
+        await j.DisposeAsync();
     }
 
     [Fact]
@@ -242,7 +234,7 @@ public class QueryTest
         result.Should().ContainSingle().Which
             .Should().Be("michaelperry.net");
 
-        await j.Unload();
+        await j.DisposeAsync();
     }
 
     [Fact]
@@ -267,7 +259,7 @@ public class QueryTest
         subject.siteName.Should().Be("michaelperry.net");
         subject.postCreatedAt.Should().Be("2022-09-30T13:40:00Z");
 
-        await j.Unload();
+        await j.DisposeAsync();
     }
 
     [Fact]
@@ -297,7 +289,7 @@ public class QueryTest
             .titles.Should().ContainSingle().Which
                 .Should().Be("Introduction to Jinaga Replicator");
 
-        await j.Unload();
+        await j.DisposeAsync();
     }
 
     [Fact]
@@ -326,7 +318,7 @@ public class QueryTest
             .titles.Should().ContainSingle().Which
                 .value.Should().Be("Introduction to Jinaga Replicator");
 
-        await j.Unload();
+        await j.DisposeAsync();
     }
 
     [Fact]
@@ -355,7 +347,7 @@ public class QueryTest
             .titles.Should().ContainSingle().Which
                 .Should().Be("Introduction to Jinaga Replicator");
 
-        await j.Unload();
+        await j.DisposeAsync();
     }
 
     [Fact]
@@ -394,6 +386,6 @@ public class QueryTest
         result.myComments.Should().ContainSingle().Which
             .Should().Be("Great post!");
 
-        await j.Unload();
+        await j.DisposeAsync();
     }
 }

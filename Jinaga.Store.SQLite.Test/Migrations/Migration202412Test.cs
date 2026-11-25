@@ -6,22 +6,12 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Jinaga.Store.SQLite.Test.Migrations;
 
-public class Migration202412Test
+public class Migration202412Test : SQLiteTest
 {
-    private static readonly string sqlitePath = Path.Combine(Environment.GetFolderPath(
-        Environment.SpecialFolder.LocalApplicationData),
-        "Migration202412Test.db");
-
     [Fact]
     public void DropsTheQueuedColumn()
     {
-        // Delete the SQLite file if it exists
-        if (File.Exists(sqlitePath))
-        {
-            File.Delete(sqlitePath);
-        }
-
-        var connectionFactory = new ConnectionFactory(sqlitePath);
+        var connectionFactory = new ConnectionFactory(DatabasePath);
 
         RunMigration202405(connectionFactory);
 
@@ -47,13 +37,7 @@ public class Migration202412Test
     [Fact]
     public void MigratesQueuedFactsToOutboundQueue()
     {
-        // Delete the SQLite file if it exists
-        if (File.Exists(sqlitePath))
-        {
-            File.Delete(sqlitePath);
-        }
-
-        var connectionFactory = new ConnectionFactory(sqlitePath);
+        var connectionFactory = new ConnectionFactory(DatabasePath);
 
         RunMigration202405(connectionFactory);
 
@@ -83,13 +67,7 @@ public class Migration202412Test
     [Fact]
     public async Task JinagaClientCanReadGraphFromOutboundQueue()
     {
-        // Delete the SQLite file if it exists
-        if (File.Exists(sqlitePath))
-        {
-            File.Delete(sqlitePath);
-        }
-
-        var connectionFactory = new ConnectionFactory(sqlitePath);
+        var connectionFactory = new ConnectionFactory(DatabasePath);
 
         RunMigration202405(connectionFactory);
 
@@ -125,13 +103,7 @@ public class Migration202412Test
     [Fact]
     public void DropsQueueBookmarkTable()
     {
-        // Delete the SQLite file if it exists
-        if (File.Exists(sqlitePath))
-        {
-            File.Delete(sqlitePath);
-        }
-
-        var connectionFactory = new ConnectionFactory(sqlitePath);
+        var connectionFactory = new ConnectionFactory(DatabasePath);
 
         RunMigration202405(connectionFactory);
 
@@ -171,18 +143,16 @@ public class Migration202412Test
             return 0;
         });
     }
-    private static JinagaClient GivenJinagaClient(Services.INetwork network)
+    private JinagaClient GivenJinagaClient(Services.INetwork network)
     {
-        var store = new SQLiteStore(
-            sqlitePath,
-            new NullLoggerFactory());
+        var store = new SQLiteStore(DatabasePath, new NullLoggerFactory());
         var options = new JinagaClientOptions();
-        var jinagaClient = new JinagaClient(
+        var jinagaClient = Track(new JinagaClient(
             store,
             network,
             [],
             new NullLoggerFactory(),
-            options);
+            options));
         return jinagaClient;
     }
 }

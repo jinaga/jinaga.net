@@ -5,23 +5,18 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Jinaga.Store.SQLite.Test.Purge;
 
-public class RealTimePurgeTest
+public class RealTimePurgeTest : SQLiteTest
 {
     private readonly SQLiteStore store;
     private readonly JinagaClient j;
 
     public RealTimePurgeTest()
     {
-        string sqlitePath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "JinagaSQLiteTest",
-            $"RealTimePurgeTest-{Guid.NewGuid():N}.db");
-
         PurgeConditions purgeConditions = PurgeConditions.Empty
             .Purge<Order>().WhenExists<OrderCancelled>(oc => oc.order);
-        store = new SQLiteStore(sqlitePath, NullLoggerFactory.Instance);
+        store = new SQLiteStore(DatabasePath, NullLoggerFactory.Instance);
         var options = new JinagaClientOptions();
-        j = new JinagaClient(store, new LocalNetwork(), purgeConditions.Validate(), NullLoggerFactory.Instance, options);
+        j = Track(new JinagaClient(store, new LocalNetwork(), purgeConditions.Validate(), NullLoggerFactory.Instance, options));
     }
 
     [Fact]

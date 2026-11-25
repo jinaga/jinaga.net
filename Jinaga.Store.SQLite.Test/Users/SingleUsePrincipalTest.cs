@@ -3,21 +3,11 @@ using Jinaga.Services;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Jinaga.Store.SQLite.Test.Users;
-public class SingleUsePrincipalTest
+public class SingleUsePrincipalTest : SQLiteTest
 {
-    private static string SQLitePath { get; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "JinagaSQLiteTest",
-        "SingleUsePrincipalTest.db");
-
     [Fact]
     public async Task ShouldCreateSingleUsePrincipal()
     {
-        if (File.Exists(SQLitePath))
-        {
-            File.Delete(SQLitePath);
-        }
-
         var jinagaClient = GivenJinagaClient();
         await jinagaClient.SingleUse(principal =>
         {
@@ -29,11 +19,6 @@ public class SingleUsePrincipalTest
     [Fact]
     public async Task ShouldSignFactsCreatedBySingleUsePrincipal()
     {
-        if (File.Exists(SQLitePath))
-        {
-            File.Delete(SQLitePath);
-        }
-
         var localNetwork = GivenLocalNetwork();
         var jinagaClient = GivenJinagaClient(network: localNetwork);
         var publicKey = await jinagaClient.SingleUse(async principal =>
@@ -42,7 +27,7 @@ public class SingleUsePrincipalTest
             return principal.publicKey;
         });
 
-        await jinagaClient.Unload();
+        await jinagaClient.DisposeAsync();
 
         var uploadedEnvironment = localNetwork.SavedFactReferences
             .Where(factReference => factReference.Type == "Enterprise.Environment")
@@ -55,10 +40,10 @@ public class SingleUsePrincipalTest
         environmentSignature.PublicKey.Should().Be(publicKey);
     }
 
-    private static JinagaClient GivenJinagaClient(IStore? store = null, INetwork? network = null)
+    private JinagaClient GivenJinagaClient(IStore? store = null, INetwork? network = null)
     {
         var options = new JinagaClientOptions();
-        return new JinagaClient(store ?? new SQLiteStore(SQLitePath, NullLoggerFactory.Instance), network ?? new LocalNetwork(), [], NullLoggerFactory.Instance, options);
+        return Track(new JinagaClient(store ?? new SQLiteStore(DatabasePath, NullLoggerFactory.Instance), network ?? new LocalNetwork(), [], NullLoggerFactory.Instance, options));
     }
 
     private static LocalNetwork GivenLocalNetwork()

@@ -5,20 +5,12 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Xunit.Abstractions;
 
 namespace Jinaga.Store.SQLite.Test.Observers;
-public class WatchFromNetworkTest
+public class WatchFromNetworkTest : SQLiteTest
 {
-    private static string SQLitePath { get; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "JinagaSQLiteTest",
-        "WatchFromNetworkTest.db");
-
     private ITestOutputHelper output;
 
     public WatchFromNetworkTest(ITestOutputHelper output)
     {
-        if (File.Exists(SQLitePath))
-            File.Delete(SQLitePath);
-
         this.output = output;
     }
 
@@ -142,10 +134,10 @@ public class WatchFromNetworkTest
         }
     }
 
-    private static JinagaClient GivenJinagaClient(FakeNetwork network)
+    private JinagaClient GivenJinagaClient(FakeNetwork network)
     {
         var options = new JinagaClientOptions();
-        return new JinagaClient(new SQLiteStore(SQLitePath, NullLoggerFactory.Instance), network, [], NullLoggerFactory.Instance, options);
+        return Track(new JinagaClient(new SQLiteStore(DatabasePath, NullLoggerFactory.Instance), network, [], NullLoggerFactory.Instance, options));
     }
 
     private class OfficeViewModel

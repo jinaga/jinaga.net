@@ -12,7 +12,7 @@ namespace Jinaga.Store.SQLite.Test.Observers;
 /// shape that holds for one store and not the other is a failure, and the decision that
 /// settles each of these rows is a pinned read, which each store renders its own way.
 /// </summary>
-public class WatchDeliveryRaceTest
+public class WatchDeliveryRaceTest : SQLiteTest
 {
     private readonly ITestOutputHelper output;
 
@@ -439,34 +439,25 @@ public class WatchDeliveryRaceTest
     }
 
     /// <summary>
-    /// Runs the body against a client over a database of its own, and deletes it afterward,
-    /// so a repeated run decides its rows from its own store rather than from what an
-    /// earlier run left behind.
+    /// Runs the body against a client over a database of its own, so a repeated run
+    /// decides its rows from its own store rather than from what an earlier run left
+    /// behind.
     /// </summary>
     private async Task WithClient(Func<JinagaClient, Task> body)
     {
-        var path = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "JinagaSQLiteTest",
-            $"WatchDeliveryRaceTest-{Guid.NewGuid():N}.db");
-        var directory = Path.GetDirectoryName(path);
-        if (!string.IsNullOrEmpty(directory))
-            Directory.CreateDirectory(directory);
-        var j = new JinagaClient(
-            new SQLiteStore(path, NullLoggerFactory.Instance),
+        var j = Track(new JinagaClient(
+            new SQLiteStore(CreateDatabasePath(), NullLoggerFactory.Instance),
             new FakeNetwork(output),
             [],
             NullLoggerFactory.Instance,
-            new JinagaClientOptions());
+            new JinagaClientOptions()));
         try
         {
             await body(j);
         }
         finally
         {
-            await j.Unload();
-            if (File.Exists(path))
-                File.Delete(path);
+            await j.DisposeAsync();
         }
     }
 

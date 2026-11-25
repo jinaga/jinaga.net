@@ -22,31 +22,23 @@ namespace Jinaga.Store.SQLite.Test.Specifications;
 /// The SQLite store renders a specification into SQL rather than walking it, so the shape
 /// has to be exercised here and not only against the in-memory store.
 /// </summary>
-public class GivenConditionTest
+public class GivenConditionTest : SQLiteTest
 {
-    private static string SQLitePath { get; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "JinagaSQLiteTest",
-        "GivenConditionTest.db");
-
     private readonly ITestOutputHelper output;
 
     public GivenConditionTest(ITestOutputHelper output)
     {
-        if (File.Exists(SQLitePath))
-            File.Delete(SQLitePath);
-
         this.output = output;
     }
 
     private JinagaClient GivenJinagaClient()
     {
-        return new JinagaClient(
-            new SQLiteStore(SQLitePath, NullLoggerFactory.Instance),
+        return Track(new JinagaClient(
+            new SQLiteStore(DatabasePath, NullLoggerFactory.Instance),
             new FakeNetwork(output),
             [],
             NullLoggerFactory.Instance,
-            new JinagaClientOptions());
+            new JinagaClientOptions()));
     }
 
     private const string OfficeType = "Corporate.Office";

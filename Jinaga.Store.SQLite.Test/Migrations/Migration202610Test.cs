@@ -10,21 +10,12 @@ namespace Jinaga.Store.SQLite.Test.Migrations;
 /// them still holds edge, ancestor and signature rows whose fact is gone. Those
 /// attach to the next fact that takes the missing fact_id.
 /// </summary>
-public class Migration202610Test
+public class Migration202610Test : SQLiteTest
 {
-    private static readonly string sqlitePath = Path.Combine(Environment.GetFolderPath(
-        Environment.SpecialFolder.LocalApplicationData),
-        "Migration202610Test.db");
-
     [Fact]
     public void DeletesRowsWhoseFactIsGone()
     {
-        if (File.Exists(sqlitePath))
-        {
-            File.Delete(sqlitePath);
-        }
-
-        var connectionFactory = new ConnectionFactory(sqlitePath);
+        var connectionFactory = new ConnectionFactory(DatabasePath);
 
         // Facts 1 and 2 exist. Fact 99 does not, standing in for a fact an
         // earlier version purged.
@@ -49,7 +40,7 @@ public class Migration202610Test
         });
 
         // Opening the store runs the migration.
-        _ = new SQLiteStore(sqlitePath, NullLoggerFactory.Instance);
+        _ = new SQLiteStore(DatabasePath, NullLoggerFactory.Instance);
 
         connectionFactory.WithTxn((conn, i) =>
         {

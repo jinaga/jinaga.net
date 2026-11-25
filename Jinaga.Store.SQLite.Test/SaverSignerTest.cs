@@ -14,7 +14,7 @@ namespace Jinaga.Store.SQLite.Test;
 /// saver only when the configured rules would sign the fact with their key, so a fact this
 /// device created is attributed to the user who created it before any replicator signs it.
 /// </summary>
-public class SaverSignerTest
+public class SaverSignerTest : SQLiteTest
 {
     /// <summary>
     /// Long enough that the debounce never elapses during a test, so nothing is uploaded
@@ -62,18 +62,11 @@ public class SaverSignerTest
             select new UserSigners(user, facts.SignersOf(user))
         );
 
-    private static string SQLitePath { get; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "JinagaSQLiteTest",
-        "SaverSignerTest.db");
-
     private readonly ITestOutputHelper output;
 
     public SaverSignerTest(ITestOutputHelper output)
     {
         this.output = output;
-        if (File.Exists(SQLitePath))
-            File.Delete(SQLitePath);
     }
 
     [Fact]
@@ -91,7 +84,7 @@ public class SaverSignerTest
             .Should().Contain(j.Graph(post).Last);
         SignersIn(results).Should().Equal(UserA.publicKey);
 
-        await j.Unload();
+        await j.DisposeAsync();
     }
 
     [Fact]
@@ -108,7 +101,7 @@ public class SaverSignerTest
 
         SignersIn(results).Should().Equal(UserA.publicKey);
 
-        await j.Unload();
+        await j.DisposeAsync();
     }
 
     [Fact]
@@ -127,7 +120,7 @@ public class SaverSignerTest
         SignersIn(results).Should().BeEquivalentTo(
             new[] { otherKey.PublicKey, UserA.publicKey });
 
-        await j.Unload();
+        await j.DisposeAsync();
     }
 
     [Fact]
@@ -147,7 +140,7 @@ public class SaverSignerTest
         var afterSigning = await j.Query(postsWithSigners, site);
         SignersIn(afterSigning).Should().Equal(otherKey.PublicKey);
 
-        await j.Unload();
+        await j.DisposeAsync();
     }
 
     [Fact]
@@ -162,7 +155,7 @@ public class SaverSignerTest
 
         results.Should().ContainSingle().Subject.signers.Should().BeEmpty();
 
-        await j.Unload();
+        await j.DisposeAsync();
     }
 
     [Fact]
@@ -181,7 +174,7 @@ public class SaverSignerTest
 
         members.Should().ContainSingle().Subject.signers.Should().BeEmpty();
 
-        await j.Unload();
+        await j.DisposeAsync();
     }
 
     /// <summary>
@@ -206,7 +199,7 @@ public class SaverSignerTest
         SignersIn(results).Should().BeEquivalentTo(
             new[] { UserA.publicKey, UserB.publicKey });
 
-        await j.Unload();
+        await j.DisposeAsync();
     }
 
     [Fact]
@@ -223,7 +216,7 @@ public class SaverSignerTest
 
         SignersIn(results).Should().BeEmpty();
 
-        await j.Unload();
+        await j.DisposeAsync();
     }
 
     [Fact]
@@ -240,7 +233,7 @@ public class SaverSignerTest
             .signers.Select(signer => signer.publicKey)
             .Should().Equal(UserA.publicKey);
 
-        await j.Unload();
+        await j.DisposeAsync();
     }
 
     [Fact]
@@ -252,7 +245,7 @@ public class SaverSignerTest
             identity.SetCurrentUser(UserA);
             site = await j.Fact(new SignerSite(UserA, "michaelperry.net"));
             await j.Fact(new SignerPost(site, "Hello"));
-            await j.Unload();
+            await j.DisposeAsync();
         }
 
         // A new store over the same file, with nobody logged in, so the saver is read back
@@ -263,7 +256,7 @@ public class SaverSignerTest
 
         SignersIn(results).Should().Equal(UserA.publicKey);
 
-        await reopened.Unload();
+        await reopened.DisposeAsync();
     }
 
     private static IEnumerable<string> SignersIn(IEnumerable<PostSigners> results)
@@ -292,7 +285,7 @@ public class SaverSignerTest
 
     private (JinagaClient j, SQLiteStore store, FakeNetwork network, FakeIdentitySource identity) CreateClient(AuthorizationRules? rules)
     {
-        var store = new SQLiteStore(SQLitePath, NullLoggerFactory.Instance);
+        var store = new SQLiteStore(DatabasePath, NullLoggerFactory.Instance);
         var network = new FakeNetwork(output);
         var identity = new FakeIdentitySource();
         network.CurrentUser = () => identity.CurrentUser;
@@ -302,12 +295,12 @@ public class SaverSignerTest
             AuthorizationRules = rules,
             QueueProcessingDelay = DelayLongerThanAnyTest
         };
-        var j = new JinagaClient(
+        var j = Track(new JinagaClient(
             store,
             network,
             ImmutableList<Jinaga.Projections.Specification>.Empty,
             NullLoggerFactory.Instance,
-            options);
+            options));
         return (j, store, network, identity);
     }
 }

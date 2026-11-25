@@ -7,7 +7,7 @@ using System.Text.Json;
 
 namespace Jinaga.Store.SQLite.Test
 {
-    public class ExportFactsTest
+    public class ExportFactsTest : SQLiteTest
     {
         [Fact]
         public async Task ExportFactsToJson_ShouldReturnJsonString()
@@ -144,20 +144,16 @@ namespace Jinaga.Store.SQLite.Test
             return result.ToString();
         }
 
-        private static JinagaClient GivenJinagaClient()
+        private JinagaClient GivenJinagaClient()
         {
-            var store = new SQLiteStore(
-                Path.Combine(Environment.GetFolderPath(
-                    Environment.SpecialFolder.LocalApplicationData),
-                    "ExportFactsTest.db"),
-                new NullLoggerFactory());
+            var store = new SQLiteStore(DatabasePath, new NullLoggerFactory());
             var options = new JinagaClientOptions();
-            var jinagaClient = new JinagaClient(
+            var jinagaClient = Track(new JinagaClient(
                 store,
                 new LocalNetwork(),
                 [],
                 new NullLoggerFactory(),
-                options);
+                options));
             return jinagaClient;
         }
     }

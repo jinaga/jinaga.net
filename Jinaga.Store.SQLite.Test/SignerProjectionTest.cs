@@ -13,7 +13,7 @@ namespace Jinaga.Store.SQLite.Test;
 /// signed by two keys is still one row in <c>fact</c>. These tests read the signers back
 /// through a specification to show that the store returns them and the hash does not move.
 /// </summary>
-public class SignerProjectionTest
+public class SignerProjectionTest : SQLiteTest
 {
     public record PostSigners(Post post, IEnumerable<User> signers);
 
@@ -24,21 +24,13 @@ public class SignerProjectionTest
             select new PostSigners(post, facts.SignersOf(post))
         );
 
-    private static string SQLitePath { get; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "JinagaSQLiteTest",
-        "SignerProjectionTest.db");
-
     private readonly SQLiteStore store;
     private readonly JinagaClient j;
 
     public SignerProjectionTest()
     {
-        if (File.Exists(SQLitePath))
-            File.Delete(SQLitePath);
-
-        store = new SQLiteStore(SQLitePath, NullLoggerFactory.Instance);
-        j = new JinagaClient(store, new LocalNetwork(), [], NullLoggerFactory.Instance, new JinagaClientOptions());
+        store = new SQLiteStore(DatabasePath, NullLoggerFactory.Instance);
+        j = Track(new JinagaClient(store, new LocalNetwork(), [], NullLoggerFactory.Instance, new JinagaClientOptions()));
     }
 
     [Fact]
@@ -60,7 +52,7 @@ public class SignerProjectionTest
             .Should().BeEquivalentTo(new[] { first.PublicKey, second.PublicKey });
         j.Hash(result.post).Should().Be(hashBeforeSigning);
 
-        await j.Unload();
+        await j.DisposeAsync();
     }
 
     [Fact]
@@ -74,7 +66,7 @@ public class SignerProjectionTest
         results.Should().ContainSingle().Subject
             .signers.Should().BeEmpty();
 
-        await j.Unload();
+        await j.DisposeAsync();
     }
 
     /// <summary>

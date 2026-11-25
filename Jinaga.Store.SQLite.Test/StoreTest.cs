@@ -15,17 +15,12 @@ using Jinaga.Store.SQLite.Database;
 namespace Jinaga.Store.SQLite.Test;
 
 
-public class StoreTest
+public class StoreTest : SQLiteTest
 {
 
     private readonly ITestOutputHelper output;
     public Stopwatch stopwatch;
 
-
-    private static string SQLitePath { get; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "JinagaSQLiteTest",
-        "StoreTest.db");
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
     public StoreTest(ITestOutputHelper output)
@@ -308,10 +303,7 @@ public class StoreTest
     public async Task WriteAndReadBack() 
     {
         output.WriteLine($"{MyStopWatch.Start()}: BEGIN OF TESTS at {DateTime.Now}");
-        string dbFolderName = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        string dbFullName = Path.Combine(dbFolderName, "jinaga.db");
-        File.Delete(dbFullName);
-        ConnectionFactory connFactory = new(dbFullName);
+        ConnectionFactory connFactory = new(DatabasePath);
         output.WriteLine($"{MyStopWatch.Elapsed()}: New database created");
 
         var nbOfRecordsInserted = await connFactory.WithTxnAsync((conn, id) =>
@@ -355,10 +347,6 @@ public class StoreTest
     [Fact]
     public async Task SaveNormallyUploadsFact()
     {
-        // Delete the database file if present.
-        if (File.Exists(SQLitePath))
-            File.Delete(SQLitePath);
-
         // Write a fact to the store.
         var sqliteStore = GivenSQLiteStore();
         var network = GivenLocalNetwork();
@@ -366,7 +354,7 @@ public class StoreTest
         await jinagaClient.Fact(new Airline("IA"));
 
         // Verify that the fact was sent.
-        await jinagaClient.Unload();
+        await jinagaClient.DisposeAsync();
         network.SavedFactReferences.Should().ContainSingle().Which
             .Type.Should().Be("Skylane.Airline");
     }
@@ -374,10 +362,6 @@ public class StoreTest
     [Fact]
     public async Task SaveLocallyDoesNotUploadFact()
     {
-        // Delete the database file if present.
-        if (File.Exists(SQLitePath))
-            File.Delete(SQLitePath);
-
         // Write a fact to the store.
         var sqliteStore = GivenSQLiteStore();
         var network = GivenLocalNetwork();
@@ -385,17 +369,13 @@ public class StoreTest
         await jinagaClient.Local.Fact(new Airline("IA"));
 
         // Verify that the fact was not sent.
-        await jinagaClient.Unload();
+        await jinagaClient.DisposeAsync();
         network.SavedFactReferences.Should().BeEmpty();
     }
 
     [Fact]
     public async Task SaveLocallyFollowedByPushDoesNotUploadFact()
     {
-        // Delete the database file if present.
-        if (File.Exists(SQLitePath))
-            File.Delete(SQLitePath);
-
         // Write a fact to the store.
         var sqliteStore = GivenSQLiteStore();
         var network = GivenLocalNetwork();
@@ -404,17 +384,13 @@ public class StoreTest
         await jinagaClient.Push();
 
         // Verify that the fact was not sent.
-        await jinagaClient.Unload();
+        await jinagaClient.DisposeAsync();
         network.SavedFactReferences.Should().BeEmpty();
     }
 
     [Fact]
     public async Task SaveLocallyFollowedBySaveSuccessorDoesUploadFact()
     {
-        // Delete the database file if present.
-        if (File.Exists(SQLitePath))
-            File.Delete(SQLitePath);
-
         // Write a fact to the store.
         var sqliteStore = GivenSQLiteStore();
         var network = GivenLocalNetwork();
@@ -423,7 +399,7 @@ public class StoreTest
         await jinagaClient.Fact(new AirlineDay(airline, DateTime.Parse("2021-07-04").Date));
 
         // Verify that both facts were sent.
-        await jinagaClient.Unload();
+        await jinagaClient.DisposeAsync();
         network.SavedFactReferences.Count.Should().Be(2);
         network.SavedFactReferences.Should().Contain(r => r.Type == "Skylane.Airline");
         network.SavedFactReferences.Should().Contain(r => r.Type == "Skylane.Airline.Day");
@@ -432,8 +408,8 @@ public class StoreTest
     [Fact]
     public async Task BackoffRetriesBusyUntilLockIsReleased()
     {
-        var connFactory = GivenFreshConnectionFactory("backoff.db");
-        var lockHolder = GivenWriteLockHeld("backoff.db");
+        var connFactory = GivenConnectionFactory();
+        var lockHolder = GivenWriteLockHeld();
         var release = ReleaseWriteLockAfter(lockHolder, TimeSpan.FromMilliseconds(300));
 
         int attempts = 0;
@@ -453,8 +429,8 @@ public class StoreTest
     [Fact]
     public async Task BackoffRetriesBusyTransactionUntilLockIsReleased()
     {
-        var connFactory = GivenFreshConnectionFactory("backoff.db");
-        var lockHolder = GivenWriteLockHeld("backoff.db");
+        var connFactory = GivenConnectionFactory();
+        var lockHolder = GivenWriteLockHeld();
         var release = ReleaseWriteLockAfter(lockHolder, TimeSpan.FromMilliseconds(300));
 
         int attempts = 0;
@@ -474,7 +450,7 @@ public class StoreTest
     [Fact]
     public void BackoffDoesNotRetrySchemaError()
     {
-        var connFactory = GivenFreshConnectionFactory("backoff.db");
+        var connFactory = GivenConnectionFactory();
 
         int attempts = 0;
         Action save = () => connFactory.WithConn((conn, id) =>
@@ -491,20 +467,16 @@ public class StoreTest
         FactTypeNames(connFactory).Should().Equal("before error");
     }
 
-    private static ConnectionFactory GivenFreshConnectionFactory(string fileName)
+    private ConnectionFactory GivenConnectionFactory()
     {
-        string dbFullName = BackoffDbPath(fileName);
-        Directory.CreateDirectory(Path.GetDirectoryName(dbFullName)!);
-        foreach (var suffix in new[] { "", "-wal", "-shm" })
-            File.Delete(dbFullName + suffix);
-        return new ConnectionFactory(dbFullName);
+        return new ConnectionFactory(DatabasePath);
     }
 
     // Holds the database's write lock on a second connection, so that every
     // other writer gets SQLITE_BUSY once its busy timeout expires.
-    private static Conn GivenWriteLockHeld(string fileName)
+    private Conn GivenWriteLockHeld()
     {
-        var conn = new Conn(BackoffDbPath(fileName), 99);
+        var conn = new Conn(DatabasePath, 99);
         conn.ExecuteNonQuery("BEGIN IMMEDIATE TRANSACTION");
         return conn;
     }
@@ -518,11 +490,6 @@ public class StoreTest
             conn.Close();
         });
     }
-
-    private static string BackoffDbPath(string fileName) => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "JinagaSQLiteTest",
-        fileName);
 
     private static IEnumerable<string> FactTypeNames(ConnectionFactory connFactory)
     {
@@ -538,10 +505,7 @@ public class StoreTest
     public void CanEnableWalMode()
     {
         output.WriteLine($"{MyStopWatch.Start()}: BEGIN OF TESTS at {DateTime.Now}");
-        string dbFolderName = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        string dbFullName = Path.Combine(dbFolderName, "jinaga.db");
-        File.Delete(dbFullName);
-        ConnectionFactory connFactory = new(dbFullName);
+        ConnectionFactory connFactory = new(DatabasePath);
         output.WriteLine($"{MyStopWatch.Elapsed()}: New database created");
 
         string mode;
@@ -577,10 +541,7 @@ public class StoreTest
     {
         output.WriteLine($"{MyStopWatch.Start()}: BEGIN OF TESTS at {DateTime.Now}");
 
-        string dbFolderName = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        string dbFullName = Path.Combine(dbFolderName, "jinaga.db");
-        File.Delete(dbFullName);
-        ConnectionFactory connFactory = new(dbFullName);
+        ConnectionFactory connFactory = new(DatabasePath);
         output.WriteLine($"{MyStopWatch.Elapsed()}: New database created \r\n");
 
         output.WriteLine($"{MyStopWatch.Elapsed()}: readTxnBefore starting");            
@@ -816,10 +777,7 @@ public class StoreTest
 
         output.WriteLine($"{MyStopWatch.Start()}: BEGIN OF TESTS at {DateTime.Now}");
 
-        string dbFolderName = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        string dbFullName = Path.Combine(dbFolderName, "jinaga.db");
-        File.Delete(dbFullName);
-        ConnectionFactory connFactory = new(dbFullName);
+        ConnectionFactory connFactory = new(DatabasePath);
         output.WriteLine($"{MyStopWatch.Elapsed()}: New database created");
 
         //Having a read-thread open before the others, to close it after all the others, decreases the number of SqlBusy-errors significantly.
@@ -901,10 +859,6 @@ public class StoreTest
     [Fact]
     public async Task SaveUnderWriteLockContentionReturnsTheNewFactOnce()
     {
-        // Delete the database file if present.
-        if (File.Exists(SQLitePath))
-            File.Delete(SQLitePath);
-
         IStore sqliteStore = GivenSQLiteStore();
 
         // Store one fact of the type without contention, so that the contended
@@ -922,10 +876,6 @@ public class StoreTest
     [Fact]
     public async Task SaveUnderWriteLockContentionNotifiesAListenerOnce()
     {
-        // Delete the database file if present.
-        if (File.Exists(SQLitePath))
-            File.Delete(SQLitePath);
-
         var sqliteStore = GivenSQLiteStore();
         var loggerFactory = NullLoggerFactory.Instance;
         var networkManager = new NetworkManager(GivenLocalNetwork(), sqliteStore, loggerFactory, (FactGraph g, CancellationToken c) => Task.CompletedTask, new JinagaClientOptions().MaxBatchSize);
@@ -960,10 +910,6 @@ public class StoreTest
     [Fact]
     public async Task SaveOfAStoredFactReturnsNothingWithAndWithoutContention()
     {
-        // Delete the database file if present.
-        if (File.Exists(SQLitePath))
-            File.Delete(SQLitePath);
-
         IStore sqliteStore = GivenSQLiteStore();
         var graph = GraphOf(new Airline("IA"));
         await sqliteStore.Save(graph, false, default);
@@ -979,10 +925,6 @@ public class StoreTest
     [Fact]
     public async Task SaveOfAFactWhosePredecessorIsMissingThrowsNamingBothReferences()
     {
-        // Delete the database file if present.
-        if (File.Exists(SQLitePath))
-            File.Delete(SQLitePath);
-
         IStore sqliteStore = GivenSQLiteStore();
         var airline = new Airline("IA");
         var graph = GraphOfOnly(new AirlineDay(airline, DateTime.Parse("2021-07-04").Date));
@@ -1001,10 +943,6 @@ public class StoreTest
     [Fact]
     public async Task SaveOfAFactWhosePredecessorIsMissingLeavesTheStoreAndTheQueueUnchanged()
     {
-        // Delete the database file if present.
-        if (File.Exists(SQLitePath))
-            File.Delete(SQLitePath);
-
         IStore sqliteStore = GivenSQLiteStore();
         var graph = GraphOfOnly(new AirlineDay(new Airline("IA"), DateTime.Parse("2021-07-04").Date));
         var successor = graph.Last;
@@ -1029,10 +967,6 @@ public class StoreTest
     [Fact]
     public async Task SaveOfAFactWhosePredecessorIsMissingFailsWithoutWaitingForTheBackoff()
     {
-        // Delete the database file if present.
-        if (File.Exists(SQLitePath))
-            File.Delete(SQLitePath);
-
         IStore sqliteStore = GivenSQLiteStore();
         var graph = GraphOfOnly(new AirlineDay(new Airline("IA"), DateTime.Parse("2021-07-04").Date));
 
@@ -1048,10 +982,6 @@ public class StoreTest
     [Fact]
     public async Task SaveOfAFactWhosePredecessorIsStoredButAbsentFromTheGraphStoresTheEdge()
     {
-        // Delete the database file if present.
-        if (File.Exists(SQLitePath))
-            File.Delete(SQLitePath);
-
         IStore sqliteStore = GivenSQLiteStore();
         var airline = new Airline("IA");
         await sqliteStore.Save(GraphOf(airline), false, default);
@@ -1083,7 +1013,7 @@ public class StoreTest
     /// Runs an operation while a second connection holds the SQLite write lock,
     /// releasing the lock only after the operation's first attempt has failed.
     /// </summary>
-    private static async Task<T> WhileAnotherConnectionHoldsTheWriteLock<T>(Func<Task<T>> operation)
+    private async Task<T> WhileAnotherConnectionHoldsTheWriteLock<T>(Func<Task<T>> operation)
     {
         var lockAcquired = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var releaseRequested = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -1093,7 +1023,7 @@ public class StoreTest
             Conn? conn = null;
             try
             {
-                conn = new Conn(SQLitePath, 99);
+                conn = new Conn(DatabasePath, 99);
                 conn.ExecuteNonQuery("BEGIN IMMEDIATE");
                 lockAcquired.SetResult(true);
                 releaseRequested.Task.Wait();
@@ -1146,15 +1076,15 @@ public class StoreTest
         return GraphOf(fact).Last;
     }
 
-    private static JinagaClient GivenJinagaClient(IStore? store = null, INetwork? network = null)
+    private JinagaClient GivenJinagaClient(IStore? store = null, INetwork? network = null)
     {
         var options = new JinagaClientOptions();
-        return new JinagaClient(store ?? new SQLiteStore(SQLitePath, NullLoggerFactory.Instance), network ?? new LocalNetwork(), [], NullLoggerFactory.Instance, options);
+        return Track(new JinagaClient(store ?? new SQLiteStore(DatabasePath, NullLoggerFactory.Instance), network ?? new LocalNetwork(), [], NullLoggerFactory.Instance, options));
     }
 
-    private static SQLiteStore GivenSQLiteStore()
+    private SQLiteStore GivenSQLiteStore()
     {
-        return new SQLiteStore(SQLitePath, NullLoggerFactory.Instance);
+        return new SQLiteStore(DatabasePath, NullLoggerFactory.Instance);
     }
 
     private static LocalNetwork GivenLocalNetwork()

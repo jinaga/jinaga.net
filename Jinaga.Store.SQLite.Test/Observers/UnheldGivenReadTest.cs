@@ -20,20 +20,12 @@ namespace Jinaga.Store.SQLite.Test.Observers;
 /// did not fault on the row it returned: <c>SQLiteStore.Load</c> does not throw on a
 /// missing reference, so a watch quietly showed a message the replica could not attribute.
 /// </summary>
-public class UnheldGivenReadTest
+public class UnheldGivenReadTest : SQLiteTest
 {
-    private static string SQLitePath { get; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "JinagaSQLiteTest",
-        "UnheldGivenReadTest.db");
-
     private readonly ITestOutputHelper output;
 
     public UnheldGivenReadTest(ITestOutputHelper output)
     {
-        if (File.Exists(SQLitePath))
-            File.Delete(SQLitePath);
-
         this.output = output;
     }
 
@@ -63,7 +55,7 @@ public class UnheldGivenReadTest
     [Fact]
     public async Task Read_WithAGivenTheStoreDoesNotHold_ReadsNothingUntilItArrives()
     {
-        var store = new SQLiteStore(SQLitePath, NullLoggerFactory.Instance);
+        var store = new SQLiteStore(DatabasePath, NullLoggerFactory.Instance);
         var j = GivenJinagaClient(store);
         var channel = await j.Fact(new Channel("general"));
         await j.Fact(new Message(channel, "Where is everybody?"));
@@ -86,7 +78,7 @@ public class UnheldGivenReadTest
     [Fact]
     public async Task Watch_StartedWhileAGivenIsNotHeld_LoadsEmptyAndDeliversWhenItArrives()
     {
-        var store = new SQLiteStore(SQLitePath, NullLoggerFactory.Instance);
+        var store = new SQLiteStore(DatabasePath, NullLoggerFactory.Instance);
         var j = GivenJinagaClient(store);
         var channel = await j.Fact(new Channel("general"));
         await j.Fact(new Message(channel, "Where is everybody?"));
@@ -127,7 +119,7 @@ public class UnheldGivenReadTest
     [Fact]
     public async Task Read_WithAGivenStoredUnderAnotherType_ReadsNothing()
     {
-        var store = new SQLiteStore(SQLitePath, NullLoggerFactory.Instance);
+        var store = new SQLiteStore(DatabasePath, NullLoggerFactory.Instance);
         var j = GivenJinagaClient(store);
         var channel = await j.Fact(new Channel("general"));
         await j.Fact(new Message(channel, "Where is everybody?"));
@@ -147,7 +139,7 @@ public class UnheldGivenReadTest
     [Fact]
     public async Task Read_WithEveryGivenHeld_ReadsTheRowsItAlwaysDid()
     {
-        var store = new SQLiteStore(SQLitePath, NullLoggerFactory.Instance);
+        var store = new SQLiteStore(DatabasePath, NullLoggerFactory.Instance);
         var j = GivenJinagaClient(store);
         var user = await j.Fact(new User("---FAKE READER---"));
         var channel = await j.Fact(new Channel("general"));
@@ -168,7 +160,7 @@ public class UnheldGivenReadTest
     [Fact]
     public async Task Read_WithTheOnlyGivenNotHeld_ReadsNothing()
     {
-        var store = new SQLiteStore(SQLitePath, NullLoggerFactory.Instance);
+        var store = new SQLiteStore(DatabasePath, NullLoggerFactory.Instance);
         var j = GivenJinagaClient(store);
         var channel = new Channel("general");   // not saved
 
@@ -201,11 +193,11 @@ public class UnheldGivenReadTest
 
     private JinagaClient GivenJinagaClient(SQLiteStore store)
     {
-        return new JinagaClient(
+        return Track(new JinagaClient(
             store,
             new FakeNetwork(output),
             [],
             NullLoggerFactory.Instance,
-            new JinagaClientOptions());
+            new JinagaClientOptions()));
     }
 }

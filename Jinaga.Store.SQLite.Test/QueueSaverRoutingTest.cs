@@ -16,7 +16,7 @@ namespace Jinaga.Store.SQLite.Test;
 /// who creates facts offline and does not come back until tomorrow is the
 /// ordinary case, not the edge case.
 /// </summary>
-public class QueueSaverRoutingTest
+public class QueueSaverRoutingTest : SQLiteTest
 {
     /// <summary>
     /// Long enough that the debounce never elapses during a test, so the only
@@ -27,20 +27,12 @@ public class QueueSaverRoutingTest
     private static readonly User UserA = new User("---FAKE PUBLIC KEY A---");
     private static readonly User UserB = new User("---FAKE PUBLIC KEY B---");
 
-    private static string SQLitePath { get; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "JinagaSQLiteTest",
-        "QueueSaverRoutingTest.db");
-
     private readonly ITestOutputHelper output;
     private readonly FakeNetwork network;
     private readonly FakeIdentitySource identity;
 
     public QueueSaverRoutingTest(ITestOutputHelper output)
     {
-        if (File.Exists(SQLitePath))
-            File.Delete(SQLitePath);
-
         this.output = output;
         network = new FakeNetwork(output);
         identity = new FakeIdentitySource();
@@ -65,7 +57,7 @@ public class QueueSaverRoutingTest
         network.UploadedUnderUsers.Should().Equal(UserB);
         (await QueuedHashes(store)).Should().Equal(j.Hash(siteA));
 
-        await j.Unload();
+        await j.DisposeAsync();
     }
 
     [Fact]
@@ -89,7 +81,7 @@ public class QueueSaverRoutingTest
         network.UploadedUnderUsers.Should().Equal(UserB, UserA);
         (await QueuedHashes(store)).Should().BeEmpty();
 
-        await j.Unload();
+        await j.DisposeAsync();
     }
 
     [Fact]
@@ -119,7 +111,7 @@ public class QueueSaverRoutingTest
         UploadedHashes().Should().Contain(j.Hash(post));
         (await QueuedHashes(store)).Should().BeEmpty();
 
-        await j.Unload();
+        await j.DisposeAsync();
     }
 
     [Fact]
@@ -136,7 +128,7 @@ public class QueueSaverRoutingTest
         identity.SetCurrentUser(UserB);
         var siteB = await firstClient.Fact(new Site("b.example.com"));
         siteBHash = firstClient.Hash(siteB);
-        await firstClient.Unload();
+        await firstClient.DisposeAsync();
 
         // A second store on the same database is what the application has after
         // it has been closed and opened again.
@@ -154,7 +146,7 @@ public class QueueSaverRoutingTest
         UploadedHashes().Should().Contain(siteAHash);
         (await QueuedHashes(secondStore)).Should().BeEmpty();
 
-        await secondClient.Unload();
+        await secondClient.DisposeAsync();
     }
 
     [Fact]
@@ -176,7 +168,7 @@ public class QueueSaverRoutingTest
         network.UploadedUnderUsers.Should().Equal(UserB);
         (await QueuedHashes(store)).Should().BeEmpty();
 
-        await j.Unload();
+        await j.DisposeAsync();
     }
 
     [Fact]
@@ -189,7 +181,7 @@ public class QueueSaverRoutingTest
         identity.SetCurrentUser(UserB);
         await firstClient.Fact(site);
         var reference = new FactReference("Blog.Site", firstClient.Hash(site));
-        await firstClient.Unload();
+        await firstClient.DisposeAsync();
 
         IStore secondStore = GivenStore();
         var savers = await secondStore.LoadSavers(ImmutableList.Create(reference), CancellationToken.None);
@@ -221,7 +213,7 @@ public class QueueSaverRoutingTest
         UploadedHashes().Should().NotContain(j.Hash(membership));
         (await QueuedHashes(store)).Should().Equal(j.Hash(project), j.Hash(membership));
 
-        await j.Unload();
+        await j.DisposeAsync();
     }
 
     [Fact]
@@ -245,7 +237,7 @@ public class QueueSaverRoutingTest
         UploadedHashes().Should().NotContain(j.Hash(x));
         (await QueuedHashes(store)).Should().Contain(j.Hash(message));
 
-        await j.Unload();
+        await j.DisposeAsync();
     }
 
     [Fact]
@@ -256,12 +248,12 @@ public class QueueSaverRoutingTest
         {
             QueueProcessingDelay = DelayLongerThanAnyTest
         };
-        var j = new JinagaClient(
+        var j = Track(new JinagaClient(
             store,
             network,
             ImmutableList<Specification>.Empty,
             NullLoggerFactory.Instance,
-            options);
+            options));
 
         var first = await j.Fact(new Site("a.example.com"));
         var second = await j.Fact(new Site("b.example.com"));
@@ -272,12 +264,12 @@ public class QueueSaverRoutingTest
         UploadedHashes().Should().Contain(j.Hash(second));
         (await QueuedHashes(store)).Should().BeEmpty();
 
-        await j.Unload();
+        await j.DisposeAsync();
     }
 
-    private static SQLiteStore GivenStore()
+    private SQLiteStore GivenStore()
     {
-        return new SQLiteStore(SQLitePath, NullLoggerFactory.Instance);
+        return new SQLiteStore(DatabasePath, NullLoggerFactory.Instance);
     }
 
     private static AuthorizationRules RoutingRules { get; } = AuthorizationRules.Build(rules => rules
@@ -294,12 +286,12 @@ public class QueueSaverRoutingTest
             AuthorizationRules = rules,
             QueueProcessingDelay = DelayLongerThanAnyTest
         };
-        return new JinagaClient(
+        return Track(new JinagaClient(
             store,
             network,
             ImmutableList<Specification>.Empty,
             NullLoggerFactory.Instance,
-            options);
+            options));
     }
 
     private IEnumerable<string> UploadedHashes()

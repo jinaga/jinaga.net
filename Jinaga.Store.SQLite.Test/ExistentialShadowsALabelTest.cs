@@ -15,21 +15,13 @@ namespace Jinaga.Store.SQLite.Test;
 /// already has its own scope here. These assertions hold that behavior, which the
 /// in-memory store now matches.
 /// </summary>
-public class ExistentialShadowsALabelTest
+public class ExistentialShadowsALabelTest : SQLiteTest
 {
     private readonly IStore store;
 
-    private static string SQLitePath { get; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "JinagaSQLiteTest",
-        "ExistentialShadowsALabelTest.db");
-
     public ExistentialShadowsALabelTest()
     {
-        if (File.Exists(SQLitePath))
-            File.Delete(SQLitePath);
-
-        store = new SQLiteStore(SQLitePath, NullLoggerFactory.Instance);
+        store = new SQLiteStore(DatabasePath, NullLoggerFactory.Instance);
     }
 
     /// <summary>

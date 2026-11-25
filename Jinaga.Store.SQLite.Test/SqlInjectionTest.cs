@@ -19,20 +19,11 @@ namespace Jinaga.Store.SQLite.Test;
 /// (or could be exploited) when those strings contained a single quote or SQL
 /// comment syntax such as "--".
 /// </summary>
-public class SqlInjectionTest
+public class SqlInjectionTest : SQLiteTest
 {
-    private static string SQLitePath { get; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "JinagaSQLiteTest",
-        "SqlInjectionTest.db");
-
-    private static SQLiteStore GivenSQLiteStore()
+    private SQLiteStore GivenSQLiteStore()
     {
-        if (File.Exists(SQLitePath))
-        {
-            File.Delete(SQLitePath);
-        }
-        return new SQLiteStore(SQLitePath, NullLoggerFactory.Instance);
+        return new SQLiteStore(DatabasePath, NullLoggerFactory.Instance);
     }
 
     [Fact]
@@ -43,7 +34,7 @@ public class SqlInjectionTest
         // for every predecessor on every save.
         IStore store = GivenSQLiteStore();
         var options = new JinagaClientOptions();
-        var jinagaClient = new JinagaClient(store, new Jinaga.DefaultImplementations.LocalNetwork(), [], NullLoggerFactory.Instance, options);
+        var jinagaClient = Track(new JinagaClient(store, new Jinaga.DefaultImplementations.LocalNetwork(), [], NullLoggerFactory.Instance, options));
 
         var order = await jinagaClient.Fact(new MaliciousOrder("order-1"));
         var item = await jinagaClient.Fact(new MaliciousOrderItem(order, "sku-1"));
@@ -64,7 +55,7 @@ public class SqlInjectionTest
     {
         IStore store = GivenSQLiteStore();
         var options = new JinagaClientOptions();
-        var jinagaClient = new JinagaClient(store, new LocalNetwork(), [], NullLoggerFactory.Instance, options);
+        var jinagaClient = Track(new JinagaClient(store, new LocalNetwork(), [], NullLoggerFactory.Instance, options));
 
         var order = await jinagaClient.Fact(new MaliciousOrder("order-2"));
         var orderReference = ReferenceOfFact(order);
@@ -117,7 +108,7 @@ public class SqlInjectionTest
         // unbatched query. Use enough references to span multiple batches.
         IStore store = GivenSQLiteStore();
         var options = new JinagaClientOptions();
-        var jinagaClient = new JinagaClient(store, new LocalNetwork(), [], NullLoggerFactory.Instance, options);
+        var jinagaClient = Track(new JinagaClient(store, new LocalNetwork(), [], NullLoggerFactory.Instance, options));
 
         var references = ImmutableList<FactReference>.Empty;
         for (int i = 0; i < 1000; i++)
