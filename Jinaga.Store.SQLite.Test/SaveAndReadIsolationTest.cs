@@ -23,6 +23,14 @@ public class SaveAndReadIsolationTest
         "SaveAndReadIsolationTest.db");
 
     /// <summary>
+    /// How long a test waits for its reader to complete a read before giving
+    /// up. The reader needs only one scheduled task and one SQLite read, so a
+    /// wait this long expires on a reader that never ran rather than on one
+    /// the thread pool merely started late.
+    /// </summary>
+    private static readonly TimeSpan FirstReadTimeout = TimeSpan.FromSeconds(30);
+
+    /// <summary>
     /// The store holds a root with one A and one B, so the specification's
     /// product gives one row. A save adds a second A and a second B in one
     /// graph, after which the product gives four. A read that returns two has
@@ -56,21 +64,25 @@ public class SaveAndReadIsolationTest
                 .AddGraph(GraphOfOnly(new IsolationB(root, 2)));
 
             using var readingStopped = new CancellationTokenSource();
+            var firstRead = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             var reading = Task.Run(async () =>
             {
                 while (!readingStopped.IsCancellationRequested)
                 {
                     var products = await store.Read(givenTuple, specification, default);
                     rowCounts.Add(products.Count);
+                    firstRead.TrySetResult();
                 }
             });
 
+            // The save overlaps a read because the reader is already reading,
+            // not because the thread pool happened to start it in time.
+            await AwaitFirstRead(firstRead.Task, reading, $"reader of round {round}");
             await store.Save(secondPair, false, default);
             readingStopped.Cancel();
             await reading;
         }
 
-        rowCounts.Should().NotBeEmpty();
         rowCounts.Should().OnlyContain(count => count == 1 || count == 4);
     }
 
@@ -104,11 +116,16 @@ public class SaveAndReadIsolationTest
 
         using var readingStopped = new CancellationTokenSource();
         var mismatches = new ConcurrentBag<string>();
+        var firstRead = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        bool saving = false;
+        int readsWhileSaving = 0;
         var reading = Task.Run(async () =>
         {
             while (!readingStopped.IsCancellationRequested)
             {
                 var rows = await client.Local.Query(specification, root);
+                if (Volatile.Read(ref saving))
+                    Interlocked.Increment(ref readsWhileSaving);
                 foreach (var row in rows)
                 {
                     var bCount = row.bs.Count();
@@ -117,20 +134,28 @@ public class SaveAndReadIsolationTest
                         mismatches.Add($"{rows.Count} A facts against {bCount} B facts");
                     }
                 }
+                firstRead.TrySetResult();
             }
         });
 
+        await AwaitFirstRead(firstRead.Task, reading, "reader of the nested query");
+
+        Volatile.Write(ref saving, true);
         for (int index = 1; index <= 40; index++)
         {
             var pair = GraphOfOnly(new IsolationA(root, index))
                 .AddGraph(GraphOfOnly(new IsolationB(root, index)));
             await store.Save(pair, false, default);
         }
+        Volatile.Write(ref saving, false);
 
         readingStopped.Cancel();
         await reading;
 
         mismatches.Should().BeEmpty();
+        // Without this, a reader that read nothing while the saves ran would
+        // leave the bag empty and report success having tested nothing.
+        readsWhileSaving.Should().BeGreaterThan(0);
     }
 
     /// <summary>
@@ -159,6 +184,26 @@ public class SaveAndReadIsolationTest
             ImmutableList.Create(ReferenceOfFact(root), ReferenceOfFact(a)),
             default);
         loaded.FactReferences.Should().BeEmpty();
+    }
+
+    /// <summary>
+    /// Returns once the reader has completed a read, so whatever the caller
+    /// does next overlaps one. A reader that stopped first is awaited, which
+    /// reports its own failure rather than this wait's. A reader that did
+    /// neither within <see cref="FirstReadTimeout"/> never ran, so the wait
+    /// throws instead of hanging the suite or letting the test pass.
+    /// </summary>
+    private static async Task AwaitFirstRead(Task firstRead, Task reading, string reader)
+    {
+        using var expiry = new CancellationTokenSource(FirstReadTimeout);
+        var finished = await Task.WhenAny(
+            firstRead, reading, Task.Delay(Timeout.Infinite, expiry.Token));
+        if (finished == reading)
+            await reading;
+        if (!firstRead.IsCompleted)
+            throw new TimeoutException(
+                $"The {reader} completed no read within {FirstReadTimeout.TotalSeconds:0} seconds. " +
+                "Nothing this test did overlapped a read, so the store's isolation went untested.");
     }
 
     private static SQLiteStore GivenEmptySQLiteStore()
