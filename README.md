@@ -219,7 +219,7 @@ var j = JinagaClient.Create(options =>
 - **It does not see a fact reached through a predecessor role that the specification never walks.**
   `Tag` has a `contact` role and a `label` role, so every `Tag` descends from a `Contact`.
   A specification that reaches `Tag` from `Label` never names `Contact`, so nothing in it tells the check that a purge applies.
-  Recognizing that would take the model's type graph, and the check is given only the specification.
+  Recognizing that would take the model's type graph, which the check is never given: it reads the specification and the purge conditions alone.
 
 ```C#
 var tagsOfLabel = Given<Label>.Match(label =>
@@ -228,7 +228,7 @@ var tagsOfLabel = Given<Label>.Match(label =>
 );
 ```
 
-That specification passes the check and returns the label's tags.
+That specification passes the check, and returns the `value` of each `Tag` that carries the label.
 Save a `Deleted` for a tagged contact, and the purge removes that contact's `Tag`s with it.
 
 - **A purge changes what an accepted specification returns.**
