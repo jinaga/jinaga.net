@@ -17,7 +17,7 @@ namespace Jinaga.Store.SQLite.Test.Observers;
 /// <c>reused-label</c> vector, and the C# query DSL renames the second declaration, so only a
 /// specification built from <see cref="Specification"/> objects reaches the shape.
 /// </summary>
-public class WatchReusedLabelTest
+public class WatchReusedLabelTest : SQLiteTest
 {
     private readonly ITestOutputHelper output;
 
@@ -55,8 +55,7 @@ public class WatchReusedLabelTest
     [Fact]
     public async Task Watch_ALabelReusedAfterAnExistentialCondition_DeliversTheRemoval()
     {
-        var path = DatabasePath();
-        var store = new SQLiteStore(path, NullLoggerFactory.Instance);
+        var store = new SQLiteStore(DatabasePath, NullLoggerFactory.Instance);
         var factManager = CreateFactManager(store);
         try
         {
@@ -85,21 +84,7 @@ public class WatchReusedLabelTest
         finally
         {
             await factManager.Unload();
-            if (File.Exists(path))
-                File.Delete(path);
         }
-    }
-
-    private static string DatabasePath()
-    {
-        var path = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "JinagaSQLiteTest",
-            $"WatchReusedLabelTest-{Guid.NewGuid():N}.db");
-        var directory = Path.GetDirectoryName(path);
-        if (!string.IsNullOrEmpty(directory))
-            Directory.CreateDirectory(directory);
-        return path;
     }
 
     private FactManager CreateFactManager(IStore store)

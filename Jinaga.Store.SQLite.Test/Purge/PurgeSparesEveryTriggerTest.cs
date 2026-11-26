@@ -12,19 +12,14 @@ namespace Jinaga.Store.SQLite.Test.Purge;
 /// <c>PurgeDescendants</c> and the bulk purge through <c>Purge</c>, so each is stated
 /// separately.
 /// </summary>
-public class PurgeSparesEveryTriggerTest
+public class PurgeSparesEveryTriggerTest : SQLiteTest
 {
-    private static JinagaClient GivenClient(Func<PurgeConditions, PurgeConditions> conditions)
+    private JinagaClient GivenClient(Func<PurgeConditions, PurgeConditions> conditions)
     {
-        string sqlitePath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "JinagaSQLiteTest",
-            $"PurgeSparesEveryTriggerTest-{Guid.NewGuid():N}.db");
-
         var purgeConditions = conditions(PurgeConditions.Empty);
-        var store = new SQLiteStore(sqlitePath, NullLoggerFactory.Instance);
-        return new JinagaClient(store, new LocalNetwork(), purgeConditions.Validate(),
-            NullLoggerFactory.Instance, new JinagaClientOptions());
+        var store = new SQLiteStore(CreateDatabasePath(), NullLoggerFactory.Instance);
+        return Track(new JinagaClient(store, new LocalNetwork(), purgeConditions.Validate(),
+            NullLoggerFactory.Instance, new JinagaClientOptions()));
     }
 
     [Fact]

@@ -14,26 +14,18 @@ namespace Jinaga.Store.SQLite.Test;
 /// save must leave nothing in the database: no fact, no outbound_queue row and no fact_saver
 /// row.
 /// </summary>
-public class EarlyAuthorizationTest
+public class EarlyAuthorizationTest : SQLiteTest
 {
     private const int DelayLongerThanAnyTest = 60000;
 
     private static readonly User UserA = new User("---FAKE PUBLIC KEY A---");
     private static readonly User UserB = new User("---FAKE PUBLIC KEY B---");
 
-    private static string SQLitePath { get; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "JinagaSQLiteTest",
-        "EarlyAuthorizationTest.db");
-
     private readonly FakeNetwork network;
     private readonly FakeIdentitySource identity;
 
     public EarlyAuthorizationTest(ITestOutputHelper output)
     {
-        if (File.Exists(SQLitePath))
-            File.Delete(SQLitePath);
-
         network = new FakeNetwork(output);
         identity = new FakeIdentitySource();
         network.CurrentUser = () => identity.CurrentUser;
@@ -57,7 +49,7 @@ public class EarlyAuthorizationTest
         (await store.GetQueue()).Facts.Should().BeEmpty();
         (await ((IStore)store).LoadSavers(references, CancellationToken.None)).Should().BeEmpty();
 
-        await j.Unload();
+        await j.DisposeAsync();
     }
 
     [Fact]
@@ -73,7 +65,7 @@ public class EarlyAuthorizationTest
         (await store.ListKnown(ImmutableList.Create(reference))).Should().Equal(reference);
         (await store.GetQueue()).Facts.Select(fact => fact.Reference).Should().Contain(reference);
 
-        await j.Unload();
+        await j.DisposeAsync();
     }
 
     [Fact]
@@ -92,7 +84,7 @@ public class EarlyAuthorizationTest
         (await store.ListKnown(references)).Should().BeEmpty();
         (await store.GetQueue()).Facts.Should().BeEmpty();
 
-        await j.Unload();
+        await j.DisposeAsync();
     }
 
     [Fact]
@@ -107,7 +99,7 @@ public class EarlyAuthorizationTest
         (await store.ListKnown(ImmutableList.Create(reference))).Should().Equal(reference);
         (await store.GetQueue()).Facts.Select(fact => fact.Reference).Should().Contain(reference);
 
-        await j.Unload();
+        await j.DisposeAsync();
     }
 
     /// <summary>
@@ -127,7 +119,7 @@ public class EarlyAuthorizationTest
 
         await save.Should().ThrowAsync<AuthorizationException>();
 
-        await j.Unload();
+        await j.DisposeAsync();
     }
 
     [Fact]
@@ -144,12 +136,12 @@ public class EarlyAuthorizationTest
         var reference = j.Graph(task).Last;
         (await store.ListKnown(ImmutableList.Create(reference))).Should().Equal(reference);
 
-        await j.Unload();
+        await j.DisposeAsync();
     }
 
-    private static SQLiteStore GivenStore()
+    private SQLiteStore GivenStore()
     {
-        return new SQLiteStore(SQLitePath, NullLoggerFactory.Instance);
+        return new SQLiteStore(DatabasePath, NullLoggerFactory.Instance);
     }
 
     private static AuthorizationRules Rules { get; } = AuthorizationRules.Build(rules => rules
@@ -171,12 +163,12 @@ public class EarlyAuthorizationTest
             AuthorizationRules = rules,
             QueueProcessingDelay = DelayLongerThanAnyTest
         };
-        return new JinagaClient(
+        return Track(new JinagaClient(
             store,
             network,
             ImmutableList<Specification>.Empty,
             NullLoggerFactory.Instance,
-            options);
+            options));
     }
 }
 

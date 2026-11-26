@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Jinaga.Store.SQLite.Test;
 
-public class NullTest
+public class NullTest : SQLiteTest
 {
     [FactType("Test.Root")]
     record Root(string RootValue);
@@ -15,19 +15,9 @@ public class NullTest
     [FactType("Test.Parent")]
     record ParentFact(Root Root, ChildFact Child);
 
-    private static string SQLitePath { get; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "JinagaSQLiteTest",
-        "NullTest.db");
-
     [Fact]
     public async Task ReproduceError()
     {
-        // Delete the SQLite file if it exists
-        if (File.Exists(SQLitePath))
-        {
-            File.Delete(SQLitePath);
-        }
         var j = GivenJinagaClient();
 
         var root = new Root("Root");
@@ -46,12 +36,12 @@ public class NullTest
 
         results.Should().ContainSingle().Which.Should().BeEquivalentTo(parent);
 
-        await j.Unload();
+        await j.DisposeAsync();
     }
 
-    private static JinagaClient GivenJinagaClient(IStore? store = null)
+    private JinagaClient GivenJinagaClient(IStore? store = null)
     {
         var options = new JinagaClientOptions();
-        return new JinagaClient(store ?? new SQLiteStore(SQLitePath, NullLoggerFactory.Instance), new LocalNetwork(), [], NullLoggerFactory.Instance, options);
+        return Track(new JinagaClient(store ?? new SQLiteStore(DatabasePath, NullLoggerFactory.Instance), new LocalNetwork(), [], NullLoggerFactory.Instance, options));
     }
 }

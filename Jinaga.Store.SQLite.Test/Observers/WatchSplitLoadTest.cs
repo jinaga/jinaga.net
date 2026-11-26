@@ -23,7 +23,7 @@ namespace Jinaga.Store.SQLite.Test.Observers;
 /// waited for, and the run is repeated: an exception swallowed by a retry shows up as a
 /// missing child in some fraction of runs, not in all of them.
 /// </summary>
-public class WatchSplitLoadTest
+public class WatchSplitLoadTest : SQLiteTest
 {
     private readonly ITestOutputHelper output;
 
@@ -59,8 +59,9 @@ public class WatchSplitLoadTest
         network.AddFeed("offices", new object[] { dallasOffice }, 1);
         network.AddFeed("officeNames", new object[] { first, second, third }, NamesFeedDelay);
 
-        var path = DatabasePath(run);
-        var j = GivenJinagaClient(path, network);
+        // A database of its own per run, so a run that holds a name decides it from its
+        // own store rather than from what an earlier run left behind.
+        var j = GivenJinagaClient(CreateDatabasePath(), network);
         var viewModel = new CompanyViewModel();
         var watch = viewModel.Load(j, "contoso");
 
@@ -73,33 +74,19 @@ public class WatchSplitLoadTest
         finally
         {
             watch.Stop();
-            await j.Unload();
-            if (File.Exists(path))
-                File.Delete(path);
+            await j.DisposeAsync();
         }
     }
 
-    /// <summary>
-    /// A database of its own per run, so a run that holds a name decides it from its own
-    /// store rather than from what an earlier run left behind.
-    /// </summary>
-    private static string DatabasePath(int run) => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "JinagaSQLiteTest",
-        $"WatchSplitLoadTest-{run}-{Guid.NewGuid():N}.db");
-
-    private static JinagaClient GivenJinagaClient(string path, FakeNetwork network)
+    private JinagaClient GivenJinagaClient(string path, FakeNetwork network)
     {
-        var directory = Path.GetDirectoryName(path);
-        if (!string.IsNullOrEmpty(directory))
-            Directory.CreateDirectory(directory);
         var options = new JinagaClientOptions();
-        return new JinagaClient(
+        return Track(new JinagaClient(
             new SQLiteStore(path, NullLoggerFactory.Instance),
             network,
             [],
             NullLoggerFactory.Instance,
-            options);
+            options));
     }
 
     private class OfficeViewModel

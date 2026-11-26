@@ -18,13 +18,12 @@ namespace Jinaga.Store.SQLite.Test.Purge;
 /// KEY without AUTOINCREMENT, so SQLite hands the id of a deleted fact to the
 /// next fact saved. That fact inherited the rows left behind.
 /// </summary>
-public class PurgeDependentRowsTest
+public class PurgeDependentRowsTest : SQLiteTest
 {
     [Fact]
     public async Task WhenPurgeDescendantsRemovesAFact_ThenNoDependentRowOutlivesIt()
     {
-        var path = GivenEmptyDatabase(nameof(WhenPurgeDescendantsRemovesAFact_ThenNoDependentRowOutlivesIt));
-        var store = new SQLiteStore(path, NullLoggerFactory.Instance);
+        var store = new SQLiteStore(DatabasePath, NullLoggerFactory.Instance);
         var j = GivenClient(store, PurgeConditions.Empty);
 
         var project = await GivenProject(j);
@@ -35,7 +34,7 @@ public class PurgeDependentRowsTest
             ReferenceOf(project),
             ImmutableList.Create(ReferenceOf(deleted)));
 
-        var orphans = OrphanedRows(path);
+        var orphans = OrphanedRows(DatabasePath);
         orphans.Edges.Should().Be(0);
         orphans.Ancestors.Should().Be(0);
         orphans.Signatures.Should().Be(0);
@@ -44,8 +43,7 @@ public class PurgeDependentRowsTest
     [Fact]
     public async Task WhenPurgeRemovesAFact_ThenNoDependentRowOutlivesIt()
     {
-        var path = GivenEmptyDatabase(nameof(WhenPurgeRemovesAFact_ThenNoDependentRowOutlivesIt));
-        var store = new SQLiteStore(path, NullLoggerFactory.Instance);
+        var store = new SQLiteStore(DatabasePath, NullLoggerFactory.Instance);
         var purgeConditions = PurgeConditions.Empty
             .Purge<Project>().WhenExists<ProjectDeleted>(deleted => deleted.project);
         var j = GivenClient(store, purgeConditions);
@@ -58,7 +56,7 @@ public class PurgeDependentRowsTest
 
         await j.Purge();
 
-        var orphans = OrphanedRows(path);
+        var orphans = OrphanedRows(DatabasePath);
         orphans.Edges.Should().Be(0);
         orphans.Ancestors.Should().Be(0);
         orphans.Signatures.Should().Be(0);
@@ -67,8 +65,7 @@ public class PurgeDependentRowsTest
     [Fact]
     public async Task WhenANewFactReusesAPurgedFactsId_ThenItCarriesOnlyItsOwnRows()
     {
-        var path = GivenEmptyDatabase(nameof(WhenANewFactReusesAPurgedFactsId_ThenItCarriesOnlyItsOwnRows));
-        var store = new SQLiteStore(path, NullLoggerFactory.Instance);
+        var store = new SQLiteStore(DatabasePath, NullLoggerFactory.Instance);
         var j = GivenClient(store, PurgeConditions.Empty);
 
         var project = await GivenProject(j);
@@ -77,7 +74,7 @@ public class PurgeDependentRowsTest
 
         var purgeRoot = ReferenceOf(project);
         var triggers = ImmutableList.Create(ReferenceOf(deleted));
-        var purgedFactId = FactIdOf(path, ReferenceOf(name));
+        var purgedFactId = FactIdOf(DatabasePath, ReferenceOf(name));
 
         await store.PurgeDescendants(purgeRoot, triggers);
 
@@ -86,7 +83,7 @@ public class PurgeDependentRowsTest
 
         // The test says nothing about dependent rows unless the new fact really
         // takes the purged fact's id, so hold the premise to account.
-        FactIdOf(path, siteReference).Should().Be(purgedFactId);
+        FactIdOf(DatabasePath, siteReference).Should().Be(purgedFactId);
 
         await store.PurgeDescendants(purgeRoot, triggers);
 
@@ -109,33 +106,22 @@ public class PurgeDependentRowsTest
     private static Task<ProjectName> GivenSignedName(JinagaClient j, Project project) =>
         j.SingleUse(_ => j.Fact(new ProjectName(project, "Signed", [])));
 
-    private static JinagaClient GivenClient(SQLiteStore store, PurgeConditions purgeConditions) =>
-        new JinagaClient(
+    private JinagaClient GivenClient(SQLiteStore store, PurgeConditions purgeConditions) =>
+        Track(new JinagaClient(
             store,
             new LocalNetwork(),
             purgeConditions.Validate(),
             NullLoggerFactory.Instance,
-            new JinagaClientOptions());
-
-    private static string GivenEmptyDatabase(string name)
-    {
-        var path = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "JinagaSQLiteTest",
-            $"PurgeDependentRowsTest.{name}.db");
-        if (File.Exists(path))
-            File.Delete(path);
-        return path;
-    }
+            new JinagaClientOptions()));
 
     /// <summary>
     /// Counts the rows that reference a fact_id no fact has. Reads through its own
     /// connection rather than a ConnectionFactory, because opening one runs the
     /// migration that deletes exactly these rows.
     /// </summary>
-    private static (int Edges, int Ancestors, int Signatures) OrphanedRows(string path)
+    private static (int Edges, int Ancestors, int Signatures) OrphanedRows(string databasePath)
     {
-        var conn = new Conn(path, 0);
+        var conn = new Conn(databasePath, 0);
         try
         {
             return (
@@ -157,9 +143,9 @@ public class PurgeDependentRowsTest
         }
     }
 
-    private static int FactIdOf(string path, FactReference reference)
+    private static int FactIdOf(string databasePath, FactReference reference)
     {
-        var conn = new Conn(path, 0);
+        var conn = new Conn(databasePath, 0);
         try
         {
             return ReadInt(conn, @"

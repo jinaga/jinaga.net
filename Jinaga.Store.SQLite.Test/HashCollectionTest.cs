@@ -5,22 +5,14 @@ using System.Linq;
 
 namespace Jinaga.Store.SQLite.Test;
 
-public class HashCollectionTest
+public class HashCollectionTest : SQLiteTest
 {
     private readonly JinagaClient j;
 
-    private static string SQLitePath { get; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "JinagaSQLiteTest",
-        "HashCollectionTest.db");
-
     public HashCollectionTest()
     {
-        if (File.Exists(SQLitePath))
-            File.Delete(SQLitePath);
-
         var options = new JinagaClientOptions();
-        j = new JinagaClient(new SQLiteStore(SQLitePath, NullLoggerFactory.Instance), new LocalNetwork(), [], NullLoggerFactory.Instance, options);
+        j = Track(new JinagaClient(new SQLiteStore(DatabasePath, NullLoggerFactory.Instance), new LocalNetwork(), [], NullLoggerFactory.Instance, options));
     }
 
     private record PostCommentHashes(Post post, IQueryable<string> hashes);
@@ -51,6 +43,6 @@ public class HashCollectionTest
             j.Hash(second)
         });
 
-        await j.Unload();
+        await j.DisposeAsync();
     }
 }

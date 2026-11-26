@@ -21,27 +21,8 @@ namespace Jinaga.Store.SQLite.Test.Specifications;
 /// Watches read inverses of exactly these shapes, so a store that drops their rows drops a
 /// change a watch should have delivered.
 /// </summary>
-public class MultiplePathConditionTest : IDisposable
+public class MultiplePathConditionTest : SQLiteTest
 {
-    private readonly string databasePath;
-
-    public MultiplePathConditionTest()
-    {
-        databasePath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "JinagaSQLiteTest",
-            $"MultiplePathConditionTest-{Guid.NewGuid():N}.db");
-        Directory.CreateDirectory(Path.GetDirectoryName(databasePath)!);
-    }
-
-    public void Dispose()
-    {
-        if (File.Exists(databasePath))
-        {
-            File.Delete(databasePath);
-        }
-    }
-
     private const string A = "A";
 
     private static Role X => new Role("x", A);
@@ -105,7 +86,7 @@ public class MultiplePathConditionTest : IDisposable
         var memoryRows = Rows(
             await memoryStore.Read(givenTuple, specification, CancellationToken.None), labels);
 
-        IStore sqliteStore = new SQLiteStore(databasePath, NullLoggerFactory.Instance);
+        IStore sqliteStore = new SQLiteStore(DatabasePath, NullLoggerFactory.Instance);
         await sqliteStore.Save(graph, false, CancellationToken.None);
         var sqliteRows = Rows(
             await sqliteStore.Read(givenTuple, specification, CancellationToken.None), labels);

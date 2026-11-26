@@ -13,25 +13,17 @@ using Xunit.Abstractions;
 
 namespace Jinaga.Store.SQLite.Test;
 
-public class DateLearnedTest
+public class DateLearnedTest : SQLiteTest
 {
     private readonly ITestOutputHelper output;
     private readonly SQLiteStore store;
     private readonly JinagaClient j;
 
-    private static string SQLitePath { get; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "JinagaSQLiteTest",
-        "DateLearnedTest.db");
-
     public DateLearnedTest(ITestOutputHelper output)
     {
-        if (File.Exists(SQLitePath))
-            File.Delete(SQLitePath);
-
         this.output = output;
-        store = new SQLiteStore(SQLitePath, NullLoggerFactory.Instance);
-        j = new JinagaClient(store, new LocalNetwork(), [], NullLoggerFactory.Instance, new JinagaClientOptions());
+        store = new SQLiteStore(DatabasePath, NullLoggerFactory.Instance);
+        j = Track(new JinagaClient(store, new LocalNetwork(), [], NullLoggerFactory.Instance, new JinagaClientOptions()));
     }
 
     private static readonly Specification<Site, PostWithDateLearned> postWithDateLearned =
@@ -62,7 +54,7 @@ public class DateLearnedTest
         learned.Should().BeOnOrAfter(TruncateToSecond(before))
             .And.BeOnOrBefore(TruncateToSecond(after));
 
-        await j.Unload();
+        await j.DisposeAsync();
     }
 
     [Fact]
@@ -88,7 +80,7 @@ public class DateLearnedTest
         var afterSignedResave = await WhenQueryDateLearned(site);
         afterSignedResave.Should().Be(learned);
 
-        await j.Unload();
+        await j.DisposeAsync();
     }
 
     [Fact]
@@ -100,7 +92,7 @@ public class DateLearnedTest
         {
             new Post(site, "2026-10-13")
         });
-        var networkClient = new JinagaClient(store, network, [], NullLoggerFactory.Instance, new JinagaClientOptions());
+        var networkClient = Track(new JinagaClient(store, network, [], NullLoggerFactory.Instance, new JinagaClientOptions()));
 
         // The fact already existed upstream before this window opened, so a date inside it
         // can only have been recorded by the local store as the fetch saved the fact.
@@ -113,7 +105,7 @@ public class DateLearnedTest
         learned.Should().BeOnOrAfter(TruncateToSecond(before))
             .And.BeOnOrBefore(TruncateToSecond(after));
 
-        await networkClient.Unload();
+        await networkClient.DisposeAsync();
     }
 
     [Fact]
@@ -139,7 +131,7 @@ public class DateLearnedTest
         serializedFromStore.Should().NotContain(learned.ToString("yyyy-MM-dd HH:mm:ss"));
         serializedFromStore.Should().NotContain(learned.ToString("o"));
 
-        await j.Unload();
+        await j.DisposeAsync();
     }
 
     [Fact]

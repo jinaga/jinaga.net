@@ -15,13 +15,8 @@ namespace Jinaga.Store.SQLite.Test;
 /// interleaving, the read sees a graph the store actually held, and a refused
 /// save leaves the store as it found it.
 /// </summary>
-public class SaveAndReadIsolationTest
+public class SaveAndReadIsolationTest : SQLiteTest
 {
-    private static string SQLitePath { get; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "JinagaSQLiteTest",
-        "SaveAndReadIsolationTest.db");
-
     /// <summary>
     /// How long a test waits for its reader to complete a read before giving
     /// up. The reader needs only one scheduled task and one SQLite read, so a
@@ -107,7 +102,7 @@ public class SaveAndReadIsolationTest
     public async Task AReadSeesOneCommittedStateAcrossItsNestedQueries()
     {
         IStore store = GivenEmptySQLiteStore();
-        var client = new JinagaClient(store, new LocalNetwork(), [], NullLoggerFactory.Instance, new JinagaClientOptions());
+        var client = Track(new JinagaClient(store, new LocalNetwork(), [], NullLoggerFactory.Instance, new JinagaClientOptions()));
 
         var root = new IsolationRoot("nested");
         var specification = Given<IsolationRoot>.Match((root, facts) =>
@@ -223,11 +218,9 @@ public class SaveAndReadIsolationTest
                 "Nothing this test did overlapped a read, so the store's isolation went untested.");
     }
 
-    private static SQLiteStore GivenEmptySQLiteStore()
+    private SQLiteStore GivenEmptySQLiteStore()
     {
-        if (File.Exists(SQLitePath))
-            File.Delete(SQLitePath);
-        return new SQLiteStore(SQLitePath, NullLoggerFactory.Instance);
+        return new SQLiteStore(DatabasePath, NullLoggerFactory.Instance);
     }
 
     private static FactGraph GraphOf(object fact)
