@@ -7,9 +7,9 @@ whatever hour the run wakes.
 
 | Skill | Source | Upstream commit |
 |---|---|---|
-| `night-shift-setup` | `factoryengineering/skills` | `4b3212f38d474546ec3f565fc27906d945dd2909` |
-| `night-shift-worker` | `factoryengineering/skills` | `60fd8ea503a74688edeecf986ac892217ce91ae1` |
-| `refining-issues` | `factoryengineering/skills` | `b4f73c29cceae5740c06359e0788c8c40db91d59` |
+| `night-shift-setup` | `factoryengineering/skills` | `35cc8b355861f53e4e7bbaf4e5d62a63532d80d2` |
+| `night-shift-worker` | `factoryengineering/skills` | `35cc8b355861f53e4e7bbaf4e5d62a63532d80d2` |
+| `refining-issues` | `factoryengineering/skills` | `35cc8b355861f53e4e7bbaf4e5d62a63532d80d2` |
 | `degrees-of-freedom` | `michaellperry/skills` | `f528e6bffd7f8660be360f0b302c0a10fecf9acd` |
 
 The worker, `refining-issues`, and `degrees-of-freedom` commits are those

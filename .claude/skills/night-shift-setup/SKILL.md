@@ -3,8 +3,8 @@ name: night-shift-setup
 description: Stands up the night-shift protocol for an organization, from nothing to a running nightly sweep. Creates the Night Shift Log application from a committed seed, or upgrades one published from an earlier seed, registers the practice and each tracked repository exactly once, writes the per-repository configuration file the worker refuses to run without, and creates the scheduled job that runs the sweep and the worker sessions it fires. Use when adopting the night-shift protocol for the first time, when adding a repository to an existing practice, when a log lacks the Night period that the coordinator and the morning review need, or when a run stopped because it found no practice or no repository matching the one it was sweeping.
 metadata:
     github-path: skills/night-shift-setup
-    github-pinned: 4b3212f38d474546ec3f565fc27906d945dd2909
-    github-ref: 4b3212f38d474546ec3f565fc27906d945dd2909
+    github-pinned: 35cc8b355861f53e4e7bbaf4e5d62a63532d80d2
+    github-ref: 35cc8b355861f53e4e7bbaf4e5d62a63532d80d2
     github-repo: https://github.com/factoryengineering/skills
     github-tree-sha: ca023713ceb105a27a71c9cc47400378451595a3
 ---
