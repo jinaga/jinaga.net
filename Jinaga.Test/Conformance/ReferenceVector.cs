@@ -57,15 +57,36 @@ public class ReferenceVector
     private static readonly string[] FeedFields = { "text", "specification", "skeleton" };
     private static readonly string[] SkeletonFields =
         { "facts", "inputs", "edges", "notExistsConditions", "outputs" };
+    private static readonly string[] FactFields = { "factType", "factIndex" };
+    private static readonly string[] InputFields = { "factIndex", "inputIndex" };
+    private static readonly string[] EdgeFields =
+        { "edgeIndex", "predecessorFactIndex", "successorFactIndex", "roleName" };
+    private static readonly string[] ConditionFields = { "edges", "notExistsConditions" };
+    private static readonly string[] OutputFields = { "factIndex" };
 
     /// <summary>
     /// Refuses a vector carrying a field this loader does not read, in the vector itself, in
-    /// one of its feeds, or in a feed's skeleton. A re-pin that adds one states something no
-    /// test here reads, so it fails loudly rather than passing unnoticed. As with
-    /// <see cref="ConformanceVector"/>, it stops at a specification's own interior, which
+    /// one of its feeds, or anywhere in a feed's skeleton. A re-pin that adds one states
+    /// something no test here reads, so it fails loudly rather than passing unnoticed.
+    ///
+    /// <para>
+    /// Unlike <see cref="ConformanceVector"/>, this descends all the way into the skeleton,
+    /// through every fact, input, edge and output and through each nested not-exists
+    /// condition. That loader can stop at a specification's own interior because a
+    /// specification is also stated as <c>text</c>, so a shape it silently dropped shows up
+    /// as the text not matching. A skeleton has no second statement of itself: it <em>is</em>
+    /// the data under test, and <see cref="ReferenceFeed.ToSkeleton"/> reads it field by
+    /// field, so a field added inside an edge would be dropped with nothing left to detect
+    /// it. It still stops at the specifications, which
     /// <see cref="ConformanceVector.ToSpecification"/> reads.
+    /// </para>
     /// </summary>
-    private static void CheckFields(string kind, string name, JsonElement json)
+    /// <remarks>
+    /// Internal rather than private so that <see cref="ReferenceVectorLoaderTest"/> can put a
+    /// synthetic vector through it. The pinned vectors are all well formed by construction, so
+    /// nothing else here would ever exercise a refusal.
+    /// </remarks>
+    internal static void CheckFields(string kind, string name, JsonElement json)
     {
         if (kind != "feeds")
         {
@@ -76,7 +97,32 @@ public class ReferenceVector
         foreach (var feed in json.GetProperty("feeds").EnumerateArray())
         {
             Check(feed, FeedFields, $"A feed of {where}");
-            Check(feed.GetProperty("skeleton"), SkeletonFields, $"A feed skeleton of {where}");
+            var skeleton = feed.GetProperty("skeleton");
+            Check(skeleton, SkeletonFields, $"A feed skeleton of {where}");
+            CheckEach(skeleton, "facts", FactFields, $"A skeleton fact of {where}");
+            CheckEach(skeleton, "inputs", InputFields, $"A skeleton input of {where}");
+            CheckEach(skeleton, "edges", EdgeFields, $"A skeleton edge of {where}");
+            CheckEach(skeleton, "outputs", OutputFields, $"A skeleton output of {where}");
+            CheckConditions(skeleton, where);
+        }
+
+        static void CheckConditions(JsonElement holder, string where)
+        {
+            foreach (var condition in holder.GetProperty("notExistsConditions").EnumerateArray())
+            {
+                Check(condition, ConditionFields, $"A skeleton not-exists condition of {where}");
+                CheckEach(condition, "edges", EdgeFields,
+                    $"An edge of a skeleton not-exists condition of {where}");
+                CheckConditions(condition, where);
+            }
+        }
+
+        static void CheckEach(JsonElement holder, string field, string[] known, string description)
+        {
+            foreach (var element in holder.GetProperty(field).EnumerateArray())
+            {
+                Check(element, known, description);
+            }
         }
 
         static void Check(JsonElement element, string[] known, string description)
