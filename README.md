@@ -182,6 +182,63 @@ foreach (var diagnostic in diagnostics.Where(d => d.IsStructural))
 }
 ```
 
+### What a Purge Condition Checks
+
+A client configured with `PurgeConditions` deletes a purge root's descendants once the condition's trigger arrives.
+To keep a specification from reading what a purge may take, the client checks every `Query`, `Watch` and `Subscribe` before it runs.
+A specification the check refuses throws `InvalidOperationException`, naming the purge condition that the specification lacks.
+
+Suppose a contact is purged once it has been deleted, and a tag joins a contact to a label.
+
+```C#
+[FactType("Contacts.Contact")]
+record Contact(User owner, string identifier) {}
+
+[FactType("Contacts.Deleted")]
+record Deleted(Contact contact) {}
+
+[FactType("Contacts.Label")]
+record Label(User owner, string name) {}
+
+[FactType("Contacts.Tag")]
+record Tag(Contact contact, Label label, string value) {}
+```
+
+```C#
+var j = JinagaClient.Create(options =>
+{
+    options.PurgeConditions = p => p
+        .Purge<Contact>().WhenExists<Deleted>(deleted => deleted.contact);
+});
+```
+
+- **The check sees the types that the specification names.**
+  A specification names a type where that type is a match's unknown, or where it lies along a path condition.
+  It reads both at every depth, including inside existential conditions and collection projections.
+  A specification that matches `Contact`, or walks a path through it, is refused unless it carries the purge condition itself.
+- **It does not see a fact reached through a predecessor role that the specification never walks.**
+  `Tag` has a `contact` role and a `label` role, so every `Tag` descends from a `Contact`.
+  A specification that reaches `Tag` from `Label` never names `Contact`, so nothing in it tells the check that a purge applies.
+  Recognizing that would take the model's type graph, which the check is never given: it reads the specification and the purge conditions alone.
+
+```C#
+var tagsOfLabel = Given<Label>.Match(label =>
+    label.Successors().OfType<Tag>(tag => tag.label)
+        .Select(tag => tag.value)
+);
+```
+
+That specification passes the check, and returns the `value` of each `Tag` that carries the label.
+Save a `Deleted` for a tagged contact, and the purge removes that contact's `Tag`s with it.
+
+- **A purge changes what an accepted specification returns.**
+  `Query`, run again, omits the purged fact.
+  `Watch` and `Subscribe` are not told, because a purge runs after the observers are notified and sends no notification of its own.
+  A watch that was set up before the purge goes on showing a row that the store no longer holds.
+
+The check guards against a specification that reads a purge root the specification itself names.
+It is not a promise that a purge leaves an accepted specification's results unchanged.
+
 ## Running a Replicator
 
 A Jinaga front end connects to a device called a Replicator.
