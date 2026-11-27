@@ -1,0 +1,21 @@
+{
+  "name": "identity",
+  "text": "(root: Root) {\n}\n",
+  "specification": {
+    "given": [
+      {
+        "label": {
+          "name": "root",
+          "type": "Root"
+        },
+        "conditions": []
+      }
+    ],
+    "matches": [],
+    "projection": {
+      "type": "composite",
+      "components": []
+    }
+  },
+  "feeds": []
+}

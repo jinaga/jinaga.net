@@ -1,0 +1,113 @@
+{
+  "name": "finalists-of-event",
+  "text": "(p1: Event) {\n    u1: Finalist [\n        u1->event: Event = p1\n    ]\n} => u1\n",
+  "specification": {
+    "given": [
+      {
+        "label": {
+          "name": "p1",
+          "type": "Event"
+        },
+        "conditions": []
+      }
+    ],
+    "matches": [
+      {
+        "unknown": {
+          "name": "u1",
+          "type": "Finalist"
+        },
+        "conditions": [
+          {
+            "type": "path",
+            "rolesLeft": [
+              {
+                "name": "event",
+                "predecessorType": "Event"
+              }
+            ],
+            "labelRight": "p1",
+            "rolesRight": []
+          }
+        ]
+      }
+    ],
+    "projection": {
+      "type": "fact",
+      "label": "u1"
+    }
+  },
+  "feeds": [
+    {
+      "text": "(p1: Event) {\n    u1: Finalist [\n        u1->event: Event = p1\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "p1",
+              "type": "Event"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "u1",
+              "type": "Finalist"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "event",
+                    "predecessorType": "Event"
+                  }
+                ],
+                "labelRight": "p1",
+                "rolesRight": []
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "Event"
+          },
+          {
+            "factIndex": 2,
+            "factType": "Finalist"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "event"
+          }
+        ],
+        "notExistsConditions": [],
+        "outputs": [
+          {
+            "factIndex": 2
+          }
+        ]
+      }
+    }
+  ]
+}

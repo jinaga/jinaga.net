@@ -1,0 +1,1047 @@
+{
+  "name": "access-paths-to-configure",
+  "text": "(p1: Tenant) {\n    u1: Event [\n        u1->tenant: Tenant = p1\n        !E {\n            u2: Event.Delete [\n                u2->event: Event = u1\n                !E {\n                    u3: Event.Restore [\n                        u3->eventDelete: Event.Delete = u2\n                    ]\n                }\n            ]\n        }\n    ]\n    u4: AttendeeAccessPath [\n        u4->event: Event = u1\n        !E {\n            u5: AttendeeAccessPath.Configured [\n                u5->accessPath: AttendeeAccessPath = u4\n            ]\n        }\n    ]\n} => u4\n",
+  "specification": {
+    "given": [
+      {
+        "label": {
+          "name": "p1",
+          "type": "Tenant"
+        },
+        "conditions": []
+      }
+    ],
+    "matches": [
+      {
+        "unknown": {
+          "name": "u1",
+          "type": "Event"
+        },
+        "conditions": [
+          {
+            "type": "path",
+            "rolesLeft": [
+              {
+                "name": "tenant",
+                "predecessorType": "Tenant"
+              }
+            ],
+            "labelRight": "p1",
+            "rolesRight": []
+          },
+          {
+            "type": "existential",
+            "exists": false,
+            "matches": [
+              {
+                "unknown": {
+                  "name": "u2",
+                  "type": "Event.Delete"
+                },
+                "conditions": [
+                  {
+                    "type": "path",
+                    "rolesLeft": [
+                      {
+                        "name": "event",
+                        "predecessorType": "Event"
+                      }
+                    ],
+                    "labelRight": "u1",
+                    "rolesRight": []
+                  },
+                  {
+                    "type": "existential",
+                    "exists": false,
+                    "matches": [
+                      {
+                        "unknown": {
+                          "name": "u3",
+                          "type": "Event.Restore"
+                        },
+                        "conditions": [
+                          {
+                            "type": "path",
+                            "rolesLeft": [
+                              {
+                                "name": "eventDelete",
+                                "predecessorType": "Event.Delete"
+                              }
+                            ],
+                            "labelRight": "u2",
+                            "rolesRight": []
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "unknown": {
+          "name": "u4",
+          "type": "AttendeeAccessPath"
+        },
+        "conditions": [
+          {
+            "type": "path",
+            "rolesLeft": [
+              {
+                "name": "event",
+                "predecessorType": "Event"
+              }
+            ],
+            "labelRight": "u1",
+            "rolesRight": []
+          },
+          {
+            "type": "existential",
+            "exists": false,
+            "matches": [
+              {
+                "unknown": {
+                  "name": "u5",
+                  "type": "AttendeeAccessPath.Configured"
+                },
+                "conditions": [
+                  {
+                    "type": "path",
+                    "rolesLeft": [
+                      {
+                        "name": "accessPath",
+                        "predecessorType": "AttendeeAccessPath"
+                      }
+                    ],
+                    "labelRight": "u4",
+                    "rolesRight": []
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "projection": {
+      "type": "fact",
+      "label": "u4"
+    }
+  },
+  "feeds": [
+    {
+      "text": "(p1: Tenant) {\n    u1: Event [\n        u1->tenant: Tenant = p1\n    ]\n    u2: Event.Delete [\n        u2->event: Event = u1\n    ]\n    u3: Event.Restore [\n        u3->eventDelete: Event.Delete = u2\n    ]\n    u4: AttendeeAccessPath [\n        u4->event: Event = u1\n    ]\n    u5: AttendeeAccessPath.Configured [\n        u5->accessPath: AttendeeAccessPath = u4\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "p1",
+              "type": "Tenant"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "u1",
+              "type": "Event"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "tenant",
+                    "predecessorType": "Tenant"
+                  }
+                ],
+                "labelRight": "p1",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "u2",
+              "type": "Event.Delete"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "event",
+                    "predecessorType": "Event"
+                  }
+                ],
+                "labelRight": "u1",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "u3",
+              "type": "Event.Restore"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "eventDelete",
+                    "predecessorType": "Event.Delete"
+                  }
+                ],
+                "labelRight": "u2",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "u4",
+              "type": "AttendeeAccessPath"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "event",
+                    "predecessorType": "Event"
+                  }
+                ],
+                "labelRight": "u1",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "u5",
+              "type": "AttendeeAccessPath.Configured"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "accessPath",
+                    "predecessorType": "AttendeeAccessPath"
+                  }
+                ],
+                "labelRight": "u4",
+                "rolesRight": []
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "Tenant"
+          },
+          {
+            "factIndex": 2,
+            "factType": "Event"
+          },
+          {
+            "factIndex": 3,
+            "factType": "Event.Delete"
+          },
+          {
+            "factIndex": 4,
+            "factType": "Event.Restore"
+          },
+          {
+            "factIndex": 5,
+            "factType": "AttendeeAccessPath"
+          },
+          {
+            "factIndex": 6,
+            "factType": "AttendeeAccessPath.Configured"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "tenant"
+          },
+          {
+            "edgeIndex": 2,
+            "predecessorFactIndex": 2,
+            "successorFactIndex": 3,
+            "roleName": "event"
+          },
+          {
+            "edgeIndex": 3,
+            "predecessorFactIndex": 3,
+            "successorFactIndex": 4,
+            "roleName": "eventDelete"
+          },
+          {
+            "edgeIndex": 4,
+            "predecessorFactIndex": 2,
+            "successorFactIndex": 5,
+            "roleName": "event"
+          },
+          {
+            "edgeIndex": 5,
+            "predecessorFactIndex": 5,
+            "successorFactIndex": 6,
+            "roleName": "accessPath"
+          }
+        ],
+        "notExistsConditions": [],
+        "outputs": [
+          {
+            "factIndex": 2
+          },
+          {
+            "factIndex": 3
+          },
+          {
+            "factIndex": 4
+          },
+          {
+            "factIndex": 5
+          },
+          {
+            "factIndex": 6
+          }
+        ]
+      }
+    },
+    {
+      "text": "(p1: Tenant) {\n    u1: Event [\n        u1->tenant: Tenant = p1\n    ]\n    u2: Event.Delete [\n        u2->event: Event = u1\n    ]\n    u3: Event.Restore [\n        u3->eventDelete: Event.Delete = u2\n    ]\n    u4: AttendeeAccessPath [\n        u4->event: Event = u1\n        !E {\n            u5: AttendeeAccessPath.Configured [\n                u5->accessPath: AttendeeAccessPath = u4\n            ]\n        }\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "p1",
+              "type": "Tenant"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "u1",
+              "type": "Event"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "tenant",
+                    "predecessorType": "Tenant"
+                  }
+                ],
+                "labelRight": "p1",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "u2",
+              "type": "Event.Delete"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "event",
+                    "predecessorType": "Event"
+                  }
+                ],
+                "labelRight": "u1",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "u3",
+              "type": "Event.Restore"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "eventDelete",
+                    "predecessorType": "Event.Delete"
+                  }
+                ],
+                "labelRight": "u2",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "u4",
+              "type": "AttendeeAccessPath"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "event",
+                    "predecessorType": "Event"
+                  }
+                ],
+                "labelRight": "u1",
+                "rolesRight": []
+              },
+              {
+                "type": "existential",
+                "exists": false,
+                "matches": [
+                  {
+                    "unknown": {
+                      "name": "u5",
+                      "type": "AttendeeAccessPath.Configured"
+                    },
+                    "conditions": [
+                      {
+                        "type": "path",
+                        "rolesLeft": [
+                          {
+                            "name": "accessPath",
+                            "predecessorType": "AttendeeAccessPath"
+                          }
+                        ],
+                        "labelRight": "u4",
+                        "rolesRight": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "Tenant"
+          },
+          {
+            "factIndex": 2,
+            "factType": "Event"
+          },
+          {
+            "factIndex": 3,
+            "factType": "Event.Delete"
+          },
+          {
+            "factIndex": 4,
+            "factType": "Event.Restore"
+          },
+          {
+            "factIndex": 5,
+            "factType": "AttendeeAccessPath"
+          },
+          {
+            "factIndex": 6,
+            "factType": "AttendeeAccessPath.Configured"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "tenant"
+          },
+          {
+            "edgeIndex": 2,
+            "predecessorFactIndex": 2,
+            "successorFactIndex": 3,
+            "roleName": "event"
+          },
+          {
+            "edgeIndex": 3,
+            "predecessorFactIndex": 3,
+            "successorFactIndex": 4,
+            "roleName": "eventDelete"
+          },
+          {
+            "edgeIndex": 4,
+            "predecessorFactIndex": 2,
+            "successorFactIndex": 5,
+            "roleName": "event"
+          }
+        ],
+        "notExistsConditions": [
+          {
+            "edges": [
+              {
+                "edgeIndex": 5,
+                "predecessorFactIndex": 5,
+                "successorFactIndex": 6,
+                "roleName": "accessPath"
+              }
+            ],
+            "notExistsConditions": []
+          }
+        ],
+        "outputs": [
+          {
+            "factIndex": 2
+          },
+          {
+            "factIndex": 3
+          },
+          {
+            "factIndex": 4
+          },
+          {
+            "factIndex": 5
+          }
+        ]
+      }
+    },
+    {
+      "text": "(p1: Tenant) {\n    u1: Event [\n        u1->tenant: Tenant = p1\n    ]\n    u2: Event.Delete [\n        u2->event: Event = u1\n        !E {\n            u3: Event.Restore [\n                u3->eventDelete: Event.Delete = u2\n            ]\n        }\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "p1",
+              "type": "Tenant"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "u1",
+              "type": "Event"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "tenant",
+                    "predecessorType": "Tenant"
+                  }
+                ],
+                "labelRight": "p1",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "u2",
+              "type": "Event.Delete"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "event",
+                    "predecessorType": "Event"
+                  }
+                ],
+                "labelRight": "u1",
+                "rolesRight": []
+              },
+              {
+                "type": "existential",
+                "exists": false,
+                "matches": [
+                  {
+                    "unknown": {
+                      "name": "u3",
+                      "type": "Event.Restore"
+                    },
+                    "conditions": [
+                      {
+                        "type": "path",
+                        "rolesLeft": [
+                          {
+                            "name": "eventDelete",
+                            "predecessorType": "Event.Delete"
+                          }
+                        ],
+                        "labelRight": "u2",
+                        "rolesRight": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "Tenant"
+          },
+          {
+            "factIndex": 2,
+            "factType": "Event"
+          },
+          {
+            "factIndex": 3,
+            "factType": "Event.Delete"
+          },
+          {
+            "factIndex": 4,
+            "factType": "Event.Restore"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "tenant"
+          },
+          {
+            "edgeIndex": 2,
+            "predecessorFactIndex": 2,
+            "successorFactIndex": 3,
+            "roleName": "event"
+          }
+        ],
+        "notExistsConditions": [
+          {
+            "edges": [
+              {
+                "edgeIndex": 3,
+                "predecessorFactIndex": 3,
+                "successorFactIndex": 4,
+                "roleName": "eventDelete"
+              }
+            ],
+            "notExistsConditions": []
+          }
+        ],
+        "outputs": [
+          {
+            "factIndex": 2
+          },
+          {
+            "factIndex": 3
+          }
+        ]
+      }
+    },
+    {
+      "text": "(p1: Tenant) {\n    u1: Event [\n        u1->tenant: Tenant = p1\n        !E {\n            u2: Event.Delete [\n                u2->event: Event = u1\n            ]\n        }\n    ]\n    u4: AttendeeAccessPath [\n        u4->event: Event = u1\n    ]\n    u5: AttendeeAccessPath.Configured [\n        u5->accessPath: AttendeeAccessPath = u4\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "p1",
+              "type": "Tenant"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "u1",
+              "type": "Event"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "tenant",
+                    "predecessorType": "Tenant"
+                  }
+                ],
+                "labelRight": "p1",
+                "rolesRight": []
+              },
+              {
+                "type": "existential",
+                "exists": false,
+                "matches": [
+                  {
+                    "unknown": {
+                      "name": "u2",
+                      "type": "Event.Delete"
+                    },
+                    "conditions": [
+                      {
+                        "type": "path",
+                        "rolesLeft": [
+                          {
+                            "name": "event",
+                            "predecessorType": "Event"
+                          }
+                        ],
+                        "labelRight": "u1",
+                        "rolesRight": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "u4",
+              "type": "AttendeeAccessPath"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "event",
+                    "predecessorType": "Event"
+                  }
+                ],
+                "labelRight": "u1",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "u5",
+              "type": "AttendeeAccessPath.Configured"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "accessPath",
+                    "predecessorType": "AttendeeAccessPath"
+                  }
+                ],
+                "labelRight": "u4",
+                "rolesRight": []
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "Tenant"
+          },
+          {
+            "factIndex": 2,
+            "factType": "Event"
+          },
+          {
+            "factIndex": 3,
+            "factType": "Event.Delete"
+          },
+          {
+            "factIndex": 4,
+            "factType": "AttendeeAccessPath"
+          },
+          {
+            "factIndex": 5,
+            "factType": "AttendeeAccessPath.Configured"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "tenant"
+          },
+          {
+            "edgeIndex": 3,
+            "predecessorFactIndex": 2,
+            "successorFactIndex": 4,
+            "roleName": "event"
+          },
+          {
+            "edgeIndex": 4,
+            "predecessorFactIndex": 4,
+            "successorFactIndex": 5,
+            "roleName": "accessPath"
+          }
+        ],
+        "notExistsConditions": [
+          {
+            "edges": [
+              {
+                "edgeIndex": 2,
+                "predecessorFactIndex": 2,
+                "successorFactIndex": 3,
+                "roleName": "event"
+              }
+            ],
+            "notExistsConditions": []
+          }
+        ],
+        "outputs": [
+          {
+            "factIndex": 2
+          },
+          {
+            "factIndex": 4
+          },
+          {
+            "factIndex": 5
+          }
+        ]
+      }
+    },
+    {
+      "text": "(p1: Tenant) {\n    u1: Event [\n        u1->tenant: Tenant = p1\n        !E {\n            u2: Event.Delete [\n                u2->event: Event = u1\n            ]\n        }\n    ]\n    u4: AttendeeAccessPath [\n        u4->event: Event = u1\n        !E {\n            u5: AttendeeAccessPath.Configured [\n                u5->accessPath: AttendeeAccessPath = u4\n            ]\n        }\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "p1",
+              "type": "Tenant"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "u1",
+              "type": "Event"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "tenant",
+                    "predecessorType": "Tenant"
+                  }
+                ],
+                "labelRight": "p1",
+                "rolesRight": []
+              },
+              {
+                "type": "existential",
+                "exists": false,
+                "matches": [
+                  {
+                    "unknown": {
+                      "name": "u2",
+                      "type": "Event.Delete"
+                    },
+                    "conditions": [
+                      {
+                        "type": "path",
+                        "rolesLeft": [
+                          {
+                            "name": "event",
+                            "predecessorType": "Event"
+                          }
+                        ],
+                        "labelRight": "u1",
+                        "rolesRight": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "u4",
+              "type": "AttendeeAccessPath"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "event",
+                    "predecessorType": "Event"
+                  }
+                ],
+                "labelRight": "u1",
+                "rolesRight": []
+              },
+              {
+                "type": "existential",
+                "exists": false,
+                "matches": [
+                  {
+                    "unknown": {
+                      "name": "u5",
+                      "type": "AttendeeAccessPath.Configured"
+                    },
+                    "conditions": [
+                      {
+                        "type": "path",
+                        "rolesLeft": [
+                          {
+                            "name": "accessPath",
+                            "predecessorType": "AttendeeAccessPath"
+                          }
+                        ],
+                        "labelRight": "u4",
+                        "rolesRight": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "Tenant"
+          },
+          {
+            "factIndex": 2,
+            "factType": "Event"
+          },
+          {
+            "factIndex": 3,
+            "factType": "Event.Delete"
+          },
+          {
+            "factIndex": 4,
+            "factType": "AttendeeAccessPath"
+          },
+          {
+            "factIndex": 5,
+            "factType": "AttendeeAccessPath.Configured"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "tenant"
+          },
+          {
+            "edgeIndex": 3,
+            "predecessorFactIndex": 2,
+            "successorFactIndex": 4,
+            "roleName": "event"
+          }
+        ],
+        "notExistsConditions": [
+          {
+            "edges": [
+              {
+                "edgeIndex": 2,
+                "predecessorFactIndex": 2,
+                "successorFactIndex": 3,
+                "roleName": "event"
+              }
+            ],
+            "notExistsConditions": []
+          },
+          {
+            "edges": [
+              {
+                "edgeIndex": 4,
+                "predecessorFactIndex": 4,
+                "successorFactIndex": 5,
+                "roleName": "accessPath"
+              }
+            ],
+            "notExistsConditions": []
+          }
+        ],
+        "outputs": [
+          {
+            "factIndex": 2
+          },
+          {
+            "factIndex": 4
+          }
+        ]
+      }
+    }
+  ]
+}

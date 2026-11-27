@@ -1,0 +1,456 @@
+{
+  "name": "never-deleted-with-projection",
+  "text": "(root: Root) {\n    project: MyApplication.Project [\n        project->root: Root = root\n        !E {\n            deleted: MyApplication.Project.Deleted [\n                deleted->project: MyApplication.Project = project\n            ]\n        }\n    ]\n} => {\n    names = {\n        name: MyApplication.Project.Name [\n            name->project: MyApplication.Project = project\n        ]\n    }\n}\n",
+  "specification": {
+    "given": [
+      {
+        "label": {
+          "name": "root",
+          "type": "Root"
+        },
+        "conditions": []
+      }
+    ],
+    "matches": [
+      {
+        "unknown": {
+          "name": "project",
+          "type": "MyApplication.Project"
+        },
+        "conditions": [
+          {
+            "type": "path",
+            "rolesLeft": [
+              {
+                "name": "root",
+                "predecessorType": "Root"
+              }
+            ],
+            "labelRight": "root",
+            "rolesRight": []
+          },
+          {
+            "type": "existential",
+            "exists": false,
+            "matches": [
+              {
+                "unknown": {
+                  "name": "deleted",
+                  "type": "MyApplication.Project.Deleted"
+                },
+                "conditions": [
+                  {
+                    "type": "path",
+                    "rolesLeft": [
+                      {
+                        "name": "project",
+                        "predecessorType": "MyApplication.Project"
+                      }
+                    ],
+                    "labelRight": "project",
+                    "rolesRight": []
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "projection": {
+      "type": "composite",
+      "components": [
+        {
+          "type": "specification",
+          "name": "names",
+          "matches": [
+            {
+              "unknown": {
+                "name": "name",
+                "type": "MyApplication.Project.Name"
+              },
+              "conditions": [
+                {
+                  "type": "path",
+                  "rolesLeft": [
+                    {
+                      "name": "project",
+                      "predecessorType": "MyApplication.Project"
+                    }
+                  ],
+                  "labelRight": "project",
+                  "rolesRight": []
+                }
+              ]
+            }
+          ],
+          "projection": {
+            "type": "composite",
+            "components": []
+          }
+        }
+      ]
+    }
+  },
+  "feeds": [
+    {
+      "text": "(root: Root) {\n    project: MyApplication.Project [\n        project->root: Root = root\n    ]\n    deleted: MyApplication.Project.Deleted [\n        deleted->project: MyApplication.Project = project\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "root",
+              "type": "Root"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "project",
+              "type": "MyApplication.Project"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "root",
+                    "predecessorType": "Root"
+                  }
+                ],
+                "labelRight": "root",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "deleted",
+              "type": "MyApplication.Project.Deleted"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "project",
+                    "predecessorType": "MyApplication.Project"
+                  }
+                ],
+                "labelRight": "project",
+                "rolesRight": []
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "Root"
+          },
+          {
+            "factIndex": 2,
+            "factType": "MyApplication.Project"
+          },
+          {
+            "factIndex": 3,
+            "factType": "MyApplication.Project.Deleted"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "root"
+          },
+          {
+            "edgeIndex": 2,
+            "predecessorFactIndex": 2,
+            "successorFactIndex": 3,
+            "roleName": "project"
+          }
+        ],
+        "notExistsConditions": [],
+        "outputs": [
+          {
+            "factIndex": 2
+          },
+          {
+            "factIndex": 3
+          }
+        ]
+      }
+    },
+    {
+      "text": "(root: Root) {\n    project: MyApplication.Project [\n        project->root: Root = root\n        !E {\n            deleted: MyApplication.Project.Deleted [\n                deleted->project: MyApplication.Project = project\n            ]\n        }\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "root",
+              "type": "Root"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "project",
+              "type": "MyApplication.Project"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "root",
+                    "predecessorType": "Root"
+                  }
+                ],
+                "labelRight": "root",
+                "rolesRight": []
+              },
+              {
+                "type": "existential",
+                "exists": false,
+                "matches": [
+                  {
+                    "unknown": {
+                      "name": "deleted",
+                      "type": "MyApplication.Project.Deleted"
+                    },
+                    "conditions": [
+                      {
+                        "type": "path",
+                        "rolesLeft": [
+                          {
+                            "name": "project",
+                            "predecessorType": "MyApplication.Project"
+                          }
+                        ],
+                        "labelRight": "project",
+                        "rolesRight": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "Root"
+          },
+          {
+            "factIndex": 2,
+            "factType": "MyApplication.Project"
+          },
+          {
+            "factIndex": 3,
+            "factType": "MyApplication.Project.Deleted"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "root"
+          }
+        ],
+        "notExistsConditions": [
+          {
+            "edges": [
+              {
+                "edgeIndex": 2,
+                "predecessorFactIndex": 2,
+                "successorFactIndex": 3,
+                "roleName": "project"
+              }
+            ],
+            "notExistsConditions": []
+          }
+        ],
+        "outputs": [
+          {
+            "factIndex": 2
+          }
+        ]
+      }
+    },
+    {
+      "text": "(root: Root) {\n    project: MyApplication.Project [\n        project->root: Root = root\n        !E {\n            deleted: MyApplication.Project.Deleted [\n                deleted->project: MyApplication.Project = project\n            ]\n        }\n    ]\n    name: MyApplication.Project.Name [\n        name->project: MyApplication.Project = project\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "root",
+              "type": "Root"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "project",
+              "type": "MyApplication.Project"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "root",
+                    "predecessorType": "Root"
+                  }
+                ],
+                "labelRight": "root",
+                "rolesRight": []
+              },
+              {
+                "type": "existential",
+                "exists": false,
+                "matches": [
+                  {
+                    "unknown": {
+                      "name": "deleted",
+                      "type": "MyApplication.Project.Deleted"
+                    },
+                    "conditions": [
+                      {
+                        "type": "path",
+                        "rolesLeft": [
+                          {
+                            "name": "project",
+                            "predecessorType": "MyApplication.Project"
+                          }
+                        ],
+                        "labelRight": "project",
+                        "rolesRight": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "name",
+              "type": "MyApplication.Project.Name"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "project",
+                    "predecessorType": "MyApplication.Project"
+                  }
+                ],
+                "labelRight": "project",
+                "rolesRight": []
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "Root"
+          },
+          {
+            "factIndex": 2,
+            "factType": "MyApplication.Project"
+          },
+          {
+            "factIndex": 3,
+            "factType": "MyApplication.Project.Deleted"
+          },
+          {
+            "factIndex": 4,
+            "factType": "MyApplication.Project.Name"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "root"
+          },
+          {
+            "edgeIndex": 3,
+            "predecessorFactIndex": 2,
+            "successorFactIndex": 4,
+            "roleName": "project"
+          }
+        ],
+        "notExistsConditions": [
+          {
+            "edges": [
+              {
+                "edgeIndex": 2,
+                "predecessorFactIndex": 2,
+                "successorFactIndex": 3,
+                "roleName": "project"
+              }
+            ],
+            "notExistsConditions": []
+          }
+        ],
+        "outputs": [
+          {
+            "factIndex": 2
+          },
+          {
+            "factIndex": 4
+          }
+        ]
+      }
+    }
+  ]
+}

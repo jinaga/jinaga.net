@@ -1,0 +1,66 @@
+{
+  "name": "predecessor-walk-with-existential-condition",
+  "text": "(child: Child) {\n    root: Root [\n        root = child->root: Root\n        !E {\n            project: MyApp.Project [\n                project = root->project: MyApp.Project\n            ]\n        }\n    ]\n}\n",
+  "specification": {
+    "given": [
+      {
+        "label": {
+          "name": "child",
+          "type": "Child"
+        },
+        "conditions": []
+      }
+    ],
+    "matches": [
+      {
+        "unknown": {
+          "name": "root",
+          "type": "Root"
+        },
+        "conditions": [
+          {
+            "type": "path",
+            "rolesLeft": [],
+            "labelRight": "child",
+            "rolesRight": [
+              {
+                "name": "root",
+                "predecessorType": "Root"
+              }
+            ]
+          },
+          {
+            "type": "existential",
+            "exists": false,
+            "matches": [
+              {
+                "unknown": {
+                  "name": "project",
+                  "type": "MyApp.Project"
+                },
+                "conditions": [
+                  {
+                    "type": "path",
+                    "rolesLeft": [],
+                    "labelRight": "root",
+                    "rolesRight": [
+                      {
+                        "name": "project",
+                        "predecessorType": "MyApp.Project"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "projection": {
+      "type": "composite",
+      "components": []
+    }
+  },
+  "feeds": []
+}

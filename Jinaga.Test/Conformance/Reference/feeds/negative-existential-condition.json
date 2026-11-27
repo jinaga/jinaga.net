@@ -1,0 +1,396 @@
+{
+  "name": "negative-existential-condition",
+  "text": "(user: Jinaga.User, root: Root) {\n    assignment: MyApp.Assignment [\n        assignment->user: Jinaga.User = user\n        assignment->project: MyApp.Project->root: Root = root\n        !E {\n            revoked: MyApp.Assignment.Revoked [\n                revoked->assignment: MyApp.Assignment = assignment\n            ]\n        }\n    ]\n}\n",
+  "specification": {
+    "given": [
+      {
+        "label": {
+          "name": "user",
+          "type": "Jinaga.User"
+        },
+        "conditions": []
+      },
+      {
+        "label": {
+          "name": "root",
+          "type": "Root"
+        },
+        "conditions": []
+      }
+    ],
+    "matches": [
+      {
+        "unknown": {
+          "name": "assignment",
+          "type": "MyApp.Assignment"
+        },
+        "conditions": [
+          {
+            "type": "path",
+            "rolesLeft": [
+              {
+                "name": "user",
+                "predecessorType": "Jinaga.User"
+              }
+            ],
+            "labelRight": "user",
+            "rolesRight": []
+          },
+          {
+            "type": "path",
+            "rolesLeft": [
+              {
+                "name": "project",
+                "predecessorType": "MyApp.Project"
+              },
+              {
+                "name": "root",
+                "predecessorType": "Root"
+              }
+            ],
+            "labelRight": "root",
+            "rolesRight": []
+          },
+          {
+            "type": "existential",
+            "exists": false,
+            "matches": [
+              {
+                "unknown": {
+                  "name": "revoked",
+                  "type": "MyApp.Assignment.Revoked"
+                },
+                "conditions": [
+                  {
+                    "type": "path",
+                    "rolesLeft": [
+                      {
+                        "name": "assignment",
+                        "predecessorType": "MyApp.Assignment"
+                      }
+                    ],
+                    "labelRight": "assignment",
+                    "rolesRight": []
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "projection": {
+      "type": "composite",
+      "components": []
+    }
+  },
+  "feeds": [
+    {
+      "text": "(user: Jinaga.User, root: Root) {\n    assignment: MyApp.Assignment [\n        assignment->user: Jinaga.User = user\n        assignment->project: MyApp.Project->root: Root = root\n    ]\n    revoked: MyApp.Assignment.Revoked [\n        revoked->assignment: MyApp.Assignment = assignment\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "user",
+              "type": "Jinaga.User"
+            },
+            "conditions": []
+          },
+          {
+            "label": {
+              "name": "root",
+              "type": "Root"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "assignment",
+              "type": "MyApp.Assignment"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "user",
+                    "predecessorType": "Jinaga.User"
+                  }
+                ],
+                "labelRight": "user",
+                "rolesRight": []
+              },
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "project",
+                    "predecessorType": "MyApp.Project"
+                  },
+                  {
+                    "name": "root",
+                    "predecessorType": "Root"
+                  }
+                ],
+                "labelRight": "root",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "revoked",
+              "type": "MyApp.Assignment.Revoked"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "assignment",
+                    "predecessorType": "MyApp.Assignment"
+                  }
+                ],
+                "labelRight": "assignment",
+                "rolesRight": []
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "Jinaga.User"
+          },
+          {
+            "factIndex": 2,
+            "factType": "MyApp.Assignment"
+          },
+          {
+            "factIndex": 3,
+            "factType": "Root"
+          },
+          {
+            "factIndex": 4,
+            "factType": "MyApp.Project"
+          },
+          {
+            "factIndex": 5,
+            "factType": "MyApp.Assignment.Revoked"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          },
+          {
+            "factIndex": 3,
+            "inputIndex": 1
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "user"
+          },
+          {
+            "edgeIndex": 2,
+            "predecessorFactIndex": 3,
+            "successorFactIndex": 4,
+            "roleName": "root"
+          },
+          {
+            "edgeIndex": 3,
+            "predecessorFactIndex": 4,
+            "successorFactIndex": 2,
+            "roleName": "project"
+          },
+          {
+            "edgeIndex": 4,
+            "predecessorFactIndex": 2,
+            "successorFactIndex": 5,
+            "roleName": "assignment"
+          }
+        ],
+        "notExistsConditions": [],
+        "outputs": [
+          {
+            "factIndex": 2
+          },
+          {
+            "factIndex": 5
+          }
+        ]
+      }
+    },
+    {
+      "text": "(user: Jinaga.User, root: Root) {\n    assignment: MyApp.Assignment [\n        assignment->user: Jinaga.User = user\n        assignment->project: MyApp.Project->root: Root = root\n        !E {\n            revoked: MyApp.Assignment.Revoked [\n                revoked->assignment: MyApp.Assignment = assignment\n            ]\n        }\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "user",
+              "type": "Jinaga.User"
+            },
+            "conditions": []
+          },
+          {
+            "label": {
+              "name": "root",
+              "type": "Root"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "assignment",
+              "type": "MyApp.Assignment"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "user",
+                    "predecessorType": "Jinaga.User"
+                  }
+                ],
+                "labelRight": "user",
+                "rolesRight": []
+              },
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "project",
+                    "predecessorType": "MyApp.Project"
+                  },
+                  {
+                    "name": "root",
+                    "predecessorType": "Root"
+                  }
+                ],
+                "labelRight": "root",
+                "rolesRight": []
+              },
+              {
+                "type": "existential",
+                "exists": false,
+                "matches": [
+                  {
+                    "unknown": {
+                      "name": "revoked",
+                      "type": "MyApp.Assignment.Revoked"
+                    },
+                    "conditions": [
+                      {
+                        "type": "path",
+                        "rolesLeft": [
+                          {
+                            "name": "assignment",
+                            "predecessorType": "MyApp.Assignment"
+                          }
+                        ],
+                        "labelRight": "assignment",
+                        "rolesRight": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "Jinaga.User"
+          },
+          {
+            "factIndex": 2,
+            "factType": "MyApp.Assignment"
+          },
+          {
+            "factIndex": 3,
+            "factType": "Root"
+          },
+          {
+            "factIndex": 4,
+            "factType": "MyApp.Project"
+          },
+          {
+            "factIndex": 5,
+            "factType": "MyApp.Assignment.Revoked"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          },
+          {
+            "factIndex": 3,
+            "inputIndex": 1
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "user"
+          },
+          {
+            "edgeIndex": 2,
+            "predecessorFactIndex": 3,
+            "successorFactIndex": 4,
+            "roleName": "root"
+          },
+          {
+            "edgeIndex": 3,
+            "predecessorFactIndex": 4,
+            "successorFactIndex": 2,
+            "roleName": "project"
+          }
+        ],
+        "notExistsConditions": [
+          {
+            "edges": [
+              {
+                "edgeIndex": 4,
+                "predecessorFactIndex": 2,
+                "successorFactIndex": 5,
+                "roleName": "assignment"
+              }
+            ],
+            "notExistsConditions": []
+          }
+        ],
+        "outputs": [
+          {
+            "factIndex": 2
+          }
+        ]
+      }
+    }
+  ]
+}

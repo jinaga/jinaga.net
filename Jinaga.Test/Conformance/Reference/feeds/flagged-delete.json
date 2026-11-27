@@ -1,0 +1,959 @@
+{
+  "name": "flagged-delete",
+  "text": "(t: Tenant) {\n    e: Event [\n        e->tenant: Tenant = t\n        !E {\n            d: Delete [\n                d->event: Event = e\n                E {\n                    y: Flag [\n                        y->delete: Delete = d\n                        !E {\n                            z: Clear [\n                                z->flag: Flag = y\n                            ]\n                        }\n                    ]\n                }\n                !E {\n                    u: Undo [\n                        u->delete: Delete = d\n                    ]\n                }\n            ]\n        }\n    ]\n    n: Name [\n        n->event: Event = e\n    ]\n} => {\n    event = e\n    name = n\n}\n",
+  "specification": {
+    "given": [
+      {
+        "label": {
+          "name": "t",
+          "type": "Tenant"
+        },
+        "conditions": []
+      }
+    ],
+    "matches": [
+      {
+        "unknown": {
+          "name": "e",
+          "type": "Event"
+        },
+        "conditions": [
+          {
+            "type": "path",
+            "rolesLeft": [
+              {
+                "name": "tenant",
+                "predecessorType": "Tenant"
+              }
+            ],
+            "labelRight": "t",
+            "rolesRight": []
+          },
+          {
+            "type": "existential",
+            "exists": false,
+            "matches": [
+              {
+                "unknown": {
+                  "name": "d",
+                  "type": "Delete"
+                },
+                "conditions": [
+                  {
+                    "type": "path",
+                    "rolesLeft": [
+                      {
+                        "name": "event",
+                        "predecessorType": "Event"
+                      }
+                    ],
+                    "labelRight": "e",
+                    "rolesRight": []
+                  },
+                  {
+                    "type": "existential",
+                    "exists": true,
+                    "matches": [
+                      {
+                        "unknown": {
+                          "name": "y",
+                          "type": "Flag"
+                        },
+                        "conditions": [
+                          {
+                            "type": "path",
+                            "rolesLeft": [
+                              {
+                                "name": "delete",
+                                "predecessorType": "Delete"
+                              }
+                            ],
+                            "labelRight": "d",
+                            "rolesRight": []
+                          },
+                          {
+                            "type": "existential",
+                            "exists": false,
+                            "matches": [
+                              {
+                                "unknown": {
+                                  "name": "z",
+                                  "type": "Clear"
+                                },
+                                "conditions": [
+                                  {
+                                    "type": "path",
+                                    "rolesLeft": [
+                                      {
+                                        "name": "flag",
+                                        "predecessorType": "Flag"
+                                      }
+                                    ],
+                                    "labelRight": "y",
+                                    "rolesRight": []
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "existential",
+                    "exists": false,
+                    "matches": [
+                      {
+                        "unknown": {
+                          "name": "u",
+                          "type": "Undo"
+                        },
+                        "conditions": [
+                          {
+                            "type": "path",
+                            "rolesLeft": [
+                              {
+                                "name": "delete",
+                                "predecessorType": "Delete"
+                              }
+                            ],
+                            "labelRight": "d",
+                            "rolesRight": []
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "unknown": {
+          "name": "n",
+          "type": "Name"
+        },
+        "conditions": [
+          {
+            "type": "path",
+            "rolesLeft": [
+              {
+                "name": "event",
+                "predecessorType": "Event"
+              }
+            ],
+            "labelRight": "e",
+            "rolesRight": []
+          }
+        ]
+      }
+    ],
+    "projection": {
+      "type": "composite",
+      "components": [
+        {
+          "type": "fact",
+          "name": "event",
+          "label": "e"
+        },
+        {
+          "type": "fact",
+          "name": "name",
+          "label": "n"
+        }
+      ]
+    }
+  },
+  "feeds": [
+    {
+      "text": "(t: Tenant) {\n    e: Event [\n        e->tenant: Tenant = t\n    ]\n    d: Delete [\n        d->event: Event = e\n    ]\n    y: Flag [\n        y->delete: Delete = d\n    ]\n    u: Undo [\n        u->delete: Delete = d\n    ]\n    n: Name [\n        n->event: Event = e\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "t",
+              "type": "Tenant"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "e",
+              "type": "Event"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "tenant",
+                    "predecessorType": "Tenant"
+                  }
+                ],
+                "labelRight": "t",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "d",
+              "type": "Delete"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "event",
+                    "predecessorType": "Event"
+                  }
+                ],
+                "labelRight": "e",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "y",
+              "type": "Flag"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "delete",
+                    "predecessorType": "Delete"
+                  }
+                ],
+                "labelRight": "d",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "u",
+              "type": "Undo"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "delete",
+                    "predecessorType": "Delete"
+                  }
+                ],
+                "labelRight": "d",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "n",
+              "type": "Name"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "event",
+                    "predecessorType": "Event"
+                  }
+                ],
+                "labelRight": "e",
+                "rolesRight": []
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "Tenant"
+          },
+          {
+            "factIndex": 2,
+            "factType": "Event"
+          },
+          {
+            "factIndex": 3,
+            "factType": "Delete"
+          },
+          {
+            "factIndex": 4,
+            "factType": "Flag"
+          },
+          {
+            "factIndex": 5,
+            "factType": "Undo"
+          },
+          {
+            "factIndex": 6,
+            "factType": "Name"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "tenant"
+          },
+          {
+            "edgeIndex": 2,
+            "predecessorFactIndex": 2,
+            "successorFactIndex": 3,
+            "roleName": "event"
+          },
+          {
+            "edgeIndex": 3,
+            "predecessorFactIndex": 3,
+            "successorFactIndex": 4,
+            "roleName": "delete"
+          },
+          {
+            "edgeIndex": 4,
+            "predecessorFactIndex": 3,
+            "successorFactIndex": 5,
+            "roleName": "delete"
+          },
+          {
+            "edgeIndex": 5,
+            "predecessorFactIndex": 2,
+            "successorFactIndex": 6,
+            "roleName": "event"
+          }
+        ],
+        "notExistsConditions": [],
+        "outputs": [
+          {
+            "factIndex": 2
+          },
+          {
+            "factIndex": 3
+          },
+          {
+            "factIndex": 4
+          },
+          {
+            "factIndex": 5
+          },
+          {
+            "factIndex": 6
+          }
+        ]
+      }
+    },
+    {
+      "text": "(t: Tenant) {\n    e: Event [\n        e->tenant: Tenant = t\n    ]\n    d: Delete [\n        d->event: Event = e\n    ]\n    y: Flag [\n        y->delete: Delete = d\n    ]\n    z: Clear [\n        z->flag: Flag = y\n    ]\n    n: Name [\n        n->event: Event = e\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "t",
+              "type": "Tenant"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "e",
+              "type": "Event"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "tenant",
+                    "predecessorType": "Tenant"
+                  }
+                ],
+                "labelRight": "t",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "d",
+              "type": "Delete"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "event",
+                    "predecessorType": "Event"
+                  }
+                ],
+                "labelRight": "e",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "y",
+              "type": "Flag"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "delete",
+                    "predecessorType": "Delete"
+                  }
+                ],
+                "labelRight": "d",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "z",
+              "type": "Clear"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "flag",
+                    "predecessorType": "Flag"
+                  }
+                ],
+                "labelRight": "y",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "n",
+              "type": "Name"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "event",
+                    "predecessorType": "Event"
+                  }
+                ],
+                "labelRight": "e",
+                "rolesRight": []
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "Tenant"
+          },
+          {
+            "factIndex": 2,
+            "factType": "Event"
+          },
+          {
+            "factIndex": 3,
+            "factType": "Delete"
+          },
+          {
+            "factIndex": 4,
+            "factType": "Flag"
+          },
+          {
+            "factIndex": 5,
+            "factType": "Clear"
+          },
+          {
+            "factIndex": 6,
+            "factType": "Name"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "tenant"
+          },
+          {
+            "edgeIndex": 2,
+            "predecessorFactIndex": 2,
+            "successorFactIndex": 3,
+            "roleName": "event"
+          },
+          {
+            "edgeIndex": 3,
+            "predecessorFactIndex": 3,
+            "successorFactIndex": 4,
+            "roleName": "delete"
+          },
+          {
+            "edgeIndex": 4,
+            "predecessorFactIndex": 4,
+            "successorFactIndex": 5,
+            "roleName": "flag"
+          },
+          {
+            "edgeIndex": 5,
+            "predecessorFactIndex": 2,
+            "successorFactIndex": 6,
+            "roleName": "event"
+          }
+        ],
+        "notExistsConditions": [],
+        "outputs": [
+          {
+            "factIndex": 2
+          },
+          {
+            "factIndex": 3
+          },
+          {
+            "factIndex": 4
+          },
+          {
+            "factIndex": 5
+          },
+          {
+            "factIndex": 6
+          }
+        ]
+      }
+    },
+    {
+      "text": "(t: Tenant) {\n    e: Event [\n        e->tenant: Tenant = t\n    ]\n    d: Delete [\n        d->event: Event = e\n        !E {\n            u: Undo [\n                u->delete: Delete = d\n            ]\n        }\n    ]\n    y: Flag [\n        y->delete: Delete = d\n        !E {\n            z: Clear [\n                z->flag: Flag = y\n            ]\n        }\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "t",
+              "type": "Tenant"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "e",
+              "type": "Event"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "tenant",
+                    "predecessorType": "Tenant"
+                  }
+                ],
+                "labelRight": "t",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "d",
+              "type": "Delete"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "event",
+                    "predecessorType": "Event"
+                  }
+                ],
+                "labelRight": "e",
+                "rolesRight": []
+              },
+              {
+                "type": "existential",
+                "exists": false,
+                "matches": [
+                  {
+                    "unknown": {
+                      "name": "u",
+                      "type": "Undo"
+                    },
+                    "conditions": [
+                      {
+                        "type": "path",
+                        "rolesLeft": [
+                          {
+                            "name": "delete",
+                            "predecessorType": "Delete"
+                          }
+                        ],
+                        "labelRight": "d",
+                        "rolesRight": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "y",
+              "type": "Flag"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "delete",
+                    "predecessorType": "Delete"
+                  }
+                ],
+                "labelRight": "d",
+                "rolesRight": []
+              },
+              {
+                "type": "existential",
+                "exists": false,
+                "matches": [
+                  {
+                    "unknown": {
+                      "name": "z",
+                      "type": "Clear"
+                    },
+                    "conditions": [
+                      {
+                        "type": "path",
+                        "rolesLeft": [
+                          {
+                            "name": "flag",
+                            "predecessorType": "Flag"
+                          }
+                        ],
+                        "labelRight": "y",
+                        "rolesRight": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "Tenant"
+          },
+          {
+            "factIndex": 2,
+            "factType": "Event"
+          },
+          {
+            "factIndex": 3,
+            "factType": "Delete"
+          },
+          {
+            "factIndex": 4,
+            "factType": "Undo"
+          },
+          {
+            "factIndex": 5,
+            "factType": "Flag"
+          },
+          {
+            "factIndex": 6,
+            "factType": "Clear"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "tenant"
+          },
+          {
+            "edgeIndex": 2,
+            "predecessorFactIndex": 2,
+            "successorFactIndex": 3,
+            "roleName": "event"
+          },
+          {
+            "edgeIndex": 4,
+            "predecessorFactIndex": 3,
+            "successorFactIndex": 5,
+            "roleName": "delete"
+          }
+        ],
+        "notExistsConditions": [
+          {
+            "edges": [
+              {
+                "edgeIndex": 3,
+                "predecessorFactIndex": 3,
+                "successorFactIndex": 4,
+                "roleName": "delete"
+              }
+            ],
+            "notExistsConditions": []
+          },
+          {
+            "edges": [
+              {
+                "edgeIndex": 5,
+                "predecessorFactIndex": 5,
+                "successorFactIndex": 6,
+                "roleName": "flag"
+              }
+            ],
+            "notExistsConditions": []
+          }
+        ],
+        "outputs": [
+          {
+            "factIndex": 2
+          },
+          {
+            "factIndex": 3
+          },
+          {
+            "factIndex": 5
+          }
+        ]
+      }
+    },
+    {
+      "text": "(t: Tenant) {\n    e: Event [\n        e->tenant: Tenant = t\n        !E {\n            d: Delete [\n                d->event: Event = e\n            ]\n            y: Flag [\n                y->delete: Delete = d\n            ]\n        }\n    ]\n    n: Name [\n        n->event: Event = e\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "t",
+              "type": "Tenant"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "e",
+              "type": "Event"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "tenant",
+                    "predecessorType": "Tenant"
+                  }
+                ],
+                "labelRight": "t",
+                "rolesRight": []
+              },
+              {
+                "type": "existential",
+                "exists": false,
+                "matches": [
+                  {
+                    "unknown": {
+                      "name": "d",
+                      "type": "Delete"
+                    },
+                    "conditions": [
+                      {
+                        "type": "path",
+                        "rolesLeft": [
+                          {
+                            "name": "event",
+                            "predecessorType": "Event"
+                          }
+                        ],
+                        "labelRight": "e",
+                        "rolesRight": []
+                      }
+                    ]
+                  },
+                  {
+                    "unknown": {
+                      "name": "y",
+                      "type": "Flag"
+                    },
+                    "conditions": [
+                      {
+                        "type": "path",
+                        "rolesLeft": [
+                          {
+                            "name": "delete",
+                            "predecessorType": "Delete"
+                          }
+                        ],
+                        "labelRight": "d",
+                        "rolesRight": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "n",
+              "type": "Name"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "event",
+                    "predecessorType": "Event"
+                  }
+                ],
+                "labelRight": "e",
+                "rolesRight": []
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "Tenant"
+          },
+          {
+            "factIndex": 2,
+            "factType": "Event"
+          },
+          {
+            "factIndex": 3,
+            "factType": "Delete"
+          },
+          {
+            "factIndex": 4,
+            "factType": "Flag"
+          },
+          {
+            "factIndex": 5,
+            "factType": "Name"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "tenant"
+          },
+          {
+            "edgeIndex": 4,
+            "predecessorFactIndex": 2,
+            "successorFactIndex": 5,
+            "roleName": "event"
+          }
+        ],
+        "notExistsConditions": [
+          {
+            "edges": [
+              {
+                "edgeIndex": 2,
+                "predecessorFactIndex": 2,
+                "successorFactIndex": 3,
+                "roleName": "event"
+              },
+              {
+                "edgeIndex": 3,
+                "predecessorFactIndex": 3,
+                "successorFactIndex": 4,
+                "roleName": "delete"
+              }
+            ],
+            "notExistsConditions": []
+          }
+        ],
+        "outputs": [
+          {
+            "factIndex": 2
+          },
+          {
+            "factIndex": 5
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,926 @@
+{
+  "name": "random-two",
+  "text": "(p1: R, p2: A) {\n    u1: B [\n        u1->r: R = p1\n        !E {\n            e1715: A [\n                e1715->b: B = u1\n                E {\n                    e1716: A [\n                        e1716->b: B = u1\n                        !E {\n                            e1717: A [\n                                e1717->r: R = p1\n                            ]\n                        }\n                    ]\n                }\n                !E {\n                    e1718: A [\n                        e1718->b: B = u1\n                        E {\n                            e1719: A [\n                                e1719->r: R = p1\n                            ]\n                        }\n                    ]\n                }\n            ]\n        }\n    ]\n} => u1\n",
+  "specification": {
+    "given": [
+      {
+        "label": {
+          "name": "p1",
+          "type": "R"
+        },
+        "conditions": []
+      },
+      {
+        "label": {
+          "name": "p2",
+          "type": "A"
+        },
+        "conditions": []
+      }
+    ],
+    "matches": [
+      {
+        "unknown": {
+          "name": "u1",
+          "type": "B"
+        },
+        "conditions": [
+          {
+            "type": "path",
+            "rolesLeft": [
+              {
+                "name": "r",
+                "predecessorType": "R"
+              }
+            ],
+            "labelRight": "p1",
+            "rolesRight": []
+          },
+          {
+            "type": "existential",
+            "exists": false,
+            "matches": [
+              {
+                "unknown": {
+                  "name": "e1715",
+                  "type": "A"
+                },
+                "conditions": [
+                  {
+                    "type": "path",
+                    "rolesLeft": [
+                      {
+                        "name": "b",
+                        "predecessorType": "B"
+                      }
+                    ],
+                    "labelRight": "u1",
+                    "rolesRight": []
+                  },
+                  {
+                    "type": "existential",
+                    "exists": true,
+                    "matches": [
+                      {
+                        "unknown": {
+                          "name": "e1716",
+                          "type": "A"
+                        },
+                        "conditions": [
+                          {
+                            "type": "path",
+                            "rolesLeft": [
+                              {
+                                "name": "b",
+                                "predecessorType": "B"
+                              }
+                            ],
+                            "labelRight": "u1",
+                            "rolesRight": []
+                          },
+                          {
+                            "type": "existential",
+                            "exists": false,
+                            "matches": [
+                              {
+                                "unknown": {
+                                  "name": "e1717",
+                                  "type": "A"
+                                },
+                                "conditions": [
+                                  {
+                                    "type": "path",
+                                    "rolesLeft": [
+                                      {
+                                        "name": "r",
+                                        "predecessorType": "R"
+                                      }
+                                    ],
+                                    "labelRight": "p1",
+                                    "rolesRight": []
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "existential",
+                    "exists": false,
+                    "matches": [
+                      {
+                        "unknown": {
+                          "name": "e1718",
+                          "type": "A"
+                        },
+                        "conditions": [
+                          {
+                            "type": "path",
+                            "rolesLeft": [
+                              {
+                                "name": "b",
+                                "predecessorType": "B"
+                              }
+                            ],
+                            "labelRight": "u1",
+                            "rolesRight": []
+                          },
+                          {
+                            "type": "existential",
+                            "exists": true,
+                            "matches": [
+                              {
+                                "unknown": {
+                                  "name": "e1719",
+                                  "type": "A"
+                                },
+                                "conditions": [
+                                  {
+                                    "type": "path",
+                                    "rolesLeft": [
+                                      {
+                                        "name": "r",
+                                        "predecessorType": "R"
+                                      }
+                                    ],
+                                    "labelRight": "p1",
+                                    "rolesRight": []
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "projection": {
+      "type": "fact",
+      "label": "u1"
+    }
+  },
+  "feeds": [
+    {
+      "text": "(p1: R) {\n    u1: B [\n        u1->r: R = p1\n    ]\n    e1715: A [\n        e1715->b: B = u1\n    ]\n    e1716: A [\n        e1716->b: B = u1\n    ]\n    e1718: A [\n        e1718->b: B = u1\n    ]\n    e1719: A [\n        e1719->r: R = p1\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "p1",
+              "type": "R"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "u1",
+              "type": "B"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "r",
+                    "predecessorType": "R"
+                  }
+                ],
+                "labelRight": "p1",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "e1715",
+              "type": "A"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "b",
+                    "predecessorType": "B"
+                  }
+                ],
+                "labelRight": "u1",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "e1716",
+              "type": "A"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "b",
+                    "predecessorType": "B"
+                  }
+                ],
+                "labelRight": "u1",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "e1718",
+              "type": "A"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "b",
+                    "predecessorType": "B"
+                  }
+                ],
+                "labelRight": "u1",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "e1719",
+              "type": "A"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "r",
+                    "predecessorType": "R"
+                  }
+                ],
+                "labelRight": "p1",
+                "rolesRight": []
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "R"
+          },
+          {
+            "factIndex": 2,
+            "factType": "B"
+          },
+          {
+            "factIndex": 3,
+            "factType": "A"
+          },
+          {
+            "factIndex": 4,
+            "factType": "A"
+          },
+          {
+            "factIndex": 5,
+            "factType": "A"
+          },
+          {
+            "factIndex": 6,
+            "factType": "A"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "r"
+          },
+          {
+            "edgeIndex": 2,
+            "predecessorFactIndex": 2,
+            "successorFactIndex": 3,
+            "roleName": "b"
+          },
+          {
+            "edgeIndex": 3,
+            "predecessorFactIndex": 2,
+            "successorFactIndex": 4,
+            "roleName": "b"
+          },
+          {
+            "edgeIndex": 4,
+            "predecessorFactIndex": 2,
+            "successorFactIndex": 5,
+            "roleName": "b"
+          },
+          {
+            "edgeIndex": 5,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 6,
+            "roleName": "r"
+          }
+        ],
+        "notExistsConditions": [],
+        "outputs": [
+          {
+            "factIndex": 2
+          },
+          {
+            "factIndex": 3
+          },
+          {
+            "factIndex": 4
+          },
+          {
+            "factIndex": 5
+          },
+          {
+            "factIndex": 6
+          }
+        ]
+      }
+    },
+    {
+      "text": "(p1: R) {\n    u1: B [\n        u1->r: R = p1\n    ]\n    e1715: A [\n        e1715->b: B = u1\n    ]\n    e1716: A [\n        e1716->b: B = u1\n    ]\n    e1717: A [\n        e1717->r: R = p1\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "p1",
+              "type": "R"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "u1",
+              "type": "B"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "r",
+                    "predecessorType": "R"
+                  }
+                ],
+                "labelRight": "p1",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "e1715",
+              "type": "A"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "b",
+                    "predecessorType": "B"
+                  }
+                ],
+                "labelRight": "u1",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "e1716",
+              "type": "A"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "b",
+                    "predecessorType": "B"
+                  }
+                ],
+                "labelRight": "u1",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "e1717",
+              "type": "A"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "r",
+                    "predecessorType": "R"
+                  }
+                ],
+                "labelRight": "p1",
+                "rolesRight": []
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "R"
+          },
+          {
+            "factIndex": 2,
+            "factType": "B"
+          },
+          {
+            "factIndex": 3,
+            "factType": "A"
+          },
+          {
+            "factIndex": 4,
+            "factType": "A"
+          },
+          {
+            "factIndex": 5,
+            "factType": "A"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "r"
+          },
+          {
+            "edgeIndex": 2,
+            "predecessorFactIndex": 2,
+            "successorFactIndex": 3,
+            "roleName": "b"
+          },
+          {
+            "edgeIndex": 3,
+            "predecessorFactIndex": 2,
+            "successorFactIndex": 4,
+            "roleName": "b"
+          },
+          {
+            "edgeIndex": 4,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 5,
+            "roleName": "r"
+          }
+        ],
+        "notExistsConditions": [],
+        "outputs": [
+          {
+            "factIndex": 2
+          },
+          {
+            "factIndex": 3
+          },
+          {
+            "factIndex": 4
+          },
+          {
+            "factIndex": 5
+          }
+        ]
+      }
+    },
+    {
+      "text": "(p1: R) {\n    u1: B [\n        u1->r: R = p1\n    ]\n    e1715: A [\n        e1715->b: B = u1\n        !E {\n            e1718: A [\n                e1718->b: B = u1\n            ]\n            e1719: A [\n                e1719->r: R = p1\n            ]\n        }\n    ]\n    e1716: A [\n        e1716->b: B = u1\n        !E {\n            e1717: A [\n                e1717->r: R = p1\n            ]\n        }\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "p1",
+              "type": "R"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "u1",
+              "type": "B"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "r",
+                    "predecessorType": "R"
+                  }
+                ],
+                "labelRight": "p1",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "e1715",
+              "type": "A"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "b",
+                    "predecessorType": "B"
+                  }
+                ],
+                "labelRight": "u1",
+                "rolesRight": []
+              },
+              {
+                "type": "existential",
+                "exists": false,
+                "matches": [
+                  {
+                    "unknown": {
+                      "name": "e1718",
+                      "type": "A"
+                    },
+                    "conditions": [
+                      {
+                        "type": "path",
+                        "rolesLeft": [
+                          {
+                            "name": "b",
+                            "predecessorType": "B"
+                          }
+                        ],
+                        "labelRight": "u1",
+                        "rolesRight": []
+                      }
+                    ]
+                  },
+                  {
+                    "unknown": {
+                      "name": "e1719",
+                      "type": "A"
+                    },
+                    "conditions": [
+                      {
+                        "type": "path",
+                        "rolesLeft": [
+                          {
+                            "name": "r",
+                            "predecessorType": "R"
+                          }
+                        ],
+                        "labelRight": "p1",
+                        "rolesRight": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "e1716",
+              "type": "A"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "b",
+                    "predecessorType": "B"
+                  }
+                ],
+                "labelRight": "u1",
+                "rolesRight": []
+              },
+              {
+                "type": "existential",
+                "exists": false,
+                "matches": [
+                  {
+                    "unknown": {
+                      "name": "e1717",
+                      "type": "A"
+                    },
+                    "conditions": [
+                      {
+                        "type": "path",
+                        "rolesLeft": [
+                          {
+                            "name": "r",
+                            "predecessorType": "R"
+                          }
+                        ],
+                        "labelRight": "p1",
+                        "rolesRight": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "R"
+          },
+          {
+            "factIndex": 2,
+            "factType": "B"
+          },
+          {
+            "factIndex": 3,
+            "factType": "A"
+          },
+          {
+            "factIndex": 4,
+            "factType": "A"
+          },
+          {
+            "factIndex": 5,
+            "factType": "A"
+          },
+          {
+            "factIndex": 6,
+            "factType": "A"
+          },
+          {
+            "factIndex": 7,
+            "factType": "A"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "r"
+          },
+          {
+            "edgeIndex": 2,
+            "predecessorFactIndex": 2,
+            "successorFactIndex": 3,
+            "roleName": "b"
+          },
+          {
+            "edgeIndex": 5,
+            "predecessorFactIndex": 2,
+            "successorFactIndex": 6,
+            "roleName": "b"
+          }
+        ],
+        "notExistsConditions": [
+          {
+            "edges": [
+              {
+                "edgeIndex": 3,
+                "predecessorFactIndex": 2,
+                "successorFactIndex": 4,
+                "roleName": "b"
+              },
+              {
+                "edgeIndex": 4,
+                "predecessorFactIndex": 1,
+                "successorFactIndex": 5,
+                "roleName": "r"
+              }
+            ],
+            "notExistsConditions": []
+          },
+          {
+            "edges": [
+              {
+                "edgeIndex": 6,
+                "predecessorFactIndex": 1,
+                "successorFactIndex": 7,
+                "roleName": "r"
+              }
+            ],
+            "notExistsConditions": []
+          }
+        ],
+        "outputs": [
+          {
+            "factIndex": 2
+          },
+          {
+            "factIndex": 3
+          },
+          {
+            "factIndex": 6
+          }
+        ]
+      }
+    },
+    {
+      "text": "(p1: R) {\n    u1: B [\n        u1->r: R = p1\n        !E {\n            e1715: A [\n                e1715->b: B = u1\n            ]\n            e1716: A [\n                e1716->b: B = u1\n            ]\n        }\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "p1",
+              "type": "R"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "u1",
+              "type": "B"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "r",
+                    "predecessorType": "R"
+                  }
+                ],
+                "labelRight": "p1",
+                "rolesRight": []
+              },
+              {
+                "type": "existential",
+                "exists": false,
+                "matches": [
+                  {
+                    "unknown": {
+                      "name": "e1715",
+                      "type": "A"
+                    },
+                    "conditions": [
+                      {
+                        "type": "path",
+                        "rolesLeft": [
+                          {
+                            "name": "b",
+                            "predecessorType": "B"
+                          }
+                        ],
+                        "labelRight": "u1",
+                        "rolesRight": []
+                      }
+                    ]
+                  },
+                  {
+                    "unknown": {
+                      "name": "e1716",
+                      "type": "A"
+                    },
+                    "conditions": [
+                      {
+                        "type": "path",
+                        "rolesLeft": [
+                          {
+                            "name": "b",
+                            "predecessorType": "B"
+                          }
+                        ],
+                        "labelRight": "u1",
+                        "rolesRight": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "R"
+          },
+          {
+            "factIndex": 2,
+            "factType": "B"
+          },
+          {
+            "factIndex": 3,
+            "factType": "A"
+          },
+          {
+            "factIndex": 4,
+            "factType": "A"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "r"
+          }
+        ],
+        "notExistsConditions": [
+          {
+            "edges": [
+              {
+                "edgeIndex": 2,
+                "predecessorFactIndex": 2,
+                "successorFactIndex": 3,
+                "roleName": "b"
+              },
+              {
+                "edgeIndex": 3,
+                "predecessorFactIndex": 2,
+                "successorFactIndex": 4,
+                "roleName": "b"
+              }
+            ],
+            "notExistsConditions": []
+          }
+        ],
+        "outputs": [
+          {
+            "factIndex": 2
+          }
+        ]
+      }
+    }
+  ]
+}

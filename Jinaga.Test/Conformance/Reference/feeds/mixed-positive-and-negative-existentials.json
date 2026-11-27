@@ -1,0 +1,886 @@
+{
+  "name": "mixed-positive-and-negative-existentials",
+  "text": "(user: Jinaga.User) {\n    provisioner: Provisioner [\n        provisioner->user: Jinaga.User = user\n    ]\n    request: Request [\n        request->domain: Domain = provisioner->domain: Domain\n        E {\n            redemption: Redemption [\n                redemption->request: Request = request\n            ]\n        }\n        !E {\n            workspace: Workspace [\n                workspace->request: Request = request\n            ]\n            owner: Owner [\n                owner->workspace: Workspace = workspace\n            ]\n        }\n        !E {\n            denied: Denied [\n                denied->request: Request = request\n            ]\n        }\n    ]\n} => request\n",
+  "specification": {
+    "given": [
+      {
+        "label": {
+          "name": "user",
+          "type": "Jinaga.User"
+        },
+        "conditions": []
+      }
+    ],
+    "matches": [
+      {
+        "unknown": {
+          "name": "provisioner",
+          "type": "Provisioner"
+        },
+        "conditions": [
+          {
+            "type": "path",
+            "rolesLeft": [
+              {
+                "name": "user",
+                "predecessorType": "Jinaga.User"
+              }
+            ],
+            "labelRight": "user",
+            "rolesRight": []
+          }
+        ]
+      },
+      {
+        "unknown": {
+          "name": "request",
+          "type": "Request"
+        },
+        "conditions": [
+          {
+            "type": "path",
+            "rolesLeft": [
+              {
+                "name": "domain",
+                "predecessorType": "Domain"
+              }
+            ],
+            "labelRight": "provisioner",
+            "rolesRight": [
+              {
+                "name": "domain",
+                "predecessorType": "Domain"
+              }
+            ]
+          },
+          {
+            "type": "existential",
+            "exists": true,
+            "matches": [
+              {
+                "unknown": {
+                  "name": "redemption",
+                  "type": "Redemption"
+                },
+                "conditions": [
+                  {
+                    "type": "path",
+                    "rolesLeft": [
+                      {
+                        "name": "request",
+                        "predecessorType": "Request"
+                      }
+                    ],
+                    "labelRight": "request",
+                    "rolesRight": []
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "existential",
+            "exists": false,
+            "matches": [
+              {
+                "unknown": {
+                  "name": "workspace",
+                  "type": "Workspace"
+                },
+                "conditions": [
+                  {
+                    "type": "path",
+                    "rolesLeft": [
+                      {
+                        "name": "request",
+                        "predecessorType": "Request"
+                      }
+                    ],
+                    "labelRight": "request",
+                    "rolesRight": []
+                  }
+                ]
+              },
+              {
+                "unknown": {
+                  "name": "owner",
+                  "type": "Owner"
+                },
+                "conditions": [
+                  {
+                    "type": "path",
+                    "rolesLeft": [
+                      {
+                        "name": "workspace",
+                        "predecessorType": "Workspace"
+                      }
+                    ],
+                    "labelRight": "workspace",
+                    "rolesRight": []
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "existential",
+            "exists": false,
+            "matches": [
+              {
+                "unknown": {
+                  "name": "denied",
+                  "type": "Denied"
+                },
+                "conditions": [
+                  {
+                    "type": "path",
+                    "rolesLeft": [
+                      {
+                        "name": "request",
+                        "predecessorType": "Request"
+                      }
+                    ],
+                    "labelRight": "request",
+                    "rolesRight": []
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "projection": {
+      "type": "fact",
+      "label": "request"
+    }
+  },
+  "feeds": [
+    {
+      "text": "(user: Jinaga.User) {\n    provisioner: Provisioner [\n        provisioner->user: Jinaga.User = user\n    ]\n    request: Request [\n        request->domain: Domain = provisioner->domain: Domain\n    ]\n    redemption: Redemption [\n        redemption->request: Request = request\n    ]\n    workspace: Workspace [\n        workspace->request: Request = request\n    ]\n    owner: Owner [\n        owner->workspace: Workspace = workspace\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "user",
+              "type": "Jinaga.User"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "provisioner",
+              "type": "Provisioner"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "user",
+                    "predecessorType": "Jinaga.User"
+                  }
+                ],
+                "labelRight": "user",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "request",
+              "type": "Request"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "domain",
+                    "predecessorType": "Domain"
+                  }
+                ],
+                "labelRight": "provisioner",
+                "rolesRight": [
+                  {
+                    "name": "domain",
+                    "predecessorType": "Domain"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "redemption",
+              "type": "Redemption"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "request",
+                    "predecessorType": "Request"
+                  }
+                ],
+                "labelRight": "request",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "workspace",
+              "type": "Workspace"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "request",
+                    "predecessorType": "Request"
+                  }
+                ],
+                "labelRight": "request",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "owner",
+              "type": "Owner"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "workspace",
+                    "predecessorType": "Workspace"
+                  }
+                ],
+                "labelRight": "workspace",
+                "rolesRight": []
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "Jinaga.User"
+          },
+          {
+            "factIndex": 2,
+            "factType": "Provisioner"
+          },
+          {
+            "factIndex": 3,
+            "factType": "Domain"
+          },
+          {
+            "factIndex": 4,
+            "factType": "Request"
+          },
+          {
+            "factIndex": 5,
+            "factType": "Redemption"
+          },
+          {
+            "factIndex": 6,
+            "factType": "Workspace"
+          },
+          {
+            "factIndex": 7,
+            "factType": "Owner"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "user"
+          },
+          {
+            "edgeIndex": 2,
+            "predecessorFactIndex": 3,
+            "successorFactIndex": 2,
+            "roleName": "domain"
+          },
+          {
+            "edgeIndex": 3,
+            "predecessorFactIndex": 3,
+            "successorFactIndex": 4,
+            "roleName": "domain"
+          },
+          {
+            "edgeIndex": 4,
+            "predecessorFactIndex": 4,
+            "successorFactIndex": 5,
+            "roleName": "request"
+          },
+          {
+            "edgeIndex": 5,
+            "predecessorFactIndex": 4,
+            "successorFactIndex": 6,
+            "roleName": "request"
+          },
+          {
+            "edgeIndex": 6,
+            "predecessorFactIndex": 6,
+            "successorFactIndex": 7,
+            "roleName": "workspace"
+          }
+        ],
+        "notExistsConditions": [],
+        "outputs": [
+          {
+            "factIndex": 2
+          },
+          {
+            "factIndex": 4
+          },
+          {
+            "factIndex": 5
+          },
+          {
+            "factIndex": 6
+          },
+          {
+            "factIndex": 7
+          }
+        ]
+      }
+    },
+    {
+      "text": "(user: Jinaga.User) {\n    provisioner: Provisioner [\n        provisioner->user: Jinaga.User = user\n    ]\n    request: Request [\n        request->domain: Domain = provisioner->domain: Domain\n        !E {\n            workspace: Workspace [\n                workspace->request: Request = request\n            ]\n            owner: Owner [\n                owner->workspace: Workspace = workspace\n            ]\n        }\n    ]\n    redemption: Redemption [\n        redemption->request: Request = request\n    ]\n    denied: Denied [\n        denied->request: Request = request\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "user",
+              "type": "Jinaga.User"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "provisioner",
+              "type": "Provisioner"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "user",
+                    "predecessorType": "Jinaga.User"
+                  }
+                ],
+                "labelRight": "user",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "request",
+              "type": "Request"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "domain",
+                    "predecessorType": "Domain"
+                  }
+                ],
+                "labelRight": "provisioner",
+                "rolesRight": [
+                  {
+                    "name": "domain",
+                    "predecessorType": "Domain"
+                  }
+                ]
+              },
+              {
+                "type": "existential",
+                "exists": false,
+                "matches": [
+                  {
+                    "unknown": {
+                      "name": "workspace",
+                      "type": "Workspace"
+                    },
+                    "conditions": [
+                      {
+                        "type": "path",
+                        "rolesLeft": [
+                          {
+                            "name": "request",
+                            "predecessorType": "Request"
+                          }
+                        ],
+                        "labelRight": "request",
+                        "rolesRight": []
+                      }
+                    ]
+                  },
+                  {
+                    "unknown": {
+                      "name": "owner",
+                      "type": "Owner"
+                    },
+                    "conditions": [
+                      {
+                        "type": "path",
+                        "rolesLeft": [
+                          {
+                            "name": "workspace",
+                            "predecessorType": "Workspace"
+                          }
+                        ],
+                        "labelRight": "workspace",
+                        "rolesRight": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "redemption",
+              "type": "Redemption"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "request",
+                    "predecessorType": "Request"
+                  }
+                ],
+                "labelRight": "request",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "denied",
+              "type": "Denied"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "request",
+                    "predecessorType": "Request"
+                  }
+                ],
+                "labelRight": "request",
+                "rolesRight": []
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "Jinaga.User"
+          },
+          {
+            "factIndex": 2,
+            "factType": "Provisioner"
+          },
+          {
+            "factIndex": 3,
+            "factType": "Domain"
+          },
+          {
+            "factIndex": 4,
+            "factType": "Request"
+          },
+          {
+            "factIndex": 5,
+            "factType": "Workspace"
+          },
+          {
+            "factIndex": 6,
+            "factType": "Owner"
+          },
+          {
+            "factIndex": 7,
+            "factType": "Redemption"
+          },
+          {
+            "factIndex": 8,
+            "factType": "Denied"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "user"
+          },
+          {
+            "edgeIndex": 2,
+            "predecessorFactIndex": 3,
+            "successorFactIndex": 2,
+            "roleName": "domain"
+          },
+          {
+            "edgeIndex": 3,
+            "predecessorFactIndex": 3,
+            "successorFactIndex": 4,
+            "roleName": "domain"
+          },
+          {
+            "edgeIndex": 6,
+            "predecessorFactIndex": 4,
+            "successorFactIndex": 7,
+            "roleName": "request"
+          },
+          {
+            "edgeIndex": 7,
+            "predecessorFactIndex": 4,
+            "successorFactIndex": 8,
+            "roleName": "request"
+          }
+        ],
+        "notExistsConditions": [
+          {
+            "edges": [
+              {
+                "edgeIndex": 4,
+                "predecessorFactIndex": 4,
+                "successorFactIndex": 5,
+                "roleName": "request"
+              },
+              {
+                "edgeIndex": 5,
+                "predecessorFactIndex": 5,
+                "successorFactIndex": 6,
+                "roleName": "workspace"
+              }
+            ],
+            "notExistsConditions": []
+          }
+        ],
+        "outputs": [
+          {
+            "factIndex": 2
+          },
+          {
+            "factIndex": 4
+          },
+          {
+            "factIndex": 7
+          },
+          {
+            "factIndex": 8
+          }
+        ]
+      }
+    },
+    {
+      "text": "(user: Jinaga.User) {\n    provisioner: Provisioner [\n        provisioner->user: Jinaga.User = user\n    ]\n    request: Request [\n        request->domain: Domain = provisioner->domain: Domain\n        !E {\n            workspace: Workspace [\n                workspace->request: Request = request\n            ]\n            owner: Owner [\n                owner->workspace: Workspace = workspace\n            ]\n        }\n        !E {\n            denied: Denied [\n                denied->request: Request = request\n            ]\n        }\n    ]\n    redemption: Redemption [\n        redemption->request: Request = request\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "user",
+              "type": "Jinaga.User"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "provisioner",
+              "type": "Provisioner"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "user",
+                    "predecessorType": "Jinaga.User"
+                  }
+                ],
+                "labelRight": "user",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "request",
+              "type": "Request"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "domain",
+                    "predecessorType": "Domain"
+                  }
+                ],
+                "labelRight": "provisioner",
+                "rolesRight": [
+                  {
+                    "name": "domain",
+                    "predecessorType": "Domain"
+                  }
+                ]
+              },
+              {
+                "type": "existential",
+                "exists": false,
+                "matches": [
+                  {
+                    "unknown": {
+                      "name": "workspace",
+                      "type": "Workspace"
+                    },
+                    "conditions": [
+                      {
+                        "type": "path",
+                        "rolesLeft": [
+                          {
+                            "name": "request",
+                            "predecessorType": "Request"
+                          }
+                        ],
+                        "labelRight": "request",
+                        "rolesRight": []
+                      }
+                    ]
+                  },
+                  {
+                    "unknown": {
+                      "name": "owner",
+                      "type": "Owner"
+                    },
+                    "conditions": [
+                      {
+                        "type": "path",
+                        "rolesLeft": [
+                          {
+                            "name": "workspace",
+                            "predecessorType": "Workspace"
+                          }
+                        ],
+                        "labelRight": "workspace",
+                        "rolesRight": []
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "existential",
+                "exists": false,
+                "matches": [
+                  {
+                    "unknown": {
+                      "name": "denied",
+                      "type": "Denied"
+                    },
+                    "conditions": [
+                      {
+                        "type": "path",
+                        "rolesLeft": [
+                          {
+                            "name": "request",
+                            "predecessorType": "Request"
+                          }
+                        ],
+                        "labelRight": "request",
+                        "rolesRight": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "redemption",
+              "type": "Redemption"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "request",
+                    "predecessorType": "Request"
+                  }
+                ],
+                "labelRight": "request",
+                "rolesRight": []
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "Jinaga.User"
+          },
+          {
+            "factIndex": 2,
+            "factType": "Provisioner"
+          },
+          {
+            "factIndex": 3,
+            "factType": "Domain"
+          },
+          {
+            "factIndex": 4,
+            "factType": "Request"
+          },
+          {
+            "factIndex": 5,
+            "factType": "Workspace"
+          },
+          {
+            "factIndex": 6,
+            "factType": "Owner"
+          },
+          {
+            "factIndex": 7,
+            "factType": "Denied"
+          },
+          {
+            "factIndex": 8,
+            "factType": "Redemption"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "user"
+          },
+          {
+            "edgeIndex": 2,
+            "predecessorFactIndex": 3,
+            "successorFactIndex": 2,
+            "roleName": "domain"
+          },
+          {
+            "edgeIndex": 3,
+            "predecessorFactIndex": 3,
+            "successorFactIndex": 4,
+            "roleName": "domain"
+          },
+          {
+            "edgeIndex": 7,
+            "predecessorFactIndex": 4,
+            "successorFactIndex": 8,
+            "roleName": "request"
+          }
+        ],
+        "notExistsConditions": [
+          {
+            "edges": [
+              {
+                "edgeIndex": 4,
+                "predecessorFactIndex": 4,
+                "successorFactIndex": 5,
+                "roleName": "request"
+              },
+              {
+                "edgeIndex": 5,
+                "predecessorFactIndex": 5,
+                "successorFactIndex": 6,
+                "roleName": "workspace"
+              }
+            ],
+            "notExistsConditions": []
+          },
+          {
+            "edges": [
+              {
+                "edgeIndex": 6,
+                "predecessorFactIndex": 4,
+                "successorFactIndex": 7,
+                "roleName": "request"
+              }
+            ],
+            "notExistsConditions": []
+          }
+        ],
+        "outputs": [
+          {
+            "factIndex": 2
+          },
+          {
+            "factIndex": 4
+          },
+          {
+            "factIndex": 8
+          }
+        ]
+      }
+    }
+  ]
+}
