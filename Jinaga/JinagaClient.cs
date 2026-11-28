@@ -39,8 +39,19 @@ namespace Jinaga
         /// An object that also implements <see cref="IIdentitySource"/> tells the client
         /// who is logged in. The client then records which users saved each fact it queues,
         /// and holds a queued fact back while a user who did not save it is logged in, rather
-        /// than uploading it under their token. See <see cref="AuthorizationRules"/> for the
-        /// facts it need not hold.
+        /// than uploading it under their token.
+        ///
+        /// A <see cref="User"/> fact is the one exemption, and is never held. It has no
+        /// predecessors, so no rule can tie it to a set of authors other than the user it
+        /// names, and the usual rule admits it from anyone. It travels under whoever is
+        /// logged in, so one user's fact about a user another user introduced is not held
+        /// behind that user's return.
+        ///
+        /// Two consequences follow. A queued fact of any other type that another user saved
+        /// is held until one of its savers logs in again, even where the application's rule
+        /// for that type admits anyone. And a replicator whose rule for <see cref="User"/>
+        /// names only that user, rather than admitting anyone, refuses another user's
+        /// <see cref="User"/> fact on upload.
         /// </summary>
         public IHttpAuthenticationProvider? HttpAuthenticationProvider { get; set; }
 
@@ -49,28 +60,17 @@ namespace Jinaga
         /// client is not told.
         ///
         /// Pass the same rules the replicator is configured with, ideally built by the same
-        /// function. The client uses one evaluation of them for two things:
+        /// function. The client uses them to refuse a save early. Routing the outbound queue
+        /// does not read them; see <see cref="HttpAuthenticationProvider"/>.
         ///
-        /// <list type="bullet">
-        /// <item><description>
-        /// <b>Routing uploads.</b> A queued fact that one user saved is held while a different
-        /// user is logged in, because the replicator would sign it with the uploader's key or
-        /// reject it. A fact whose rule is <c>Any</c> is neither signed nor rejected, so the
-        /// client sends it under whoever is logged in. Without rules it holds every fact another
-        /// user saved, including one that an <c>Any</c> rule would admit, such as a
-        /// <see cref="User"/>.
-        /// </description></item>
-        /// <item><description>
-        /// <b>Refusing a save early.</b> When a user is logged in, the client checks a fact
-        /// against these rules as that user before saving it, and throws
+        /// When a user is logged in, the client checks a fact against these rules as that
+        /// user before saving it, and throws
         /// <see cref="Jinaga.Authorization.AuthorizationException"/> for a fact the user may not
         /// author, as the replicator would. A refused fact is not stored or queued. With nobody
         /// logged in, the check cannot run and the save goes ahead unchecked; routing still
         /// governs its upload. A type with no rule is refused, as the replicator refuses it.
         /// Facts saved inside <see cref="JinagaClient.SingleUse{T}"/> are not checked, because the replicator
         /// also authorizes them by the single-use principal's signature.
-        /// </description></item>
-        /// </list>
         ///
         /// A rule that walks only predecessors is decided exactly, because a fact's predecessors
         /// are saved with it. A rule that walks successors, such as "a member of the project",
@@ -305,8 +305,8 @@ namespace Jinaga
             // Reading it from the same object that sets the upload token is what keeps
             // the recorded saver and the token from naming different users.
             var identitySource = options.HttpAuthenticationProvider as IIdentitySource;
-            // One evaluation of the app's rules, shared by routing and the save check, so
-            // the two cannot read the rules differently.
+            // The app's rules, read only to check a save before it is stored. Routing the
+            // outbound queue reads no rules: it exempts Jinaga.User by type.
             var authorizationEngine = options.AuthorizationRules == null
                 ? null
                 : new AuthorizationEngine(options.AuthorizationRules, store);
@@ -316,7 +316,7 @@ namespace Jinaga
                 {
                     await factManager.SaveAndNotify(graph, false, null, cancellationToken).ConfigureAwait(false);
                 }
-            }, options.MaxBatchSize, identitySource, authorizationEngine);
+            }, options.MaxBatchSize, identitySource);
             factManager = new FactManager(store, networkManager, purgeConditions, loggerFactory, options.QueueProcessingDelay, authorizationEngine, authorizingUser, identitySource);
             logger = loggerFactory.CreateLogger<JinagaClient>();
 

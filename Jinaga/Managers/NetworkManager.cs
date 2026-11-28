@@ -1,5 +1,4 @@
-﻿using Jinaga.Authorization;
-using Jinaga.Facts;
+﻿using Jinaga.Facts;
 using Jinaga.Identity;
 using Jinaga.Projections;
 using Jinaga.Services;
@@ -22,7 +21,13 @@ namespace Jinaga.Managers
         private readonly Func<FactGraph, CancellationToken, Task> saveAndNotify;
         private readonly int maxBatchSize;
         private readonly IIdentitySource? identitySource;
-        private readonly AuthorizationEngine? authorizationEngine;
+
+        /// <summary>
+        /// The one fact type the hold rule exempts. A Jinaga.User has no predecessors,
+        /// so no authorization rule can tie it to a set of authors other than the user
+        /// it names.
+        /// </summary>
+        private const string UserFactType = "Jinaga.User";
 
         private ImmutableDictionary<string, Task<(ImmutableList<string> feeds, ImmutableList<FeedDecision> decisions)>> feedsCache =
             ImmutableDictionary<string, Task<(ImmutableList<string> feeds, ImmutableList<FeedDecision> decisions)>>.Empty;
@@ -38,17 +43,12 @@ namespace Jinaga.Managers
         public event DistributionDiagnosticHandler? OnDistributionDiagnostic;
 
         public NetworkManager(INetwork network, IStore store, ILoggerFactory loggerFactory, Func<FactGraph, CancellationToken, Task> saveAndNotify, int maxBatchSize)
-            : this(network, store, loggerFactory, saveAndNotify, maxBatchSize, null, null)
+            : this(network, store, loggerFactory, saveAndNotify, maxBatchSize, null)
         {
         }
 
         /// <param name="identitySource">Reports who is logged in, or null if the client cannot tell</param>
-        /// <param name="authorizationEngine">
-        /// Evaluates the application's authorization rules, or null if the client was not given
-        /// them. Used only to decide which queued facts another user may upload; it refuses
-        /// nothing.
-        /// </param>
-        internal NetworkManager(INetwork network, IStore store, ILoggerFactory loggerFactory, Func<FactGraph, CancellationToken, Task> saveAndNotify, int maxBatchSize, IIdentitySource? identitySource, AuthorizationEngine? authorizationEngine)
+        internal NetworkManager(INetwork network, IStore store, ILoggerFactory loggerFactory, Func<FactGraph, CancellationToken, Task> saveAndNotify, int maxBatchSize, IIdentitySource? identitySource)
         {
             if (maxBatchSize <= 0)
                 throw new ArgumentOutOfRangeException(nameof(maxBatchSize), maxBatchSize, "The maximum batch size must be greater than zero.");
@@ -59,7 +59,6 @@ namespace Jinaga.Managers
             this.saveAndNotify = saveAndNotify;
             this.maxBatchSize = maxBatchSize;
             this.identitySource = identitySource;
-            this.authorizationEngine = authorizationEngine;
 
             network.OnAuthenticationStateChanged += SetAuthenticationState;
         }
@@ -72,9 +71,10 @@ namespace Jinaga.Managers
         /// <summary>
         /// Uploads the queued facts that may travel under the user who is logged in now.
         ///
-        /// Facts held for another user stay in the queue, and are not counted in the queue
-        /// length that <see cref="JinagaStatus.QueueLength"/> reports: when only held facts
-        /// remain, the status reports nothing pending.
+        /// A fact another user saved stays in the queue, unless it is a <c>Jinaga.User</c>,
+        /// which anybody may introduce. Held facts are not counted in the queue length that
+        /// <see cref="JinagaStatus.QueueLength"/> reports: when only held facts remain, the
+        /// status reports nothing pending.
         /// </summary>
         public async Task Save(CancellationToken cancellationToken)
         {
@@ -139,11 +139,12 @@ namespace Jinaga.Managers
         /// <summary>
         /// The queued facts that may be uploaded under <paramref name="uploader"/>.
         ///
-        /// A queued fact is held when somebody saved it, the uploader is not among them, and the
-        /// rules would not admit it without a signature. Without rules, nothing is known to be
-        /// admitted without a signature, so every fact another user saved is held. With rules,
-        /// a fact whose rule is <c>Any</c> may travel under anyone: the replicator keeps no
-        /// signature for it, so uploading it neither attributes it to the uploader nor fails.
+        /// A queued fact is held when somebody saved it and the uploader is not among them, so
+        /// a fact another user saved is never signed with the uploader's key. A fact whose type
+        /// is <c>Jinaga.User</c> is the one exemption, and it is never held: it has no
+        /// predecessors, so no rule can tie it to a set of authors other than the user it
+        /// names, and a replicator admitting it from anyone keeps no signature for it. Holding
+        /// one would hold every other user's fact that mentions it, possibly for good.
         /// A fact nobody saved goes under whoever is logged in.
         ///
         /// A fact is sent only if it and every queued ancestor in its graph may be, because the
@@ -173,7 +174,7 @@ namespace Jinaga.Managers
                 if (savers.TryGetValue(reference, out var saversOfFact) &&
                     !saversOfFact.IsEmpty &&
                     (uploader == null || !saversOfFact.Contains(uploader)) &&
-                    !await AdmitsWithoutSignature(queue.Graph, reference, cancellationToken).ConfigureAwait(false))
+                    reference.Type != UserFactType)
                 {
                     held.Add(reference);
                 }
@@ -189,17 +190,6 @@ namespace Jinaga.Managers
                     !HasAncestorIn(queue.Graph, available, fact.Reference, held))
                 .ToImmutableList();
             return new QueuedFacts(queue.Graph, sendable);
-        }
-
-        private async Task<bool> AdmitsWithoutSignature(FactGraph graph, FactReference reference, CancellationToken cancellationToken)
-        {
-            if (authorizationEngine == null)
-            {
-                return false;
-            }
-            return await authorizationEngine
-                .AdmitsWithoutSignature(graph, reference, cancellationToken)
-                .ConfigureAwait(false);
         }
 
         /// <summary>
