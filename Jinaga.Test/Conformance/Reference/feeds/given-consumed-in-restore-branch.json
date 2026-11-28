@@ -1,0 +1,998 @@
+{
+  "name": "given-consumed-in-restore-branch",
+  "text": "(tenant: Tenant, approver: Approver) {\n    event: Event [\n        event->tenant: Tenant = tenant\n        !E {\n            del: EventDelete [\n                del->event: Event = event\n                !E {\n                    rest: EventRestore [\n                        rest->eventDelete: EventDelete = del\n                        rest->approver: Approver = approver\n                    ]\n                }\n            ]\n        }\n    ]\n} => {\n    names = {\n        name: EventName [\n            name->event: Event = event\n            name->approver: Approver = approver\n        ]\n    }\n}\n",
+  "specification": {
+    "given": [
+      {
+        "label": {
+          "name": "tenant",
+          "type": "Tenant"
+        },
+        "conditions": []
+      },
+      {
+        "label": {
+          "name": "approver",
+          "type": "Approver"
+        },
+        "conditions": []
+      }
+    ],
+    "matches": [
+      {
+        "unknown": {
+          "name": "event",
+          "type": "Event"
+        },
+        "conditions": [
+          {
+            "type": "path",
+            "rolesLeft": [
+              {
+                "name": "tenant",
+                "predecessorType": "Tenant"
+              }
+            ],
+            "labelRight": "tenant",
+            "rolesRight": []
+          },
+          {
+            "type": "existential",
+            "exists": false,
+            "matches": [
+              {
+                "unknown": {
+                  "name": "del",
+                  "type": "EventDelete"
+                },
+                "conditions": [
+                  {
+                    "type": "path",
+                    "rolesLeft": [
+                      {
+                        "name": "event",
+                        "predecessorType": "Event"
+                      }
+                    ],
+                    "labelRight": "event",
+                    "rolesRight": []
+                  },
+                  {
+                    "type": "existential",
+                    "exists": false,
+                    "matches": [
+                      {
+                        "unknown": {
+                          "name": "rest",
+                          "type": "EventRestore"
+                        },
+                        "conditions": [
+                          {
+                            "type": "path",
+                            "rolesLeft": [
+                              {
+                                "name": "eventDelete",
+                                "predecessorType": "EventDelete"
+                              }
+                            ],
+                            "labelRight": "del",
+                            "rolesRight": []
+                          },
+                          {
+                            "type": "path",
+                            "rolesLeft": [
+                              {
+                                "name": "approver",
+                                "predecessorType": "Approver"
+                              }
+                            ],
+                            "labelRight": "approver",
+                            "rolesRight": []
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "projection": {
+      "type": "composite",
+      "components": [
+        {
+          "type": "specification",
+          "name": "names",
+          "matches": [
+            {
+              "unknown": {
+                "name": "name",
+                "type": "EventName"
+              },
+              "conditions": [
+                {
+                  "type": "path",
+                  "rolesLeft": [
+                    {
+                      "name": "event",
+                      "predecessorType": "Event"
+                    }
+                  ],
+                  "labelRight": "event",
+                  "rolesRight": []
+                },
+                {
+                  "type": "path",
+                  "rolesLeft": [
+                    {
+                      "name": "approver",
+                      "predecessorType": "Approver"
+                    }
+                  ],
+                  "labelRight": "approver",
+                  "rolesRight": []
+                }
+              ]
+            }
+          ],
+          "projection": {
+            "type": "composite",
+            "components": []
+          }
+        }
+      ]
+    }
+  },
+  "feeds": [
+    {
+      "text": "(tenant: Tenant, approver: Approver) {\n    event: Event [\n        event->tenant: Tenant = tenant\n    ]\n    del: EventDelete [\n        del->event: Event = event\n    ]\n    rest: EventRestore [\n        rest->eventDelete: EventDelete = del\n        rest->approver: Approver = approver\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "tenant",
+              "type": "Tenant"
+            },
+            "conditions": []
+          },
+          {
+            "label": {
+              "name": "approver",
+              "type": "Approver"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "event",
+              "type": "Event"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "tenant",
+                    "predecessorType": "Tenant"
+                  }
+                ],
+                "labelRight": "tenant",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "del",
+              "type": "EventDelete"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "event",
+                    "predecessorType": "Event"
+                  }
+                ],
+                "labelRight": "event",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "rest",
+              "type": "EventRestore"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "eventDelete",
+                    "predecessorType": "EventDelete"
+                  }
+                ],
+                "labelRight": "del",
+                "rolesRight": []
+              },
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "approver",
+                    "predecessorType": "Approver"
+                  }
+                ],
+                "labelRight": "approver",
+                "rolesRight": []
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "Tenant"
+          },
+          {
+            "factIndex": 2,
+            "factType": "Event"
+          },
+          {
+            "factIndex": 3,
+            "factType": "EventDelete"
+          },
+          {
+            "factIndex": 4,
+            "factType": "EventRestore"
+          },
+          {
+            "factIndex": 5,
+            "factType": "Approver"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          },
+          {
+            "factIndex": 5,
+            "inputIndex": 1
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "tenant"
+          },
+          {
+            "edgeIndex": 2,
+            "predecessorFactIndex": 2,
+            "successorFactIndex": 3,
+            "roleName": "event"
+          },
+          {
+            "edgeIndex": 3,
+            "predecessorFactIndex": 3,
+            "successorFactIndex": 4,
+            "roleName": "eventDelete"
+          },
+          {
+            "edgeIndex": 4,
+            "predecessorFactIndex": 5,
+            "successorFactIndex": 4,
+            "roleName": "approver"
+          }
+        ],
+        "notExistsConditions": [],
+        "outputs": [
+          {
+            "factIndex": 2
+          },
+          {
+            "factIndex": 3
+          },
+          {
+            "factIndex": 4
+          }
+        ]
+      }
+    },
+    {
+      "text": "(tenant: Tenant, approver: Approver) {\n    event: Event [\n        event->tenant: Tenant = tenant\n    ]\n    del: EventDelete [\n        del->event: Event = event\n    ]\n    rest: EventRestore [\n        rest->eventDelete: EventDelete = del\n        rest->approver: Approver = approver\n    ]\n    name: EventName [\n        name->event: Event = event\n        name->approver: Approver = approver\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "tenant",
+              "type": "Tenant"
+            },
+            "conditions": []
+          },
+          {
+            "label": {
+              "name": "approver",
+              "type": "Approver"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "event",
+              "type": "Event"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "tenant",
+                    "predecessorType": "Tenant"
+                  }
+                ],
+                "labelRight": "tenant",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "del",
+              "type": "EventDelete"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "event",
+                    "predecessorType": "Event"
+                  }
+                ],
+                "labelRight": "event",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "rest",
+              "type": "EventRestore"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "eventDelete",
+                    "predecessorType": "EventDelete"
+                  }
+                ],
+                "labelRight": "del",
+                "rolesRight": []
+              },
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "approver",
+                    "predecessorType": "Approver"
+                  }
+                ],
+                "labelRight": "approver",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "name",
+              "type": "EventName"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "event",
+                    "predecessorType": "Event"
+                  }
+                ],
+                "labelRight": "event",
+                "rolesRight": []
+              },
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "approver",
+                    "predecessorType": "Approver"
+                  }
+                ],
+                "labelRight": "approver",
+                "rolesRight": []
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "Tenant"
+          },
+          {
+            "factIndex": 2,
+            "factType": "Event"
+          },
+          {
+            "factIndex": 3,
+            "factType": "EventDelete"
+          },
+          {
+            "factIndex": 4,
+            "factType": "EventRestore"
+          },
+          {
+            "factIndex": 5,
+            "factType": "Approver"
+          },
+          {
+            "factIndex": 6,
+            "factType": "EventName"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          },
+          {
+            "factIndex": 5,
+            "inputIndex": 1
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "tenant"
+          },
+          {
+            "edgeIndex": 2,
+            "predecessorFactIndex": 2,
+            "successorFactIndex": 3,
+            "roleName": "event"
+          },
+          {
+            "edgeIndex": 3,
+            "predecessorFactIndex": 3,
+            "successorFactIndex": 4,
+            "roleName": "eventDelete"
+          },
+          {
+            "edgeIndex": 4,
+            "predecessorFactIndex": 5,
+            "successorFactIndex": 4,
+            "roleName": "approver"
+          },
+          {
+            "edgeIndex": 5,
+            "predecessorFactIndex": 2,
+            "successorFactIndex": 6,
+            "roleName": "event"
+          },
+          {
+            "edgeIndex": 6,
+            "predecessorFactIndex": 5,
+            "successorFactIndex": 6,
+            "roleName": "approver"
+          }
+        ],
+        "notExistsConditions": [],
+        "outputs": [
+          {
+            "factIndex": 2
+          },
+          {
+            "factIndex": 3
+          },
+          {
+            "factIndex": 4
+          },
+          {
+            "factIndex": 6
+          }
+        ]
+      }
+    },
+    {
+      "text": "(tenant: Tenant, approver: Approver) {\n    event: Event [\n        event->tenant: Tenant = tenant\n    ]\n    del: EventDelete [\n        del->event: Event = event\n        !E {\n            rest: EventRestore [\n                rest->eventDelete: EventDelete = del\n                rest->approver: Approver = approver\n            ]\n        }\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "tenant",
+              "type": "Tenant"
+            },
+            "conditions": []
+          },
+          {
+            "label": {
+              "name": "approver",
+              "type": "Approver"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "event",
+              "type": "Event"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "tenant",
+                    "predecessorType": "Tenant"
+                  }
+                ],
+                "labelRight": "tenant",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "del",
+              "type": "EventDelete"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "event",
+                    "predecessorType": "Event"
+                  }
+                ],
+                "labelRight": "event",
+                "rolesRight": []
+              },
+              {
+                "type": "existential",
+                "exists": false,
+                "matches": [
+                  {
+                    "unknown": {
+                      "name": "rest",
+                      "type": "EventRestore"
+                    },
+                    "conditions": [
+                      {
+                        "type": "path",
+                        "rolesLeft": [
+                          {
+                            "name": "eventDelete",
+                            "predecessorType": "EventDelete"
+                          }
+                        ],
+                        "labelRight": "del",
+                        "rolesRight": []
+                      },
+                      {
+                        "type": "path",
+                        "rolesLeft": [
+                          {
+                            "name": "approver",
+                            "predecessorType": "Approver"
+                          }
+                        ],
+                        "labelRight": "approver",
+                        "rolesRight": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "Tenant"
+          },
+          {
+            "factIndex": 2,
+            "factType": "Event"
+          },
+          {
+            "factIndex": 3,
+            "factType": "EventDelete"
+          },
+          {
+            "factIndex": 4,
+            "factType": "EventRestore"
+          },
+          {
+            "factIndex": 5,
+            "factType": "Approver"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          },
+          {
+            "factIndex": 5,
+            "inputIndex": 1
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "tenant"
+          },
+          {
+            "edgeIndex": 2,
+            "predecessorFactIndex": 2,
+            "successorFactIndex": 3,
+            "roleName": "event"
+          }
+        ],
+        "notExistsConditions": [
+          {
+            "edges": [
+              {
+                "edgeIndex": 3,
+                "predecessorFactIndex": 3,
+                "successorFactIndex": 4,
+                "roleName": "eventDelete"
+              },
+              {
+                "edgeIndex": 4,
+                "predecessorFactIndex": 5,
+                "successorFactIndex": 4,
+                "roleName": "approver"
+              }
+            ],
+            "notExistsConditions": []
+          }
+        ],
+        "outputs": [
+          {
+            "factIndex": 2
+          },
+          {
+            "factIndex": 3
+          }
+        ]
+      }
+    },
+    {
+      "text": "(tenant: Tenant) {\n    event: Event [\n        event->tenant: Tenant = tenant\n        !E {\n            del: EventDelete [\n                del->event: Event = event\n            ]\n        }\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "tenant",
+              "type": "Tenant"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "event",
+              "type": "Event"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "tenant",
+                    "predecessorType": "Tenant"
+                  }
+                ],
+                "labelRight": "tenant",
+                "rolesRight": []
+              },
+              {
+                "type": "existential",
+                "exists": false,
+                "matches": [
+                  {
+                    "unknown": {
+                      "name": "del",
+                      "type": "EventDelete"
+                    },
+                    "conditions": [
+                      {
+                        "type": "path",
+                        "rolesLeft": [
+                          {
+                            "name": "event",
+                            "predecessorType": "Event"
+                          }
+                        ],
+                        "labelRight": "event",
+                        "rolesRight": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "Tenant"
+          },
+          {
+            "factIndex": 2,
+            "factType": "Event"
+          },
+          {
+            "factIndex": 3,
+            "factType": "EventDelete"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "tenant"
+          }
+        ],
+        "notExistsConditions": [
+          {
+            "edges": [
+              {
+                "edgeIndex": 2,
+                "predecessorFactIndex": 2,
+                "successorFactIndex": 3,
+                "roleName": "event"
+              }
+            ],
+            "notExistsConditions": []
+          }
+        ],
+        "outputs": [
+          {
+            "factIndex": 2
+          }
+        ]
+      }
+    },
+    {
+      "text": "(tenant: Tenant, approver: Approver) {\n    event: Event [\n        event->tenant: Tenant = tenant\n        !E {\n            del: EventDelete [\n                del->event: Event = event\n            ]\n        }\n    ]\n    name: EventName [\n        name->event: Event = event\n        name->approver: Approver = approver\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "tenant",
+              "type": "Tenant"
+            },
+            "conditions": []
+          },
+          {
+            "label": {
+              "name": "approver",
+              "type": "Approver"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "event",
+              "type": "Event"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "tenant",
+                    "predecessorType": "Tenant"
+                  }
+                ],
+                "labelRight": "tenant",
+                "rolesRight": []
+              },
+              {
+                "type": "existential",
+                "exists": false,
+                "matches": [
+                  {
+                    "unknown": {
+                      "name": "del",
+                      "type": "EventDelete"
+                    },
+                    "conditions": [
+                      {
+                        "type": "path",
+                        "rolesLeft": [
+                          {
+                            "name": "event",
+                            "predecessorType": "Event"
+                          }
+                        ],
+                        "labelRight": "event",
+                        "rolesRight": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "name",
+              "type": "EventName"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "event",
+                    "predecessorType": "Event"
+                  }
+                ],
+                "labelRight": "event",
+                "rolesRight": []
+              },
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "approver",
+                    "predecessorType": "Approver"
+                  }
+                ],
+                "labelRight": "approver",
+                "rolesRight": []
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "Tenant"
+          },
+          {
+            "factIndex": 2,
+            "factType": "Event"
+          },
+          {
+            "factIndex": 3,
+            "factType": "EventDelete"
+          },
+          {
+            "factIndex": 4,
+            "factType": "EventName"
+          },
+          {
+            "factIndex": 5,
+            "factType": "Approver"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          },
+          {
+            "factIndex": 5,
+            "inputIndex": 1
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "tenant"
+          },
+          {
+            "edgeIndex": 3,
+            "predecessorFactIndex": 2,
+            "successorFactIndex": 4,
+            "roleName": "event"
+          },
+          {
+            "edgeIndex": 4,
+            "predecessorFactIndex": 5,
+            "successorFactIndex": 4,
+            "roleName": "approver"
+          }
+        ],
+        "notExistsConditions": [
+          {
+            "edges": [
+              {
+                "edgeIndex": 2,
+                "predecessorFactIndex": 2,
+                "successorFactIndex": 3,
+                "roleName": "event"
+              }
+            ],
+            "notExistsConditions": []
+          }
+        ],
+        "outputs": [
+          {
+            "factIndex": 2
+          },
+          {
+            "factIndex": 4
+          }
+        ]
+      }
+    }
+  ]
+}

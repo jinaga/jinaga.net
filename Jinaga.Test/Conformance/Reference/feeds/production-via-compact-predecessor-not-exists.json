@@ -1,0 +1,756 @@
+{
+  "name": "production-via-compact-predecessor-not-exists",
+  "text": "(p1: Example.Tenant) {\n    u1: Example.AttendeeInvitationCode [\n        u1->tenant: Example.Tenant = p1\n    ]\n    u2: Example.AttendeeInvitation [\n        u2->code: Example.AttendeeInvitationCode = u1\n        !E {\n            u3: Example.Event [\n                u3 = u2->accessPath: Example.AttendeeAccessPath->event: Example.Event\n            ]\n            u4: Example.Event.Delete [\n                u4->event: Example.Event = u3\n                !E {\n                    u5: Example.Event.Restore [\n                        u5->eventDelete: Example.Event.Delete = u4\n                    ]\n                }\n            ]\n        }\n    ]\n} => u2\n",
+  "specification": {
+    "given": [
+      {
+        "label": {
+          "name": "p1",
+          "type": "Example.Tenant"
+        },
+        "conditions": []
+      }
+    ],
+    "matches": [
+      {
+        "unknown": {
+          "name": "u1",
+          "type": "Example.AttendeeInvitationCode"
+        },
+        "conditions": [
+          {
+            "type": "path",
+            "rolesLeft": [
+              {
+                "name": "tenant",
+                "predecessorType": "Example.Tenant"
+              }
+            ],
+            "labelRight": "p1",
+            "rolesRight": []
+          }
+        ]
+      },
+      {
+        "unknown": {
+          "name": "u2",
+          "type": "Example.AttendeeInvitation"
+        },
+        "conditions": [
+          {
+            "type": "path",
+            "rolesLeft": [
+              {
+                "name": "code",
+                "predecessorType": "Example.AttendeeInvitationCode"
+              }
+            ],
+            "labelRight": "u1",
+            "rolesRight": []
+          },
+          {
+            "type": "existential",
+            "exists": false,
+            "matches": [
+              {
+                "unknown": {
+                  "name": "u3",
+                  "type": "Example.Event"
+                },
+                "conditions": [
+                  {
+                    "type": "path",
+                    "rolesLeft": [],
+                    "labelRight": "u2",
+                    "rolesRight": [
+                      {
+                        "name": "accessPath",
+                        "predecessorType": "Example.AttendeeAccessPath"
+                      },
+                      {
+                        "name": "event",
+                        "predecessorType": "Example.Event"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "unknown": {
+                  "name": "u4",
+                  "type": "Example.Event.Delete"
+                },
+                "conditions": [
+                  {
+                    "type": "path",
+                    "rolesLeft": [
+                      {
+                        "name": "event",
+                        "predecessorType": "Example.Event"
+                      }
+                    ],
+                    "labelRight": "u3",
+                    "rolesRight": []
+                  },
+                  {
+                    "type": "existential",
+                    "exists": false,
+                    "matches": [
+                      {
+                        "unknown": {
+                          "name": "u5",
+                          "type": "Example.Event.Restore"
+                        },
+                        "conditions": [
+                          {
+                            "type": "path",
+                            "rolesLeft": [
+                              {
+                                "name": "eventDelete",
+                                "predecessorType": "Example.Event.Delete"
+                              }
+                            ],
+                            "labelRight": "u4",
+                            "rolesRight": []
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "projection": {
+      "type": "fact",
+      "label": "u2"
+    }
+  },
+  "feeds": [
+    {
+      "text": "(p1: Example.Tenant) {\n    u1: Example.AttendeeInvitationCode [\n        u1->tenant: Example.Tenant = p1\n    ]\n    u2: Example.AttendeeInvitation [\n        u2->code: Example.AttendeeInvitationCode = u1\n    ]\n    u3: Example.Event [\n        u3 = u2->accessPath: Example.AttendeeAccessPath->event: Example.Event\n    ]\n    u4: Example.Event.Delete [\n        u4->event: Example.Event = u3\n    ]\n    u5: Example.Event.Restore [\n        u5->eventDelete: Example.Event.Delete = u4\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "p1",
+              "type": "Example.Tenant"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "u1",
+              "type": "Example.AttendeeInvitationCode"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "tenant",
+                    "predecessorType": "Example.Tenant"
+                  }
+                ],
+                "labelRight": "p1",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "u2",
+              "type": "Example.AttendeeInvitation"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "code",
+                    "predecessorType": "Example.AttendeeInvitationCode"
+                  }
+                ],
+                "labelRight": "u1",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "u3",
+              "type": "Example.Event"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [],
+                "labelRight": "u2",
+                "rolesRight": [
+                  {
+                    "name": "accessPath",
+                    "predecessorType": "Example.AttendeeAccessPath"
+                  },
+                  {
+                    "name": "event",
+                    "predecessorType": "Example.Event"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "u4",
+              "type": "Example.Event.Delete"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "event",
+                    "predecessorType": "Example.Event"
+                  }
+                ],
+                "labelRight": "u3",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "u5",
+              "type": "Example.Event.Restore"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "eventDelete",
+                    "predecessorType": "Example.Event.Delete"
+                  }
+                ],
+                "labelRight": "u4",
+                "rolesRight": []
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "Example.Tenant"
+          },
+          {
+            "factIndex": 2,
+            "factType": "Example.AttendeeInvitationCode"
+          },
+          {
+            "factIndex": 3,
+            "factType": "Example.AttendeeInvitation"
+          },
+          {
+            "factIndex": 4,
+            "factType": "Example.AttendeeAccessPath"
+          },
+          {
+            "factIndex": 5,
+            "factType": "Example.Event"
+          },
+          {
+            "factIndex": 6,
+            "factType": "Example.Event.Delete"
+          },
+          {
+            "factIndex": 7,
+            "factType": "Example.Event.Restore"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "tenant"
+          },
+          {
+            "edgeIndex": 2,
+            "predecessorFactIndex": 2,
+            "successorFactIndex": 3,
+            "roleName": "code"
+          },
+          {
+            "edgeIndex": 3,
+            "predecessorFactIndex": 4,
+            "successorFactIndex": 3,
+            "roleName": "accessPath"
+          },
+          {
+            "edgeIndex": 4,
+            "predecessorFactIndex": 5,
+            "successorFactIndex": 4,
+            "roleName": "event"
+          },
+          {
+            "edgeIndex": 5,
+            "predecessorFactIndex": 5,
+            "successorFactIndex": 6,
+            "roleName": "event"
+          },
+          {
+            "edgeIndex": 6,
+            "predecessorFactIndex": 6,
+            "successorFactIndex": 7,
+            "roleName": "eventDelete"
+          }
+        ],
+        "notExistsConditions": [],
+        "outputs": [
+          {
+            "factIndex": 2
+          },
+          {
+            "factIndex": 3
+          },
+          {
+            "factIndex": 5
+          },
+          {
+            "factIndex": 6
+          },
+          {
+            "factIndex": 7
+          }
+        ]
+      }
+    },
+    {
+      "text": "(p1: Example.Tenant) {\n    u1: Example.AttendeeInvitationCode [\n        u1->tenant: Example.Tenant = p1\n    ]\n    u2: Example.AttendeeInvitation [\n        u2->code: Example.AttendeeInvitationCode = u1\n    ]\n    u3: Example.Event [\n        u3 = u2->accessPath: Example.AttendeeAccessPath->event: Example.Event\n    ]\n    u4: Example.Event.Delete [\n        u4->event: Example.Event = u3\n        !E {\n            u5: Example.Event.Restore [\n                u5->eventDelete: Example.Event.Delete = u4\n            ]\n        }\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "p1",
+              "type": "Example.Tenant"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "u1",
+              "type": "Example.AttendeeInvitationCode"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "tenant",
+                    "predecessorType": "Example.Tenant"
+                  }
+                ],
+                "labelRight": "p1",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "u2",
+              "type": "Example.AttendeeInvitation"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "code",
+                    "predecessorType": "Example.AttendeeInvitationCode"
+                  }
+                ],
+                "labelRight": "u1",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "u3",
+              "type": "Example.Event"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [],
+                "labelRight": "u2",
+                "rolesRight": [
+                  {
+                    "name": "accessPath",
+                    "predecessorType": "Example.AttendeeAccessPath"
+                  },
+                  {
+                    "name": "event",
+                    "predecessorType": "Example.Event"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "u4",
+              "type": "Example.Event.Delete"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "event",
+                    "predecessorType": "Example.Event"
+                  }
+                ],
+                "labelRight": "u3",
+                "rolesRight": []
+              },
+              {
+                "type": "existential",
+                "exists": false,
+                "matches": [
+                  {
+                    "unknown": {
+                      "name": "u5",
+                      "type": "Example.Event.Restore"
+                    },
+                    "conditions": [
+                      {
+                        "type": "path",
+                        "rolesLeft": [
+                          {
+                            "name": "eventDelete",
+                            "predecessorType": "Example.Event.Delete"
+                          }
+                        ],
+                        "labelRight": "u4",
+                        "rolesRight": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "Example.Tenant"
+          },
+          {
+            "factIndex": 2,
+            "factType": "Example.AttendeeInvitationCode"
+          },
+          {
+            "factIndex": 3,
+            "factType": "Example.AttendeeInvitation"
+          },
+          {
+            "factIndex": 4,
+            "factType": "Example.AttendeeAccessPath"
+          },
+          {
+            "factIndex": 5,
+            "factType": "Example.Event"
+          },
+          {
+            "factIndex": 6,
+            "factType": "Example.Event.Delete"
+          },
+          {
+            "factIndex": 7,
+            "factType": "Example.Event.Restore"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "tenant"
+          },
+          {
+            "edgeIndex": 2,
+            "predecessorFactIndex": 2,
+            "successorFactIndex": 3,
+            "roleName": "code"
+          },
+          {
+            "edgeIndex": 3,
+            "predecessorFactIndex": 4,
+            "successorFactIndex": 3,
+            "roleName": "accessPath"
+          },
+          {
+            "edgeIndex": 4,
+            "predecessorFactIndex": 5,
+            "successorFactIndex": 4,
+            "roleName": "event"
+          },
+          {
+            "edgeIndex": 5,
+            "predecessorFactIndex": 5,
+            "successorFactIndex": 6,
+            "roleName": "event"
+          }
+        ],
+        "notExistsConditions": [
+          {
+            "edges": [
+              {
+                "edgeIndex": 6,
+                "predecessorFactIndex": 6,
+                "successorFactIndex": 7,
+                "roleName": "eventDelete"
+              }
+            ],
+            "notExistsConditions": []
+          }
+        ],
+        "outputs": [
+          {
+            "factIndex": 2
+          },
+          {
+            "factIndex": 3
+          },
+          {
+            "factIndex": 5
+          },
+          {
+            "factIndex": 6
+          }
+        ]
+      }
+    },
+    {
+      "text": "(p1: Example.Tenant) {\n    u1: Example.AttendeeInvitationCode [\n        u1->tenant: Example.Tenant = p1\n    ]\n    u2: Example.AttendeeInvitation [\n        u2->code: Example.AttendeeInvitationCode = u1\n        !E {\n            u3: Example.Event [\n                u3 = u2->accessPath: Example.AttendeeAccessPath->event: Example.Event\n            ]\n            u4: Example.Event.Delete [\n                u4->event: Example.Event = u3\n            ]\n        }\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "p1",
+              "type": "Example.Tenant"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "u1",
+              "type": "Example.AttendeeInvitationCode"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "tenant",
+                    "predecessorType": "Example.Tenant"
+                  }
+                ],
+                "labelRight": "p1",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "u2",
+              "type": "Example.AttendeeInvitation"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "code",
+                    "predecessorType": "Example.AttendeeInvitationCode"
+                  }
+                ],
+                "labelRight": "u1",
+                "rolesRight": []
+              },
+              {
+                "type": "existential",
+                "exists": false,
+                "matches": [
+                  {
+                    "unknown": {
+                      "name": "u3",
+                      "type": "Example.Event"
+                    },
+                    "conditions": [
+                      {
+                        "type": "path",
+                        "rolesLeft": [],
+                        "labelRight": "u2",
+                        "rolesRight": [
+                          {
+                            "name": "accessPath",
+                            "predecessorType": "Example.AttendeeAccessPath"
+                          },
+                          {
+                            "name": "event",
+                            "predecessorType": "Example.Event"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "unknown": {
+                      "name": "u4",
+                      "type": "Example.Event.Delete"
+                    },
+                    "conditions": [
+                      {
+                        "type": "path",
+                        "rolesLeft": [
+                          {
+                            "name": "event",
+                            "predecessorType": "Example.Event"
+                          }
+                        ],
+                        "labelRight": "u3",
+                        "rolesRight": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "Example.Tenant"
+          },
+          {
+            "factIndex": 2,
+            "factType": "Example.AttendeeInvitationCode"
+          },
+          {
+            "factIndex": 3,
+            "factType": "Example.AttendeeInvitation"
+          },
+          {
+            "factIndex": 4,
+            "factType": "Example.AttendeeAccessPath"
+          },
+          {
+            "factIndex": 5,
+            "factType": "Example.Event"
+          },
+          {
+            "factIndex": 6,
+            "factType": "Example.Event.Delete"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "tenant"
+          },
+          {
+            "edgeIndex": 2,
+            "predecessorFactIndex": 2,
+            "successorFactIndex": 3,
+            "roleName": "code"
+          }
+        ],
+        "notExistsConditions": [
+          {
+            "edges": [
+              {
+                "edgeIndex": 3,
+                "predecessorFactIndex": 4,
+                "successorFactIndex": 3,
+                "roleName": "accessPath"
+              },
+              {
+                "edgeIndex": 4,
+                "predecessorFactIndex": 5,
+                "successorFactIndex": 4,
+                "roleName": "event"
+              },
+              {
+                "edgeIndex": 5,
+                "predecessorFactIndex": 5,
+                "successorFactIndex": 6,
+                "roleName": "event"
+              }
+            ],
+            "notExistsConditions": []
+          }
+        ],
+        "outputs": [
+          {
+            "factIndex": 2
+          },
+          {
+            "factIndex": 3
+          }
+        ]
+      }
+    }
+  ]
+}

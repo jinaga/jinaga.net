@@ -1,0 +1,371 @@
+{
+  "name": "sibling-negative-after-positive",
+  "text": "(root: Root) {\n    item: Item [\n        item->root: Root = root\n        E {\n            tag: Tag [\n                tag->item: Item = item\n            ]\n        }\n        !E {\n            del: Deleted [\n                del->item: Item = item\n            ]\n        }\n    ]\n}\n",
+  "specification": {
+    "given": [
+      {
+        "label": {
+          "name": "root",
+          "type": "Root"
+        },
+        "conditions": []
+      }
+    ],
+    "matches": [
+      {
+        "unknown": {
+          "name": "item",
+          "type": "Item"
+        },
+        "conditions": [
+          {
+            "type": "path",
+            "rolesLeft": [
+              {
+                "name": "root",
+                "predecessorType": "Root"
+              }
+            ],
+            "labelRight": "root",
+            "rolesRight": []
+          },
+          {
+            "type": "existential",
+            "exists": true,
+            "matches": [
+              {
+                "unknown": {
+                  "name": "tag",
+                  "type": "Tag"
+                },
+                "conditions": [
+                  {
+                    "type": "path",
+                    "rolesLeft": [
+                      {
+                        "name": "item",
+                        "predecessorType": "Item"
+                      }
+                    ],
+                    "labelRight": "item",
+                    "rolesRight": []
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "existential",
+            "exists": false,
+            "matches": [
+              {
+                "unknown": {
+                  "name": "del",
+                  "type": "Deleted"
+                },
+                "conditions": [
+                  {
+                    "type": "path",
+                    "rolesLeft": [
+                      {
+                        "name": "item",
+                        "predecessorType": "Item"
+                      }
+                    ],
+                    "labelRight": "item",
+                    "rolesRight": []
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "projection": {
+      "type": "composite",
+      "components": []
+    }
+  },
+  "feeds": [
+    {
+      "text": "(root: Root) {\n    item: Item [\n        item->root: Root = root\n    ]\n    tag: Tag [\n        tag->item: Item = item\n    ]\n    del: Deleted [\n        del->item: Item = item\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "root",
+              "type": "Root"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "item",
+              "type": "Item"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "root",
+                    "predecessorType": "Root"
+                  }
+                ],
+                "labelRight": "root",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "tag",
+              "type": "Tag"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "item",
+                    "predecessorType": "Item"
+                  }
+                ],
+                "labelRight": "item",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "del",
+              "type": "Deleted"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "item",
+                    "predecessorType": "Item"
+                  }
+                ],
+                "labelRight": "item",
+                "rolesRight": []
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "Root"
+          },
+          {
+            "factIndex": 2,
+            "factType": "Item"
+          },
+          {
+            "factIndex": 3,
+            "factType": "Tag"
+          },
+          {
+            "factIndex": 4,
+            "factType": "Deleted"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "root"
+          },
+          {
+            "edgeIndex": 2,
+            "predecessorFactIndex": 2,
+            "successorFactIndex": 3,
+            "roleName": "item"
+          },
+          {
+            "edgeIndex": 3,
+            "predecessorFactIndex": 2,
+            "successorFactIndex": 4,
+            "roleName": "item"
+          }
+        ],
+        "notExistsConditions": [],
+        "outputs": [
+          {
+            "factIndex": 2
+          },
+          {
+            "factIndex": 3
+          },
+          {
+            "factIndex": 4
+          }
+        ]
+      }
+    },
+    {
+      "text": "(root: Root) {\n    item: Item [\n        item->root: Root = root\n        !E {\n            del: Deleted [\n                del->item: Item = item\n            ]\n        }\n    ]\n    tag: Tag [\n        tag->item: Item = item\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "root",
+              "type": "Root"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "item",
+              "type": "Item"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "root",
+                    "predecessorType": "Root"
+                  }
+                ],
+                "labelRight": "root",
+                "rolesRight": []
+              },
+              {
+                "type": "existential",
+                "exists": false,
+                "matches": [
+                  {
+                    "unknown": {
+                      "name": "del",
+                      "type": "Deleted"
+                    },
+                    "conditions": [
+                      {
+                        "type": "path",
+                        "rolesLeft": [
+                          {
+                            "name": "item",
+                            "predecessorType": "Item"
+                          }
+                        ],
+                        "labelRight": "item",
+                        "rolesRight": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "tag",
+              "type": "Tag"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "item",
+                    "predecessorType": "Item"
+                  }
+                ],
+                "labelRight": "item",
+                "rolesRight": []
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "Root"
+          },
+          {
+            "factIndex": 2,
+            "factType": "Item"
+          },
+          {
+            "factIndex": 3,
+            "factType": "Deleted"
+          },
+          {
+            "factIndex": 4,
+            "factType": "Tag"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "root"
+          },
+          {
+            "edgeIndex": 3,
+            "predecessorFactIndex": 2,
+            "successorFactIndex": 4,
+            "roleName": "item"
+          }
+        ],
+        "notExistsConditions": [
+          {
+            "edges": [
+              {
+                "edgeIndex": 2,
+                "predecessorFactIndex": 2,
+                "successorFactIndex": 3,
+                "roleName": "item"
+              }
+            ],
+            "notExistsConditions": []
+          }
+        ],
+        "outputs": [
+          {
+            "factIndex": 2
+          },
+          {
+            "factIndex": 4
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,572 @@
+{
+  "name": "competitor-names-of-finalists",
+  "text": "(p1: Event) {\n} => {\n    finalists = {\n        u1: Finalist [\n            u1->event: Event = p1\n        ]\n        u2: Competitor [\n            u2 = u1->competitor: Competitor\n        ]\n    } => {\n        competitorNames = {\n            u3: CompetitorName [\n                u3->competitor: Competitor = u2\n                !E {\n                    u4: CompetitorName [\n                        u4->prior: CompetitorName = u3\n                    ]\n                }\n            ]\n        } => u3\n    }\n}\n",
+  "specification": {
+    "given": [
+      {
+        "label": {
+          "name": "p1",
+          "type": "Event"
+        },
+        "conditions": []
+      }
+    ],
+    "matches": [],
+    "projection": {
+      "type": "composite",
+      "components": [
+        {
+          "type": "specification",
+          "name": "finalists",
+          "matches": [
+            {
+              "unknown": {
+                "name": "u1",
+                "type": "Finalist"
+              },
+              "conditions": [
+                {
+                  "type": "path",
+                  "rolesLeft": [
+                    {
+                      "name": "event",
+                      "predecessorType": "Event"
+                    }
+                  ],
+                  "labelRight": "p1",
+                  "rolesRight": []
+                }
+              ]
+            },
+            {
+              "unknown": {
+                "name": "u2",
+                "type": "Competitor"
+              },
+              "conditions": [
+                {
+                  "type": "path",
+                  "rolesLeft": [],
+                  "labelRight": "u1",
+                  "rolesRight": [
+                    {
+                      "name": "competitor",
+                      "predecessorType": "Competitor"
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "projection": {
+            "type": "composite",
+            "components": [
+              {
+                "type": "specification",
+                "name": "competitorNames",
+                "matches": [
+                  {
+                    "unknown": {
+                      "name": "u3",
+                      "type": "CompetitorName"
+                    },
+                    "conditions": [
+                      {
+                        "type": "path",
+                        "rolesLeft": [
+                          {
+                            "name": "competitor",
+                            "predecessorType": "Competitor"
+                          }
+                        ],
+                        "labelRight": "u2",
+                        "rolesRight": []
+                      },
+                      {
+                        "type": "existential",
+                        "exists": false,
+                        "matches": [
+                          {
+                            "unknown": {
+                              "name": "u4",
+                              "type": "CompetitorName"
+                            },
+                            "conditions": [
+                              {
+                                "type": "path",
+                                "rolesLeft": [
+                                  {
+                                    "name": "prior",
+                                    "predecessorType": "CompetitorName"
+                                  }
+                                ],
+                                "labelRight": "u3",
+                                "rolesRight": []
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ],
+                "projection": {
+                  "type": "fact",
+                  "label": "u3"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "feeds": [
+    {
+      "text": "(p1: Event) {\n    u1: Finalist [\n        u1->event: Event = p1\n    ]\n    u2: Competitor [\n        u2 = u1->competitor: Competitor\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "p1",
+              "type": "Event"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "u1",
+              "type": "Finalist"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "event",
+                    "predecessorType": "Event"
+                  }
+                ],
+                "labelRight": "p1",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "u2",
+              "type": "Competitor"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [],
+                "labelRight": "u1",
+                "rolesRight": [
+                  {
+                    "name": "competitor",
+                    "predecessorType": "Competitor"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "Event"
+          },
+          {
+            "factIndex": 2,
+            "factType": "Finalist"
+          },
+          {
+            "factIndex": 3,
+            "factType": "Competitor"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "event"
+          },
+          {
+            "edgeIndex": 2,
+            "predecessorFactIndex": 3,
+            "successorFactIndex": 2,
+            "roleName": "competitor"
+          }
+        ],
+        "notExistsConditions": [],
+        "outputs": [
+          {
+            "factIndex": 2
+          },
+          {
+            "factIndex": 3
+          }
+        ]
+      }
+    },
+    {
+      "text": "(p1: Event) {\n    u1: Finalist [\n        u1->event: Event = p1\n    ]\n    u2: Competitor [\n        u2 = u1->competitor: Competitor\n    ]\n    u3: CompetitorName [\n        u3->competitor: Competitor = u2\n    ]\n    u4: CompetitorName [\n        u4->prior: CompetitorName = u3\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "p1",
+              "type": "Event"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "u1",
+              "type": "Finalist"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "event",
+                    "predecessorType": "Event"
+                  }
+                ],
+                "labelRight": "p1",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "u2",
+              "type": "Competitor"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [],
+                "labelRight": "u1",
+                "rolesRight": [
+                  {
+                    "name": "competitor",
+                    "predecessorType": "Competitor"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "u3",
+              "type": "CompetitorName"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "competitor",
+                    "predecessorType": "Competitor"
+                  }
+                ],
+                "labelRight": "u2",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "u4",
+              "type": "CompetitorName"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "prior",
+                    "predecessorType": "CompetitorName"
+                  }
+                ],
+                "labelRight": "u3",
+                "rolesRight": []
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "Event"
+          },
+          {
+            "factIndex": 2,
+            "factType": "Finalist"
+          },
+          {
+            "factIndex": 3,
+            "factType": "Competitor"
+          },
+          {
+            "factIndex": 4,
+            "factType": "CompetitorName"
+          },
+          {
+            "factIndex": 5,
+            "factType": "CompetitorName"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "event"
+          },
+          {
+            "edgeIndex": 2,
+            "predecessorFactIndex": 3,
+            "successorFactIndex": 2,
+            "roleName": "competitor"
+          },
+          {
+            "edgeIndex": 3,
+            "predecessorFactIndex": 3,
+            "successorFactIndex": 4,
+            "roleName": "competitor"
+          },
+          {
+            "edgeIndex": 4,
+            "predecessorFactIndex": 4,
+            "successorFactIndex": 5,
+            "roleName": "prior"
+          }
+        ],
+        "notExistsConditions": [],
+        "outputs": [
+          {
+            "factIndex": 2
+          },
+          {
+            "factIndex": 3
+          },
+          {
+            "factIndex": 4
+          },
+          {
+            "factIndex": 5
+          }
+        ]
+      }
+    },
+    {
+      "text": "(p1: Event) {\n    u1: Finalist [\n        u1->event: Event = p1\n    ]\n    u2: Competitor [\n        u2 = u1->competitor: Competitor\n    ]\n    u3: CompetitorName [\n        u3->competitor: Competitor = u2\n        !E {\n            u4: CompetitorName [\n                u4->prior: CompetitorName = u3\n            ]\n        }\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "p1",
+              "type": "Event"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "u1",
+              "type": "Finalist"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "event",
+                    "predecessorType": "Event"
+                  }
+                ],
+                "labelRight": "p1",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "u2",
+              "type": "Competitor"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [],
+                "labelRight": "u1",
+                "rolesRight": [
+                  {
+                    "name": "competitor",
+                    "predecessorType": "Competitor"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "u3",
+              "type": "CompetitorName"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "competitor",
+                    "predecessorType": "Competitor"
+                  }
+                ],
+                "labelRight": "u2",
+                "rolesRight": []
+              },
+              {
+                "type": "existential",
+                "exists": false,
+                "matches": [
+                  {
+                    "unknown": {
+                      "name": "u4",
+                      "type": "CompetitorName"
+                    },
+                    "conditions": [
+                      {
+                        "type": "path",
+                        "rolesLeft": [
+                          {
+                            "name": "prior",
+                            "predecessorType": "CompetitorName"
+                          }
+                        ],
+                        "labelRight": "u3",
+                        "rolesRight": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "Event"
+          },
+          {
+            "factIndex": 2,
+            "factType": "Finalist"
+          },
+          {
+            "factIndex": 3,
+            "factType": "Competitor"
+          },
+          {
+            "factIndex": 4,
+            "factType": "CompetitorName"
+          },
+          {
+            "factIndex": 5,
+            "factType": "CompetitorName"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "event"
+          },
+          {
+            "edgeIndex": 2,
+            "predecessorFactIndex": 3,
+            "successorFactIndex": 2,
+            "roleName": "competitor"
+          },
+          {
+            "edgeIndex": 3,
+            "predecessorFactIndex": 3,
+            "successorFactIndex": 4,
+            "roleName": "competitor"
+          }
+        ],
+        "notExistsConditions": [
+          {
+            "edges": [
+              {
+                "edgeIndex": 4,
+                "predecessorFactIndex": 4,
+                "successorFactIndex": 5,
+                "roleName": "prior"
+              }
+            ],
+            "notExistsConditions": []
+          }
+        ],
+        "outputs": [
+          {
+            "factIndex": 2
+          },
+          {
+            "factIndex": 3
+          },
+          {
+            "factIndex": 4
+          }
+        ]
+      }
+    }
+  ]
+}
