@@ -73,8 +73,9 @@ namespace Jinaga.Managers
         ///
         /// A fact another user saved stays in the queue, unless it is a <c>Jinaga.User</c>,
         /// which anybody may introduce. Held facts are not counted in the queue length that
-        /// <see cref="JinagaStatus.QueueLength"/> reports: when only held facts remain, the
-        /// status reports nothing pending.
+        /// <see cref="JinagaStatus.QueueLength"/> reports, which is what this pass can send;
+        /// they are counted in <see cref="JinagaStatus.HeldLength"/>, which every status this
+        /// pass reports carries, including the one it reports when nothing is sendable.
         /// </summary>
         public async Task Save(CancellationToken cancellationToken)
         {
@@ -82,16 +83,19 @@ namespace Jinaga.Managers
             // that this user is still the one logged in, so a fact cannot leave
             // under the token of a user who logged in while it was being sent.
             var uploader = identitySource?.CurrentUser?.publicKey;
-            var queue = await store.GetQueue().ConfigureAwait(false);
-            queue = await SelectSendable(queue, uploader, cancellationToken).ConfigureAwait(false);
+            var classification = await Classify(uploader, cancellationToken).ConfigureAwait(false);
+            // The one classification this pass reports from, so the queue length and the held
+            // length cannot come from two different readings of the queue.
+            int heldLength = classification.Held.Count;
+            var queue = classification.Sendable;
             if (queue.Facts.Count == 0)
             {
-                SetSaveStatus(false, null, 0);
+                SetSaveStatus(false, null, 0, heldLength);
                 return;
             }
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
             logger.LogInformation("Save started with {0} facts.", queue.Facts.Count);
-            SetSaveStatus(true, null, queue.Facts.Count);
+            SetSaveStatus(true, null, queue.Facts.Count, heldLength);
 
             int remaining = queue.Facts.Count;
             try
@@ -114,11 +118,11 @@ namespace Jinaga.Managers
                     remaining -= batch.Count;
                     if (remaining > 0)
                     {
-                        SetSaveStatus(true, null, remaining);
+                        SetSaveStatus(true, null, remaining, heldLength);
                     }
                 }
                 logger.LogInformation("Save completed after {elapsedMilliseconds} ms.", stopwatch.ElapsedMilliseconds);
-                SetSaveStatus(false, null, 0);
+                SetSaveStatus(false, null, 0, heldLength);
             }
             catch (UploaderChangedException)
             {
@@ -126,18 +130,43 @@ namespace Jinaga.Managers
                 // the change of user has already scheduled the queue to be
                 // processed again under whoever is logged in now.
                 logger.LogInformation("Save stopped after {elapsedMilliseconds} ms because the user changed.", stopwatch.ElapsedMilliseconds);
-                SetSaveStatus(false, null, remaining);
+                SetSaveStatus(false, null, remaining, heldLength);
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Save failed after {elapsedMilliseconds} ms.", stopwatch.ElapsedMilliseconds);
-                SetSaveStatus(false, ex, remaining);
+                SetSaveStatus(false, ex, remaining, heldLength);
                 throw;
             }
         }
 
         /// <summary>
-        /// The queued facts that may be uploaded under <paramref name="uploader"/>.
+        /// Counts the facts waiting in the outbound queue, as the queue stands now and for the
+        /// user who is logged in now. Reads the store only; it makes no network call.
+        /// </summary>
+        public async Task<UnsentFacts> GetUnsentFacts(CancellationToken cancellationToken)
+        {
+            var uploader = identitySource?.CurrentUser?.publicKey;
+            var classification = await Classify(uploader, cancellationToken).ConfigureAwait(false);
+            return new UnsentFacts(
+                classification.Total,
+                classification.Held.Count,
+                classification.SavedByUploader.Count);
+        }
+
+        /// <summary>
+        /// How the outbound queue divides for <paramref name="uploader"/>, read from the store
+        /// as it stands now.
+        /// </summary>
+        private async Task<QueueClassification> Classify(string? uploader, CancellationToken cancellationToken)
+        {
+            var queue = await store.GetQueue().ConfigureAwait(false);
+            return await SelectSendable(queue, uploader, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// The one classification of the outbound queue: what may be uploaded under
+        /// <paramref name="uploader"/>, what is held back, and what the uploader saved.
         ///
         /// A queued fact is held when somebody saved it and the uploader is not among them, so
         /// a fact another user saved is never signed with the uploader's key. A fact whose type
@@ -148,15 +177,16 @@ namespace Jinaga.Managers
         /// A fact nobody saved goes under whoever is logged in.
         ///
         /// A fact is sent only if it and every queued ancestor in its graph may be, because the
-        /// ancestors travel in the same request.
+        /// ancestors travel in the same request. A fact kept back for that reason is held too:
+        /// held and sendable divide the queue in two.
         /// </summary>
-        private async Task<QueuedFacts> SelectSendable(QueuedFacts queue, string? uploader, CancellationToken cancellationToken)
+        private async Task<QueueClassification> SelectSendable(QueuedFacts queue, string? uploader, CancellationToken cancellationToken)
         {
             // An indivisible queue comes from a store that records no savers,
             // and holding any of it back would split it.
             if (queue.Facts.IsEmpty || queue.IsIndivisible)
             {
-                return queue;
+                return QueueClassification.SendTheWholeQueue(queue);
             }
 
             var queuedReferences = queue.Facts
@@ -165,10 +195,18 @@ namespace Jinaga.Managers
             var savers = await store.LoadSavers(queuedReferences, cancellationToken).ConfigureAwait(false);
             if (savers.IsEmpty)
             {
-                return queue;
+                return QueueClassification.SendTheWholeQueue(queue);
             }
 
-            var held = new HashSet<FactReference>();
+            // Nobody logged in has saved nothing, so there is nothing to lose by logging out.
+            var savedByUploader = uploader == null
+                ? ImmutableList<QueuedFact>.Empty
+                : queue.Facts
+                    .Where(fact => savers.TryGetValue(fact.Reference, out var saversOfFact) &&
+                        saversOfFact.Contains(uploader))
+                    .ToImmutableList();
+
+            var heldDirectly = new HashSet<FactReference>();
             foreach (var reference in queuedReferences)
             {
                 if (savers.TryGetValue(reference, out var saversOfFact) &&
@@ -176,20 +214,84 @@ namespace Jinaga.Managers
                     (uploader == null || !saversOfFact.Contains(uploader)) &&
                     reference.Type != UserFactType)
                 {
-                    held.Add(reference);
+                    heldDirectly.Add(reference);
                 }
             }
-            if (held.Count == 0)
+            if (heldDirectly.Count == 0)
             {
-                return queue;
+                return new QueueClassification(queue, queue, ImmutableList<QueuedFact>.Empty, savedByUploader);
             }
 
             var available = new HashSet<FactReference>(queue.Graph.FactReferences);
-            var sendable = queue.Facts
-                .Where(fact => !held.Contains(fact.Reference) &&
-                    !HasAncestorIn(queue.Graph, available, fact.Reference, held))
-                .ToImmutableList();
-            return new QueuedFacts(queue.Graph, sendable);
+            var sendable = ImmutableList.CreateBuilder<QueuedFact>();
+            var held = ImmutableList.CreateBuilder<QueuedFact>();
+            foreach (var fact in queue.Facts)
+            {
+                if (heldDirectly.Contains(fact.Reference) ||
+                    HasAncestorIn(queue.Graph, available, fact.Reference, heldDirectly))
+                {
+                    held.Add(fact);
+                }
+                else
+                {
+                    sendable.Add(fact);
+                }
+            }
+            return new QueueClassification(
+                queue,
+                new QueuedFacts(queue.Graph, sendable.ToImmutable()),
+                held.ToImmutable(),
+                savedByUploader);
+        }
+
+        /// <summary>
+        /// One reading of the outbound queue, divided for one uploader. Everything the client
+        /// reports about the queue is counted from this, so no count can disagree with what
+        /// the next save sends.
+        /// </summary>
+        private class QueueClassification
+        {
+            /// <summary>
+            /// The queue as the store returned it, before anything was held back.
+            /// </summary>
+            public QueuedFacts Queue { get; }
+
+            /// <summary>
+            /// The facts this uploader may send, with the whole queue's graph.
+            /// </summary>
+            public QueuedFacts Sendable { get; }
+
+            /// <summary>
+            /// The facts held for another user, whether held in their own right or because a
+            /// queued ancestor is held.
+            /// </summary>
+            public ImmutableList<QueuedFact> Held { get; }
+
+            /// <summary>
+            /// The queued facts this replica saw the uploader save. Empty when nobody is
+            /// logged in.
+            /// </summary>
+            public ImmutableList<QueuedFact> SavedByUploader { get; }
+
+            /// <summary>
+            /// Every fact in the queue, whoever saved it.
+            /// </summary>
+            public int Total => Queue.Facts.Count;
+
+            public QueueClassification(QueuedFacts queue, QueuedFacts sendable, ImmutableList<QueuedFact> held, ImmutableList<QueuedFact> savedByUploader)
+            {
+                Queue = queue;
+                Sendable = sendable;
+                Held = held;
+                SavedByUploader = savedByUploader;
+            }
+
+            /// <summary>
+            /// A queue with nothing to route by: every fact goes under whoever is logged in,
+            /// and the client knows of no saver to attribute one to.
+            /// </summary>
+            public static QueueClassification SendTheWholeQueue(QueuedFacts queue) =>
+                new QueueClassification(queue, queue, ImmutableList<QueuedFact>.Empty, ImmutableList<QueuedFact>.Empty);
         }
 
         /// <summary>
@@ -742,11 +844,11 @@ namespace Jinaga.Managers
             }
         }
 
-        private void SetSaveStatus(bool isSaving, Exception? lastSaveError, int queueLength)
+        private void SetSaveStatus(bool isSaving, Exception? lastSaveError, int queueLength, int heldLength)
         {
             lock (this)
             {
-                status = status.WithSaveStatus(isSaving, lastSaveError, queueLength);
+                status = status.WithSaveStatus(isSaving, lastSaveError, queueLength, heldLength);
                 OnStatusChanged?.Invoke(status);
             }
         }

@@ -178,6 +178,12 @@ public class AuthenticationService : IHttpAuthenticationProvider, IAuthenticatio
 
     /// <summary>
     /// Log the user out.
+    ///
+    /// This revokes the token and clears the user. It does not touch the outbound queue: a
+    /// fact this user saved and the client has not uploaded stays queued on this device, and
+    /// once another user logs in here it is held until this user logs in again. Call
+    /// <see cref="JinagaClient.GetUnsentFacts(System.Threading.CancellationToken)"/> before
+    /// logging out and warn the user when <c>SavedByCurrentUser</c> is above zero.
     /// </summary>
     /// <returns>Resolves when logout is successful</returns>
     public async Task LogOut()
