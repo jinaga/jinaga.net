@@ -462,4 +462,38 @@ public class AuthorizationTest
             await ClientWith(site).Fact(new Model.Content(site, "/index.html"));
         await postingWithNoGuest.Should().ThrowAsync<AuthorizationException>();
     }
+
+    [Fact]
+    public async Task ALocalFactIsRefusedByTheSameRules()
+    {
+        // Local.Fact saves without queuing, and it is checked too: the rules govern what may be
+        // authored, not what is uploaded. Only Jinaga.UnitTest checks either one.
+        var site = new Model.Site(Owner, "site");
+        var intruder = ClientFor(Stranger, site);
+
+        Func<Task> posting = async () =>
+            await intruder.Local.Fact(new Model.Content(site, "/index.html"));
+
+        await posting.Should().ThrowAsync<AuthorizationException>()
+            .Where(e => e.FactType == "Blog.Content");
+    }
+
+    [Fact]
+    public async Task AFactInsideSingleUseIsCheckedAsTheConfiguredUser()
+    {
+        // Every save is checked as JinagaTestOptions.User, single-use blocks included, so a
+        // fact that user may author goes through...
+        var j = ClientFor(Owner);
+        var site = await j.Fact(new Model.Site(Owner, "site"));
+
+        var content = await j.SingleUse(_ => j.Fact(new Model.Content(site, "/index.html")));
+        content.Should().NotBeNull();
+
+        // ...and one only the single-use principal could author is refused, because the rules
+        // are evaluated as the configured user rather than as the principal.
+        Func<Task> asThePrincipal = async () =>
+            await j.SingleUse(principal => j.Fact(new Model.Site(principal, "the principal's site")));
+
+        await asThePrincipal.Should().ThrowAsync<AuthorizationException>();
+    }
 }

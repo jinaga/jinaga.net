@@ -79,10 +79,11 @@ namespace Jinaga.UnitTest
                 return new JinagaClient(store, network, ImmutableList<Specification>.Empty, loggerFactory, clientOptions);
             }
 
-            // The rules go through the same option an application sets, so the test checks
-            // with the engine the client builds from it. Only the user differs: a test fixes
-            // it, where an application checks as whoever is logged in.
-            clientOptions.AuthorizationRules = AuthorizationRules.Build(testOptions.Authorization);
+            // Local authorization lives here, and nowhere else. The engine is built in this
+            // entry point and handed to the client directly, so a client an application
+            // configures builds none and leaves authorization to the replicator.
+            var authorizationEngine = new AuthorizationEngine(
+                AuthorizationRules.Build(testOptions.Authorization), store);
 
             return new JinagaClient(
                 store,
@@ -90,7 +91,8 @@ namespace Jinaga.UnitTest
                 ImmutableList<Specification>.Empty,
                 loggerFactory,
                 clientOptions,
-                AuthorizingUser.Fixed(testOptions.User));
+                authorizationEngine,
+                testOptions.User);
         }
     }
 }

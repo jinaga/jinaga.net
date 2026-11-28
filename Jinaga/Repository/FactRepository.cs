@@ -35,10 +35,9 @@ namespace Jinaga.Repository
         ///
         /// Nothing here consults the application's authorization rules. Provenance neither
         /// matches nor authorizes, so this reports what the two records on this replica say
-        /// rather than what a rule would decide, and it reports the same thing whether or not
-        /// <see cref="JinagaClientOptions.AuthorizationRules"/> is set. That property keeps a
-        /// runtime use of its own, refusing a save the logged-in user may not make, and that
-        /// decision no longer shares an evaluation with this one.
+        /// rather than what a rule would decide. No client evaluates those rules for any
+        /// purpose: the replicator is the authority, and rules reach it through
+        /// <c>jinaga deploy</c>.
         ///
         /// The result can include savers the replicator never recorded. A queued fact is
         /// uploaded once, under one user's token, so when two users save the same fact on one
