@@ -110,15 +110,25 @@ namespace Jinaga
     /// </summary>
     public class JinagaStatus
     {
-        public static readonly JinagaStatus Default = new JinagaStatus(false, null, false, null, 0, JinagaAuthenticationState.NotAuthenticated);
+        public static readonly JinagaStatus Default = new JinagaStatus(false, null, false, null, 0, 0, JinagaAuthenticationState.NotAuthenticated);
 
+        /// <summary>
+        /// Reports no held facts. A status built this way says nothing about the facts the
+        /// queue is holding for another user; use the overload that takes a held length.
+        /// </summary>
         public JinagaStatus(bool isLoading, Exception? lastLoadError, bool isSaving, Exception? lastSaveError, int queueLength, JinagaAuthenticationState authenticationState)
+            : this(isLoading, lastLoadError, isSaving, lastSaveError, queueLength, 0, authenticationState)
+        {
+        }
+
+        public JinagaStatus(bool isLoading, Exception? lastLoadError, bool isSaving, Exception? lastSaveError, int queueLength, int heldLength, JinagaAuthenticationState authenticationState)
         {
             IsLoading = isLoading;
             LastLoadError = lastLoadError;
             IsSaving = isSaving;
             LastSaveError = lastSaveError;
             QueueLength = queueLength;
+            HeldLength = heldLength;
             AuthenticationState = authenticationState;
         }
 
@@ -140,9 +150,22 @@ namespace Jinaga
         /// </summary>
         public Exception? LastSaveError { get; }
         /// <summary>
-        /// The number of facts that are currently queued to be saved to the remote replicator.
+        /// The number of queued facts the client can send under the user who is logged in now.
+        ///
+        /// A fact the queue is holding for another user is not one of them, and is counted in
+        /// <see cref="HeldLength"/> instead. So a queue that holds nothing but held facts
+        /// reports a queue length of zero and a held length above zero.
         /// </summary>
         public int QueueLength { get; }
+        /// <summary>
+        /// The number of queued facts the client is holding for a user who is not logged in
+        /// now, counted the same way the queue decides what to send.
+        ///
+        /// A held fact stays on this device until one of the users who saved it logs in here
+        /// again. For the counts an application needs before logging a user out, call
+        /// <see cref="JinagaClient.GetUnsentFacts(CancellationToken)"/>.
+        /// </summary>
+        public int HeldLength { get; }
         /// <summary>
         /// The state of user authentication.
         /// </summary>
@@ -150,17 +173,26 @@ namespace Jinaga
 
         public JinagaStatus WithLoadStatus(bool isLoading, Exception? lastLoadError)
         {
-            return new JinagaStatus(isLoading, lastLoadError, IsSaving, LastSaveError, QueueLength, AuthenticationState);
+            return new JinagaStatus(isLoading, lastLoadError, IsSaving, LastSaveError, QueueLength, HeldLength, AuthenticationState);
         }
 
+        /// <summary>
+        /// Keeps the held length this status already carries. Use the overload that takes one
+        /// to report both lengths from the same classification of the queue.
+        /// </summary>
         public JinagaStatus WithSaveStatus(bool isSaving, Exception? lastSaveError, int queueLength)
         {
-            return new JinagaStatus(IsLoading, LastLoadError, isSaving, lastSaveError, queueLength, AuthenticationState);
+            return new JinagaStatus(IsLoading, LastLoadError, isSaving, lastSaveError, queueLength, HeldLength, AuthenticationState);
+        }
+
+        public JinagaStatus WithSaveStatus(bool isSaving, Exception? lastSaveError, int queueLength, int heldLength)
+        {
+            return new JinagaStatus(IsLoading, LastLoadError, isSaving, lastSaveError, queueLength, heldLength, AuthenticationState);
         }
 
         public JinagaStatus WithAuthenticationState(JinagaAuthenticationState authenticationState)
         {
-            return new JinagaStatus(IsLoading, LastLoadError, IsSaving, LastSaveError, QueueLength, authenticationState);
+            return new JinagaStatus(IsLoading, LastLoadError, IsSaving, LastSaveError, QueueLength, HeldLength, authenticationState);
         }
     }
 
@@ -350,6 +382,41 @@ namespace Jinaga
             {
                 factManager.EndSingleUse();
             }
+        }
+
+        /// <summary>
+        /// Counts the facts waiting in the outbound queue, as the queue stands when this is
+        /// called and for the user who is logged in now. Reads the local store only, and makes
+        /// no network call, so it answers while the device is offline.
+        ///
+        /// Two things an application does with it:
+        ///
+        /// <list type="bullet">
+        /// <item><description>
+        /// <b>Before logging a user out</b>, warn them when
+        /// <see cref="UnsentFacts.SavedByCurrentUser"/> is above zero. Those facts have not
+        /// reached the replicator, and logging out does not discard them. Once another user
+        /// logs in on this device, each one except a <c>Jinaga.User</c> is held here until the
+        /// user who saved it logs in again, which may be never, and nothing uploads it in the
+        /// meantime. A <c>Jinaga.User</c> is never held, so the count is an upper bound on how
+        /// many become held.
+        /// </description></item>
+        /// <item><description>
+        /// <b>While a user is logged in</b>, show <see cref="UnsentFacts.Held"/> so the user
+        /// knows the device is holding facts another user saved. A device that is wiped,
+        /// reset or handed on while that count is above zero loses them.
+        /// </description></item>
+        /// </list>
+        ///
+        /// <see cref="JinagaStatus.HeldLength"/> reports the same held count on every status
+        /// change, for an application that follows <see cref="OnStatusChanged"/> instead. Both
+        /// come from the same classification of the queue that decides what a save sends.
+        /// </summary>
+        /// <param name="cancellationToken">To cancel the operation</param>
+        /// <returns>The three counts, over the facts the queue holds now</returns>
+        public Task<UnsentFacts> GetUnsentFacts(CancellationToken cancellationToken = default)
+        {
+            return networkManager.GetUnsentFacts(cancellationToken);
         }
 
         /// <summary>
