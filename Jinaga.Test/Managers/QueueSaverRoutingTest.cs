@@ -24,9 +24,10 @@ namespace Jinaga.Test.Managers;
 /// every replica, permanently.
 ///
 /// The store now records which users saved each fact, and the queue sends a
-/// fact somebody saved only while one of them is logged in, or while the rules
-/// admit it from anyone. Nothing is dropped: a fact none of its savers is there
-/// to send stays in the queue.
+/// fact somebody saved only while one of them is logged in. A
+/// <see cref="User"/> is the one exemption: anybody may introduce one, so it
+/// travels under whoever is logged in. Nothing is dropped: a fact none of its
+/// savers is there to send stays in the queue.
 /// </summary>
 public class QueueSaverRoutingTest
 {
@@ -136,15 +137,16 @@ public class QueueSaverRoutingTest
     }
 
     /// <summary>
-    /// A Jinaga.User has no predecessors and is normally admitted by Any, so
-    /// anybody may introduce one, and a replicator signs it with nobody's key.
-    /// Holding it for the user who first mentioned it would hold every other
-    /// user's fact that mentions it, possibly for good.
+    /// A Jinaga.User has no predecessors, so no rule can tie it to a set of
+    /// authors other than the user it names, and a replicator admitting it from
+    /// anyone signs it with nobody's key. Holding it for the user who first
+    /// mentioned it would hold every other user's fact that mentions it,
+    /// possibly for good. The exemption is by type, so it needs no rules.
     /// </summary>
     [Fact]
-    public async Task Push_WithRulesThatAdmitAnyUser_SendsAMessageToAUserAnotherUserIntroduced()
+    public async Task Push_SendsAMessageToAUserAnotherUserIntroduced()
     {
-        var (j, store, network, identity) = CreateClient(RoutingModel.Rules);
+        var (j, store, network, identity) = CreateClient();
         var x = new User("---FAKE PUBLIC KEY X---");
 
         // A, offline, adds a new user to a project, then logs out.
@@ -168,49 +170,26 @@ public class QueueSaverRoutingTest
     }
 
     /// <summary>
-    /// The same scenario with no rules. The client cannot tell that the user
-    /// fact would be admitted from anyone, so it holds the message with it
-    /// rather than risk signing a fact A saved with B's key.
+    /// The exemption names one type and nothing else. Every other fact A saved
+    /// is still held while B is logged in, whatever the application's rule for
+    /// it would be, and so is B's own descendant of it.
     /// </summary>
     [Fact]
-    public async Task Push_WithoutRules_HoldsAMessageToAUserAnotherUserIntroduced()
+    public async Task Push_HoldsANonUserFactAnotherUserSaved()
     {
         var (j, store, network, identity) = CreateClient();
         var x = new User("---FAKE PUBLIC KEY X---");
 
         identity.SetCurrentUser(UserA);
         var project = await j.Fact(new RoutingProject(UserA, Guid.NewGuid()));
-        await j.Fact(new RoutingMembership(project, x));
-        identity.SetCurrentUser(null);
-
         identity.SetCurrentUser(UserB);
-        var message = await j.Fact(new RoutingMessage(x, UserB, "Welcome"));
-
-        await j.Push();
-
-        UploadedHashes(network).Should().NotContain(j.Hash(message));
-        UploadedHashes(network).Should().NotContain(j.Hash(x));
-        QueuedHashes(store).Should().Contain(j.Hash(message));
-    }
-
-    /// <summary>
-    /// Rules decide only which facts may travel without one of their savers.
-    /// A fact under a rule that would sign it with the uploader's key is still
-    /// held for the user who saved it.
-    /// </summary>
-    [Fact]
-    public async Task Push_WithRules_StillHoldsAFactWhoseRuleWouldSignIt()
-    {
-        var (j, store, network, identity) = CreateClient(RoutingModel.Rules);
-
-        identity.SetCurrentUser(UserA);
-        var project = await j.Fact(new RoutingProject(UserA, Guid.NewGuid()));
-        identity.SetCurrentUser(UserB);
+        var membership = await j.Fact(new RoutingMembership(project, x));
 
         await j.Push();
 
         UploadedHashes(network).Should().NotContain(j.Hash(project));
-        QueuedHashes(store).Should().Equal(j.Hash(project));
+        UploadedHashes(network).Should().NotContain(j.Hash(membership));
+        QueuedHashes(store).Should().Equal(j.Hash(project), j.Hash(membership));
     }
 
     [Fact]
@@ -359,7 +338,7 @@ public class QueueSaverRoutingTest
             inner.PurgeDescendants(purgeRoot, triggers);
     }
 
-    private (JinagaClient j, PersistentMemoryStore store, FakeNetwork network, FakeIdentitySource identity) CreateClient(AuthorizationRules? rules = null)
+    private (JinagaClient j, PersistentMemoryStore store, FakeNetwork network, FakeIdentitySource identity) CreateClient()
     {
         var store = new PersistentMemoryStore();
         var network = new FakeNetwork(output);
@@ -368,7 +347,6 @@ public class QueueSaverRoutingTest
         var options = new JinagaClientOptions
         {
             HttpAuthenticationProvider = identity,
-            AuthorizationRules = rules,
             QueueProcessingDelay = DelayLongerThanAnyTest
         };
         var j = new JinagaClient(
@@ -412,6 +390,9 @@ public record RoutingMessage(User to, User from, string text);
 /// <summary>
 /// The rules a replicator for this model would run. A user is admitted from
 /// anyone, as Jinaga.User normally is; everything else names who may write it.
+///
+/// Routing does not read them. They are here for the tests of the engine's
+/// signing questions, in AuthorizationEngineSigningTest.
 /// </summary>
 public static class RoutingModel
 {

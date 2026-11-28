@@ -15,6 +15,10 @@ namespace Jinaga.Store.SQLite.Test;
 /// database here, so it has to survive the application being closed and opened again: a user
 /// who creates facts offline and does not come back until tomorrow is the
 /// ordinary case, not the edge case.
+///
+/// The record is a plain record of what this replica saw, so it names a saver
+/// of a <see cref="User"/> fact too. The exemption that lets such a fact travel
+/// lives in the queue, not in the store.
 /// </summary>
 public class QueueSaverRoutingTest : SQLiteTest
 {
@@ -190,11 +194,16 @@ public class QueueSaverRoutingTest : SQLiteTest
         savers[reference].Should().BeEquivalentTo(new[] { UserA.publicKey, UserB.publicKey });
     }
 
+    /// <summary>
+    /// A Jinaga.User travels under whoever is logged in, so the message B wrote
+    /// to the user A introduced is not held behind A's return. The exemption is
+    /// by type, so it needs no rules.
+    /// </summary>
     [Fact]
-    public async Task Push_WithRulesThatAdmitAnyUser_SendsAMessageToAUserAnotherUserIntroduced()
+    public async Task Push_SendsAMessageToAUserAnotherUserIntroduced()
     {
         var store = GivenStore();
-        var j = GivenClient(store, RoutingRules);
+        var j = GivenClient(store);
         var x = new User("---FAKE PUBLIC KEY X---");
 
         identity.SetCurrentUser(UserA);
@@ -212,30 +221,6 @@ public class QueueSaverRoutingTest : SQLiteTest
         UploadedHashes().Should().NotContain(j.Hash(project));
         UploadedHashes().Should().NotContain(j.Hash(membership));
         (await QueuedHashes(store)).Should().Equal(j.Hash(project), j.Hash(membership));
-
-        await j.DisposeAsync();
-    }
-
-    [Fact]
-    public async Task Push_WithoutRules_HoldsAMessageToAUserAnotherUserIntroduced()
-    {
-        var store = GivenStore();
-        var j = GivenClient(store);
-        var x = new User("---FAKE PUBLIC KEY X---");
-
-        identity.SetCurrentUser(UserA);
-        var project = await j.Fact(new RoutingProject(UserA, "Apollo"));
-        await j.Fact(new RoutingMembership(project, x));
-        identity.SetCurrentUser(null);
-
-        identity.SetCurrentUser(UserB);
-        var message = await j.Fact(new RoutingMessage(x, UserB, "Welcome"));
-
-        await j.Push();
-
-        UploadedHashes().Should().NotContain(j.Hash(message));
-        UploadedHashes().Should().NotContain(j.Hash(x));
-        (await QueuedHashes(store)).Should().Contain(j.Hash(message));
 
         await j.DisposeAsync();
     }
@@ -272,18 +257,11 @@ public class QueueSaverRoutingTest : SQLiteTest
         return new SQLiteStore(DatabasePath, NullLoggerFactory.Instance);
     }
 
-    private static AuthorizationRules RoutingRules { get; } = AuthorizationRules.Build(rules => rules
-        .Any<User>()
-        .Type<RoutingProject>(project => project.creator)
-        .Type<RoutingMembership>(membership => membership.project.creator)
-        .Type<RoutingMessage>(message => message.from));
-
-    private JinagaClient GivenClient(SQLiteStore store, AuthorizationRules? rules = null)
+    private JinagaClient GivenClient(SQLiteStore store)
     {
         var options = new JinagaClientOptions
         {
             HttpAuthenticationProvider = identity,
-            AuthorizationRules = rules,
             QueueProcessingDelay = DelayLongerThanAnyTest
         };
         return Track(new JinagaClient(
