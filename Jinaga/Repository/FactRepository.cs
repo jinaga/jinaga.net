@@ -21,29 +21,31 @@ namespace Jinaga.Repository
         public abstract IObservableCollection<TProjection> Observable<TProjection>(IQueryable<TProjection> queryable);
 
         /// <summary>
-        /// The users this replica knows asserted the fact, among those the rules would sign it
-        /// with.
+        /// The users this replica knows asserted the fact.
         ///
         /// These are the users whose public keys have signed the fact, as the store holds the
-        /// signatures, together with each user who saved the fact on this replica and whom
-        /// <see cref="JinagaClientOptions.AuthorizationRules"/> would sign it with. A client
+        /// signatures, together with every user who saved the fact on this replica. A client
         /// signs nothing: the replicator signs on upload, and a signature for a fact this
         /// replica already holds is not fetched again, so without the savers the facts a user
         /// just created on this device would show no signer at all.
         ///
-        /// A replicator signs a fact with the uploader's key only when the rules admit it from
-        /// that user. So with no rules configured, the client cannot tell whom a replicator
-        /// would sign with, and the result is the stored signatures alone; the logged-in user
-        /// is never assumed to be a signer. A fact the rules admit from anyone (an <c>Any</c>
-        /// rule, which includes <see cref="User"/> under the usual <c>Any&lt;User&gt;()</c>)
-        /// is stored by a replicator with no signatures, so it has no signers. A rule that
-        /// walks successors is evaluated against the local store, so a saver whose authorizing
-        /// facts this replica has not loaded is not counted.
+        /// A saver of a <see cref="User"/> is not counted. A replicator stores a
+        /// <c>Jinaga.User</c> with no signatures, and a user who introduced another user
+        /// asserted nothing about them.
+        ///
+        /// Nothing here consults the application's authorization rules. Provenance neither
+        /// matches nor authorizes, so this reports what the two records on this replica say
+        /// rather than what a rule would decide, and it reports the same thing whether or not
+        /// <see cref="JinagaClientOptions.AuthorizationRules"/> is set. That property keeps a
+        /// runtime use of its own, refusing a save the logged-in user may not make, and that
+        /// decision no longer shares an evaluation with this one.
         ///
         /// The result can include savers the replicator never recorded. A queued fact is
         /// uploaded once, under one user's token, so when two users save the same fact on one
         /// device, or a user saves a fact this replica already holds, the replicator signs it
-        /// for at most one of them while this replica shows them all. Issue #288 tracks
+        /// for at most one of them while this replica shows them all. A fact the application's
+        /// rules admit from anyone is over-reported the same way: a replicator keeps no
+        /// signature for it, so its saver appears here and nowhere else. Issue #288 tracks
         /// bringing the replicator into agreement.
         ///
         /// Each user appears once, keyed by public key, so the same user reached through a

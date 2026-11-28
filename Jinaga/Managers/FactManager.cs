@@ -18,6 +18,11 @@ namespace Jinaga.Managers
 {
     class FactManager
     {
+        /// <summary>
+        /// The fact type of <see cref="User"/>, as the store records it.
+        /// </summary>
+        private const string UserFactType = "Jinaga.User";
+
         private readonly IStore store;
         private readonly NetworkManager networkManager;
         private readonly ILoggerFactory loggerFactory;
@@ -90,7 +95,7 @@ namespace Jinaga.Managers
 
             // Generate a User fact.
             var field = new Field("publicKey", new Facts.FieldValueString(keyPair.PublicKey));
-            var user = Fact.Create("Jinaga.User", ImmutableList.Create(field), ImmutableList<Predecessor>.Empty);
+            var user = Fact.Create(UserFactType, ImmutableList.Create(field), ImmutableList<Predecessor>.Empty);
             var signature = keyPair.SignFact(user);
             var graph = FactGraph.Empty.Add(new FactEnvelope(user, ImmutableList.Create(signature)));
             await store.Save(graph, false, default).ConfigureAwait(false);
@@ -222,7 +227,7 @@ namespace Jinaga.Managers
                 .ToImmutableList();
             var graph = await store.Load(references, cancellationToken).ConfigureAwait(false);
             var datesLearned = await LoadDatesLearned(specification.Projection, references, cancellationToken).ConfigureAwait(false);
-            var signingSavers = await LoadSigningSavers(specification.Projection, references, cancellationToken).ConfigureAwait(false);
+            var signingSavers = await LoadSavers(specification.Projection, references, cancellationToken).ConfigureAwait(false);
             return DeserializeProductsFromGraph(graph, specification.Projection, products, type, "", watchContext, datesLearned, signingSavers);
         }
 
@@ -250,7 +255,7 @@ namespace Jinaga.Managers
             var references = Projector.GetFactReferences(projection, products);
             var graph = await store.Load(references, cancellationToken).ConfigureAwait(false);
             var datesLearned = await LoadDatesLearned(projection, references, cancellationToken).ConfigureAwait(false);
-            var signingSavers = await LoadSigningSavers(projection, references, cancellationToken).ConfigureAwait(false);
+            var signingSavers = await LoadSavers(projection, references, cancellationToken).ConfigureAwait(false);
             return DeserializeProductsFromGraph(graph, projection, products, type, path, watchContext, datesLearned, signingSavers);
         }
 
@@ -271,25 +276,26 @@ namespace Jinaga.Managers
         }
 
         /// <summary>
-        /// The savers of each projected fact whom the authorization rules would sign it with,
-        /// but only when the projection reads signers. Every other specification pays nothing
-        /// for it.
+        /// The savers of each projected fact, but only when the projection reads signers.
+        /// Every other specification pays nothing for it.
         ///
-        /// A replicator signs a fact with the uploader's key only when the rules admit it from
-        /// that user and not from anyone, so this asks the same engine that checks saves and
-        /// routes the queue, through <see cref="AuthorizationEngine.WouldSignWith"/>. With no
-        /// rules configured there is no engine, the client cannot tell which savers a
-        /// replicator would sign with, and none are counted: signers are then the stored
-        /// signatures alone. The engine evaluates a rule that walks successors against the
-        /// local store, so a saver whose authorizing facts this replica has not loaded is not
-        /// counted.
+        /// A client signs nothing. The replicator signs on upload, and a signature for a fact
+        /// this replica already holds is never fetched again, so the saver relation is the
+        /// only thing attributing a fact this device has just created. It is read exactly as
+        /// the store holds it, without asking what the authorization rules would decide,
+        /// because provenance neither matches nor authorizes. The rules keep their own use in
+        /// <c>Authorize</c>, which refuses a save the logged-in user may not make; that
+        /// decision and this one no longer share an evaluation.
+        ///
+        /// Savers of a <c>Jinaga.User</c> are not counted. A replicator stores a user with no
+        /// signatures, and a user who introduced another user asserted nothing about them.
         /// </summary>
-        private async Task<ImmutableDictionary<FactReference, ImmutableList<string>>?> LoadSigningSavers(
+        private async Task<ImmutableDictionary<FactReference, ImmutableList<string>>?> LoadSavers(
             Projection projection,
             ImmutableList<FactReference> references,
             CancellationToken cancellationToken)
         {
-            if (authorizationEngine == null || !Projector.ProjectsSigners(projection))
+            if (!Projector.ProjectsSigners(projection))
             {
                 return null;
             }
@@ -299,30 +305,17 @@ namespace Jinaga.Managers
                 return null;
             }
 
-            // The engine reads each fact and its ancestors. The store holds them, because it
-            // recorded the savers when it saved them.
-            var graph = await store.Load(savers.Keys.ToImmutableList(), cancellationToken).ConfigureAwait(false);
             var builder = ImmutableDictionary.CreateBuilder<FactReference, ImmutableList<string>>();
             foreach (var pair in savers)
             {
-                var signing = ImmutableList<string>.Empty;
-                foreach (var publicKey in pair.Value.OrderBy(key => key, StringComparer.Ordinal))
+                if (pair.Key.Type == UserFactType || pair.Value.IsEmpty)
                 {
-                    // Serialized through the same path as Authorize, so the reference matches
-                    // what a rule's specification produces when it projects a user.
-                    var userReference = Serialize(new User(publicKey)).Last;
-                    var wouldSign = await authorizationEngine
-                        .WouldSignWith(graph, pair.Key, userReference, cancellationToken)
-                        .ConfigureAwait(false);
-                    if (wouldSign)
-                    {
-                        signing = signing.Add(publicKey);
-                    }
+                    continue;
                 }
-                if (!signing.IsEmpty)
-                {
-                    builder[pair.Key] = signing;
-                }
+                // Ordered so that a projection reports the same signers on every run.
+                builder[pair.Key] = pair.Value
+                    .OrderBy(key => key, StringComparer.Ordinal)
+                    .ToImmutableList();
             }
             return builder.ToImmutable();
         }
