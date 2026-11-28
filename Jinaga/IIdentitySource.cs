@@ -6,8 +6,8 @@ namespace Jinaga
     /// An object configured as <see cref="JinagaClientOptions.HttpAuthenticationProvider"/>
     /// may also implement this interface. When it does, the client records the current user
     /// as a saver of every fact they save, and sends a queued fact that somebody saved only
-    /// while one of its savers is current, or while the configured
-    /// <see cref="JinagaClientOptions.AuthorizationRules"/> admit it from anyone. The upload
+    /// while one of its savers is current. A <see cref="User"/> fact is the one exemption,
+    /// and is never held, because anybody may introduce one. The upload
     /// token and the recorded saver come from the same object, so they cannot name different
     /// users. Before every attempt to upload, the client checks that the user is still the one
     /// it chose the facts for, and stops if not.

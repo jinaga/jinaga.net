@@ -31,18 +31,18 @@ namespace Jinaga.Managers
         private readonly QueueProcessor queueProcessor;
 
         private readonly AuthorizationEngine? authorizationEngine;
-        private readonly AuthorizingUser authorizingUser;
+        private readonly User? authorizingUser;
         private readonly IIdentitySource? identitySource;
 
         private bool unloaded = false;
         private ImmutableList<TaskHandle> pendingTasks = ImmutableList<TaskHandle>.Empty;
 
         public FactManager(IStore store, NetworkManager networkManager, ImmutableList<Specification> purgeConditions, ILoggerFactory loggerFactory, int queueProcessingDelay)
-            : this(store, networkManager, purgeConditions, loggerFactory, queueProcessingDelay, null, AuthorizingUser.LoggedIn(null), null)
+            : this(store, networkManager, purgeConditions, loggerFactory, queueProcessingDelay, null, null, null)
         {
         }
 
-        internal FactManager(IStore store, NetworkManager networkManager, ImmutableList<Specification> purgeConditions, ILoggerFactory loggerFactory, int queueProcessingDelay, AuthorizationEngine? authorizationEngine, AuthorizingUser authorizingUser, IIdentitySource? identitySource)
+        internal FactManager(IStore store, NetworkManager networkManager, ImmutableList<Specification> purgeConditions, ILoggerFactory loggerFactory, int queueProcessingDelay, AuthorizationEngine? authorizationEngine, User? authorizingUser, IIdentitySource? identitySource)
         {
             this.authorizationEngine = authorizationEngine;
             this.authorizingUser = authorizingUser;
@@ -171,9 +171,10 @@ namespace Jinaga.Managers
         /// Refuses the graph if the configured rules do not permit the user to author it.
         ///
         /// Runs before the store saves anything, so a refused graph leaves no fact, no queue
-        /// entry and no saver behind. No rules means no checking, which is how a client
-        /// configured without them keeps working. Which user is checked, and whether there is
-        /// one to check as, is <see cref="AuthorizingUser"/>'s decision.
+        /// entry and no saver behind. Only a client built by <c>Jinaga.UnitTest</c> is given an
+        /// engine; every other client has none and leaves authorization to the replicator.
+        /// Every save is checked as the one user that client fixed, so a null user refuses
+        /// every rule that names one.
         /// </summary>
         private async Task Authorize(FactGraph graph, CancellationToken cancellationToken)
         {
@@ -181,17 +182,13 @@ namespace Jinaga.Managers
             {
                 return;
             }
-            if (!authorizingUser.TryGetUser(singleUseKeyPair != null, out var user))
-            {
-                return;
-            }
 
             // Serialized through the same path as any other fact, so the reference matches what
             // a rule's specification produces when it projects a user. Computing it another way
             // would risk two hashes for one user, which reads as an authorization failure.
-            var userReference = user == null
+            var userReference = authorizingUser == null
                 ? null
-                : Serialize(user).Last;
+                : Serialize(authorizingUser).Last;
 
             await authorizationEngine
                 .Authorize(graph, userReference, cancellationToken)

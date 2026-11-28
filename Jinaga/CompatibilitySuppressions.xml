@@ -17,6 +17,20 @@
   </Suppression>
   <Suppression>
     <DiagnosticId>CP0002</DiagnosticId>
+    <Target>M:Jinaga.JinagaClientOptions.get_AuthorizationRules</Target>
+    <Left>lib/netstandard2.1/Jinaga.dll</Left>
+    <Right>lib/netstandard2.1/Jinaga.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+  <Suppression>
+    <DiagnosticId>CP0002</DiagnosticId>
+    <Target>M:Jinaga.JinagaClientOptions.set_AuthorizationRules(Jinaga.AuthorizationRules)</Target>
+    <Left>lib/netstandard2.1/Jinaga.dll</Left>
+    <Right>lib/netstandard2.1/Jinaga.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+  <Suppression>
+    <DiagnosticId>CP0002</DiagnosticId>
     <Target>M:Jinaga.Services.INetwork.Feeds(Jinaga.Facts.FactReferenceTuple,Jinaga.Projections.Specification,System.Threading.CancellationToken)</Target>
     <Left>lib/netstandard2.1/Jinaga.dll</Left>
     <Right>lib/netstandard2.1/Jinaga.dll</Right>

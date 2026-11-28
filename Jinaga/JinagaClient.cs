@@ -56,31 +56,6 @@ namespace Jinaga
         public IHttpAuthenticationProvider? HttpAuthenticationProvider { get; set; }
 
         /// <summary>
-        /// The application's authorization rules, as the replicator enforces them, or null if the
-        /// client is not told.
-        ///
-        /// Pass the same rules the replicator is configured with, ideally built by the same
-        /// function. The client uses them to refuse a save early. Routing the outbound queue
-        /// does not read them; see <see cref="HttpAuthenticationProvider"/>.
-        ///
-        /// When a user is logged in, the client checks a fact against these rules as that
-        /// user before saving it, and throws
-        /// <see cref="Jinaga.Authorization.AuthorizationException"/> for a fact the user may not
-        /// author, as the replicator would. A refused fact is not stored or queued. With nobody
-        /// logged in, the check cannot run and the save goes ahead unchecked; routing still
-        /// governs its upload. A type with no rule is refused, as the replicator refuses it.
-        /// Facts saved inside <see cref="JinagaClient.SingleUse{T}"/> are not checked, because the replicator
-        /// also authorizes them by the single-use principal's signature.
-        ///
-        /// A rule that walks only predecessors is decided exactly, because a fact's predecessors
-        /// are saved with it. A rule that walks successors, such as "a member of the project",
-        /// reads the local store. A replica that has not loaded the facts that authorize the
-        /// user can refuse a save that the replicator would accept. Query or load those facts
-        /// before saving.
-        /// </summary>
-        public AuthorizationRules? AuthorizationRules { get; set; }
-
-        /// <summary>
         /// Configuration for retry behavior when network connections fail.
         /// </summary>
         public RetryConfiguration RetryConfiguration { get; set; } = new RetryConfiguration();
@@ -288,28 +263,24 @@ namespace Jinaga
         /// <param name="network">A strategy to communicate with a remote replicator</param>
         /// <param name="loggerFactory">A factory configured for logging</param>
         public JinagaClient(IStore store, INetwork network, ImmutableList<Specification> purgeConditions, ILoggerFactory loggerFactory, JinagaClientOptions options)
-            : this(store, network, purgeConditions, loggerFactory, options, AuthorizingUser.LoggedIn(options.HttpAuthenticationProvider as IIdentitySource))
+            : this(store, network, purgeConditions, loggerFactory, options, null, null)
         {
         }
 
         /// <summary>
-        /// Creates a client that checks saves against <see cref="JinagaClientOptions.AuthorizationRules"/>
-        /// as the given user.
+        /// Creates a client that checks each save against the given authorization engine, as the
+        /// given user.
         ///
-        /// <c>Jinaga.UnitTest</c> uses this to fix the user every save is checked as. Every other
-        /// client checks as whoever is logged in.
+        /// <c>Jinaga.UnitTest</c> is the only caller that passes an engine, so that a test can
+        /// observe a rule refusing a fact. Every other client passes none, and leaves
+        /// authorization to the replicator.
         /// </summary>
-        internal JinagaClient(IStore store, INetwork network, ImmutableList<Specification> purgeConditions, ILoggerFactory loggerFactory, JinagaClientOptions options, AuthorizingUser authorizingUser)
+        internal JinagaClient(IStore store, INetwork network, ImmutableList<Specification> purgeConditions, ILoggerFactory loggerFactory, JinagaClientOptions options, AuthorizationEngine? authorizationEngine, User? authorizingUser)
         {
             // The authentication provider is the only place a current user comes from.
             // Reading it from the same object that sets the upload token is what keeps
             // the recorded saver and the token from naming different users.
             var identitySource = options.HttpAuthenticationProvider as IIdentitySource;
-            // The app's rules, read only to check a save before it is stored. Routing the
-            // outbound queue reads no rules: it exempts Jinaga.User by type.
-            var authorizationEngine = options.AuthorizationRules == null
-                ? null
-                : new AuthorizationEngine(options.AuthorizationRules, store);
             networkManager = new NetworkManager(network, store, loggerFactory, async (graph, cancellationToken) =>
             {
                 if (factManager != null)
@@ -408,17 +379,18 @@ namespace Jinaga
         /// The fact is stored locally and queued for sending upstream.
         /// Active observers are notified to update the user interface.
         ///
-        /// With <see cref="JinagaClientOptions.AuthorizationRules"/> configured and a user logged
-        /// in, the fact is first checked against the rules as that user. A rule that walks
-        /// successors reads the local store, so load the facts that authorize the user before
-        /// saving; see <see cref="Jinaga.Authorization.AuthorizationException"/>.
+        /// A client created by <c>Jinaga.UnitTest</c> with authorization rules checks the fact
+        /// against them first, and refuses it as the replicator would; see
+        /// <see cref="Jinaga.Authorization.AuthorizationException"/>. Every other client stores
+        /// the fact unchecked and leaves authorization to the replicator.
         /// </summary>
         /// <typeparam name="TFact">The type of the new fact</typeparam>
         /// <param name="prototype">The new fact</param>
         /// <returns>A copy of the fact as saved</returns>
         /// <exception cref="ArgumentNullException">If the fact is null</exception>
         /// <exception cref="Jinaga.Authorization.AuthorizationException">
-        /// If the rules do not permit the logged-in user to author the fact. Nothing is stored.
+        /// Under <c>Jinaga.UnitTest</c>, if the rules do not permit the configured user to author
+        /// the fact. Nothing is stored.
         /// </exception>
         public async Task<TFact> Fact<TFact>(TFact prototype) where TFact : class
         {
