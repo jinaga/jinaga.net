@@ -1,4 +1,4 @@
-namespace Jinaga
+﻿namespace Jinaga
 {
     /// <summary>
     /// How many facts are waiting in the outbound queue, and how the queue would route them
@@ -34,8 +34,14 @@ namespace Jinaga
         public int Held { get; }
 
         /// <summary>
-        /// The queued facts the user who is logged in now is recorded as having saved. These
-        /// are the facts that become held if that user logs out and another logs in.
+        /// The queued facts the user who is logged in now is recorded as having saved.
+        ///
+        /// Every one of them stays on this device when that user logs out. Most then become
+        /// held for them once another user logs in, but not a <c>Jinaga.User</c>: anybody may
+        /// upload one, so it is never held and leaves under the next user instead. This count
+        /// includes those, the user's own <c>Jinaga.User</c> fact among them while it is still
+        /// queued, so it is an upper bound on how many become held rather than the exact
+        /// number. <see cref="Held"/>, read after the next user logs in, is that number.
         ///
         /// Zero when nobody is logged in, and zero for a store that records no savers.
         /// </summary>

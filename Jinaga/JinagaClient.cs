@@ -395,9 +395,11 @@ namespace Jinaga
         /// <item><description>
         /// <b>Before logging a user out</b>, warn them when
         /// <see cref="UnsentFacts.SavedByCurrentUser"/> is above zero. Those facts have not
-        /// reached the replicator, and once another user logs in on this device they are held
-        /// here until the user who saved them logs in again, which may be never. Nothing
-        /// uploads them in the meantime and logging out does not discard them.
+        /// reached the replicator, and logging out does not discard them. Once another user
+        /// logs in on this device, each one except a <c>Jinaga.User</c> is held here until the
+        /// user who saved it logs in again, which may be never, and nothing uploads it in the
+        /// meantime. A <c>Jinaga.User</c> is never held, so the count is an upper bound on how
+        /// many become held.
         /// </description></item>
         /// <item><description>
         /// <b>While a user is logged in</b>, show <see cref="UnsentFacts.Held"/> so the user

@@ -1,4 +1,4 @@
-#nullable enable
+﻿#nullable enable
 
 using Jinaga.Projections;
 using Jinaga.Storage;
@@ -125,6 +125,14 @@ public class UnsentFactsTest
         identity.SetCurrentUser(UserA);
         var project = await j.Fact(new RoutingProject(UserA, Guid.NewGuid()));
         var membership = await j.Fact(new RoutingMembership(project, x));
+
+        // Still A's session. A saved all four, user facts included, so the count of
+        // what A saved is an upper bound on what logging out costs them rather than
+        // the exact figure: two of these four travel under anyone.
+        var whileTheSaverIsLoggedIn = await j.GetUnsentFacts();
+        whileTheSaverIsLoggedIn.SavedByCurrentUser.Should().Be(4);
+        whileTheSaverIsLoggedIn.Held.Should().Be(0);
+
         identity.SetCurrentUser(UserB);
 
         var unsent = await j.GetUnsentFacts();
