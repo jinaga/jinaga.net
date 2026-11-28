@@ -54,13 +54,12 @@ namespace Jinaga.Serialization
         }
 
         /// <summary>
-        /// The public keys of the users who saved the fact on this replica and whom the
-        /// authorization rules would sign it with.
+        /// The public keys of the users who saved the fact on this replica.
         ///
         /// Absence is an ordinary answer rather than an error, unlike a missing date learned:
-        /// a fact that arrived from a feed, one saved while nobody was logged in, one the rules
-        /// admit from anyone, and every fact on a client configured without rules have no
-        /// signing savers, and are attributed by their signatures alone.
+        /// a fact that arrived from a feed, one saved while nobody was logged in, and a
+        /// <c>Jinaga.User</c> have no savers to report, and are attributed by their signatures
+        /// alone.
         /// </summary>
         public ImmutableList<string> GetSigningSavers(FactReference reference)
         {

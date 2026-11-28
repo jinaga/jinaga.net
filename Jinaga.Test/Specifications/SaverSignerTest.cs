@@ -15,12 +15,12 @@ using Xunit.Abstractions;
 namespace Jinaga.Test.Specifications
 {
     /// <summary>
-    /// A client cannot sign a fact. The replicator signs on upload with the uploading user's
-    /// key, when the rules admit the fact from that user and not from anyone, and neither
-    /// feed path returns a signature for a fact this replica already holds. So the signers of
-    /// a fact are its stored signatures, together with its savers on this replica whom the
-    /// configured rules would sign it with. Without rules, they are the stored signatures
-    /// alone.
+    /// A client cannot sign a fact. The replicator signs on upload, and neither feed path
+    /// returns a signature for a fact this replica already holds. So the signers of a fact
+    /// are its stored signatures, together with its savers on this replica, whichever user
+    /// is logged in and whatever the application's rules say. A saver of a
+    /// <c>Jinaga.User</c> is the one exception: a replicator keeps no signature for a user,
+    /// and introducing one asserts nothing about them.
     /// </summary>
     public class SaverSignerTest
     {
@@ -37,7 +37,6 @@ namespace Jinaga.Test.Specifications
 
         public record PostSigners(SignerPost post, IEnumerable<User> signers);
         public record SiteSigners(SignerSite site, IEnumerable<User> signers);
-        public record TagSigners(SignerTag tag, IEnumerable<User> signers);
         public record UserSigners(User user, IEnumerable<User> signers);
 
         private static readonly Specification<SignerSite, PostSigners> postsWithSigners =
@@ -57,13 +56,6 @@ namespace Jinaga.Test.Specifications
                 from site in facts.OfType<SignerSite>()
                 where site == post.site
                 select new SiteSigners(site, facts.SignersOf(site))
-            );
-
-        private static readonly Specification<SignerSite, TagSigners> tagsWithSigners =
-            Given<SignerSite>.Match((site, facts) =>
-                from tag in facts.OfType<SignerTag>()
-                where tag.site == site
-                select new TagSigners(tag, facts.SignersOf(tag))
             );
 
         private static readonly Specification<SignerSite, UserSigners> membersWithSigners =
@@ -90,9 +82,9 @@ namespace Jinaga.Test.Specifications
         }
 
         [Fact]
-        public async Task SignersOf_AFactSavedByAnAuthorizedUser_ProjectsTheSaverBeforeAnyUpload()
+        public async Task SignersOf_AFactSavedByAUser_ProjectsTheSaverBeforeAnyUpload()
         {
-            var (j, store, network, identity) = CreateClient(SignerModel.Rules);
+            var (j, store, network, identity) = CreateClient();
             identity.SetCurrentUser(UserA);
             var site = await j.Fact(new SignerSite(UserA, "michaelperry.net"));
             var post = await j.Fact(new SignerPost(site, "Hello"));
@@ -110,7 +102,7 @@ namespace Jinaga.Test.Specifications
         [Fact]
         public async Task SignersOf_WhenTheSaversOwnSignatureArrives_ProjectsOneSigner()
         {
-            var (j, store, _, identity) = CreateClient(SignerModel.Rules);
+            var (j, store, _, identity) = CreateClient();
             identity.SetCurrentUser(UserA);
             var site = await j.Fact(new SignerSite(UserA, "michaelperry.net"));
             var post = await j.Fact(new SignerPost(site, "Hello"));
@@ -128,7 +120,7 @@ namespace Jinaga.Test.Specifications
         [Fact]
         public async Task SignersOf_CombinesAStoredSignatureFromAnotherKeyWithTheSaver()
         {
-            var (j, store, _, identity) = CreateClient(SignerModel.Rules);
+            var (j, store, _, identity) = CreateClient();
             identity.SetCurrentUser(UserA);
             var site = await j.Fact(new SignerSite(UserA, "michaelperry.net"));
             var post = await j.Fact(new SignerPost(site, "Hello"));
@@ -143,58 +135,19 @@ namespace Jinaga.Test.Specifications
         }
 
         /// <summary>
-        /// Without rules the client cannot tell whom a replicator would sign a fact with, so
-        /// the logged-in user who saved it is not assumed to be one.
-        /// </summary>
-        [Fact]
-        public async Task SignersOf_WithoutRules_ProjectsStoredSignaturesOnly()
-        {
-            var (j, store, _, identity) = CreateClient(rules: null);
-            identity.SetCurrentUser(UserA);
-            var site = await j.Fact(new SignerSite(UserA, "michaelperry.net"));
-            var post = await j.Fact(new SignerPost(site, "Hello"));
-
-            var beforeSigning = await j.Query(postsWithSigners, site);
-            SignersIn(beforeSigning).Should().BeEmpty();
-
-            var otherKey = KeyPair.Generate();
-            await SignFact(j, store, post, otherKey);
-
-            var afterSigning = await j.Query(postsWithSigners, site);
-            SignersIn(afterSigning).Should().Equal(otherKey.PublicKey);
-        }
-
-        /// <summary>
-        /// A replicator stores a fact that an <c>Any</c> rule admits with no signatures, so
-        /// its saver is not a signer.
-        /// </summary>
-        [Fact]
-        public async Task SignersOf_AFactTheRulesAdmitFromAnyone_HasNoSigners()
-        {
-            var (j, _, _, identity) = CreateClient(SignerModel.Rules);
-            identity.SetCurrentUser(UserA);
-            var site = await j.Fact(new SignerSite(UserA, "michaelperry.net"));
-            await j.Fact(new SignerTag(site, "dotnet"));
-
-            var results = await j.Query(tagsWithSigners, site);
-
-            results.Should().ContainSingle().Subject.signers.Should().BeEmpty();
-        }
-
-        /// <summary>
-        /// Any user may talk about any other user, so a <c>Jinaga.User</c> under
-        /// <c>Any&lt;User&gt;()</c> has no privileged author. Saving a fact that introduces
-        /// another user's <c>User</c> records the saver, and still makes them no signer.
+        /// Any user may talk about any other user, so a <c>Jinaga.User</c> has no privileged
+        /// author. Saving a fact that introduces another user's <c>User</c> records the
+        /// saver, and still makes them no signer.
         /// </summary>
         [Fact]
         public async Task SignersOf_AUserIntroducedByTheSaver_HasNoSigners()
         {
-            var (j, store, _, identity) = CreateClient(SignerModel.Rules);
+            var (j, store, _, identity) = CreateClient();
             identity.SetCurrentUser(UserA);
             var site = await j.Fact(new SignerSite(UserA, "michaelperry.net"));
             await j.Fact(new SignerMember(site, UserB));
 
-            // The saver is recorded, so it is the rules that leave B's User unsigned.
+            // The saver is recorded, so it is the fact's type that leaves B's User unsigned.
             var userB = j.Graph(UserB).Last;
             (await store.LoadSavers(ImmutableList.Create(userB), CancellationToken.None))
                 .Should().ContainKey(userB);
@@ -209,14 +162,13 @@ namespace Jinaga.Test.Specifications
 
         /// <summary>
         /// Scenario 1 of #288, the documented over-report. A and B both save the same post on
-        /// this device, and the rules would sign it with either. The post is uploaded once,
-        /// under one of them, so a replicator records one signer while this replica reports
-        /// both.
+        /// this device. The post is uploaded once, under one of them, so a replicator records
+        /// one signer while this replica reports both.
         /// </summary>
         [Fact]
         public async Task SignersOf_TwoAuthorizedSaversOnOneDevice_OverReportsBoth()
         {
-            var (j, _, _, identity) = CreateClient(SignerModel.Rules);
+            var (j, _, _, identity) = CreateClient();
             identity.SetCurrentUser(UserA);
             var site = await j.Fact(new SignerSite(UserA, "michaelperry.net"));
             await j.Fact(new SignerMember(site, UserB));
@@ -235,12 +187,12 @@ namespace Jinaga.Test.Specifications
         [Fact]
         public async Task SignersOf_AFactLearnedFromAFeed_HasNoSaversAdded()
         {
-            var (j, store, _, identity) = CreateClient(SignerModel.Rules);
+            var (j, store, _, identity) = CreateClient();
             identity.SetCurrentUser(UserA);
             var site = await j.Fact(new SignerSite(UserA, "michaelperry.net"));
 
             // Written to the store the way a feed delivers it, so this replica saw nobody
-            // save it, even though A is logged in and would be authorized.
+            // save it, even though A is logged in.
             await SaveAsThoughSynced(j, store, new SignerPost(site, "From a feed"));
 
             var results = await j.Query(postsWithSigners, site);
@@ -251,7 +203,7 @@ namespace Jinaga.Test.Specifications
         [Fact]
         public async Task SignersOf_OnAPredecessorQuery_ProjectsTheSaver()
         {
-            var (j, _, _, identity) = CreateClient(SignerModel.Rules);
+            var (j, _, _, identity) = CreateClient();
             identity.SetCurrentUser(UserA);
             var site = await j.Fact(new SignerSite(UserA, "michaelperry.net"));
             var post = await j.Fact(new SignerPost(site, "Hello"));
@@ -266,7 +218,7 @@ namespace Jinaga.Test.Specifications
         [Fact]
         public async Task SignersOf_InAWatch_ProjectsTheSaver()
         {
-            var (j, _, _, identity) = CreateClient(SignerModel.Rules);
+            var (j, _, _, identity) = CreateClient();
             identity.SetCurrentUser(UserA);
             var site = await j.Fact(new SignerSite(UserA, "michaelperry.net"));
             await j.Fact(new SignerPost(site, "Before the watch"));
@@ -290,7 +242,7 @@ namespace Jinaga.Test.Specifications
         [Fact]
         public async Task SignersOf_InsideAChildCollection_ProjectsTheSaver()
         {
-            var (j, _, _, identity) = CreateClient(SignerModel.Rules);
+            var (j, _, _, identity) = CreateClient();
             identity.SetCurrentUser(UserA);
             var site = await j.Fact(new SignerSite(UserA, "michaelperry.net"));
             await j.Fact(new SignerPost(site, "Hello"));
@@ -344,7 +296,7 @@ namespace Jinaga.Test.Specifications
             await ((IStore)store).Save(j.Graph(fact), false, CancellationToken.None);
         }
 
-        private (JinagaClient j, PersistentMemoryStore store, FakeNetwork network, FakeIdentitySource identity) CreateClient(AuthorizationRules? rules)
+        private (JinagaClient j, PersistentMemoryStore store, FakeNetwork network, FakeIdentitySource identity) CreateClient()
         {
             var store = new PersistentMemoryStore();
             var network = new FakeNetwork(output);
@@ -353,7 +305,6 @@ namespace Jinaga.Test.Specifications
             var options = new JinagaClientOptions
             {
                 HttpAuthenticationProvider = identity,
-                AuthorizationRules = rules,
                 QueueProcessingDelay = DelayLongerThanAnyTest
             };
             var j = new JinagaClient(
@@ -375,28 +326,4 @@ namespace Jinaga.Test.Specifications
     [FactType("Test.Signers.Post")]
     public record SignerPost(SignerSite site, string title);
 
-    [FactType("Test.Signers.Tag")]
-    public record SignerTag(SignerSite site, string label);
-
-    /// <summary>
-    /// The rules a replicator for this model would run. A site's creator creates it and adds
-    /// members. The creator or any member may post, which for a member is a rule that walks
-    /// from the post's site to its memberships. Anyone may tag a site, so a replicator signs
-    /// a tag with no key.
-    /// </summary>
-    public static class SignerModel
-    {
-        public static AuthorizationRules Rules { get; } = AuthorizationRules.Build(rules => rules
-            .Any<User>()
-            .Type<SignerSite>(site => site.creator)
-            .Type<SignerMember>(member => member.site.creator)
-            .Type<SignerPost>(post => post.site.creator)
-            .Type<SignerPost>((post, facts) =>
-                from member in facts.OfType<SignerMember>()
-                where member.site == post.site
-                from user in facts.OfType<User>()
-                where user == member.member
-                select user)
-            .Any<SignerTag>());
-    }
 }

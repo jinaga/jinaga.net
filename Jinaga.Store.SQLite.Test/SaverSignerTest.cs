@@ -10,9 +10,9 @@ namespace Jinaga.Store.SQLite.Test;
 
 /// <summary>
 /// The saver relation lives in the <c>fact_saver</c> table, written when a fact is saved
-/// and never serialized. Provenance reads it beside the <c>signature</c> table, and counts a
-/// saver only when the configured rules would sign the fact with their key, so a fact this
-/// device created is attributed to the user who created it before any replicator signs it.
+/// and never serialized. Provenance reads it beside the <c>signature</c> table, and counts
+/// every saver but a <c>Jinaga.User</c>'s, so a fact this device created is attributed to
+/// the user who created it before any replicator signs it.
 /// </summary>
 public class SaverSignerTest : SQLiteTest
 {
@@ -29,7 +29,6 @@ public class SaverSignerTest : SQLiteTest
 
     public record PostSigners(SignerPost post, IEnumerable<User> signers);
     public record SiteSigners(SignerSite site, IEnumerable<User> signers);
-    public record TagSigners(SignerTag tag, IEnumerable<User> signers);
     public record UserSigners(User user, IEnumerable<User> signers);
 
     private static readonly Specification<SignerSite, PostSigners> postsWithSigners =
@@ -44,13 +43,6 @@ public class SaverSignerTest : SQLiteTest
             from site in facts.OfType<SignerSite>()
             where site == post.site
             select new SiteSigners(site, facts.SignersOf(site))
-        );
-
-    private static readonly Specification<SignerSite, TagSigners> tagsWithSigners =
-        Given<SignerSite>.Match((site, facts) =>
-            from tag in facts.OfType<SignerTag>()
-            where tag.site == site
-            select new TagSigners(tag, facts.SignersOf(tag))
         );
 
     private static readonly Specification<SignerSite, UserSigners> membersWithSigners =
@@ -70,9 +62,9 @@ public class SaverSignerTest : SQLiteTest
     }
 
     [Fact]
-    public async Task SignersOf_AFactSavedByAnAuthorizedUser_ProjectsTheSaverBeforeAnyUpload()
+    public async Task SignersOf_AFactSavedByAUser_ProjectsTheSaverBeforeAnyUpload()
     {
-        var (j, store, network, identity) = CreateClient(SignerModel.Rules);
+        var (j, store, network, identity) = CreateClient();
         identity.SetCurrentUser(UserA);
         var site = await j.Fact(new SignerSite(UserA, "michaelperry.net"));
         var post = await j.Fact(new SignerPost(site, "Hello"));
@@ -90,7 +82,7 @@ public class SaverSignerTest : SQLiteTest
     [Fact]
     public async Task SignersOf_WhenTheSaversOwnSignatureArrives_ProjectsOneSigner()
     {
-        var (j, store, _, identity) = CreateClient(SignerModel.Rules);
+        var (j, store, _, identity) = CreateClient();
         identity.SetCurrentUser(UserA);
         var site = await j.Fact(new SignerSite(UserA, "michaelperry.net"));
         var post = await j.Fact(new SignerPost(site, "Hello"));
@@ -107,7 +99,7 @@ public class SaverSignerTest : SQLiteTest
     [Fact]
     public async Task SignersOf_CombinesAStoredSignatureFromAnotherKeyWithTheSaver()
     {
-        var (j, store, _, identity) = CreateClient(SignerModel.Rules);
+        var (j, store, _, identity) = CreateClient();
         identity.SetCurrentUser(UserA);
         var site = await j.Fact(new SignerSite(UserA, "michaelperry.net"));
         var post = await j.Fact(new SignerPost(site, "Hello"));
@@ -124,44 +116,9 @@ public class SaverSignerTest : SQLiteTest
     }
 
     [Fact]
-    public async Task SignersOf_WithoutRules_ProjectsStoredSignaturesOnly()
-    {
-        var (j, store, _, identity) = CreateClient(rules: null);
-        identity.SetCurrentUser(UserA);
-        var site = await j.Fact(new SignerSite(UserA, "michaelperry.net"));
-        var post = await j.Fact(new SignerPost(site, "Hello"));
-
-        var beforeSigning = await j.Query(postsWithSigners, site);
-        SignersIn(beforeSigning).Should().BeEmpty();
-
-        var otherKey = KeyPair.Generate();
-        await SignFact(j, store, post, otherKey);
-
-        var afterSigning = await j.Query(postsWithSigners, site);
-        SignersIn(afterSigning).Should().Equal(otherKey.PublicKey);
-
-        await j.DisposeAsync();
-    }
-
-    [Fact]
-    public async Task SignersOf_AFactTheRulesAdmitFromAnyone_HasNoSigners()
-    {
-        var (j, _, _, identity) = CreateClient(SignerModel.Rules);
-        identity.SetCurrentUser(UserA);
-        var site = await j.Fact(new SignerSite(UserA, "michaelperry.net"));
-        await j.Fact(new SignerTag(site, "dotnet"));
-
-        var results = await j.Query(tagsWithSigners, site);
-
-        results.Should().ContainSingle().Subject.signers.Should().BeEmpty();
-
-        await j.DisposeAsync();
-    }
-
-    [Fact]
     public async Task SignersOf_AUserIntroducedByTheSaver_HasNoSigners()
     {
-        var (j, store, _, identity) = CreateClient(SignerModel.Rules);
+        var (j, store, _, identity) = CreateClient();
         identity.SetCurrentUser(UserA);
         var site = await j.Fact(new SignerSite(UserA, "michaelperry.net"));
         await j.Fact(new SignerMember(site, UserB));
@@ -184,7 +141,7 @@ public class SaverSignerTest : SQLiteTest
     [Fact]
     public async Task SignersOf_TwoAuthorizedSaversOnOneDevice_OverReportsBoth()
     {
-        var (j, _, _, identity) = CreateClient(SignerModel.Rules);
+        var (j, _, _, identity) = CreateClient();
         identity.SetCurrentUser(UserA);
         var site = await j.Fact(new SignerSite(UserA, "michaelperry.net"));
         await j.Fact(new SignerMember(site, UserB));
@@ -205,7 +162,7 @@ public class SaverSignerTest : SQLiteTest
     [Fact]
     public async Task SignersOf_AFactLearnedFromAFeed_HasNoSaversAdded()
     {
-        var (j, store, _, identity) = CreateClient(SignerModel.Rules);
+        var (j, store, _, identity) = CreateClient();
         identity.SetCurrentUser(UserA);
         var site = await j.Fact(new SignerSite(UserA, "michaelperry.net"));
 
@@ -222,7 +179,7 @@ public class SaverSignerTest : SQLiteTest
     [Fact]
     public async Task SignersOf_OnAPredecessorQuery_ProjectsTheSaver()
     {
-        var (j, _, _, identity) = CreateClient(SignerModel.Rules);
+        var (j, _, _, identity) = CreateClient();
         identity.SetCurrentUser(UserA);
         var site = await j.Fact(new SignerSite(UserA, "michaelperry.net"));
         var post = await j.Fact(new SignerPost(site, "Hello"));
@@ -241,7 +198,7 @@ public class SaverSignerTest : SQLiteTest
     {
         SignerSite site;
         {
-            var (j, _, _, identity) = CreateClient(SignerModel.Rules);
+            var (j, _, _, identity) = CreateClient();
             identity.SetCurrentUser(UserA);
             site = await j.Fact(new SignerSite(UserA, "michaelperry.net"));
             await j.Fact(new SignerPost(site, "Hello"));
@@ -250,7 +207,7 @@ public class SaverSignerTest : SQLiteTest
 
         // A new store over the same file, with nobody logged in, so the saver is read back
         // from fact_saver rather than from anything the first client held in memory.
-        var (reopened, _, _, _) = CreateClient(SignerModel.Rules);
+        var (reopened, _, _, _) = CreateClient();
 
         var results = await reopened.Query(postsWithSigners, site);
 
@@ -283,7 +240,7 @@ public class SaverSignerTest : SQLiteTest
             CancellationToken.None);
     }
 
-    private (JinagaClient j, SQLiteStore store, FakeNetwork network, FakeIdentitySource identity) CreateClient(AuthorizationRules? rules)
+    private (JinagaClient j, SQLiteStore store, FakeNetwork network, FakeIdentitySource identity) CreateClient()
     {
         var store = new SQLiteStore(DatabasePath, NullLoggerFactory.Instance);
         var network = new FakeNetwork(output);
@@ -292,7 +249,6 @@ public class SaverSignerTest : SQLiteTest
         var options = new JinagaClientOptions
         {
             HttpAuthenticationProvider = identity,
-            AuthorizationRules = rules,
             QueueProcessingDelay = DelayLongerThanAnyTest
         };
         var j = Track(new JinagaClient(
@@ -314,26 +270,3 @@ public record SignerMember(SignerSite site, User member);
 [FactType("Test.Signers.Post")]
 public record SignerPost(SignerSite site, string title);
 
-[FactType("Test.Signers.Tag")]
-public record SignerTag(SignerSite site, string label);
-
-/// <summary>
-/// The rules a replicator for this model would run. A site's creator creates it and adds
-/// members. The creator or any member may post. Anyone may tag a site, so a replicator signs
-/// a tag with no key.
-/// </summary>
-public static class SignerModel
-{
-    public static AuthorizationRules Rules { get; } = AuthorizationRules.Build(rules => rules
-        .Any<User>()
-        .Type<SignerSite>(site => site.creator)
-        .Type<SignerMember>(member => member.site.creator)
-        .Type<SignerPost>(post => post.site.creator)
-        .Type<SignerPost>((post, facts) =>
-            from member in facts.OfType<SignerMember>()
-            where member.site == post.site
-            from user in facts.OfType<User>()
-            where user == member.member
-            select user)
-        .Any<SignerTag>());
-}
