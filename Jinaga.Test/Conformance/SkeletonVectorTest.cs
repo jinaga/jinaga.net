@@ -114,6 +114,15 @@ public class SkeletonVectorTest
     /// partitions each match's conditions into the two lists <c>Match</c> holds, and nothing
     /// in the result records which came first.
     /// </para>
+    ///
+    /// <para>
+    /// Every match a vector states is reached: those of the vector's own specification and of
+    /// each of its feeds, those of a specification nested inside an existential condition,
+    /// and those of a child specification nested in a projection, which
+    /// <c>ConformanceVector.ToProjection</c> loads as a <c>CollectionProjection</c> and whose
+    /// matches go on from its parent's. The pin has 18 of those, so stopping at the
+    /// conditions would leave the claim this test makes partly unchecked.
+    /// </para>
     /// </summary>
     [Fact]
     public void NoReferenceVectorWritesAnExistentialConditionBeforeAPathCondition()
@@ -123,10 +132,10 @@ public class SkeletonVectorTest
             .SelectMany(name =>
             {
                 var json = ReferenceVector.Load("feeds", name).Json;
-                return Interleaved(json.GetProperty("specification").GetProperty("matches"), name)
+                return Interleaved(json.GetProperty("specification"), name)
                     .Concat(json.GetProperty("feeds").EnumerateArray().SelectMany(feed =>
                         Interleaved(
-                            feed.GetProperty("specification").GetProperty("matches"),
+                            feed.GetProperty("specification"),
                             $"{name}, feed {feed.GetProperty("text").GetString()}")));
             })
             .ToImmutableList();
@@ -135,10 +144,15 @@ public class SkeletonVectorTest
     }
 
     /// <summary>
-    /// Every match in the list, and in each specification nested inside one of their
-    /// conditions, that states a path condition after a condition of any other kind.
+    /// Every match of a specification that states a path condition after a condition of any
+    /// other kind, descending through both places a specification can nest: inside an
+    /// existential condition, and inside a projection as a child specification.
     /// </summary>
-    private static IEnumerable<string> Interleaved(JsonElement matches, string where)
+    private static IEnumerable<string> Interleaved(JsonElement specification, string where) =>
+        InterleavedInMatches(specification.GetProperty("matches"), where)
+            .Concat(InterleavedInProjection(specification.GetProperty("projection"), where));
+
+    private static IEnumerable<string> InterleavedInMatches(JsonElement matches, string where)
     {
         foreach (var match in matches.EnumerateArray())
         {
@@ -159,12 +173,39 @@ public class SkeletonVectorTest
                 else
                 {
                     existentialSeen = true;
-                    foreach (var nested in Interleaved(condition.GetProperty("matches"), where))
+                    foreach (var nested in
+                        InterleavedInMatches(condition.GetProperty("matches"), where))
                     {
                         yield return nested;
                     }
                 }
             }
+        }
+    }
+
+    /// <summary>
+    /// A projection carries matches only where a child specification is nested in it. The
+    /// kinds are the ones <c>ConformanceVector.ToProjection</c> reads, and an unrecognized
+    /// one is reported rather than passed over, so a re-pin that adds a projection kind
+    /// holding matches cannot slip past this walk.
+    /// </summary>
+    private static IEnumerable<string> InterleavedInProjection(JsonElement projection, string where)
+    {
+        switch (projection.GetProperty("type").GetString())
+        {
+            case "specification":
+                return Interleaved(projection, $"{where}, child specification " +
+                    $"{projection.GetProperty("name").GetString()}");
+            case "composite":
+                return projection.GetProperty("components").EnumerateArray()
+                    .SelectMany(component => InterleavedInProjection(component, where));
+            case "fact":
+            case "field":
+                return ImmutableList<string>.Empty;
+            case var other:
+                return ImmutableList.Create(
+                    $"{where}: the projection kind '{other}' is one this check does not read, " +
+                    "so it cannot say whether matches inside it are ordered");
         }
     }
 

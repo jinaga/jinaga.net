@@ -160,7 +160,10 @@ specification or in any of its feeds, and
 reads the vector JSON and says so, so a re-pin that introduces one fails here
 rather than quietly changing what the walk indexes. It has to read the JSON:
 loading a vector partitions each match's conditions into the two lists `Match`
-holds, so the order they were written in survives nowhere else.
+holds, so the order they were written in survives nowhere else. It reaches
+every match a vector states, including those of a child specification nested in
+a projection, of which the pin has 18, and it reports a projection kind it does
+not read rather than passing over it.
 
 `Skeleton` overrides neither `Equals` nor `GetHashCode`, on purpose. The
 comparisons that decide distribution belong to the engine
