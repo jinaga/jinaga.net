@@ -33,10 +33,12 @@ namespace Jinaga.Repository
         /// <c>Jinaga.User</c> with no signatures, and a user who introduced another user
         /// asserted nothing about them.
         ///
-        /// Nothing here consults the application's authorization rules. The replicator is the
-        /// only runtime authority on who may author a fact, and provenance neither matches nor
-        /// authorizes, so this reports what the two records on this replica say rather than
-        /// what a rule would decide.
+        /// Nothing here consults the application's authorization rules. Provenance neither
+        /// matches nor authorizes, so this reports what the two records on this replica say
+        /// rather than what a rule would decide, and it reports the same thing whether or not
+        /// <see cref="JinagaClientOptions.AuthorizationRules"/> is set. That property keeps a
+        /// runtime use of its own, refusing a save the logged-in user may not make, and that
+        /// decision no longer shares an evaluation with this one.
         ///
         /// The result can include savers the replicator never recorded. A queued fact is
         /// uploaded once, under one user's token, so when two users save the same fact on one

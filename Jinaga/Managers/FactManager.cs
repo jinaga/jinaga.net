@@ -282,9 +282,10 @@ namespace Jinaga.Managers
         /// A client signs nothing. The replicator signs on upload, and a signature for a fact
         /// this replica already holds is never fetched again, so the saver relation is the
         /// only thing attributing a fact this device has just created. It is read exactly as
-        /// the store holds it, without consulting authorization rules: in Jinaga.NET rules
-        /// serve unit tests and policy generation, the replicator is the only runtime
-        /// authority, and provenance neither matches nor authorizes.
+        /// the store holds it, without asking what the authorization rules would decide,
+        /// because provenance neither matches nor authorizes. The rules keep their own use in
+        /// <c>Authorize</c>, which refuses a save the logged-in user may not make; that
+        /// decision and this one no longer share an evaluation.
         ///
         /// Savers of a <c>Jinaga.User</c> are not counted. A replicator stores a user with no
         /// signatures, and a user who introduced another user asserted nothing about them.
