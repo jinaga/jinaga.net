@@ -1,0 +1,662 @@
+{
+  "name": "to-sync",
+  "text": "(p1: Tenant) {\n    u1: AccessPath [\n        u1->tenant: Tenant = p1\n    ]\n    u2: EventName [\n        u2->tenant: Tenant = p1\n        !E {\n            u3: EventName [\n                u3->prior: EventName = u2\n            ]\n        }\n        !E {\n            u4: Synced [\n                u4->eventName: EventName = u2\n                u4->accessPath: AccessPath = u1\n            ]\n        }\n    ]\n} => {\n    accessPath = u1\n    name = u2\n}\n",
+  "specification": {
+    "given": [
+      {
+        "label": {
+          "name": "p1",
+          "type": "Tenant"
+        },
+        "conditions": []
+      }
+    ],
+    "matches": [
+      {
+        "unknown": {
+          "name": "u1",
+          "type": "AccessPath"
+        },
+        "conditions": [
+          {
+            "type": "path",
+            "rolesLeft": [
+              {
+                "name": "tenant",
+                "predecessorType": "Tenant"
+              }
+            ],
+            "labelRight": "p1",
+            "rolesRight": []
+          }
+        ]
+      },
+      {
+        "unknown": {
+          "name": "u2",
+          "type": "EventName"
+        },
+        "conditions": [
+          {
+            "type": "path",
+            "rolesLeft": [
+              {
+                "name": "tenant",
+                "predecessorType": "Tenant"
+              }
+            ],
+            "labelRight": "p1",
+            "rolesRight": []
+          },
+          {
+            "type": "existential",
+            "exists": false,
+            "matches": [
+              {
+                "unknown": {
+                  "name": "u3",
+                  "type": "EventName"
+                },
+                "conditions": [
+                  {
+                    "type": "path",
+                    "rolesLeft": [
+                      {
+                        "name": "prior",
+                        "predecessorType": "EventName"
+                      }
+                    ],
+                    "labelRight": "u2",
+                    "rolesRight": []
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "existential",
+            "exists": false,
+            "matches": [
+              {
+                "unknown": {
+                  "name": "u4",
+                  "type": "Synced"
+                },
+                "conditions": [
+                  {
+                    "type": "path",
+                    "rolesLeft": [
+                      {
+                        "name": "eventName",
+                        "predecessorType": "EventName"
+                      }
+                    ],
+                    "labelRight": "u2",
+                    "rolesRight": []
+                  },
+                  {
+                    "type": "path",
+                    "rolesLeft": [
+                      {
+                        "name": "accessPath",
+                        "predecessorType": "AccessPath"
+                      }
+                    ],
+                    "labelRight": "u1",
+                    "rolesRight": []
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "projection": {
+      "type": "composite",
+      "components": [
+        {
+          "type": "fact",
+          "name": "accessPath",
+          "label": "u1"
+        },
+        {
+          "type": "fact",
+          "name": "name",
+          "label": "u2"
+        }
+      ]
+    }
+  },
+  "feeds": [
+    {
+      "text": "(p1: Tenant) {\n    u1: AccessPath [\n        u1->tenant: Tenant = p1\n    ]\n    u2: EventName [\n        u2->tenant: Tenant = p1\n    ]\n    u3: EventName [\n        u3->prior: EventName = u2\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "p1",
+              "type": "Tenant"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "u1",
+              "type": "AccessPath"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "tenant",
+                    "predecessorType": "Tenant"
+                  }
+                ],
+                "labelRight": "p1",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "u2",
+              "type": "EventName"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "tenant",
+                    "predecessorType": "Tenant"
+                  }
+                ],
+                "labelRight": "p1",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "u3",
+              "type": "EventName"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "prior",
+                    "predecessorType": "EventName"
+                  }
+                ],
+                "labelRight": "u2",
+                "rolesRight": []
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "Tenant"
+          },
+          {
+            "factIndex": 2,
+            "factType": "AccessPath"
+          },
+          {
+            "factIndex": 3,
+            "factType": "EventName"
+          },
+          {
+            "factIndex": 4,
+            "factType": "EventName"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "tenant"
+          },
+          {
+            "edgeIndex": 2,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 3,
+            "roleName": "tenant"
+          },
+          {
+            "edgeIndex": 3,
+            "predecessorFactIndex": 3,
+            "successorFactIndex": 4,
+            "roleName": "prior"
+          }
+        ],
+        "notExistsConditions": [],
+        "outputs": [
+          {
+            "factIndex": 2
+          },
+          {
+            "factIndex": 3
+          },
+          {
+            "factIndex": 4
+          }
+        ]
+      }
+    },
+    {
+      "text": "(p1: Tenant) {\n    u1: AccessPath [\n        u1->tenant: Tenant = p1\n    ]\n    u2: EventName [\n        u2->tenant: Tenant = p1\n        !E {\n            u3: EventName [\n                u3->prior: EventName = u2\n            ]\n        }\n    ]\n    u4: Synced [\n        u4->eventName: EventName = u2\n        u4->accessPath: AccessPath = u1\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "p1",
+              "type": "Tenant"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "u1",
+              "type": "AccessPath"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "tenant",
+                    "predecessorType": "Tenant"
+                  }
+                ],
+                "labelRight": "p1",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "u2",
+              "type": "EventName"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "tenant",
+                    "predecessorType": "Tenant"
+                  }
+                ],
+                "labelRight": "p1",
+                "rolesRight": []
+              },
+              {
+                "type": "existential",
+                "exists": false,
+                "matches": [
+                  {
+                    "unknown": {
+                      "name": "u3",
+                      "type": "EventName"
+                    },
+                    "conditions": [
+                      {
+                        "type": "path",
+                        "rolesLeft": [
+                          {
+                            "name": "prior",
+                            "predecessorType": "EventName"
+                          }
+                        ],
+                        "labelRight": "u2",
+                        "rolesRight": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "u4",
+              "type": "Synced"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "eventName",
+                    "predecessorType": "EventName"
+                  }
+                ],
+                "labelRight": "u2",
+                "rolesRight": []
+              },
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "accessPath",
+                    "predecessorType": "AccessPath"
+                  }
+                ],
+                "labelRight": "u1",
+                "rolesRight": []
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "Tenant"
+          },
+          {
+            "factIndex": 2,
+            "factType": "AccessPath"
+          },
+          {
+            "factIndex": 3,
+            "factType": "EventName"
+          },
+          {
+            "factIndex": 4,
+            "factType": "EventName"
+          },
+          {
+            "factIndex": 5,
+            "factType": "Synced"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "tenant"
+          },
+          {
+            "edgeIndex": 2,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 3,
+            "roleName": "tenant"
+          },
+          {
+            "edgeIndex": 4,
+            "predecessorFactIndex": 3,
+            "successorFactIndex": 5,
+            "roleName": "eventName"
+          },
+          {
+            "edgeIndex": 5,
+            "predecessorFactIndex": 2,
+            "successorFactIndex": 5,
+            "roleName": "accessPath"
+          }
+        ],
+        "notExistsConditions": [
+          {
+            "edges": [
+              {
+                "edgeIndex": 3,
+                "predecessorFactIndex": 3,
+                "successorFactIndex": 4,
+                "roleName": "prior"
+              }
+            ],
+            "notExistsConditions": []
+          }
+        ],
+        "outputs": [
+          {
+            "factIndex": 2
+          },
+          {
+            "factIndex": 3
+          },
+          {
+            "factIndex": 5
+          }
+        ]
+      }
+    },
+    {
+      "text": "(p1: Tenant) {\n    u1: AccessPath [\n        u1->tenant: Tenant = p1\n    ]\n    u2: EventName [\n        u2->tenant: Tenant = p1\n        !E {\n            u3: EventName [\n                u3->prior: EventName = u2\n            ]\n        }\n        !E {\n            u4: Synced [\n                u4->eventName: EventName = u2\n                u4->accessPath: AccessPath = u1\n            ]\n        }\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "p1",
+              "type": "Tenant"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "u1",
+              "type": "AccessPath"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "tenant",
+                    "predecessorType": "Tenant"
+                  }
+                ],
+                "labelRight": "p1",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "u2",
+              "type": "EventName"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "tenant",
+                    "predecessorType": "Tenant"
+                  }
+                ],
+                "labelRight": "p1",
+                "rolesRight": []
+              },
+              {
+                "type": "existential",
+                "exists": false,
+                "matches": [
+                  {
+                    "unknown": {
+                      "name": "u3",
+                      "type": "EventName"
+                    },
+                    "conditions": [
+                      {
+                        "type": "path",
+                        "rolesLeft": [
+                          {
+                            "name": "prior",
+                            "predecessorType": "EventName"
+                          }
+                        ],
+                        "labelRight": "u2",
+                        "rolesRight": []
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "existential",
+                "exists": false,
+                "matches": [
+                  {
+                    "unknown": {
+                      "name": "u4",
+                      "type": "Synced"
+                    },
+                    "conditions": [
+                      {
+                        "type": "path",
+                        "rolesLeft": [
+                          {
+                            "name": "eventName",
+                            "predecessorType": "EventName"
+                          }
+                        ],
+                        "labelRight": "u2",
+                        "rolesRight": []
+                      },
+                      {
+                        "type": "path",
+                        "rolesLeft": [
+                          {
+                            "name": "accessPath",
+                            "predecessorType": "AccessPath"
+                          }
+                        ],
+                        "labelRight": "u1",
+                        "rolesRight": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "Tenant"
+          },
+          {
+            "factIndex": 2,
+            "factType": "AccessPath"
+          },
+          {
+            "factIndex": 3,
+            "factType": "EventName"
+          },
+          {
+            "factIndex": 4,
+            "factType": "EventName"
+          },
+          {
+            "factIndex": 5,
+            "factType": "Synced"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "tenant"
+          },
+          {
+            "edgeIndex": 2,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 3,
+            "roleName": "tenant"
+          }
+        ],
+        "notExistsConditions": [
+          {
+            "edges": [
+              {
+                "edgeIndex": 3,
+                "predecessorFactIndex": 3,
+                "successorFactIndex": 4,
+                "roleName": "prior"
+              }
+            ],
+            "notExistsConditions": []
+          },
+          {
+            "edges": [
+              {
+                "edgeIndex": 4,
+                "predecessorFactIndex": 3,
+                "successorFactIndex": 5,
+                "roleName": "eventName"
+              },
+              {
+                "edgeIndex": 5,
+                "predecessorFactIndex": 2,
+                "successorFactIndex": 5,
+                "roleName": "accessPath"
+              }
+            ],
+            "notExistsConditions": []
+          }
+        ],
+        "outputs": [
+          {
+            "factIndex": 2
+          },
+          {
+            "factIndex": 3
+          }
+        ]
+      }
+    }
+  ]
+}

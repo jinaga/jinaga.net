@@ -1,0 +1,113 @@
+{
+  "name": "simple-successor",
+  "text": "(root: Root) {\n    child: Child [\n        child->root: Root = root\n    ]\n}\n",
+  "specification": {
+    "given": [
+      {
+        "label": {
+          "name": "root",
+          "type": "Root"
+        },
+        "conditions": []
+      }
+    ],
+    "matches": [
+      {
+        "unknown": {
+          "name": "child",
+          "type": "Child"
+        },
+        "conditions": [
+          {
+            "type": "path",
+            "rolesLeft": [
+              {
+                "name": "root",
+                "predecessorType": "Root"
+              }
+            ],
+            "labelRight": "root",
+            "rolesRight": []
+          }
+        ]
+      }
+    ],
+    "projection": {
+      "type": "composite",
+      "components": []
+    }
+  },
+  "feeds": [
+    {
+      "text": "(root: Root) {\n    child: Child [\n        child->root: Root = root\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "root",
+              "type": "Root"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "child",
+              "type": "Child"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "root",
+                    "predecessorType": "Root"
+                  }
+                ],
+                "labelRight": "root",
+                "rolesRight": []
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "Root"
+          },
+          {
+            "factIndex": 2,
+            "factType": "Child"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "root"
+          }
+        ],
+        "notExistsConditions": [],
+        "outputs": [
+          {
+            "factIndex": 2
+          }
+        ]
+      }
+    }
+  ]
+}

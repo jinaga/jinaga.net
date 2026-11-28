@@ -238,6 +238,15 @@ public class ConformanceVector
         {
             case "fact":
                 return new SimpleProjection(json.GetProperty("label").GetString()!, typeof(object));
+            case "field":
+                // A field of a matched fact. No jinaga-spec vector projects one, but the
+                // jinaga.js reference vectors do (Conformance/README.md), and the shape is
+                // the same in both because both serialize the same Specification.
+                return new FieldProjection(
+                    json.GetProperty("label").GetString()!,
+                    typeof(object),
+                    json.GetProperty("field").GetString()!,
+                    typeof(object));
             case "composite":
                 return new CompoundProjection(
                     json.GetProperty("components").EnumerateArray().ToImmutableDictionary(

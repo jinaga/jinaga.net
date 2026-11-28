@@ -1,0 +1,223 @@
+{
+  "name": "projection-with-two-properties",
+  "text": "(root: Root) {\n} => {\n    children1 = {\n        c1: Child1 [\n            c1->root: Root = root\n        ]\n    }\n    children2 = {\n        c2: Child2 [\n            c2->root: Root = root\n        ]\n    }\n}\n",
+  "specification": {
+    "given": [
+      {
+        "label": {
+          "name": "root",
+          "type": "Root"
+        },
+        "conditions": []
+      }
+    ],
+    "matches": [],
+    "projection": {
+      "type": "composite",
+      "components": [
+        {
+          "type": "specification",
+          "name": "children1",
+          "matches": [
+            {
+              "unknown": {
+                "name": "c1",
+                "type": "Child1"
+              },
+              "conditions": [
+                {
+                  "type": "path",
+                  "rolesLeft": [
+                    {
+                      "name": "root",
+                      "predecessorType": "Root"
+                    }
+                  ],
+                  "labelRight": "root",
+                  "rolesRight": []
+                }
+              ]
+            }
+          ],
+          "projection": {
+            "type": "composite",
+            "components": []
+          }
+        },
+        {
+          "type": "specification",
+          "name": "children2",
+          "matches": [
+            {
+              "unknown": {
+                "name": "c2",
+                "type": "Child2"
+              },
+              "conditions": [
+                {
+                  "type": "path",
+                  "rolesLeft": [
+                    {
+                      "name": "root",
+                      "predecessorType": "Root"
+                    }
+                  ],
+                  "labelRight": "root",
+                  "rolesRight": []
+                }
+              ]
+            }
+          ],
+          "projection": {
+            "type": "composite",
+            "components": []
+          }
+        }
+      ]
+    }
+  },
+  "feeds": [
+    {
+      "text": "(root: Root) {\n    c1: Child1 [\n        c1->root: Root = root\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "root",
+              "type": "Root"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "c1",
+              "type": "Child1"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "root",
+                    "predecessorType": "Root"
+                  }
+                ],
+                "labelRight": "root",
+                "rolesRight": []
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "Root"
+          },
+          {
+            "factIndex": 2,
+            "factType": "Child1"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "root"
+          }
+        ],
+        "notExistsConditions": [],
+        "outputs": [
+          {
+            "factIndex": 2
+          }
+        ]
+      }
+    },
+    {
+      "text": "(root: Root) {\n    c2: Child2 [\n        c2->root: Root = root\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "root",
+              "type": "Root"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "c2",
+              "type": "Child2"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "root",
+                    "predecessorType": "Root"
+                  }
+                ],
+                "labelRight": "root",
+                "rolesRight": []
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "Root"
+          },
+          {
+            "factIndex": 2,
+            "factType": "Child2"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "root"
+          }
+        ],
+        "notExistsConditions": [],
+        "outputs": [
+          {
+            "factIndex": 2
+          }
+        ]
+      }
+    }
+  ]
+}

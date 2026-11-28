@@ -1,0 +1,649 @@
+{
+  "name": "minimal-via-successors",
+  "text": "(p1: Example.Tenant) {\n    u1: Example.Parent [\n        u1->tenant: Example.Tenant = p1\n        !E {\n            u2: Example.Parent.Deleted [\n                u2->parent: Example.Parent = u1\n                !E {\n                    u3: Example.Parent.Restored [\n                        u3->deletion: Example.Parent.Deleted = u2\n                    ]\n                }\n            ]\n        }\n    ]\n    u4: Example.Child [\n        u4->parent: Example.Parent = u1\n    ]\n    u5: Example.Grandchild [\n        u5->child: Example.Child = u4\n    ]\n} => u5\n",
+  "specification": {
+    "given": [
+      {
+        "label": {
+          "name": "p1",
+          "type": "Example.Tenant"
+        },
+        "conditions": []
+      }
+    ],
+    "matches": [
+      {
+        "unknown": {
+          "name": "u1",
+          "type": "Example.Parent"
+        },
+        "conditions": [
+          {
+            "type": "path",
+            "rolesLeft": [
+              {
+                "name": "tenant",
+                "predecessorType": "Example.Tenant"
+              }
+            ],
+            "labelRight": "p1",
+            "rolesRight": []
+          },
+          {
+            "type": "existential",
+            "exists": false,
+            "matches": [
+              {
+                "unknown": {
+                  "name": "u2",
+                  "type": "Example.Parent.Deleted"
+                },
+                "conditions": [
+                  {
+                    "type": "path",
+                    "rolesLeft": [
+                      {
+                        "name": "parent",
+                        "predecessorType": "Example.Parent"
+                      }
+                    ],
+                    "labelRight": "u1",
+                    "rolesRight": []
+                  },
+                  {
+                    "type": "existential",
+                    "exists": false,
+                    "matches": [
+                      {
+                        "unknown": {
+                          "name": "u3",
+                          "type": "Example.Parent.Restored"
+                        },
+                        "conditions": [
+                          {
+                            "type": "path",
+                            "rolesLeft": [
+                              {
+                                "name": "deletion",
+                                "predecessorType": "Example.Parent.Deleted"
+                              }
+                            ],
+                            "labelRight": "u2",
+                            "rolesRight": []
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "unknown": {
+          "name": "u4",
+          "type": "Example.Child"
+        },
+        "conditions": [
+          {
+            "type": "path",
+            "rolesLeft": [
+              {
+                "name": "parent",
+                "predecessorType": "Example.Parent"
+              }
+            ],
+            "labelRight": "u1",
+            "rolesRight": []
+          }
+        ]
+      },
+      {
+        "unknown": {
+          "name": "u5",
+          "type": "Example.Grandchild"
+        },
+        "conditions": [
+          {
+            "type": "path",
+            "rolesLeft": [
+              {
+                "name": "child",
+                "predecessorType": "Example.Child"
+              }
+            ],
+            "labelRight": "u4",
+            "rolesRight": []
+          }
+        ]
+      }
+    ],
+    "projection": {
+      "type": "fact",
+      "label": "u5"
+    }
+  },
+  "feeds": [
+    {
+      "text": "(p1: Example.Tenant) {\n    u1: Example.Parent [\n        u1->tenant: Example.Tenant = p1\n    ]\n    u2: Example.Parent.Deleted [\n        u2->parent: Example.Parent = u1\n    ]\n    u3: Example.Parent.Restored [\n        u3->deletion: Example.Parent.Deleted = u2\n    ]\n    u4: Example.Child [\n        u4->parent: Example.Parent = u1\n    ]\n    u5: Example.Grandchild [\n        u5->child: Example.Child = u4\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "p1",
+              "type": "Example.Tenant"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "u1",
+              "type": "Example.Parent"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "tenant",
+                    "predecessorType": "Example.Tenant"
+                  }
+                ],
+                "labelRight": "p1",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "u2",
+              "type": "Example.Parent.Deleted"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "parent",
+                    "predecessorType": "Example.Parent"
+                  }
+                ],
+                "labelRight": "u1",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "u3",
+              "type": "Example.Parent.Restored"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "deletion",
+                    "predecessorType": "Example.Parent.Deleted"
+                  }
+                ],
+                "labelRight": "u2",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "u4",
+              "type": "Example.Child"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "parent",
+                    "predecessorType": "Example.Parent"
+                  }
+                ],
+                "labelRight": "u1",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "u5",
+              "type": "Example.Grandchild"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "child",
+                    "predecessorType": "Example.Child"
+                  }
+                ],
+                "labelRight": "u4",
+                "rolesRight": []
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "Example.Tenant"
+          },
+          {
+            "factIndex": 2,
+            "factType": "Example.Parent"
+          },
+          {
+            "factIndex": 3,
+            "factType": "Example.Parent.Deleted"
+          },
+          {
+            "factIndex": 4,
+            "factType": "Example.Parent.Restored"
+          },
+          {
+            "factIndex": 5,
+            "factType": "Example.Child"
+          },
+          {
+            "factIndex": 6,
+            "factType": "Example.Grandchild"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "tenant"
+          },
+          {
+            "edgeIndex": 2,
+            "predecessorFactIndex": 2,
+            "successorFactIndex": 3,
+            "roleName": "parent"
+          },
+          {
+            "edgeIndex": 3,
+            "predecessorFactIndex": 3,
+            "successorFactIndex": 4,
+            "roleName": "deletion"
+          },
+          {
+            "edgeIndex": 4,
+            "predecessorFactIndex": 2,
+            "successorFactIndex": 5,
+            "roleName": "parent"
+          },
+          {
+            "edgeIndex": 5,
+            "predecessorFactIndex": 5,
+            "successorFactIndex": 6,
+            "roleName": "child"
+          }
+        ],
+        "notExistsConditions": [],
+        "outputs": [
+          {
+            "factIndex": 2
+          },
+          {
+            "factIndex": 3
+          },
+          {
+            "factIndex": 4
+          },
+          {
+            "factIndex": 5
+          },
+          {
+            "factIndex": 6
+          }
+        ]
+      }
+    },
+    {
+      "text": "(p1: Example.Tenant) {\n    u1: Example.Parent [\n        u1->tenant: Example.Tenant = p1\n    ]\n    u2: Example.Parent.Deleted [\n        u2->parent: Example.Parent = u1\n        !E {\n            u3: Example.Parent.Restored [\n                u3->deletion: Example.Parent.Deleted = u2\n            ]\n        }\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "p1",
+              "type": "Example.Tenant"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "u1",
+              "type": "Example.Parent"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "tenant",
+                    "predecessorType": "Example.Tenant"
+                  }
+                ],
+                "labelRight": "p1",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "u2",
+              "type": "Example.Parent.Deleted"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "parent",
+                    "predecessorType": "Example.Parent"
+                  }
+                ],
+                "labelRight": "u1",
+                "rolesRight": []
+              },
+              {
+                "type": "existential",
+                "exists": false,
+                "matches": [
+                  {
+                    "unknown": {
+                      "name": "u3",
+                      "type": "Example.Parent.Restored"
+                    },
+                    "conditions": [
+                      {
+                        "type": "path",
+                        "rolesLeft": [
+                          {
+                            "name": "deletion",
+                            "predecessorType": "Example.Parent.Deleted"
+                          }
+                        ],
+                        "labelRight": "u2",
+                        "rolesRight": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "Example.Tenant"
+          },
+          {
+            "factIndex": 2,
+            "factType": "Example.Parent"
+          },
+          {
+            "factIndex": 3,
+            "factType": "Example.Parent.Deleted"
+          },
+          {
+            "factIndex": 4,
+            "factType": "Example.Parent.Restored"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "tenant"
+          },
+          {
+            "edgeIndex": 2,
+            "predecessorFactIndex": 2,
+            "successorFactIndex": 3,
+            "roleName": "parent"
+          }
+        ],
+        "notExistsConditions": [
+          {
+            "edges": [
+              {
+                "edgeIndex": 3,
+                "predecessorFactIndex": 3,
+                "successorFactIndex": 4,
+                "roleName": "deletion"
+              }
+            ],
+            "notExistsConditions": []
+          }
+        ],
+        "outputs": [
+          {
+            "factIndex": 2
+          },
+          {
+            "factIndex": 3
+          }
+        ]
+      }
+    },
+    {
+      "text": "(p1: Example.Tenant) {\n    u1: Example.Parent [\n        u1->tenant: Example.Tenant = p1\n        !E {\n            u2: Example.Parent.Deleted [\n                u2->parent: Example.Parent = u1\n            ]\n        }\n    ]\n    u4: Example.Child [\n        u4->parent: Example.Parent = u1\n    ]\n    u5: Example.Grandchild [\n        u5->child: Example.Child = u4\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "p1",
+              "type": "Example.Tenant"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "u1",
+              "type": "Example.Parent"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "tenant",
+                    "predecessorType": "Example.Tenant"
+                  }
+                ],
+                "labelRight": "p1",
+                "rolesRight": []
+              },
+              {
+                "type": "existential",
+                "exists": false,
+                "matches": [
+                  {
+                    "unknown": {
+                      "name": "u2",
+                      "type": "Example.Parent.Deleted"
+                    },
+                    "conditions": [
+                      {
+                        "type": "path",
+                        "rolesLeft": [
+                          {
+                            "name": "parent",
+                            "predecessorType": "Example.Parent"
+                          }
+                        ],
+                        "labelRight": "u1",
+                        "rolesRight": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "u4",
+              "type": "Example.Child"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "parent",
+                    "predecessorType": "Example.Parent"
+                  }
+                ],
+                "labelRight": "u1",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "u5",
+              "type": "Example.Grandchild"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "child",
+                    "predecessorType": "Example.Child"
+                  }
+                ],
+                "labelRight": "u4",
+                "rolesRight": []
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "Example.Tenant"
+          },
+          {
+            "factIndex": 2,
+            "factType": "Example.Parent"
+          },
+          {
+            "factIndex": 3,
+            "factType": "Example.Parent.Deleted"
+          },
+          {
+            "factIndex": 4,
+            "factType": "Example.Child"
+          },
+          {
+            "factIndex": 5,
+            "factType": "Example.Grandchild"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "tenant"
+          },
+          {
+            "edgeIndex": 3,
+            "predecessorFactIndex": 2,
+            "successorFactIndex": 4,
+            "roleName": "parent"
+          },
+          {
+            "edgeIndex": 4,
+            "predecessorFactIndex": 4,
+            "successorFactIndex": 5,
+            "roleName": "child"
+          }
+        ],
+        "notExistsConditions": [
+          {
+            "edges": [
+              {
+                "edgeIndex": 2,
+                "predecessorFactIndex": 2,
+                "successorFactIndex": 3,
+                "roleName": "parent"
+              }
+            ],
+            "notExistsConditions": []
+          }
+        ],
+        "outputs": [
+          {
+            "factIndex": 2
+          },
+          {
+            "factIndex": 4
+          },
+          {
+            "factIndex": 5
+          }
+        ]
+      }
+    }
+  ]
+}

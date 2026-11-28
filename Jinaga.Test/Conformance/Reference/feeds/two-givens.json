@@ -1,0 +1,181 @@
+{
+  "name": "two-givens",
+  "text": "(user: Jinaga.User, root: Root) {\n    assignment: MyApp.Assignment [\n        assignment->user: Jinaga.User = user\n        assignment->project: MyApp.Project->root: Root = root\n    ]\n}\n",
+  "specification": {
+    "given": [
+      {
+        "label": {
+          "name": "user",
+          "type": "Jinaga.User"
+        },
+        "conditions": []
+      },
+      {
+        "label": {
+          "name": "root",
+          "type": "Root"
+        },
+        "conditions": []
+      }
+    ],
+    "matches": [
+      {
+        "unknown": {
+          "name": "assignment",
+          "type": "MyApp.Assignment"
+        },
+        "conditions": [
+          {
+            "type": "path",
+            "rolesLeft": [
+              {
+                "name": "user",
+                "predecessorType": "Jinaga.User"
+              }
+            ],
+            "labelRight": "user",
+            "rolesRight": []
+          },
+          {
+            "type": "path",
+            "rolesLeft": [
+              {
+                "name": "project",
+                "predecessorType": "MyApp.Project"
+              },
+              {
+                "name": "root",
+                "predecessorType": "Root"
+              }
+            ],
+            "labelRight": "root",
+            "rolesRight": []
+          }
+        ]
+      }
+    ],
+    "projection": {
+      "type": "composite",
+      "components": []
+    }
+  },
+  "feeds": [
+    {
+      "text": "(user: Jinaga.User, root: Root) {\n    assignment: MyApp.Assignment [\n        assignment->user: Jinaga.User = user\n        assignment->project: MyApp.Project->root: Root = root\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "user",
+              "type": "Jinaga.User"
+            },
+            "conditions": []
+          },
+          {
+            "label": {
+              "name": "root",
+              "type": "Root"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "assignment",
+              "type": "MyApp.Assignment"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "user",
+                    "predecessorType": "Jinaga.User"
+                  }
+                ],
+                "labelRight": "user",
+                "rolesRight": []
+              },
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "project",
+                    "predecessorType": "MyApp.Project"
+                  },
+                  {
+                    "name": "root",
+                    "predecessorType": "Root"
+                  }
+                ],
+                "labelRight": "root",
+                "rolesRight": []
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "Jinaga.User"
+          },
+          {
+            "factIndex": 2,
+            "factType": "MyApp.Assignment"
+          },
+          {
+            "factIndex": 3,
+            "factType": "Root"
+          },
+          {
+            "factIndex": 4,
+            "factType": "MyApp.Project"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          },
+          {
+            "factIndex": 3,
+            "inputIndex": 1
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "user"
+          },
+          {
+            "edgeIndex": 2,
+            "predecessorFactIndex": 3,
+            "successorFactIndex": 4,
+            "roleName": "root"
+          },
+          {
+            "edgeIndex": 3,
+            "predecessorFactIndex": 4,
+            "successorFactIndex": 2,
+            "roleName": "project"
+          }
+        ],
+        "notExistsConditions": [],
+        "outputs": [
+          {
+            "factIndex": 2
+          }
+        ]
+      }
+    }
+  ]
+}

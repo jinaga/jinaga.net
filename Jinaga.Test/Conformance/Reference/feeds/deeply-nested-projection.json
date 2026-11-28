@@ -1,0 +1,411 @@
+{
+  "name": "deeply-nested-projection",
+  "text": "(root: Root) {\n    parent: Parent [\n        parent->root: Root = root\n    ]\n} => {\n    children = {\n        child: Child [\n            child->parent: Parent = parent\n        ]\n    } => {\n        grandchildren = {\n            grandchild: Grandchild [\n                grandchild->child: Child = child\n            ]\n        }\n    }\n}\n",
+  "specification": {
+    "given": [
+      {
+        "label": {
+          "name": "root",
+          "type": "Root"
+        },
+        "conditions": []
+      }
+    ],
+    "matches": [
+      {
+        "unknown": {
+          "name": "parent",
+          "type": "Parent"
+        },
+        "conditions": [
+          {
+            "type": "path",
+            "rolesLeft": [
+              {
+                "name": "root",
+                "predecessorType": "Root"
+              }
+            ],
+            "labelRight": "root",
+            "rolesRight": []
+          }
+        ]
+      }
+    ],
+    "projection": {
+      "type": "composite",
+      "components": [
+        {
+          "type": "specification",
+          "name": "children",
+          "matches": [
+            {
+              "unknown": {
+                "name": "child",
+                "type": "Child"
+              },
+              "conditions": [
+                {
+                  "type": "path",
+                  "rolesLeft": [
+                    {
+                      "name": "parent",
+                      "predecessorType": "Parent"
+                    }
+                  ],
+                  "labelRight": "parent",
+                  "rolesRight": []
+                }
+              ]
+            }
+          ],
+          "projection": {
+            "type": "composite",
+            "components": [
+              {
+                "type": "specification",
+                "name": "grandchildren",
+                "matches": [
+                  {
+                    "unknown": {
+                      "name": "grandchild",
+                      "type": "Grandchild"
+                    },
+                    "conditions": [
+                      {
+                        "type": "path",
+                        "rolesLeft": [
+                          {
+                            "name": "child",
+                            "predecessorType": "Child"
+                          }
+                        ],
+                        "labelRight": "child",
+                        "rolesRight": []
+                      }
+                    ]
+                  }
+                ],
+                "projection": {
+                  "type": "composite",
+                  "components": []
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "feeds": [
+    {
+      "text": "(root: Root) {\n    parent: Parent [\n        parent->root: Root = root\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "root",
+              "type": "Root"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "parent",
+              "type": "Parent"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "root",
+                    "predecessorType": "Root"
+                  }
+                ],
+                "labelRight": "root",
+                "rolesRight": []
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "Root"
+          },
+          {
+            "factIndex": 2,
+            "factType": "Parent"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "root"
+          }
+        ],
+        "notExistsConditions": [],
+        "outputs": [
+          {
+            "factIndex": 2
+          }
+        ]
+      }
+    },
+    {
+      "text": "(root: Root) {\n    parent: Parent [\n        parent->root: Root = root\n    ]\n    child: Child [\n        child->parent: Parent = parent\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "root",
+              "type": "Root"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "parent",
+              "type": "Parent"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "root",
+                    "predecessorType": "Root"
+                  }
+                ],
+                "labelRight": "root",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "child",
+              "type": "Child"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "parent",
+                    "predecessorType": "Parent"
+                  }
+                ],
+                "labelRight": "parent",
+                "rolesRight": []
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "Root"
+          },
+          {
+            "factIndex": 2,
+            "factType": "Parent"
+          },
+          {
+            "factIndex": 3,
+            "factType": "Child"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "root"
+          },
+          {
+            "edgeIndex": 2,
+            "predecessorFactIndex": 2,
+            "successorFactIndex": 3,
+            "roleName": "parent"
+          }
+        ],
+        "notExistsConditions": [],
+        "outputs": [
+          {
+            "factIndex": 2
+          },
+          {
+            "factIndex": 3
+          }
+        ]
+      }
+    },
+    {
+      "text": "(root: Root) {\n    parent: Parent [\n        parent->root: Root = root\n    ]\n    child: Child [\n        child->parent: Parent = parent\n    ]\n    grandchild: Grandchild [\n        grandchild->child: Child = child\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "root",
+              "type": "Root"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "parent",
+              "type": "Parent"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "root",
+                    "predecessorType": "Root"
+                  }
+                ],
+                "labelRight": "root",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "child",
+              "type": "Child"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "parent",
+                    "predecessorType": "Parent"
+                  }
+                ],
+                "labelRight": "parent",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "grandchild",
+              "type": "Grandchild"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "child",
+                    "predecessorType": "Child"
+                  }
+                ],
+                "labelRight": "child",
+                "rolesRight": []
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "Root"
+          },
+          {
+            "factIndex": 2,
+            "factType": "Parent"
+          },
+          {
+            "factIndex": 3,
+            "factType": "Child"
+          },
+          {
+            "factIndex": 4,
+            "factType": "Grandchild"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "root"
+          },
+          {
+            "edgeIndex": 2,
+            "predecessorFactIndex": 2,
+            "successorFactIndex": 3,
+            "roleName": "parent"
+          },
+          {
+            "edgeIndex": 3,
+            "predecessorFactIndex": 3,
+            "successorFactIndex": 4,
+            "roleName": "child"
+          }
+        ],
+        "notExistsConditions": [],
+        "outputs": [
+          {
+            "factIndex": 2
+          },
+          {
+            "factIndex": 3
+          },
+          {
+            "factIndex": 4
+          }
+        ]
+      }
+    }
+  ]
+}

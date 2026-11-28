@@ -1,0 +1,1382 @@
+{
+  "name": "needs-mirror-swapped",
+  "text": "(p1: Tenant) {\n    u1: Account [\n        u1->tenant: Tenant = p1\n        !E {\n            u2: Account.Mirror [\n                u2->account: Account = u1\n                !E {\n                    u3: Account.Mirror.Retired [\n                        u3->mirror: Account.Mirror = u2\n                    ]\n                }\n            ]\n        }\n        !E {\n            u4: Account.Freeze [\n                u4->account: Account = u1\n                !E {\n                    u5: Account.Unfreeze [\n                        u5->freeze: Account.Freeze = u4\n                    ]\n                }\n            ]\n        }\n    ]\n} => u1.identifier\n",
+  "specification": {
+    "given": [
+      {
+        "label": {
+          "name": "p1",
+          "type": "Tenant"
+        },
+        "conditions": []
+      }
+    ],
+    "matches": [
+      {
+        "unknown": {
+          "name": "u1",
+          "type": "Account"
+        },
+        "conditions": [
+          {
+            "type": "path",
+            "rolesLeft": [
+              {
+                "name": "tenant",
+                "predecessorType": "Tenant"
+              }
+            ],
+            "labelRight": "p1",
+            "rolesRight": []
+          },
+          {
+            "type": "existential",
+            "exists": false,
+            "matches": [
+              {
+                "unknown": {
+                  "name": "u2",
+                  "type": "Account.Mirror"
+                },
+                "conditions": [
+                  {
+                    "type": "path",
+                    "rolesLeft": [
+                      {
+                        "name": "account",
+                        "predecessorType": "Account"
+                      }
+                    ],
+                    "labelRight": "u1",
+                    "rolesRight": []
+                  },
+                  {
+                    "type": "existential",
+                    "exists": false,
+                    "matches": [
+                      {
+                        "unknown": {
+                          "name": "u3",
+                          "type": "Account.Mirror.Retired"
+                        },
+                        "conditions": [
+                          {
+                            "type": "path",
+                            "rolesLeft": [
+                              {
+                                "name": "mirror",
+                                "predecessorType": "Account.Mirror"
+                              }
+                            ],
+                            "labelRight": "u2",
+                            "rolesRight": []
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "existential",
+            "exists": false,
+            "matches": [
+              {
+                "unknown": {
+                  "name": "u4",
+                  "type": "Account.Freeze"
+                },
+                "conditions": [
+                  {
+                    "type": "path",
+                    "rolesLeft": [
+                      {
+                        "name": "account",
+                        "predecessorType": "Account"
+                      }
+                    ],
+                    "labelRight": "u1",
+                    "rolesRight": []
+                  },
+                  {
+                    "type": "existential",
+                    "exists": false,
+                    "matches": [
+                      {
+                        "unknown": {
+                          "name": "u5",
+                          "type": "Account.Unfreeze"
+                        },
+                        "conditions": [
+                          {
+                            "type": "path",
+                            "rolesLeft": [
+                              {
+                                "name": "freeze",
+                                "predecessorType": "Account.Freeze"
+                              }
+                            ],
+                            "labelRight": "u4",
+                            "rolesRight": []
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "projection": {
+      "type": "field",
+      "label": "u1",
+      "field": "identifier"
+    }
+  },
+  "feeds": [
+    {
+      "text": "(p1: Tenant) {\n    u1: Account [\n        u1->tenant: Tenant = p1\n    ]\n    u2: Account.Mirror [\n        u2->account: Account = u1\n    ]\n    u3: Account.Mirror.Retired [\n        u3->mirror: Account.Mirror = u2\n    ]\n    u4: Account.Freeze [\n        u4->account: Account = u1\n    ]\n    u5: Account.Unfreeze [\n        u5->freeze: Account.Freeze = u4\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "p1",
+              "type": "Tenant"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "u1",
+              "type": "Account"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "tenant",
+                    "predecessorType": "Tenant"
+                  }
+                ],
+                "labelRight": "p1",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "u2",
+              "type": "Account.Mirror"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "account",
+                    "predecessorType": "Account"
+                  }
+                ],
+                "labelRight": "u1",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "u3",
+              "type": "Account.Mirror.Retired"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "mirror",
+                    "predecessorType": "Account.Mirror"
+                  }
+                ],
+                "labelRight": "u2",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "u4",
+              "type": "Account.Freeze"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "account",
+                    "predecessorType": "Account"
+                  }
+                ],
+                "labelRight": "u1",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "u5",
+              "type": "Account.Unfreeze"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "freeze",
+                    "predecessorType": "Account.Freeze"
+                  }
+                ],
+                "labelRight": "u4",
+                "rolesRight": []
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "Tenant"
+          },
+          {
+            "factIndex": 2,
+            "factType": "Account"
+          },
+          {
+            "factIndex": 3,
+            "factType": "Account.Mirror"
+          },
+          {
+            "factIndex": 4,
+            "factType": "Account.Mirror.Retired"
+          },
+          {
+            "factIndex": 5,
+            "factType": "Account.Freeze"
+          },
+          {
+            "factIndex": 6,
+            "factType": "Account.Unfreeze"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "tenant"
+          },
+          {
+            "edgeIndex": 2,
+            "predecessorFactIndex": 2,
+            "successorFactIndex": 3,
+            "roleName": "account"
+          },
+          {
+            "edgeIndex": 3,
+            "predecessorFactIndex": 3,
+            "successorFactIndex": 4,
+            "roleName": "mirror"
+          },
+          {
+            "edgeIndex": 4,
+            "predecessorFactIndex": 2,
+            "successorFactIndex": 5,
+            "roleName": "account"
+          },
+          {
+            "edgeIndex": 5,
+            "predecessorFactIndex": 5,
+            "successorFactIndex": 6,
+            "roleName": "freeze"
+          }
+        ],
+        "notExistsConditions": [],
+        "outputs": [
+          {
+            "factIndex": 2
+          },
+          {
+            "factIndex": 3
+          },
+          {
+            "factIndex": 4
+          },
+          {
+            "factIndex": 5
+          },
+          {
+            "factIndex": 6
+          }
+        ]
+      }
+    },
+    {
+      "text": "(p1: Tenant) {\n    u1: Account [\n        u1->tenant: Tenant = p1\n    ]\n    u2: Account.Mirror [\n        u2->account: Account = u1\n    ]\n    u3: Account.Mirror.Retired [\n        u3->mirror: Account.Mirror = u2\n    ]\n    u4: Account.Freeze [\n        u4->account: Account = u1\n        !E {\n            u5: Account.Unfreeze [\n                u5->freeze: Account.Freeze = u4\n            ]\n        }\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "p1",
+              "type": "Tenant"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "u1",
+              "type": "Account"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "tenant",
+                    "predecessorType": "Tenant"
+                  }
+                ],
+                "labelRight": "p1",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "u2",
+              "type": "Account.Mirror"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "account",
+                    "predecessorType": "Account"
+                  }
+                ],
+                "labelRight": "u1",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "u3",
+              "type": "Account.Mirror.Retired"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "mirror",
+                    "predecessorType": "Account.Mirror"
+                  }
+                ],
+                "labelRight": "u2",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "u4",
+              "type": "Account.Freeze"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "account",
+                    "predecessorType": "Account"
+                  }
+                ],
+                "labelRight": "u1",
+                "rolesRight": []
+              },
+              {
+                "type": "existential",
+                "exists": false,
+                "matches": [
+                  {
+                    "unknown": {
+                      "name": "u5",
+                      "type": "Account.Unfreeze"
+                    },
+                    "conditions": [
+                      {
+                        "type": "path",
+                        "rolesLeft": [
+                          {
+                            "name": "freeze",
+                            "predecessorType": "Account.Freeze"
+                          }
+                        ],
+                        "labelRight": "u4",
+                        "rolesRight": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "Tenant"
+          },
+          {
+            "factIndex": 2,
+            "factType": "Account"
+          },
+          {
+            "factIndex": 3,
+            "factType": "Account.Mirror"
+          },
+          {
+            "factIndex": 4,
+            "factType": "Account.Mirror.Retired"
+          },
+          {
+            "factIndex": 5,
+            "factType": "Account.Freeze"
+          },
+          {
+            "factIndex": 6,
+            "factType": "Account.Unfreeze"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "tenant"
+          },
+          {
+            "edgeIndex": 2,
+            "predecessorFactIndex": 2,
+            "successorFactIndex": 3,
+            "roleName": "account"
+          },
+          {
+            "edgeIndex": 3,
+            "predecessorFactIndex": 3,
+            "successorFactIndex": 4,
+            "roleName": "mirror"
+          },
+          {
+            "edgeIndex": 4,
+            "predecessorFactIndex": 2,
+            "successorFactIndex": 5,
+            "roleName": "account"
+          }
+        ],
+        "notExistsConditions": [
+          {
+            "edges": [
+              {
+                "edgeIndex": 5,
+                "predecessorFactIndex": 5,
+                "successorFactIndex": 6,
+                "roleName": "freeze"
+              }
+            ],
+            "notExistsConditions": []
+          }
+        ],
+        "outputs": [
+          {
+            "factIndex": 2
+          },
+          {
+            "factIndex": 3
+          },
+          {
+            "factIndex": 4
+          },
+          {
+            "factIndex": 5
+          }
+        ]
+      }
+    },
+    {
+      "text": "(p1: Tenant) {\n    u1: Account [\n        u1->tenant: Tenant = p1\n        !E {\n            u4: Account.Freeze [\n                u4->account: Account = u1\n            ]\n        }\n    ]\n    u2: Account.Mirror [\n        u2->account: Account = u1\n    ]\n    u3: Account.Mirror.Retired [\n        u3->mirror: Account.Mirror = u2\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "p1",
+              "type": "Tenant"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "u1",
+              "type": "Account"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "tenant",
+                    "predecessorType": "Tenant"
+                  }
+                ],
+                "labelRight": "p1",
+                "rolesRight": []
+              },
+              {
+                "type": "existential",
+                "exists": false,
+                "matches": [
+                  {
+                    "unknown": {
+                      "name": "u4",
+                      "type": "Account.Freeze"
+                    },
+                    "conditions": [
+                      {
+                        "type": "path",
+                        "rolesLeft": [
+                          {
+                            "name": "account",
+                            "predecessorType": "Account"
+                          }
+                        ],
+                        "labelRight": "u1",
+                        "rolesRight": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "u2",
+              "type": "Account.Mirror"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "account",
+                    "predecessorType": "Account"
+                  }
+                ],
+                "labelRight": "u1",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "u3",
+              "type": "Account.Mirror.Retired"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "mirror",
+                    "predecessorType": "Account.Mirror"
+                  }
+                ],
+                "labelRight": "u2",
+                "rolesRight": []
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "Tenant"
+          },
+          {
+            "factIndex": 2,
+            "factType": "Account"
+          },
+          {
+            "factIndex": 3,
+            "factType": "Account.Freeze"
+          },
+          {
+            "factIndex": 4,
+            "factType": "Account.Mirror"
+          },
+          {
+            "factIndex": 5,
+            "factType": "Account.Mirror.Retired"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "tenant"
+          },
+          {
+            "edgeIndex": 3,
+            "predecessorFactIndex": 2,
+            "successorFactIndex": 4,
+            "roleName": "account"
+          },
+          {
+            "edgeIndex": 4,
+            "predecessorFactIndex": 4,
+            "successorFactIndex": 5,
+            "roleName": "mirror"
+          }
+        ],
+        "notExistsConditions": [
+          {
+            "edges": [
+              {
+                "edgeIndex": 2,
+                "predecessorFactIndex": 2,
+                "successorFactIndex": 3,
+                "roleName": "account"
+              }
+            ],
+            "notExistsConditions": []
+          }
+        ],
+        "outputs": [
+          {
+            "factIndex": 2
+          },
+          {
+            "factIndex": 4
+          },
+          {
+            "factIndex": 5
+          }
+        ]
+      }
+    },
+    {
+      "text": "(p1: Tenant) {\n    u1: Account [\n        u1->tenant: Tenant = p1\n    ]\n    u2: Account.Mirror [\n        u2->account: Account = u1\n        !E {\n            u3: Account.Mirror.Retired [\n                u3->mirror: Account.Mirror = u2\n            ]\n        }\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "p1",
+              "type": "Tenant"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "u1",
+              "type": "Account"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "tenant",
+                    "predecessorType": "Tenant"
+                  }
+                ],
+                "labelRight": "p1",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "u2",
+              "type": "Account.Mirror"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "account",
+                    "predecessorType": "Account"
+                  }
+                ],
+                "labelRight": "u1",
+                "rolesRight": []
+              },
+              {
+                "type": "existential",
+                "exists": false,
+                "matches": [
+                  {
+                    "unknown": {
+                      "name": "u3",
+                      "type": "Account.Mirror.Retired"
+                    },
+                    "conditions": [
+                      {
+                        "type": "path",
+                        "rolesLeft": [
+                          {
+                            "name": "mirror",
+                            "predecessorType": "Account.Mirror"
+                          }
+                        ],
+                        "labelRight": "u2",
+                        "rolesRight": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "Tenant"
+          },
+          {
+            "factIndex": 2,
+            "factType": "Account"
+          },
+          {
+            "factIndex": 3,
+            "factType": "Account.Mirror"
+          },
+          {
+            "factIndex": 4,
+            "factType": "Account.Mirror.Retired"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "tenant"
+          },
+          {
+            "edgeIndex": 2,
+            "predecessorFactIndex": 2,
+            "successorFactIndex": 3,
+            "roleName": "account"
+          }
+        ],
+        "notExistsConditions": [
+          {
+            "edges": [
+              {
+                "edgeIndex": 3,
+                "predecessorFactIndex": 3,
+                "successorFactIndex": 4,
+                "roleName": "mirror"
+              }
+            ],
+            "notExistsConditions": []
+          }
+        ],
+        "outputs": [
+          {
+            "factIndex": 2
+          },
+          {
+            "factIndex": 3
+          }
+        ]
+      }
+    },
+    {
+      "text": "(p1: Tenant) {\n    u1: Account [\n        u1->tenant: Tenant = p1\n        !E {\n            u2: Account.Mirror [\n                u2->account: Account = u1\n            ]\n        }\n    ]\n    u4: Account.Freeze [\n        u4->account: Account = u1\n    ]\n    u5: Account.Unfreeze [\n        u5->freeze: Account.Freeze = u4\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "p1",
+              "type": "Tenant"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "u1",
+              "type": "Account"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "tenant",
+                    "predecessorType": "Tenant"
+                  }
+                ],
+                "labelRight": "p1",
+                "rolesRight": []
+              },
+              {
+                "type": "existential",
+                "exists": false,
+                "matches": [
+                  {
+                    "unknown": {
+                      "name": "u2",
+                      "type": "Account.Mirror"
+                    },
+                    "conditions": [
+                      {
+                        "type": "path",
+                        "rolesLeft": [
+                          {
+                            "name": "account",
+                            "predecessorType": "Account"
+                          }
+                        ],
+                        "labelRight": "u1",
+                        "rolesRight": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "u4",
+              "type": "Account.Freeze"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "account",
+                    "predecessorType": "Account"
+                  }
+                ],
+                "labelRight": "u1",
+                "rolesRight": []
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "u5",
+              "type": "Account.Unfreeze"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "freeze",
+                    "predecessorType": "Account.Freeze"
+                  }
+                ],
+                "labelRight": "u4",
+                "rolesRight": []
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "Tenant"
+          },
+          {
+            "factIndex": 2,
+            "factType": "Account"
+          },
+          {
+            "factIndex": 3,
+            "factType": "Account.Mirror"
+          },
+          {
+            "factIndex": 4,
+            "factType": "Account.Freeze"
+          },
+          {
+            "factIndex": 5,
+            "factType": "Account.Unfreeze"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "tenant"
+          },
+          {
+            "edgeIndex": 3,
+            "predecessorFactIndex": 2,
+            "successorFactIndex": 4,
+            "roleName": "account"
+          },
+          {
+            "edgeIndex": 4,
+            "predecessorFactIndex": 4,
+            "successorFactIndex": 5,
+            "roleName": "freeze"
+          }
+        ],
+        "notExistsConditions": [
+          {
+            "edges": [
+              {
+                "edgeIndex": 2,
+                "predecessorFactIndex": 2,
+                "successorFactIndex": 3,
+                "roleName": "account"
+              }
+            ],
+            "notExistsConditions": []
+          }
+        ],
+        "outputs": [
+          {
+            "factIndex": 2
+          },
+          {
+            "factIndex": 4
+          },
+          {
+            "factIndex": 5
+          }
+        ]
+      }
+    },
+    {
+      "text": "(p1: Tenant) {\n    u1: Account [\n        u1->tenant: Tenant = p1\n        !E {\n            u2: Account.Mirror [\n                u2->account: Account = u1\n            ]\n        }\n    ]\n    u4: Account.Freeze [\n        u4->account: Account = u1\n        !E {\n            u5: Account.Unfreeze [\n                u5->freeze: Account.Freeze = u4\n            ]\n        }\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "p1",
+              "type": "Tenant"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "u1",
+              "type": "Account"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "tenant",
+                    "predecessorType": "Tenant"
+                  }
+                ],
+                "labelRight": "p1",
+                "rolesRight": []
+              },
+              {
+                "type": "existential",
+                "exists": false,
+                "matches": [
+                  {
+                    "unknown": {
+                      "name": "u2",
+                      "type": "Account.Mirror"
+                    },
+                    "conditions": [
+                      {
+                        "type": "path",
+                        "rolesLeft": [
+                          {
+                            "name": "account",
+                            "predecessorType": "Account"
+                          }
+                        ],
+                        "labelRight": "u1",
+                        "rolesRight": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "unknown": {
+              "name": "u4",
+              "type": "Account.Freeze"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "account",
+                    "predecessorType": "Account"
+                  }
+                ],
+                "labelRight": "u1",
+                "rolesRight": []
+              },
+              {
+                "type": "existential",
+                "exists": false,
+                "matches": [
+                  {
+                    "unknown": {
+                      "name": "u5",
+                      "type": "Account.Unfreeze"
+                    },
+                    "conditions": [
+                      {
+                        "type": "path",
+                        "rolesLeft": [
+                          {
+                            "name": "freeze",
+                            "predecessorType": "Account.Freeze"
+                          }
+                        ],
+                        "labelRight": "u4",
+                        "rolesRight": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "Tenant"
+          },
+          {
+            "factIndex": 2,
+            "factType": "Account"
+          },
+          {
+            "factIndex": 3,
+            "factType": "Account.Mirror"
+          },
+          {
+            "factIndex": 4,
+            "factType": "Account.Freeze"
+          },
+          {
+            "factIndex": 5,
+            "factType": "Account.Unfreeze"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "tenant"
+          },
+          {
+            "edgeIndex": 3,
+            "predecessorFactIndex": 2,
+            "successorFactIndex": 4,
+            "roleName": "account"
+          }
+        ],
+        "notExistsConditions": [
+          {
+            "edges": [
+              {
+                "edgeIndex": 2,
+                "predecessorFactIndex": 2,
+                "successorFactIndex": 3,
+                "roleName": "account"
+              }
+            ],
+            "notExistsConditions": []
+          },
+          {
+            "edges": [
+              {
+                "edgeIndex": 4,
+                "predecessorFactIndex": 4,
+                "successorFactIndex": 5,
+                "roleName": "freeze"
+              }
+            ],
+            "notExistsConditions": []
+          }
+        ],
+        "outputs": [
+          {
+            "factIndex": 2
+          },
+          {
+            "factIndex": 4
+          }
+        ]
+      }
+    },
+    {
+      "text": "(p1: Tenant) {\n    u1: Account [\n        u1->tenant: Tenant = p1\n        !E {\n            u2: Account.Mirror [\n                u2->account: Account = u1\n            ]\n        }\n        !E {\n            u4: Account.Freeze [\n                u4->account: Account = u1\n            ]\n        }\n    ]\n}\n",
+      "specification": {
+        "given": [
+          {
+            "label": {
+              "name": "p1",
+              "type": "Tenant"
+            },
+            "conditions": []
+          }
+        ],
+        "matches": [
+          {
+            "unknown": {
+              "name": "u1",
+              "type": "Account"
+            },
+            "conditions": [
+              {
+                "type": "path",
+                "rolesLeft": [
+                  {
+                    "name": "tenant",
+                    "predecessorType": "Tenant"
+                  }
+                ],
+                "labelRight": "p1",
+                "rolesRight": []
+              },
+              {
+                "type": "existential",
+                "exists": false,
+                "matches": [
+                  {
+                    "unknown": {
+                      "name": "u2",
+                      "type": "Account.Mirror"
+                    },
+                    "conditions": [
+                      {
+                        "type": "path",
+                        "rolesLeft": [
+                          {
+                            "name": "account",
+                            "predecessorType": "Account"
+                          }
+                        ],
+                        "labelRight": "u1",
+                        "rolesRight": []
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "existential",
+                "exists": false,
+                "matches": [
+                  {
+                    "unknown": {
+                      "name": "u4",
+                      "type": "Account.Freeze"
+                    },
+                    "conditions": [
+                      {
+                        "type": "path",
+                        "rolesLeft": [
+                          {
+                            "name": "account",
+                            "predecessorType": "Account"
+                          }
+                        ],
+                        "labelRight": "u1",
+                        "rolesRight": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "projection": {
+          "type": "composite",
+          "components": []
+        }
+      },
+      "skeleton": {
+        "facts": [
+          {
+            "factIndex": 1,
+            "factType": "Tenant"
+          },
+          {
+            "factIndex": 2,
+            "factType": "Account"
+          },
+          {
+            "factIndex": 3,
+            "factType": "Account.Mirror"
+          },
+          {
+            "factIndex": 4,
+            "factType": "Account.Freeze"
+          }
+        ],
+        "inputs": [
+          {
+            "factIndex": 1,
+            "inputIndex": 0
+          }
+        ],
+        "edges": [
+          {
+            "edgeIndex": 1,
+            "predecessorFactIndex": 1,
+            "successorFactIndex": 2,
+            "roleName": "tenant"
+          }
+        ],
+        "notExistsConditions": [
+          {
+            "edges": [
+              {
+                "edgeIndex": 2,
+                "predecessorFactIndex": 2,
+                "successorFactIndex": 3,
+                "roleName": "account"
+              }
+            ],
+            "notExistsConditions": []
+          },
+          {
+            "edges": [
+              {
+                "edgeIndex": 3,
+                "predecessorFactIndex": 2,
+                "successorFactIndex": 4,
+                "roleName": "account"
+              }
+            ],
+            "notExistsConditions": []
+          }
+        ],
+        "outputs": [
+          {
+            "factIndex": 2
+          }
+        ]
+      }
+    }
+  ]
+}
